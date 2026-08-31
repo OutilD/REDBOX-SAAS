@@ -1,5 +1,6 @@
 import { transaction } from "@/db";
 import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { reveillerLeCompte } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
         }
       }
     });
+    await reveillerLeCompte(u.compte_id, "catalogue modifié");
     return versPage(req, "/reglages/catalogue");
   }
 
@@ -49,5 +51,8 @@ export async function POST(req: Request) {
     ON CONFLICT (compte_id, sku) DO NOTHING`,
     [u.compte_id, sku, nom, cat,
      centimes(String(f.get("prix") ?? "")) ?? 0, Number(f.get("age_min") ?? 0)]));
-  return versPage(req, r.rowCount === 0 ? "/reglages/catalogue?e=sku" : "/reglages/catalogue");
+  if (r.rowCount === 0) return versPage(req, "/reglages/catalogue?e=sku");
+  // Un produit ajoute change ce que les bornes doivent vendre.
+  await reveillerLeCompte(u.compte_id, "catalogue modifié");
+  return versPage(req, "/reglages/catalogue");
 }

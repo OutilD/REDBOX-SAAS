@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, euros } from "@/db";
+import { q, q1, euros, codeCanal } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { Repli } from "../../../repli";
 import { IcoBorne } from "../../../icones";
@@ -54,7 +54,7 @@ export default async function Planogramme({ params }: { params: Promise<{ id: st
             {canaux.map((c) => (
               <div className="carte" key={c.canal_id}>
                 <div className="rangee">
-                  <span className="mono faible" style={{ width: 40, fontSize: 15 }}>{c.rangee}-{c.colonne}</span>
+                  <span className="mono faible" style={{ width: 40, fontSize: 15 }}>{codeCanal(c.rangee, c.colonne)}</span>
                   <div className="pousse">
                     <label htmlFor={`p_${c.lane}`}>Produit</label>
                     <select id={`p_${c.lane}`} name={`p_${c.lane}`} defaultValue={c.produit_id ?? ""}>

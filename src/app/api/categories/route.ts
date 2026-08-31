@@ -1,5 +1,6 @@
 import { transaction } from "@/db";
 import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { reveillerLeCompte } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
                     [aSupprimer, u.compte_id]);
       return null;
     });
+    if (!issue) await reveillerLeCompte(u.compte_id, "catégories modifiées");
     return versPage(req, issue ? `${RETOUR}?e=${issue}` : RETOUR);
   }
 
@@ -33,6 +35,7 @@ export async function POST(req: Request) {
     const r = await transaction(async (c) => c.query(
       "INSERT INTO categorie (compte_id, nom, ordre) VALUES ($1,$2,$3) ON CONFLICT (compte_id, nom) DO NOTHING",
       [u.compte_id, nom, Number.isInteger(ordre) && ordre > 0 ? ordre : 100]));
+    if ((r.rowCount ?? 0) > 0) await reveillerLeCompte(u.compte_id, "catégories modifiées");
     return versPage(req, r.rowCount === 0 ? `${RETOUR}?e=nom` : RETOUR);
   }
 
@@ -63,5 +66,7 @@ export async function POST(req: Request) {
     }
     return null;
   });
+  // L'ordre a bouge : les bornes doivent representer leur ecran d'accueil.
+  if (!souci) await reveillerLeCompte(u.compte_id, "catégories réordonnées");
   return versPage(req, souci ? `${RETOUR}?e=${souci}` : RETOUR);
 }

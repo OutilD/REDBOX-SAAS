@@ -14,9 +14,11 @@ type Ligne = {
   canaux: number; vides: number; bas: number; unites: number; en_route: number;
 };
 
-export default async function Bornes() {
+export default async function Bornes({ searchParams }:
+  { searchParams: Promise<{ reveil?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+  const { reveil } = await searchParams;
 
   const bornes = await q<Ligne>(`
     SELECT b.id, b.nom, b.adresse, b.vue_le, b.jeton, b.version,
@@ -42,15 +44,32 @@ export default async function Bornes() {
             : `${bornes.length} machine${bornes.length > 1 ? "s" : ""}.`}
         </p>
 
+        {reveil ? (
+          <div className="carte" style={{ borderColor: "var(--vert)", marginBottom: 14 }}>
+            <span className="pilule ok"><i />
+              {reveil} borne{Number(reveil) > 1 ? "s" : ""} réveillée{Number(reveil) > 1 ? "s" : ""}</span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              Celles qui sont en ligne synchronisent dans la seconde ; les autres le feront
+              dès leur retour.
+            </p>
+          </div>
+        ) : null}
+
         {bornes.length === 0 ? (
           <Repli icone={<IcoBorne />} titre="Aucune borne sur ce compte"
                  texte="Sur la machine : Maintenance → SaaS → Demander l’appairage. Elle affiche un code de six caractères que vous saisissez ici."
                  action={{ nom: "Appairer une borne", vers: "/bornes/ajouter" }} />
         ) : null}
 
-        {bornes.length > 0
-          ? <Link href="/bornes/ajouter" className="bouton primaire large">+ Ajouter une borne</Link>
-          : null}
+        {bornes.length > 0 ? (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/bornes/ajouter" className="bouton primaire">+ Ajouter une borne</Link>
+            <form method="post" action="/api/bornes/reveiller">
+              <input type="hidden" name="retour" value="/bornes" />
+              <button className="bouton">Tout synchroniser</button>
+            </form>
+          </div>
+        ) : null}
 
         <div className="grille large" style={{ marginTop: 16 }}>
           {bornes.map((b) => {

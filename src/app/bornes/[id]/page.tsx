@@ -1,28 +1,32 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q, q1, euros, depuis, enLigne } from "@/db";
+import { q, q1, euros, depuis, enLigne, codeCanal } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { canauxDe } from "@/lib/stock";
+import { empreinteDe } from "@/lib/borne";
 import { Repli } from "../../repli";
 
 export const dynamic = "force-dynamic";
 
 type Borne = {
   id: number; nom: string; adresse: string | null; vue_le: Date | null;
-  jeton: string | null; version: string | null; sante: Record<string, unknown> | null;
+  jeton: string | null; version: string | null; catalogue_version: string | null;
+  sante: Record<string, unknown> | null;
 };
 
 export default async function Detail({
   params, searchParams,
-}: { params: Promise<{ id: string }>; searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string }> }) {
+}: { params: Promise<{ id: string }>;
+     searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string; reveil?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
-  const { charge, canaux: nCanaux, refuses } = await searchParams;
+  const { charge, canaux: nCanaux, refuses, reveil } = await searchParams;
 
   const b = await q1<Borne>(
-    "SELECT id, nom, adresse, vue_le, jeton, version, sante FROM borne WHERE id = $1 AND compte_id = $2",
+    `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante
+       FROM borne WHERE id = $1 AND compte_id = $2`,
     [id, u.compte_id]);
   if (!b) notFound();
 
@@ -40,6 +44,12 @@ export default async function Detail({
       JOIN borne b ON b.lieu_id = m.vers_lieu_id
      WHERE b.id = $1 AND m.motif = 'transfert' AND m.confirme_le IS NULL AND m.annule_le IS NULL
      ORDER BY m.fait_le`, [id]);
+
+  // Le catalogue que la machine detient est-il celui d'aujourd'hui ? On compare
+  // son empreinte a celle calculee maintenant. Sans ce reperage, une categorie
+  // renommee ou un prix change peut dormir des heures sans qu'on le sache.
+  const attendue = await empreinteDe(u.compte_id, id);
+  const aJour = b.catalogue_version === attendue;
 
   const vivante = enLigne(b.vue_le);
   const unites = canaux.reduce((s, c) => s + c.quantite, 0);
@@ -61,6 +71,11 @@ export default async function Detail({
           <span className={`pilule ${!b.jeton ? "attente" : vivante ? "ok" : "mal"}`}>
             <i />{!b.jeton ? "à appairer" : vivante ? "en ligne" : `silencieuse, vue ${depuis(b.vue_le)}`}
           </span>
+          {b.jeton && b.catalogue_version
+            ? <span className={`pilule ${aJour ? "ok" : "attente"}`}>
+                <i />{aJour ? "catalogue à jour" : "catalogue à synchroniser"}
+              </span>
+            : null}
           {b.version ? <span className="pilule">version {b.version}</span> : null}
           {soucis && soucis.n > 0
             ? <Link href="/ventes" className="pilule mal"><i />{soucis.n} à regarder</Link> : null}
@@ -104,10 +119,27 @@ export default async function Detail({
             <span className="libelle">canaux vides</span></div></div>
         </div>
 
+        {reveil ? (
+          <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
+            <span className="pilule ok"><i />Borne réveillée</span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              Elle tient une question ouverte en permanence : si elle est en ligne, elle
+              synchronise dans la seconde. Sinon, elle le fera dès son retour.
+            </p>
+          </div>
+        ) : null}
+
         {peutCharger(u) ? (
-          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-            <Link href={`/bornes/${id}/charger`} className="bouton primaire large">Charger</Link>
-            <Link href={`/bornes/${id}/planogramme`} className="bouton large">Planogramme</Link>
+          <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+            <Link href={`/bornes/${id}/charger`} className="bouton primaire">Charger</Link>
+            <Link href={`/bornes/${id}/planogramme`} className="bouton">Planogramme</Link>
+            {b.jeton ? (
+              <form method="post" action="/api/bornes/reveiller">
+                <input type="hidden" name="id" value={id} />
+                <input type="hidden" name="retour" value={`/bornes/${id}`} />
+                <button className="bouton">Synchroniser maintenant</button>
+              </form>
+            ) : null}
           </div>
         ) : null}
 
@@ -142,7 +174,7 @@ export default async function Detail({
               const etat = c.quantite === 0 ? "mal" : c.quantite <= c.seuil_bas ? "attente" : "ok";
               return (
                 <div className="ligne" key={c.canal_id}>
-                  <span className="mono faible" style={{ width: 32 }}>{c.rangee}-{c.colonne}</span>
+                  <span className="mono faible" style={{ width: 32 }}>{codeCanal(c.rangee, c.colonne)}</span>
                   <div className="corps">
                     <div className="nom">{c.nom ?? <span className="faible">canal libre</span>}</div>
                     <div className="meta">

@@ -5,6 +5,7 @@ import { q } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { Repli } from "../../repli";
 import { IcoCategories } from "../../icones";
+import Ranger from "./ranger";
 
 export const dynamic = "force-dynamic";
 
@@ -46,8 +47,8 @@ export default async function Categories({ searchParams }: { searchParams: Promi
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Catégories</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Elles rangent votre stock ici, et décident de l’ordre d’affichage sur l’écran
-          d’accueil des bornes. Le plus petit nombre passe en premier.
+          Faites-les glisser pour les ranger. L’ordre vaut ici et sur l’écran d’accueil
+          des bornes — l’aperçu montre ce que verra le client.
         </p>
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
 
@@ -68,47 +69,47 @@ export default async function Categories({ searchParams }: { searchParams: Promi
         </form>
 
         <h2>{cats.length} catégories</h2>
-        <form method="post" action="/api/categories">
-          <input type="hidden" name="action" value="enregistrer" />
-          {cats.map((c) => (
-            <div className="carte" key={c.id}>
-              <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                <div style={{ width: 88 }}>
-                  <label htmlFor={`o_${c.id}`}>Ordre</label>
-                  <input id={`o_${c.id}`} name={`o_${c.id}`} type="number" min={1} max={999}
-                         defaultValue={c.ordre} inputMode="numeric" />
-                </div>
-                <div style={{ flex: 1, minWidth: 170 }}>
-                  <label htmlFor={`n_${c.id}`}>Nom</label>
-                  <input id={`n_${c.id}`} name={`n_${c.id}`} defaultValue={c.nom} required />
-                </div>
-              </div>
-              <div className="rangee" style={{ marginTop: 12 }}>
-                <span className="faible" style={{ fontSize: 13 }}>
-                  {c.produits} produit{c.produits > 1 ? "s" : ""} · {c.unites} unités
-                </span>
-                <div className="pousse" />
-                {c.produits === 0 ? (
-                  <button className="bouton petit danger" formAction="/api/categories"
-                          name="supprimer" value={c.id}>Supprimer</button>
-                ) : (
-                  <span className="faible" style={{ fontSize: 12.5 }}>
-                    à vider avant de pouvoir la supprimer
-                  </span>
-                )}
-              </div>
+        {cats.length === 0 ? (
+          <Repli icone={<IcoCategories />} titre="Aucune catégorie"
+                 texte="Créez-en une ci-dessus — « Vapes », « Boissons »… Vous les rangerez ensuite en les faisant glisser."
+                 dedans />
+        ) : (
+          <form method="post" action="/api/categories">
+            <input type="hidden" name="action" value="enregistrer" />
+            <div className="ranger-duo">
+              <Ranger initiales={cats} />
             </div>
-          ))}
-          {cats.length > 0 ? (
-            <div style={{ position: "sticky", bottom: "calc(72px + env(safe-area-inset-bottom))", paddingTop: 14 }}>
-              <button className="bouton primaire large">Enregistrer</button>
-            </div>
-          ) : (
-            <Repli icone={<IcoCategories />} titre="Aucune catégorie"
-                   texte="Créez-en une ci-dessus — « Vapes », « Boissons »… Le plus petit numéro d’ordre passe en premier sur l’écran de la borne."
-                   dedans />
-          )}
-        </form>
+          </form>
+        )}
+
+        {cats.length > 0 ? (
+          <>
+            <h2>Renommer ou supprimer</h2>
+            <form method="post" action="/api/categories">
+              <input type="hidden" name="action" value="enregistrer" />
+              {cats.map((c) => (
+                <div className="carte" key={c.id} style={{ marginBottom: 10 }}>
+                  <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 170 }}>
+                      <label htmlFor={`n_${c.id}`}>Nom</label>
+                      <input id={`n_${c.id}`} name={`n_${c.id}`} defaultValue={c.nom} required />
+                    </div>
+                    <input type="hidden" name={`o_${c.id}`} value={c.ordre} />
+                    {c.produits === 0 ? (
+                      <button className="bouton danger" name="supprimer" value={c.id}>Supprimer</button>
+                    ) : (
+                      <span className="faible" style={{ fontSize: 12.5, alignSelf: "center" }}>
+                        {c.produits} produit{c.produits > 1 ? "s" : ""} — à vider avant de pouvoir la supprimer
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <button className="bouton">Enregistrer les noms</button>
+            </form>
+          </>
+        ) : null}
+
       </main>
       <NavBasse page="categories" />
     </>

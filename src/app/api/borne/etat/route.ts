@@ -1,11 +1,23 @@
-import { q1, transaction } from "@/db";
+import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
+/** Ce que la borne propose quand le compte n'a encore aucun catalogue. */
+type CatalogueLocal = {
+  categories?: { nom: string; ordre?: number }[];
+  produits?: { sku: string; nom: string; categorie?: string | null;
+               prix_centimes?: number; age_min?: number; capteur_fiable?: boolean }[];
+  planogramme?: { lane: number; rangee?: number; colonne?: number;
+                  sku?: string | null; capacite?: number; seuil_bas?: number;
+                  quantite?: number }[];
+};
+
 type Releve = {
   version?: string;
+  catalogue_version?: string;
   sante?: unknown;
+  catalogue_local?: CatalogueLocal;
   canaux?: { lane: number; sku?: string | null; quantite: number; capacite?: number }[];
   ventes?: { commande_id: string; lane?: number | null; sku?: string | null;
              prix_centimes: number; statut: string; faite_le: string }[];
@@ -39,8 +51,26 @@ export async function POST(req: Request) {
 
   const bilan = await transaction(async (c) => {
     await c.query(
-      "UPDATE borne SET vue_le = now(), version = COALESCE($1, version), sante = $2 WHERE id = $3",
-      [r.version ?? null, r.sante ? JSON.stringify(r.sante) : null, borne.id]);
+      `UPDATE borne SET vue_le = now(), version = COALESCE($1, version),
+              catalogue_version = COALESCE($4, catalogue_version), sante = $2
+        WHERE id = $3`,
+      [r.version ?? null, r.sante ? JSON.stringify(r.sante) : null, borne.id,
+       r.catalogue_version ?? null]);
+
+    // 0. Adoption du catalogue de la machine.
+    //
+    //    Seulement si le compte n'a RIEN — la garde est dans la transaction, donc
+    //    deux bornes qui se synchronisent en meme temps ne peuvent pas importer
+    //    deux fois. Passe ce moment, c'est le SaaS qui dicte : une machine ne
+    //    reecrit jamais un catalogue que quelqu'un a compose.
+    let adopte = 0;
+    if (r.catalogue_local && borne.compte_id && borne.lieu_id) {
+      const combien = await c.query<{ n: number }>(
+        "SELECT COUNT(*)::int n FROM produit WHERE compte_id = $1", [borne.compte_id]);
+      if (combien.rows[0].n === 0) {
+        adopte = await adopter(c, borne.compte_id, borne.id, borne.lieu_id, r.catalogue_local);
+      }
+    }
 
     // 1. Acquittements d'abord : le releve qui suit est deja celui d'apres
     //    chargement, et on ne veut pas le lire comme un ecart inexplique.
@@ -118,15 +148,89 @@ export async function POST(req: Request) {
        WHERE vers_lieu_id = $1 AND motif = 'transfert'
          AND confirme_le IS NULL AND annule_le IS NULL`, [borne.lieu_id]);
 
-    return { canaux, retenues, confirmes, attente: attente.rows[0].n };
+    return { canaux, retenues, confirmes, adopte, attente: attente.rows[0].n };
   });
 
   return Response.json({
     ok: true,
     canaux: bilan.canaux,
+    catalogue_adopte: bilan.adopte,
     ventes_retenues: bilan.retenues,
     transferts_confirmes: bilan.confirmes,
     transferts_en_attente: bilan.attente,
     prochain_appel_s: bilan.attente > 0 ? RYTHME_VIF : RYTHME_CALME,
   });
+}
+
+/**
+ * Adopte le catalogue d'une borne dans un compte encore vierge.
+ *
+ * Le stock deja present dans la machine entre par un mouvement d'INVENTAIRE, pas
+ * de reception : on ne connait pas son prix d'achat, et pretendre le contraire
+ * fausserait la valeur du stock des le premier jour. C'est un solde d'ouverture,
+ * et il se lit comme tel dans le grand livre.
+ */
+async function adopter(c: PgClient, compte_id: number, borne_id: number, lieu_id: number,
+                       cat: CatalogueLocal): Promise<number> {
+  const parNom = new Map<string, number>();
+  let ordre = 10;
+  for (const k of cat.categories ?? []) {
+    const nom = String(k.nom ?? "").trim();
+    if (!nom) continue;
+    const r = await c.query<{ id: number }>(`
+      INSERT INTO categorie (compte_id, nom, ordre) VALUES ($1,$2,$3)
+      ON CONFLICT (compte_id, nom) DO UPDATE SET nom = EXCLUDED.nom RETURNING id`,
+      [compte_id, nom, k.ordre ?? ordre]);
+    parNom.set(nom, r.rows[0].id);
+    ordre += 10;
+  }
+
+  const parSku = new Map<string, number>();
+  let n = 0;
+  for (const p of cat.produits ?? []) {
+    const sku = String(p.sku ?? "").trim().toUpperCase();
+    const nom = String(p.nom ?? "").trim();
+    if (!sku || !nom) continue;
+    let cid = p.categorie ? parNom.get(p.categorie) ?? null : null;
+    if (p.categorie && !cid) {
+      const k = await c.query<{ id: number }>(`
+        INSERT INTO categorie (compte_id, nom, ordre) VALUES ($1,$2,$3)
+        ON CONFLICT (compte_id, nom) DO UPDATE SET nom = EXCLUDED.nom RETURNING id`,
+        [compte_id, p.categorie, ordre]);
+      cid = k.rows[0].id; parNom.set(p.categorie, cid); ordre += 10;
+    }
+    const r = await c.query<{ id: number }>(`
+      INSERT INTO produit (compte_id, sku, nom, categorie_id, prix_vente_c, age_min, capteur_fiable)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      ON CONFLICT (compte_id, sku) DO UPDATE SET nom = EXCLUDED.nom RETURNING id`,
+      [compte_id, sku, nom, cid, Math.max(0, Math.round(p.prix_centimes ?? 0)),
+       p.age_min ?? 0, p.capteur_fiable ?? true]);
+    parSku.set(sku, r.rows[0].id);
+    n++;
+  }
+
+  for (const ca of cat.planogramme ?? []) {
+    if (!Number.isInteger(ca.lane)) continue;
+    const pid = ca.sku ? parSku.get(String(ca.sku).toUpperCase()) ?? null : null;
+    await c.query(`
+      INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, capacite, seuil_bas, releve_le)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
+      ON CONFLICT (borne_id, lane) DO UPDATE
+        SET produit_id = EXCLUDED.produit_id, capacite = EXCLUDED.capacite,
+            seuil_bas = EXCLUDED.seuil_bas, quantite = EXCLUDED.quantite, releve_le = now()`,
+      [borne_id, ca.lane, ca.rangee ?? Math.ceil(ca.lane / 10),
+       ca.colonne ?? ((ca.lane - 1) % 10) + 1, pid,
+       Math.max(0, ca.quantite ?? 0), ca.capacite ?? 10, ca.seuil_bas ?? 2]);
+
+    // Le stock deja en machine devient un solde d'ouverture.
+    if (pid && (ca.quantite ?? 0) > 0) {
+      await c.query(`
+        INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+                               motif, lane, note, par, fait_le, confirme_le)
+        VALUES ($1,$2,NULL,$3,$4,'inventaire',$5,'solde d’ouverture — stock trouvé dans la machine',
+                'borne', now(), now())`,
+        [compte_id, pid, lieu_id, ca.quantite, ca.lane]);
+    }
+  }
+  return n;
 }

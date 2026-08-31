@@ -230,8 +230,12 @@ export async function avancement(compte_id: number): Promise<Avancement> {
          AND motif = 'reception' AND annule_le IS NULL)                             AS recu,
       (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1)                        AS bornes,
       (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1 AND jeton IS NOT NULL)  AS appairees,
-      (SELECT COUNT(*)::int FROM mouvement WHERE compte_id = $1
-         AND motif = 'transfert' AND annule_le IS NULL)                             AS chargees,
+      -- « Chargee » ne veut pas dire « on a saisi un transfert » : une borne
+      -- adoptee arrive DEJA pleine, son stock entre par un inventaire. Ce qui
+      -- compte, c'est qu'il y ait de la marchandise dans une machine.
+      (SELECT COALESCE(SUM(c.quantite),0)::int FROM canal c
+         JOIN borne b ON b.id = c.borne_id
+        WHERE b.compte_id = $1 AND c.produit_id IS NOT NULL)                        AS chargees,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1)                                                     AS ventes
   `, [compte_id]))!;

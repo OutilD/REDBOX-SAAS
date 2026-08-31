@@ -1,12 +1,18 @@
 import { q } from "@/db";
-import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
+import { catalogueDe, empreinte, parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/borne/config   (Bearer jeton)
  *
- * Ce que la borne doit savoir pour vendre, et ce qu'elle doit charger.
+ * Tout ce que la borne doit savoir pour vendre : son catalogue complet
+ * — categories dans l'ordre, produits, planogramme — et les transferts qu'elle
+ * doit encore appliquer.
+ *
+ * LE CATALOGUE EST LA VERITE DU SAAS. La borne ne decide plus de ce qu'elle
+ * vend : elle recoit la liste, la garde, et s'en sert meme hors ligne. Une
+ * categorie ajoutee ici apparait sur la machine a sa prochaine synchronisation.
  *
  * Les transferts sont des ECARTS (« +4 sur le canal 3 »), pas des valeurs
  * absolues : le compteur de la machine reste le sien, on ne le remplace pas par
@@ -18,16 +24,9 @@ export async function GET(req: Request) {
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
   await q("UPDATE borne SET vue_le = now() WHERE id = $1", [borne.id]);
 
-  const planogramme = await q(`
-    SELECT c.lane, c.rangee, c.colonne, c.capacite, c.seuil_bas,
-           p.sku, p.nom, COALESCE(cat.nom, 'divers') AS categorie,
-           cat.ordre AS categorie_ordre,
-           p.prix_vente_c AS prix_centimes, p.age_min
-      FROM canal c
-      LEFT JOIN produit p   ON p.id = c.produit_id
-      LEFT JOIN categorie cat ON cat.id = p.categorie_id
-     WHERE c.borne_id = $1
-     ORDER BY c.lane`, [borne.id]);
+  // Le catalogue et son empreinte se calculent dans @/lib/borne : les pages du
+  // SaaS lisent la meme fonction pour dire si une borne est a jour.
+  const catalogue = await catalogueDe(borne.compte_id!, borne.id);
 
   const transferts = await q(`
     SELECT m.id, m.lane, m.quantite, p.sku, p.nom
@@ -36,9 +35,18 @@ export async function GET(req: Request) {
        AND m.confirme_le IS NULL AND m.annule_le IS NULL
      ORDER BY m.id`, [borne.lieu_id]);
 
+  // L'empreinte evite le travail inutile : la borne ne reconstruit son inventaire
+  // que lorsqu'elle change, au lieu de tout refaire toutes les trente secondes.
+  //
+  // Un compte tout neuf n'a rien a dicter. On le dit franchement a la borne :
+  // elle enverra alors SON catalogue au prochain releve, et le SaaS l'adoptera.
+  // Une machine arrive chargee ; ressaisir onze produits a la main serait absurde.
+  const vide = catalogue.produits.length === 0;
+  const version = empreinte(catalogue);
+
   return Response.json({
     borne: { id: borne.id, nom: borne.nom, adresse: borne.adresse },
-    planogramme,
+    catalogue: { version, vide, ...catalogue },
     transferts,
     prochain_appel_s: transferts.length > 0 ? RYTHME_VIF : RYTHME_CALME,
   });

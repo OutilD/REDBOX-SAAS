@@ -107,3 +107,18 @@ export function leJour(d: Date | string | null): string {
   return new Date(d).toLocaleDateString("fr-FR",
     { day: "2-digit", month: "short", year: "numeric" });
 }
+
+/**
+ * Le numero de canal tel qu'il est ecrit SUR LA MACHINE et dans CSM.
+ *
+ * Rangee puis colonne sur deux chiffres : 101, 102, … 110, 201, … 1001. C'est ce
+ * que le technicien lit sur l'etiquette du plateau ; lui montrer « 1-1 » l'oblige
+ * a traduire devant la machine, et c'est la qu'on se trompe de tiroir.
+ *
+ * Le nombre envoye sur le bus reste (rangee-1)*10 + colonne — verifie dans le
+ * bytecode du SDK CSM, `makeSendCmd`. Les deux notations designent le meme canal ;
+ * l'une se lit, l'autre se transmet.
+ */
+export function codeCanal(rangee: number, colonne: number): string {
+  return `${rangee}${String(colonne).padStart(2, "0")}`;
+}

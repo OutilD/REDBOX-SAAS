@@ -109,8 +109,7 @@ function Section({ g }: { g: Groupe }) {
       </summary>
       <div className="dedans">
         <div className="sous-liste">
-          {g.lignes.map((l) =>
-            <LigneProduit key={l.id} l={l} montrerRoute={g.en_route > 0} />)}
+          {g.lignes.map((l) => <LigneProduit key={l.id} l={l} />)}
         </div>
       </div>
     </details>
@@ -118,16 +117,16 @@ function Section({ g }: { g: Groupe }) {
 }
 
 /**
- * Les trois nombres, toujours dans le meme ordre et les memes largeurs.
+ * Les trois nombres, toujours les memes, toujours aux memes largeurs.
  *
- * « En route » ne s'affiche que s'il y a quelque chose en route : une colonne a
- * zero sur toutes les lignes n'apprend rien et pousse les deux autres a gauche.
- * Mais la place est RESERVEE des qu'une seule ligne en a — sinon les colonnes ne
- * tomberaient plus les unes sous les autres.
+ * Les trois colonnes sont TOUJOURS presentes, meme a zero. J'avais d'abord
+ * masque « en route » quand il n'y avait rien : les lignes n'avaient plus la
+ * meme largeur, le total d'une categorie ne tombait plus au-dessus de ses
+ * produits, et la colonne cessait de se lire de haut en bas. Un tiret discret
+ * coute moins cher qu'un alignement perdu.
  */
-function Chiffres({ reserve, bornes, en_route, montrerRoute = true, grands = false }: {
-  reserve: number; bornes: number; en_route: number;
-  montrerRoute?: boolean; grands?: boolean;
+function Chiffres({ reserve, bornes, en_route, grands = false }: {
+  reserve: number; bornes: number; en_route: number; grands?: boolean;
 }) {
   return (
     <div className={`chiffres ${grands ? "grands" : ""}`}>
@@ -140,14 +139,12 @@ function Chiffres({ reserve, bornes, en_route, montrerRoute = true, grands = fal
         <span className="n">{bornes}</span>
         <span className="q">en bornes</span>
       </span>
-      {montrerRoute ? (
-        <span>
-          <span className={`n ${en_route === 0 ? "vide" : ""}`}
-                style={en_route > 0 ? { color: "var(--ambre)" } : undefined}>
-            {en_route || "—"}</span>
-          <span className="q">en route</span>
-        </span>
-      ) : null}
+      <span>
+        <span className={`n ${en_route === 0 ? "vide" : ""}`}
+              style={en_route > 0 ? { color: "var(--ambre)" } : undefined}>
+          {en_route || "—"}</span>
+        <span className="q">en route</span>
+      </span>
     </div>
   );
 }
@@ -160,7 +157,7 @@ function Chiffres({ reserve, bornes, en_route, montrerRoute = true, grands = fal
  * n'aurait pas suffi — c'est precisement parce que les deux niveaux se
  * ressemblaient qu'on s'y perdait.
  */
-function LigneProduit({ l, montrerRoute }: { l: LigneStock; montrerRoute: boolean }) {
+function LigneProduit({ l }: { l: LigneStock }) {
   const epuise = l.reserve === 0 && l.en_route === 0;
   return (
     <Link href={`/stock/${l.id}`} className={`produit-ligne ${epuise ? "epuise" : ""}`}>
@@ -171,8 +168,7 @@ function LigneProduit({ l, montrerRoute }: { l: LigneStock; montrerRoute: boolea
           {l.prix_achat_c ? ` · achat ${euros(l.prix_achat_c)}` : ""}
         </div>
       </div>
-      <Chiffres reserve={l.reserve} bornes={l.bornes} en_route={l.en_route}
-                montrerRoute={montrerRoute} />
+      <Chiffres reserve={l.reserve} bornes={l.bornes} en_route={l.en_route} />
       <span className="fleche"><IcoChevron size={16} /></span>
     </Link>
   );

@@ -1,6 +1,7 @@
 import { transaction } from "@/db";
 import { peutCharger, utilisateurDe, versPage } from "@/lib/auth";
 import { reserveDe } from "@/lib/stock";
+import { reveiller } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
     return { canaux, unites, refuses };
   });
+
+  // La borne est prevenue tout de suite : elle tient une question ouverte, elle
+  // aura le chargement dans la seconde plutot qu'a son prochain reveil.
+  if (bilan.canaux > 0) await reveiller(id, "chargement à appliquer");
 
   return versPage(req,
     `/bornes/${id}?charge=${bilan.unites}&canaux=${bilan.canaux}&refuses=${bilan.refuses}`);

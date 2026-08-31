@@ -1,3 +1,5 @@
+import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { utilisateur } from "@/lib/auth";
 
@@ -9,9 +11,10 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
   return (
     <main style={{ display: "grid", placeItems: "center", minHeight: "100svh", padding: 20 }}>
       <form method="post" action="/api/session" className="carte" style={{ width: "min(380px, 100%)", padding: 26 }}>
-        <div className="marque" style={{ fontSize: 22, marginBottom: 6 }}>
-          <span className="bloc" />RED<em>BOX</em>
-        </div>
+        {/* Le vrai logo, pas la marque reconstituee en texte : c'est la premiere
+            chose qu'on voit de RedBox, et c'est celle qui doit etre juste. */}
+        <Image src="/logo-redbox.png" alt="RedBox" width={232} height={150}
+               className="logo-entree" priority />
         <p className="sous" style={{ marginBottom: 22 }}>Console d’exploitation</p>
         <div className="champ">
           <label htmlFor="email">Adresse</label>
@@ -25,6 +28,11 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
         {e ? <p className="erreur" style={{ marginTop: 14 }}>Identifiants incorrects.</p> : null}
         <div style={{ height: 20 }} />
         <button className="bouton primaire large">Entrer</button>
+
+        <p className="faible" style={{ fontSize: 13, textAlign: "center", margin: "16px 0 0" }}>
+          Pas encore de compte ?{" "}
+          <Link href="/inscription" style={{ textDecoration: "underline" }}>En créer un</Link>
+        </p>
       </form>
     </main>
   );

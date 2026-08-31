@@ -4,7 +4,7 @@ import { Entete, NavBasse } from "../../chrome";
 import { q, euros } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { Repli } from "../../repli";
-import { IcoCatalogue, IcoCategories } from "../../icones";
+import { IcoAlerte, IcoCatalogue, IcoCategories } from "../../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +32,12 @@ export default async function Catalogue({ searchParams }: { searchParams: Promis
   const categories = await q<Cat>(
     "SELECT id, nom FROM categorie WHERE compte_id = $1 ORDER BY ordre, nom", [u.compte_id]);
 
+  // Un produit sans canal existe dans le catalogue et part bien sur les bornes,
+  // mais aucune machine ne peut le distribuer : il n'a pas de tiroir. C'est la
+  // panne la plus sournoise du systeme — tout marche, et rien n'apparait. On le
+  // dit ici, une bonne fois.
+  const orphelins = produits.filter((p) => p.canaux === 0);
+
   return (
     <>
       <Entete page="catalogue" />
@@ -45,6 +51,24 @@ export default async function Catalogue({ searchParams }: { searchParams: Promis
           synchronisation. <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>
           Organiser les catégories</Link>.
         </p>
+        {orphelins.length > 0 ? (
+          <div className="avis">
+            <IcoAlerte size={17} />
+            <div className="dit">
+              <div className="titre">
+                {orphelins.length === 1
+                  ? `${orphelins[0].nom} n’est sur aucune borne`
+                  : `${orphelins.length} produits ne sont sur aucune borne`}
+              </div>
+              <div className="texte">
+                {orphelins.length === 1
+                  ? "Il est bien envoyé aux machines, mais aucun canal ne lui est affecté : la borne n’a pas de tiroir d’où le sortir, donc elle ne l’affiche pas. Affectez-lui un canal dans le planogramme."
+                  : "Ils sont bien envoyés aux machines, mais aucun canal ne leur est affecté : la borne n’a pas de tiroir d’où les sortir, donc elle ne les affiche pas. Affectez-leur un canal dans le planogramme."}
+              </div>
+            </div>
+            <Link href="/bornes" className="bouton petit">Choisir une borne</Link>
+          </div>
+        ) : null}
         {e === "sku" ? <p className="erreur">Ce SKU existe déjà, ou le nom est vide.</p> : null}
         {e === "cat" ? <p className="erreur">
           Aucune catégorie. <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>
@@ -92,10 +116,16 @@ export default async function Catalogue({ searchParams }: { searchParams: Promis
             {produits.map((p) => (
               <div className="ligne" key={p.id}>
                 <div className="corps">
-                  <div className="nom">{p.nom}</div>
+                  <div className="nom" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    {p.nom}
+                    {p.canaux === 0
+                      ? <span className="pilule attente"><i />sur aucune borne</span>
+                      : null}
+                  </div>
                   <div className="meta">
                     <span className="mono">{p.sku}</span>
-                    {p.age_min > 0 ? ` · ${p.age_min} ans` : ""} · {p.canaux} {p.canaux > 1 ? "canaux" : "canal"}
+                    {p.age_min > 0 ? ` · ${p.age_min} ans` : ""}
+                    {p.canaux > 0 ? ` · ${p.canaux} ${p.canaux > 1 ? "canaux" : "canal"}` : ""}
                     {p.prix_achat_c ? ` · achat ${euros(p.prix_achat_c)}` : ""}
                   </div>
                 </div>
@@ -120,7 +150,7 @@ export default async function Catalogue({ searchParams }: { searchParams: Promis
             {produits.length === 0 ? (
               categories.length === 0 ? (
                 <Repli icone={<IcoCategories />} titre="Commencez par une catégorie"
-                       texte="Un produit se range dans une catégorie : elle décide aussi de l’ordre d’affichage sur la borne."
+                       texte="Un produit se range dans une catégorie : elle fixe aussi l’ordre dans lequel il apparaît."
                        action={{ nom: "Créer une catégorie", vers: "/reglages/categories" }} dedans />
               ) : (
                 <Repli icone={<IcoCatalogue />} titre="Catalogue vide"

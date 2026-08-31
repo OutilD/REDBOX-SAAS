@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
+import Occupe from "./occupe";
 
 export const metadata: Metadata = {
   title: "RedBox",
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                    body>div[hidden]{display:block!important}`}</style>
         </noscript>
         {children}
+        <Occupe />
       </body>
     </html>
   );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import Pas from "../../../pas";
-import { q1, euros, depuis } from "@/db";
+import { q1, euros, depuis, codeCanal } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { Repli } from "../../../repli";
 import { IcoBorne } from "../../../icones";
@@ -127,7 +127,7 @@ function Canal({ c }: { c: LigneCanal }) {
         <div className="pousse">
           <div style={{ fontWeight: 700, fontSize: 16 }}>{c.nom}</div>
           <div className="faible" style={{ fontSize: 13, marginTop: 2 }}>
-            canal <b className="mono">{c.rangee}-{c.colonne}</b> · {euros(c.prix_vente_c)}
+            canal <b className="mono">{codeCanal(c.rangee, c.colonne)}</b> · {euros(c.prix_vente_c)}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>

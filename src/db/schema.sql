@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS borne (
   appairee_le    TIMESTAMPTZ,
   vue_le         TIMESTAMPTZ,
   version        TEXT,
+  catalogue_version TEXT,      -- l'empreinte du catalogue que la machine detient
   sante          JSONB
 );
 
@@ -245,7 +246,10 @@ CREATE TABLE IF NOT EXISTS categorie (
   id        BIGSERIAL PRIMARY KEY,
   compte_id BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
   nom       TEXT NOT NULL,
-  ordre     INTEGER NOT NULL DEFAULT 100,   -- l'ordre d'affichage sur la borne
+  -- L'ordre d'affichage. Il classe le SaaS, et il est transmis a la borne dans
+  -- /api/borne/config ; l'APK 5.0 ne s'en sert pas encore — son ecran d'accueil
+  -- est construit a partir d'une liste ecrite en dur.
+  ordre     INTEGER NOT NULL DEFAULT 100,
   cree_le   TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (compte_id, nom)
 );
@@ -276,3 +280,16 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS i_produit_categorie ON produit(categorie_id);
+
+-- ------------------------------------------------------------------- reveil
+--
+-- On ne peut pas appeler une borne : elle est derriere le routeur d'un bar, sans
+-- adresse publique. On fait donc l'inverse — c'est ELLE qui tient une question
+-- ouverte (« as-tu quelque chose pour moi ? »), et le serveur y repond a la
+-- seconde ou l'on pose ce drapeau.
+--
+-- L'effet est celui d'une notification, sans rien a installer : pas de service
+-- tiers, pas de connexion permanente a maintenir, rien qui casse quand le bar
+-- change de box internet.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS reveil_le TIMESTAMPTZ;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS reveil_motif TEXT;

@@ -42,9 +42,15 @@ export default async function Tableau({ searchParams }: { searchParams: Promise<
   const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
   const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
 
-  // Rien n'a encore ete vendu : six sections vides ne sont pas six problemes,
-  // c'est une mise en route qui n'a pas commence.
-  if (avance.ventes === 0) {
+  // La mise en route ne s'affiche que tant qu'elle n'est PAS FINIE.
+  //
+  // Je la declenchais sur « aucune vente », et c'etait faux : une borne qu'on
+  // vient d'appairer a deja son catalogue et son stock, mais elle n'a pas encore
+  // vendu. Son proprietaire voyait donc un ecran de bienvenue a la place de ses
+  // donnees — et pouvait croire que rien n'etait remonte. Ce qui compte, c'est
+  // qu'il y ait un catalogue ET une machine appairee.
+  const enRoute = avance.produits === 0 || avance.appairees === 0;
+  if (enRoute) {
     return (
       <>
         <Entete page="tableau" />
@@ -420,7 +426,7 @@ function FicheRisque({ s }: { s: Autonomie }) {
 function PremiersPas({ a }: { a: Avancement }) {
   const etapes = [
     { fait: a.categories > 0, nom: "Créer vos catégories",
-      quoi: "Elles rangent votre stock et décident de l’ordre d’affichage sur la borne.",
+      quoi: "Elles rangent votre stock et fixent l’ordre dans lequel il se présente.",
       cta: "Créer une catégorie", vers: "/reglages/categories" },
     { fait: a.produits > 0, nom: "Remplir le catalogue",
       quoi: "Ce que vendent vos bornes : nom, prix, âge minimum.",

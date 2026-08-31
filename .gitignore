@@ -1,1 +1,16 @@
+# Dependances
 /node_modules
+
+# Build Next
+/.next
+/out
+
+# Secrets : la chaine de connexion Postgres vit ici et ne doit jamais partir
+# sur GitHub. Le depot est en ligne — un mot de passe pousse une fois reste
+# dans l'historique meme apres suppression du fichier.
+.env
+.env*.local
+
+# Divers
+.DS_Store
+*.log

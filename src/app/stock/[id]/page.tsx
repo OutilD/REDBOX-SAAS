@@ -57,8 +57,10 @@ export default async function Produit({ params }: { params: Promise<{ id: string
   // borne : « 12 en machine » ne dit pas dans quel tiroir aller les chercher.
   const emplacements = await q<Emplacement>(`
     SELECT s.lieu_id, b.id AS borne_id, l.nom, l.genre, s.quantite::int,
-           (SELECT string_agg(c.rangee || '-' || c.colonne || ' (' || c.quantite || ')', ', '
-                              ORDER BY c.lane)
+           -- La notation de la machine : rangee puis colonne sur deux chiffres,
+           -- comme sur l'etiquette du plateau et dans CSM.
+           (SELECT string_agg(c.rangee || lpad(c.colonne::text, 2, '0')
+                              || ' (' || c.quantite || ')', ', ' ORDER BY c.lane)
               FROM canal c WHERE c.borne_id = b.id AND c.produit_id = $1) AS canaux
       FROM v_stock s
       JOIN lieu l ON l.id = s.lieu_id

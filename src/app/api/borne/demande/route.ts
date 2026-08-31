@@ -1,5 +1,5 @@
 import { q1 } from "@/db";
-import { nouveauCode } from "@/lib/borne";
+import { nouveauCode, origineVue } from "@/lib/borne";
 import { randomBytes } from "node:crypto";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,20 @@ export async function POST(req: Request) {
             VALUES ($1,$2,$3,$4, now() + interval '${VALIDITE_MIN} minutes')`,
            [code, secret, corps.modele ?? null, corps.version ?? null]);
 
-  return Response.json({ code, secret, valide_s: VALIDITE_MIN * 60 });
+  // L'adresse que le QR encode. Scannee avec l'appareil photo du telephone, elle
+  // ouvre le SaaS avec le code deja saisi : il ne reste qu'a nommer la borne.
+  //
+  // C'est le chemin le plus sur. Un lecteur de QR embarque dans la page web
+  // exigerait HTTPS et une API que Safari n'a pas ; l'appareil photo du telephone,
+  // lui, marche partout et n'a rien a demander.
+  const racine = origineVue(req);
+  const lien = `${racine}/bornes/ajouter?code=${encodeURIComponent(code)}`;
+
+  return Response.json({
+    code, secret, valide_s: VALIDITE_MIN * 60,
+    url_appairage: lien,
+    qr: `${racine}/api/qr?t=420&d=${encodeURIComponent(lien)}`,
+  });
 }
 
 /**
