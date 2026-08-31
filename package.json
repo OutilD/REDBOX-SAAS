@@ -1,0 +1,24 @@
+{
+  "name": "redbox-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4310",
+    "build": "next build",
+    "start": "next start -p 4310",
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "migrate": "node --env-file=.env.local scripts/migrate.mjs"
+  },
+  "dependencies": {
+    "next": "15.1.11",
+    "pg": "^8.23.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "typescript": "^5.7.2",
+    "@types/pg": "^8.11.10"
+  }
+}

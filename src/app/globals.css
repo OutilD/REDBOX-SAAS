@@ -1,0 +1,957 @@
+/* =============================================================================
+   RedBox — systeme visuel
+   =============================================================================
+
+   Trois regles :
+
+   1. ON L'UTILISE DEBOUT. Cet outil sert un telephone tenu d'une main, dans un
+      bar mal eclaire, devant une machine ouverte. Toutes les cibles font au
+      moins 48 px. Aucun tableau ne defile horizontalement.
+
+   2. LE CHIFFRE D'ABORD. Ce qu'on vient chercher, c'est « combien il m'en
+      reste ». Il est gros, il est premier, le reste l'entoure.
+
+   3. SOMBRE PAR DEFAUT, comme la borne. Le mode clair existe pour le plein jour
+      et l'impression ; il ne change que les jetons de couleur.
+
+   Sur grand ecran, les memes donnees se resserrent : ce n'est pas une autre
+   application, c'est la meme qui respire differemment.
+   ========================================================================== */
+
+:root {
+  /* La marque */
+  --rouge:        #d70005;
+  --rouge-vif:    #ff2a30;
+  --rouge-sourd:  #8c0004;
+
+  /* Fonds et surfaces — sombre par defaut */
+  --fond:         #0a0a0b;
+  --surface:      #141416;
+  --surface-2:    #1c1c20;
+  --surface-3:    #26262b;
+  --bord:         #26262b;
+  --bord-fort:    #35353d;
+
+  /* Textes */
+  --texte:        #f5f5f6;
+  --texte-2:      #a6a6ae;
+  --texte-3:      #74747d;
+
+  /* Etats */
+  --vert:         #35b46a;
+  --vert-fond:    rgba(53,180,106,.13);
+  --ambre:        #e0a500;
+  --ambre-fond:   rgba(224,165,0,.13);
+  --rouge-fond:   rgba(215,0,5,.14);
+
+  /* Rythme.
+     Des angles courts et des filets de 1 px plutot que de grosses ombres :
+     l'ombre portee generalisee fait flotter chaque bloc et donne cet aspect
+     « tout est une carte » qu'on voit sur les maquettes sans auteur. */
+  --r-s:  6px;
+  --r-m:  8px;
+  --r-l:  10px;
+  --ombre: none;
+  --touche: 44px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --fond: #f7f7f8;  --surface: #ffffff;  --surface-2: #f2f2f4;
+    --surface-3: #e8e8ec; --bord: #e3e3e8; --bord-fort: #cdcdd5;
+    --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #8a8a95;
+    --vert-fond: rgba(53,180,106,.12);
+    --ambre-fond: rgba(224,165,0,.16);
+    --rouge-fond: rgba(215,0,5,.09);
+    --ombre: none;
+  }
+}
+
+:root[data-theme="light"] {
+  --fond: #f7f7f8;  --surface: #ffffff;  --surface-2: #f2f2f4;
+  --surface-3: #e8e8ec; --bord: #e3e3e8; --bord-fort: #cdcdd5;
+  --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #8a8a95;
+  --vert-fond: rgba(53,180,106,.12);
+  --ambre-fond: rgba(224,165,0,.16);
+  --rouge-fond: rgba(215,0,5,.09);
+  --ombre: none;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--fond); color: var(--texte);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* Les chiffres s'alignent en colonne : un montant qui danse d'une ligne a
+   l'autre se compare mal. */
+.num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+/* ---------------------------------------------------------------- structure */
+/*
+   Deux navigations, une par posture.
+   Au telephone : une barre en bas, la ou se trouve le pouce.
+   Sur ecran large : un rail a gauche, toujours visible, qui montre TOUT — y
+   compris ce qui se visite rarement. C'est la difference entre un menu qu'on
+   parcourt et un plan qu'on lit.
+*/
+
+.rail {
+  display: none;
+  position: fixed; top: 0; bottom: 0; left: 0; width: 236px; z-index: 40;
+  background: var(--surface); border-right: 1px solid var(--bord);
+  flex-direction: column; padding: 20px 10px 12px;
+}
+.rail .logo { display: block; padding: 0 10px 4px; }
+.rail .logo img { width: 116px; height: auto; display: block; }
+.rail nav { flex: 1; overflow-y: auto; margin-top: 18px; }
+.rail .section {
+  font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--texte-3); font-weight: 700; padding: 15px 10px 6px;
+}
+.rail a.item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-s); margin-bottom: 1px;
+  font-size: 14px; font-weight: 550; color: var(--texte-2); min-height: 36px;
+  position: relative;
+}
+.rail a.item:hover { background: var(--surface-2); color: var(--texte); }
+.rail a.item.actif { background: var(--surface-2); color: var(--texte); font-weight: 650; }
+/* Un filet rouge a gauche plutot qu'un bloc colore : on marque la page ouverte
+   sans repeindre la moitie du menu. */
+.rail a.item.actif::before {
+  content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 0 2px 2px 0; background: var(--rouge);
+}
+.rail a.item .glyphe { color: var(--texte-3); display: flex; flex: none; }
+.rail a.item.actif .glyphe { color: var(--texte); }
+.rail a.item .compte {
+  margin-left: auto; font-size: 11px; font-weight: 700; color: var(--texte-3);
+  background: var(--surface-3); border-radius: 999px; padding: 1px 7px; min-width: 22px;
+  text-align: center;
+}
+.rail a.item.actif .compte { background: var(--rouge); color: #fff; }
+.rail .pied { border-top: 1px solid var(--bord); padding-top: 10px; margin-top: 10px;
+              font-size: 11.5px; color: var(--texte-3); padding-left: 10px; }
+
+.ecran { padding: 18px 16px calc(84px + env(safe-area-inset-bottom)); }
+
+/* -------------------------------------------------------------------- entete */
+/*
+   L'en-tete accompagne le rail au lieu de disparaitre : il porte le fil du haut,
+   le theme et le compte. C'est la ou l'on va quand on cherche « ou suis-je » et
+   « qui suis-je », et ces deux questions ne se rangent pas dans un menu.
+*/
+.entete {
+  position: sticky; top: 0; z-index: 30;
+  background: color-mix(in srgb, var(--fond) 90%, transparent);
+  backdrop-filter: saturate(150%) blur(10px);
+  border-bottom: 1px solid var(--bord);
+}
+.entete > .dedans {
+  max-width: 1180px; margin: 0 auto; height: 54px;
+  padding: 0 16px; display: flex; align-items: center; gap: 12px;
+}
+.entete .fil { font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
+.entete .fil .parent { color: var(--texte-3); font-weight: 500; }
+.entete .logo-mobile img { height: 26px; width: auto; display: block; }
+
+/* Le compte : initiales, nom, role. Une pastille, pas une carte. */
+.compte-chip {
+  display: flex; align-items: center; gap: 9px;
+  padding: 4px 10px 4px 4px; border-radius: 999px;
+  border: 1px solid var(--bord); background: var(--surface);
+}
+.compte-chip .jeton {
+  width: 27px; height: 27px; border-radius: 50%; flex: none;
+  background: var(--rouge); color: #fff;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  letter-spacing: .02em;
+}
+.compte-chip .qui { line-height: 1.15; }
+.compte-chip .qui b { display: block; font-size: 12.5px; font-weight: 650; }
+.compte-chip .qui span { display: block; font-size: 10.5px; color: var(--texte-3); }
+@media (max-width: 560px) { .compte-chip .qui { display: none; } }
+
+.bouton.icone {
+  min-height: 36px; width: 36px; padding: 0; border-radius: var(--r-m);
+  display: inline-grid; place-items: center;
+}
+
+@media (min-width: 980px) {
+  .rail { display: flex; }
+  .entete .logo-mobile { display: none; }
+  .entete > .dedans { max-width: none; margin-left: var(--rail); padding: 0 26px; height: 58px; }
+  /* Pleine largeur : sur un ecran de 1900 px, un contenu bride a 1060 laisse un
+     tiers de vide a droite pendant qu'on fait defiler pour lire un tableau. */
+  .ecran { margin-left: var(--rail); padding: 22px 26px 56px; }
+}
+
+/* Rail replie : les icones seules, les libelles en info-bulle. L'etat tient dans
+   un biscuit et se rend cote serveur — il survit au rechargement, et il n'y a
+   rien a hydrater. */
+:root { --rail: 236px; }
+:root[data-rail="ferme"] { --rail: 62px; }
+:root[data-rail="ferme"] .rail { width: 62px; padding-left: 8px; padding-right: 8px; align-items: stretch; }
+:root[data-rail="ferme"] .rail .logo img { width: 40px; }
+:root[data-rail="ferme"] .rail .logo { padding: 0 3px; }
+:root[data-rail="ferme"] .rail .section { font-size: 0; padding: 12px 0 4px; }
+:root[data-rail="ferme"] .rail .section::after {
+  content: ""; display: block; height: 1px; background: var(--bord); margin: 0 6px;
+}
+:root[data-rail="ferme"] .rail a.item { justify-content: center; padding: 8px 0; font-size: 0; gap: 0; }
+:root[data-rail="ferme"] .rail a.item .glyphe { font-size: 15px; }
+:root[data-rail="ferme"] .rail a.item.actif::before { left: -8px; }
+:root[data-rail="ferme"] .rail .pied { font-size: 0; }
+.rail-bascule { display: none; }
+@media (min-width: 980px) { .rail-bascule { display: inline-grid; } }
+
+h1 { font-size: 24px; letter-spacing: -.035em; margin: 0 0 3px; font-weight: 750; }
+h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
+     color: var(--texte-3); margin: 28px 0 11px; font-weight: 700; }
+.sous { color: var(--texte-2); margin: 0 0 18px; font-size: 14px; }
+
+/* -------------------------------------------------------------------- cartes */
+
+.carte {
+  background: var(--surface); border: 1px solid var(--bord);
+  border-radius: var(--r-l); padding: 16px;
+}
+.carte + .carte { margin-top: 12px; }
+.carte.plate { box-shadow: none; }
+.carte.chaude { border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord)); }
+
+/*
+   Le bandeau de chiffres.
+   Un seul panneau divise par des filets, plutot que six cartes flottantes de
+   taille identique. Les chiffres se comparent quand ils partagent une ligne de
+   base ; separes par du vide, ils ne se comparent plus, ils se juxtaposent.
+*/
+.bandeau {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); overflow: hidden;
+}
+.bandeau > div {
+  padding: 14px 16px;
+  border-right: 1px solid var(--bord); border-bottom: 1px solid var(--bord);
+}
+.bandeau > div:nth-child(2n) { border-right: none; }
+@media (min-width: 720px) {
+  .bandeau { grid-template-columns: repeat(3, 1fr); }
+  .bandeau > div { border-right: 1px solid var(--bord); }
+  .bandeau > div:nth-child(2n) { border-right: 1px solid var(--bord); }
+  .bandeau > div:nth-child(3n) { border-right: none; }
+}
+@media (min-width: 1100px) {
+  .bandeau { grid-template-columns: repeat(6, 1fr); }
+  .bandeau > div { border-bottom: none; border-right: 1px solid var(--bord); }
+  .bandeau > div:nth-child(3n) { border-right: 1px solid var(--bord); }
+  .bandeau > div:last-child { border-right: none; }
+}
+.bandeau.quatre { }
+@media (min-width: 1100px) { .bandeau.quatre { grid-template-columns: repeat(4, 1fr); } }
+
+.grille { display: grid; gap: 12px; }
+.grille.deux  { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.grille.large { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+/* -------------------------------------------------------------------- stat */
+
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat .valeur { font-size: 25px; font-weight: 750; letter-spacing: -.035em; line-height: 1.15; }
+.stat .valeur.petite { font-size: 20px; }
+.stat .libelle { font-size: 12px; color: var(--texte-3); letter-spacing: .01em; line-height: 1.35; }
+.stat.alerte .valeur { color: var(--rouge-vif); }
+.stat.attention .valeur { color: var(--ambre); }
+
+/* --------------------------------------------------- repartition d'un stock */
+/*
+   Une seule barre porte les trois etats : ce que j'ai chez moi, ce qui est dans
+   les machines, ce qui est en route. Trois barres separees obligeraient a faire
+   l'addition de tete.
+*/
+/*
+   La barre de repartition.
+
+   Une seule barre porte les trois etats d'une reference : ce que j'ai chez moi,
+   ce qui est deja dans les machines, ce qui est parti mais pas encore confirme.
+   Trois barres separees obligeraient a faire l'addition de tete.
+
+   Les trois remplissages ne different pas que par la couleur :
+     - CHEZ MOI est plein, en encre — c'est la ou la marchandise est sure ;
+     - EN BORNES est plein, en rouge de marque — elle est dans la machine ;
+     - EN ROUTE est HACHURE, parce que c'est un etat provisoire, et parce qu'une
+       texture se lit encore quand la couleur ne se lit plus (daltonisme,
+       impression en noir et blanc, contraste force).
+*/
+.repartition { display: flex; height: 10px; border-radius: 5px; overflow: hidden;
+               background: var(--surface-3); gap: 2px; }
+.repartition span { display: block; height: 100%; }
+.repartition .reserve { background: var(--texte); }
+.repartition .bornes  { background: var(--rouge); }
+.repartition .route   { background: repeating-linear-gradient(
+    -45deg, var(--ambre) 0 4px, color-mix(in srgb, var(--ambre) 28%, transparent) 4px 8px); }
+
+.legende { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px;
+           font-size: 13px; color: var(--texte-2); }
+.legende b { color: var(--texte); font-weight: 700; }
+.legende i { width: 9px; height: 9px; border-radius: 3px; display: inline-block;
+             margin-right: 6px; vertical-align: baseline; }
+.legende .reserve i { background: var(--texte); }
+.legende .bornes i  { background: var(--rouge); }
+.legende .route i   { background: var(--ambre); }
+
+/* ------------------------------------------------------- colonnes de stock */
+/*
+   Trois nombres etiquetes, alignes en colonnes de largeur fixe — a hauteur de
+   categorie comme a hauteur de produit.
+   La barre empilee a ete retiree : elle montrait des PROPORTIONS quand la
+   question posee est « combien ». Une part de barre ne se lit pas en unites, et
+   il fallait une legende pour dire ce que chaque couleur comptait. Trois nombres
+   ecrits n'ont besoin de rien.
+   Les memes largeurs aux deux niveaux : le total d'une categorie tombe droit
+   au-dessus des produits qui le composent, et la colonne se lit de haut en bas.
+*/
+.chiffres { display: flex; gap: 10px; flex: none; }
+.chiffres > span { display: block; text-align: right; min-width: 62px; }
+.chiffres .n { font-size: 17px; font-weight: 750; letter-spacing: -.03em;
+               font-variant-numeric: tabular-nums; line-height: 1.15; display: block; }
+.chiffres .q { font-size: 10.5px; color: var(--texte-3); display: block; white-space: nowrap; }
+.chiffres .vide { color: var(--texte-3); padding: 0; }
+.chiffres.grands > span { min-width: 74px; }
+.chiffres.grands .n { font-size: 21px; }
+@media (max-width: 620px) {
+  .chiffres { gap: 8px; }
+  .chiffres > span, .chiffres.grands > span { min-width: 48px; }
+  .chiffres .n, .chiffres.grands .n { font-size: 15px; }
+  .chiffres .q { font-size: 9.5px; }
+}
+
+.note-lecture { font-size: 12.5px; color: var(--texte-3); margin: 12px 0 0; }
+
+/* ------------------------------------------------------------------ boutons */
+
+.bouton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--touche); padding: 0 20px; border-radius: var(--r-m);
+  border: 1px solid var(--bord-fort); background: var(--surface-2);
+  font-size: 15px; font-weight: 650; cursor: pointer;
+  transition: transform .08s ease, background .15s ease, border-color .15s ease;
+}
+.bouton:active { transform: scale(.975); }
+.bouton:hover { border-color: var(--texte-3); }
+.bouton.primaire { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+.bouton.primaire:hover { background: var(--rouge-vif); border-color: var(--rouge-vif); }
+.bouton.large { width: 100%; }
+.bouton.danger { color: var(--rouge-vif); }
+.bouton:disabled { opacity: .4; cursor: default; transform: none; }
+.bouton.petit { min-height: 38px; padding: 0 14px; font-size: 14px; border-radius: var(--r-s); }
+
+/* Le pas : deux grosses cibles autour d'un nombre. Ce couple est le geste le
+   plus repete de l'application ; il merite d'etre confortable. */
+.pas { display: flex; align-items: center; gap: 10px; }
+.pas button {
+  width: var(--touche); height: var(--touche); flex: none; border-radius: var(--r-m);
+  border: 1px solid var(--bord-fort); background: var(--surface-2);
+  font-size: 22px; font-weight: 700; cursor: pointer; line-height: 1;
+}
+.pas button:active { transform: scale(.94); }
+.pas button.plein { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+.pas .valeur { min-width: 54px; text-align: center; font-size: 22px; font-weight: 800; }
+
+/* ------------------------------------------------------------------- champs */
+
+label { display: block; font-size: 13px; color: var(--texte-2);
+        margin-bottom: 7px; font-weight: 600; }
+input, select, textarea {
+  width: 100%; min-height: var(--touche); padding: 0 14px;
+  background: var(--surface-2); border: 1px solid var(--bord);
+  border-radius: var(--r-m); font-size: 16px;   /* 16 : iOS ne zoome pas */
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond);
+}
+input[type="number"] { text-align: center; }
+.champ + .champ { margin-top: 14px; }
+
+/* ----------------------------------------------------------------- pilules */
+
+.pilule {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 650;
+  background: var(--surface-2); color: var(--texte-2); border: 1px solid var(--bord);
+}
+.pilule i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.pilule.ok      { background: var(--vert-fond);  color: var(--vert);  border-color: transparent; }
+.pilule.attente { background: var(--ambre-fond); color: var(--ambre); border-color: transparent; }
+.pilule.mal     { background: var(--rouge-fond); color: var(--rouge-vif); border-color: transparent; }
+
+/* -------------------------------------------------------------- liste-lignes */
+
+.lignes { display: flex; flex-direction: column; }
+.ligne {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 0; border-bottom: 1px solid var(--bord);
+}
+.ligne:last-child { border-bottom: none; }
+.ligne .corps { flex: 1; min-width: 0; }
+.ligne .nom { font-weight: 650; font-size: 15.5px;
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ligne .meta { font-size: 13px; color: var(--texte-3); margin-top: 2px; }
+.ligne .fin { text-align: right; flex: none; }
+
+/* --------------------------------------------------------- navigation basse */
+/*
+   En bas, la ou se trouve le pouce. Elle disparait sur grand ecran, ou la
+   navigation remonte dans l'en-tete.
+*/
+.nav-bas {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; background: color-mix(in srgb, var(--fond) 92%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  border-top: 1px solid var(--bord);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-bas a {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 9px 4px 8px; font-size: 11px; font-weight: 650; color: var(--texte-3);
+}
+.nav-bas a .glyphe { display: flex; line-height: 1; }
+.nav-bas a.actif { color: var(--texte); }
+.nav-bas a.actif .glyphe { color: var(--rouge-vif); }
+.nav-bas a { min-height: 52px; }
+
+@media (min-width: 980px) { .nav-bas { display: none; } }
+
+/* ------------------------------------------------------------------ divers */
+
+.droite { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.gris   { color: var(--texte-2); }
+.faible { color: var(--texte-3); }
+.mono   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.erreur { color: var(--rouge-vif); font-size: 14px; }
+.vide   { color: var(--texte-3); text-align: center; padding: 46px 20px; font-size: 15px; }
+.vide .grand { font-size: 34px; display: block; margin-bottom: 10px; opacity: .5; }
+.rangee { display: flex; align-items: center; gap: 12px; }
+.pousse { flex: 1; }
+hr { border: none; border-top: 1px solid var(--bord); margin: 22px 0; }
+
+/* ------------------------------------------------------- sections repliables */
+/*
+   <details> natif : ca s'ouvre et se ferme sans une ligne de JavaScript, au
+   clavier comme au doigt. Les categories qui ont un probleme s'ouvrent seules —
+   l'ecran s'ouvre sur ce qui demande une decision.
+*/
+details.groupe { border: 1px solid var(--bord); border-radius: var(--r-l);
+                 background: var(--surface); margin-bottom: 10px; }
+details.groupe[open] { border-color: var(--bord-fort); }
+details.groupe > summary {
+  list-style: none; cursor: pointer; padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px; min-height: var(--touche);
+}
+details.groupe > summary::-webkit-details-marker { display: none; }
+details.groupe > summary .chevron {
+  color: var(--texte-3); font-size: 15px; transition: transform .18s ease; flex: none;
+}
+details.groupe[open] > summary .chevron { transform: rotate(90deg); }
+details.groupe > summary:hover { background: var(--surface-2); border-radius: var(--r-l); }
+details.groupe .titre { font-weight: 700; font-size: 16.5px; letter-spacing: -.02em; }
+details.groupe .resume { font-size: 13px; color: var(--texte-3); margin-top: 2px; }
+details.groupe .dedans { padding: 0 14px 14px; }
+details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; }
+
+/* ------------------------------------------------------------------ graphes */
+/*
+   Pas de bibliotheque : quelques div suffisent, et une page qui ne charge rien
+   s'ouvre instantanement sur un telephone au fond d'un bar.
+*/
+.graphe { display: flex; align-items: flex-end; gap: 2px; height: 148px; }
+.graphe .barre { flex: 1; display: flex; flex-direction: column;
+                 justify-content: flex-end; height: 100%; min-width: 0; }
+.graphe .barre span { display: block; background: var(--rouge);
+                      border-radius: 4px 4px 0 0; transition: none; }
+.graphe .barre.creux span { background: var(--surface-3); }
+.graphe .barre.pointe span { background: var(--rouge-vif); }
+.axe { display: flex; justify-content: space-between; margin-top: 9px;
+       font-size: 11.5px; color: var(--texte-3); }
+
+/* Barre empilee : chaque segment est une borne, la legende dit laquelle. */
+.empile { display: flex; height: 12px; border-radius: 6px; overflow: hidden;
+          background: var(--surface-3); gap: 2px; }
+.empile span { display: block; height: 100%; }
+.teinte-0 { background: var(--rouge); }
+.teinte-1 { background: #ff7a3d; }
+.teinte-2 { background: var(--ambre); }
+.teinte-3 { background: var(--vert); }
+.teinte-4 { background: #4a9ede; }
+.teinte-5 { background: #9b6cd8; }
+
+.classement { counter-reset: rang; }
+.classement .ligne::before {
+  counter-increment: rang; content: counter(rang);
+  width: 26px; height: 26px; flex: none; border-radius: 8px;
+  background: var(--surface-3); color: var(--texte-2);
+  display: grid; place-items: center; font-size: 12.5px; font-weight: 800;
+}
+.classement .ligne:first-child::before { background: var(--rouge); color: #fff; }
+
+/* --------------------------------------------------------- rangee de cartes */
+/*
+   Trois bornes cote a cote, le reste au defilement. Le calage magnetique evite
+   de s'arreter au milieu d'une carte — c'est ce qui separe un carrousel d'un
+   debordement.
+*/
+.rangee-cartes {
+  display: grid; grid-auto-flow: column;
+  grid-auto-columns: minmax(258px, 1fr);
+  gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding-bottom: 6px; margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+  scrollbar-width: thin;
+}
+@media (min-width: 980px) { .rangee-cartes { margin: 0; padding-left: 0; padding-right: 0; } }
+.rangee-cartes > * { scroll-snap-align: start; }
+@media (min-width: 1240px) { .rangee-cartes { grid-auto-columns: minmax(300px, 1fr); } }
+
+.titre-section {
+  display: flex; align-items: baseline; gap: 12px; margin: 28px 0 11px;
+}
+.titre-section h2 { margin: 0; }
+.titre-section .lien {
+  margin-left: auto; font-size: 12.5px; font-weight: 650; color: var(--texte-2);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.titre-section .lien:hover { color: var(--rouge-vif); }
+
+/* --------------------------------------------------------------- graphiques */
+/*
+   Palette categorielle : les huit teintes de la reference, prises dans l'ordre,
+   jamais recyclees. Validees pour les deux fonds — separation daltonienne et
+   plancher de vision normale — par le script de la methode.
+*/
+.viz {
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --grille: var(--bord);
+  --bon: #0ca30c; --alerte: #fab219; --serieux: #ec835a; --critique: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .viz {
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --s4: #c98500; --s5: #d55181; --s6: #008300;
+  }
+}
+:root[data-theme="dark"] .viz {
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --s4: #c98500; --s5: #d55181; --s6: #008300;
+}
+
+/*
+   Le cadre du graphe.
+   Hauteur FIXE, largeur libre. Le SVG s'etire donc horizontalement — et c'est
+   voulu : `preserveAspectRatio="none"` avec `vector-effect` garde des traits de 2 px
+   quelle que soit la largeur, et TOUT LE TEXTE EST EN HTML, pose par-dessus.
+
+   Un SVG qui se met a l'echelle avec son texte dedans donne, sur un ecran de
+   1700 px, des libelles a 28 px qui se chevauchent : c'est exactement ce qui
+   arrivait ici.
+*/
+.cadre-graphe { position: relative; height: 210px; margin: 4px 0 2px; }
+.cadre-graphe > svg {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%;
+}
+.cadre-graphe .grille-h { stroke: var(--grille); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.cadre-graphe .ligne {
+  fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+/* Les reperes d'echelle : en HTML, donc a leur taille reelle. */
+.cadre-graphe .palier {
+  position: absolute; left: 0; transform: translateY(-100%);
+  font-size: 10.5px; color: var(--texte-3); font-variant-numeric: tabular-nums;
+  padding-bottom: 2px; pointer-events: none;
+}
+.axe-graphe { display: flex; justify-content: space-between;
+              font-size: 11px; color: var(--texte-3); }
+
+.legende-viz { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; }
+.legende-viz span { display: inline-flex; align-items: baseline; gap: 7px;
+                    font-size: 12.5px; color: var(--texte-2); }
+.legende-viz i { width: 9px; height: 9px; border-radius: 2px; flex: none;
+                 transform: translateY(1px); }
+.legende-viz b { color: var(--texte); font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/*
+   Repartition par categorie.
+   Deux colonnes sur grand ecran : la repartition a gauche, l'evolution a droite.
+   Les barres sont BRIDEES en largeur — etirees sur 900 px, l'oeil parcourt un
+   demi-ecran entre le libelle et sa valeur, et la comparaison se perd en route.
+*/
+.duo { display: grid; gap: 0; border: 1px solid var(--bord); border-radius: var(--r-l);
+       background: var(--surface); overflow: hidden; }
+@media (min-width: 1080px) {
+  .duo { grid-template-columns: minmax(380px, 5fr) 7fr; }
+  .duo > * + * { border-left: 1px solid var(--bord); }
+}
+@media (max-width: 1079px) { .duo > * + * { border-top: 1px solid var(--bord); } }
+.duo > section { padding: 16px; min-width: 0; }
+.duo h3 {
+  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--texte-3); font-weight: 700; margin: 0 0 14px;
+}
+
+.barres-rang { display: flex; flex-direction: column; gap: 13px; }
+.barres-rang .rang { display: grid; gap: 5px; }
+.barres-rang .tete { display: flex; align-items: baseline; gap: 8px; }
+.barres-rang .puce { width: 9px; height: 9px; border-radius: 2px; flex: none;
+                     transform: translateY(-1px); }
+.barres-rang .nom { font-size: 13.5px; font-weight: 650;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barres-rang .val { margin-left: auto; font-size: 13.5px; font-weight: 700;
+                    font-variant-numeric: tabular-nums; flex: none; }
+.barres-rang .piste { height: 7px; background: var(--surface-2); border-radius: 4px; }
+.barres-rang .piste span { display: block; height: 100%; border-radius: 4px; min-width: 3px; }
+.barres-rang .bas { font-size: 11.5px; color: var(--texte-3);
+                    font-variant-numeric: tabular-nums; }
+
+/* ----------------------------------------------------- ce qui va manquer */
+.risque { display: grid; gap: 10px; }
+@media (min-width: 760px)  { .risque { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1220px) { .risque { grid-template-columns: repeat(3, 1fr); } }
+
+.risque .fiche {
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.risque .fiche.critique { border-color: color-mix(in srgb, var(--critique) 55%, var(--bord)); }
+.risque .haut { display: flex; align-items: flex-start; gap: 10px; }
+.risque .nom { font-weight: 700; font-size: 14.5px; line-height: 1.25; }
+.risque .cat { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
+.risque .jours { margin-left: auto; text-align: right; flex: none; }
+.risque .jours b { display: block; font-size: 23px; font-weight: 750; letter-spacing: -.03em;
+                   font-variant-numeric: tabular-nums; line-height: 1.1; }
+.risque .jours span { font-size: 10.5px; color: var(--texte-3); }
+/* Une piste commune a toutes les fiches : trente jours de largeur. Deux barres
+   ne se comparent que si elles partagent leur echelle. */
+.risque .piste { height: 6px; background: var(--surface-2); border-radius: 3px; }
+.risque .piste span { display: block; height: 100%; border-radius: 3px; min-width: 6px; }
+.risque .pied { display: flex; align-items: center; gap: 8px; font-size: 12px;
+                color: var(--texte-2); }
+.risque .pied .etat { display: inline-flex; align-items: center; gap: 6px; font-weight: 650;
+                      white-space: nowrap; }
+.risque .pied .etat svg { flex: none; }
+.risque .commander { margin-left: auto; font-weight: 700; color: var(--texte);
+                     font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------- ecran d'attente */
+/*
+   `ecran-chargement`, et pas `attente`.
+
+   `attente` etait deja pris : c'est le modificateur ambre des pilules
+   (`pilule attente`). Les deux regles se rencontraient sur le meme element, et
+   chaque petite pilule « 11 vides » heritait de `position: fixed; inset: 0` —
+   elle devenait un ovale creme grand comme la page, arrondi a 999 px.
+
+   Une classe qui decrit un SINGLETON de mise en page et une classe qui decrit une
+   VARIANTE de composant ne doivent pas partager un mot aussi commun.
+*/
+.ecran-chargement {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 22px; background: var(--fond);
+}
+.ecran-chargement img { width: 128px; height: auto; animation: respire 1.6s ease-in-out infinite; }
+.fil-chargement {
+  width: 132px; height: 3px; border-radius: 2px; overflow: hidden;
+  background: var(--surface-3);
+}
+.fil-chargement span {
+  display: block; width: 40%; height: 100%; border-radius: 2px;
+  background: var(--rouge); animation: parcourt 1.15s ease-in-out infinite;
+}
+@keyframes respire { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes parcourt {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(330%); }
+}
+/* Quelqu'un qui a demande moins d'animation ne veut pas d'une pulsation en
+   plein ecran : on lui laisse le logo, fixe. */
+@media (prefers-reduced-motion: reduce) {
+  .ecran-chargement img, .fil-chargement span { animation: none; }
+  .fil-chargement span { width: 100%; }
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ replis */
+/*
+   L'ecran vide.
+
+   Un tableau sans lignes ne dit pas s'il est vide parce qu'il n'y a rien, parce
+   qu'un filtre cache tout, ou parce que quelque chose a casse. Un repli repond a
+   la question ET donne le geste suivant : sans bouton, il ne fait qu'annoncer une
+   impasse.
+*/
+.repli {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 5px; padding: 40px 22px;
+  border: 1px dashed var(--bord-fort); border-radius: var(--r-l);
+  background: var(--surface);
+}
+.repli.dedans { border: none; background: none; padding: 34px 18px; }
+.repli .marque-repli {
+  width: 42px; height: 42px; border-radius: var(--r-m); margin-bottom: 9px;
+  display: grid; place-items: center;
+  background: var(--surface-2); color: var(--texte-3);
+}
+.repli .titre { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; }
+.repli .texte { font-size: 13.5px; color: var(--texte-2); max-width: 42ch; line-height: 1.5; }
+.repli .actions { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center;
+                  margin-top: 14px; }
+
+/* --------------------------------------------------------------- premiers pas */
+/*
+   Pour un compte neuf, six sections vides ne sont pas six problemes : c'est une
+   mise en route qui n'a pas commence. On la montre dans l'ordre ou elle se fait,
+   et chaque etape faite s'efface au profit de la suivante.
+*/
+.pas-a-pas { display: grid; gap: 0; }
+.pas-a-pas .etape {
+  display: flex; align-items: flex-start; gap: 14px; padding: 15px 4px;
+  border-bottom: 1px solid var(--bord);
+}
+.pas-a-pas .etape:last-child { border-bottom: none; }
+.pas-a-pas .puce {
+  width: 26px; height: 26px; border-radius: 50%; flex: none; margin-top: 1px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  border: 1px solid var(--bord-fort); color: var(--texte-3); background: var(--surface);
+}
+.pas-a-pas .etape.faite .puce { background: var(--vert); border-color: var(--vert); color: #fff; }
+.pas-a-pas .etape.suivante .puce { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+.pas-a-pas .corps { flex: 1; min-width: 0; }
+.pas-a-pas .nom { font-weight: 650; font-size: 14.5px; }
+.pas-a-pas .etape.faite .nom { color: var(--texte-3); text-decoration: line-through;
+                               text-decoration-color: var(--bord-fort); }
+.pas-a-pas .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; }
+.pas-a-pas .fin { flex: none; align-self: center; }
+
+/* ------------------------------------------------------------------ podium */
+/*
+   Le classement des bornes en estrade : deuxieme a gauche, PREMIER AU MILIEU,
+   troisieme a droite — la disposition olympique, que tout le monde lit sans
+   legende.
+   L'ordre du DOM reste 1, 2, 3 : c'est le classement reel, et c'est celui qu'un
+   lecteur d'ecran annonce. Seules les colonnes de grille sont permutees.
+*/
+.podium { display: grid; gap: 10px; align-items: end; margin-bottom: 12px; }
+.podium.trois { grid-template-columns: repeat(3, 1fr); }
+.podium.deux  { grid-template-columns: repeat(2, 1fr); }
+.podium.une   { grid-template-columns: minmax(0, 360px); justify-content: center; }
+.podium.trois .place.r1 { grid-column: 2; }
+.podium.trois .place.r2 { grid-column: 1; grid-row: 1; }
+.podium.trois .place.r3 { grid-column: 3; grid-row: 1; }
+.podium.deux  .place.r1 { grid-column: 2; }
+.podium.deux  .place.r2 { grid-column: 1; grid-row: 1; }
+
+.podium .place { display: flex; flex-direction: column; min-width: 0; }
+.podium .fiche {
+  border: 1px solid var(--bord); border-bottom: none;
+  border-radius: var(--r-l) var(--r-l) 0 0;
+  background: var(--surface); padding: 14px 14px 12px; text-align: center;
+}
+.podium .r1 .fiche { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+.podium .nom { font-weight: 700; font-size: 14.5px; letter-spacing: -.015em;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium .lieu { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
+.podium .ca { font-size: 21px; font-weight: 750; letter-spacing: -.035em;
+              font-variant-numeric: tabular-nums; margin-top: 9px; }
+.podium .r1 .ca { font-size: 25px; }
+.podium .detail { font-size: 11.5px; color: var(--texte-3); margin-top: 2px; }
+.podium .etats { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+
+/* Le socle. Sa hauteur porte le rang autant que le chiffre inscrit dessus. */
+.podium .socle {
+  border: 1px solid var(--bord); border-radius: 0;
+  display: grid; place-items: center;
+  font-size: 26px; font-weight: 800; letter-spacing: -.03em;
+  color: var(--texte-3); background: var(--surface-2);
+}
+.podium .r1 .socle { height: 76px; background: var(--rouge); border-color: var(--rouge);
+                     color: #fff; font-size: 32px; }
+.podium .r2 .socle { height: 54px; }
+.podium .r3 .socle { height: 38px; font-size: 22px; }
+
+/* Sous 720 px, trois colonnes deviennent trois colonnes illisibles : l'estrade
+   redevient un classement vertical. */
+@media (max-width: 719px) {
+  .podium, .podium.trois, .podium.deux { grid-template-columns: 1fr; }
+  .podium .place { grid-column: 1 !important; grid-row: auto !important; }
+  .podium .fiche { border-bottom: 1px solid var(--bord); border-radius: var(--r-l);
+                   text-align: left; display: flex; align-items: center; gap: 12px; }
+  .podium .fiche .txt { flex: 1; min-width: 0; }
+  .podium .ca, .podium .r1 .ca { font-size: 19px; margin-top: 0; }
+  .podium .etats { justify-content: flex-start; }
+  .podium .socle { display: none; }
+  .podium .rang-mobile {
+    display: grid; place-items: center; width: 28px; height: 28px; flex: none;
+    border-radius: 50%; font-size: 13px; font-weight: 800;
+    background: var(--surface-3); color: var(--texte-2);
+  }
+  .podium .r1 .rang-mobile { background: var(--rouge); color: #fff; }
+}
+@media (min-width: 720px) { .podium .rang-mobile { display: none; } }
+
+/* Une marche inoccupee : presente, mais en retrait. Elle tient la forme de
+   l'estrade et signale qu'il reste de la place. */
+.podium .place.libre .fiche { border-style: dashed; background: none; }
+.podium .place.libre .nom,
+.podium .place.libre .ca { color: var(--texte-3); }
+.podium .place.libre .socle { background: none; border-style: dashed; color: var(--texte-3); }
+.podium .place.libre .detail { color: var(--rouge-vif); font-weight: 650; }
+.podium .place.libre sup { font-size: .7em; }
+
+/* ---------------------------------------------------------------- reception */
+.entete-cat {
+  padding: 11px 16px; border-bottom: 1px solid var(--bord);
+  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  font-weight: 700; color: var(--texte-3); background: var(--surface-2);
+}
+.ligne-recu {
+  display: grid; gap: 12px; align-items: center; padding: 12px 16px;
+  border-bottom: 1px solid var(--bord);
+  grid-template-columns: 1fr auto;
+}
+.ligne-recu:last-child { border-bottom: none; }
+.ligne-recu.prise { background: color-mix(in srgb, var(--rouge) 4%, transparent); }
+.ligne-recu .quoi { min-width: 0; }
+.ligne-recu .nom { font-weight: 650; font-size: 14.5px; }
+.ligne-recu .meta { font-size: 12px; color: var(--texte-3); margin-top: 1px; }
+.ligne-recu .prix-achat { display: flex; align-items: center; gap: 7px; }
+.ligne-recu .prix-achat input { width: 92px; text-align: right; min-height: 44px; }
+.ligne-recu .prix-achat .unite { font-size: 12px; color: var(--texte-3); white-space: nowrap; }
+.ligne-recu .sous-total { font-weight: 700; font-size: 14px; min-width: 88px; text-align: right; }
+.ligne-recu .sous-total:not(.num) { color: var(--texte-3); }
+@media (min-width: 900px) {
+  .ligne-recu { grid-template-columns: minmax(0, 1fr) auto auto 96px; }
+}
+@media (max-width: 899px) {
+  .ligne-recu { grid-template-columns: 1fr auto; }
+  .ligne-recu .prix-achat { grid-column: 1; }
+  .ligne-recu .sous-total { grid-column: 2; }
+}
+
+/* Le pied colle en bas : on saisit dix lignes, et le total qu'on compare au bon
+   de livraison doit rester sous les yeux. */
+.pied-recu {
+  position: sticky; bottom: calc(72px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 14px; justify-content: space-between;
+  padding: 12px 16px; border: 1px solid var(--bord-fort); border-radius: var(--r-l);
+  background: color-mix(in srgb, var(--fond) 94%, transparent);
+  backdrop-filter: saturate(150%) blur(10px);
+}
+@media (min-width: 980px) { .pied-recu { bottom: 14px; } }
+
+/* ------------------------------------------------------------ appel a agir */
+/*
+   Une barre d'actions, pas un bouton perdu au fil de la page. Ce sont les deux
+   gestes qu'on vient faire ; ils meritent d'etre atteignables sans chercher.
+*/
+.actions-cle { display: grid; gap: 10px; margin: 16px 0 4px; }
+@media (min-width: 760px) { .actions-cle { grid-template-columns: repeat(2, 1fr); } }
+.actions-cle a {
+  display: flex; align-items: center; gap: 13px; padding: 14px 16px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+}
+.actions-cle a:hover { border-color: var(--bord-fort); }
+.actions-cle a.forte { border-color: var(--rouge); background: var(--rouge); color: #fff; }
+.actions-cle a.forte:hover { background: var(--rouge-vif); border-color: var(--rouge-vif); }
+.actions-cle .rond {
+  width: 36px; height: 36px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--texte-2);
+}
+.actions-cle a.forte .rond { background: rgba(255,255,255,.18); color: #fff; }
+.actions-cle .titre { font-weight: 700; font-size: 14.5px; }
+.actions-cle .quoi { font-size: 12.5px; opacity: .78; margin-top: 1px; }
+.actions-cle .fleche { margin-left: auto; opacity: .55; }
+
+/* Le conseil « commander ~20 » est cliquable : il ouvre la reception avec le
+   produit et la quantite deja poses. */
+.risque .lien-commander { text-decoration: underline;
+                          text-decoration-color: var(--bord-fort);
+                          text-underline-offset: 3px; }
+.risque .lien-commander:hover { color: var(--rouge-vif); text-decoration-color: currentColor; }
+
+/* ------------------------------------------------- categorie et ses produits */
+/*
+   Une categorie ouverte contenait des cartes qui ressemblaient a la carte de la
+   categorie : deux niveaux, un seul aspect, et on ne savait plus lequel on
+   lisait. Trois choses les separent maintenant, et pas une seule :
+
+     - un RETRAIT et un FILET VERTICAL qui rattachent les produits a leur titre ;
+     - une surface differente, en creux plutot qu'en relief ;
+     - un chevron de fin, parce qu'un produit MENE QUELQUE PART et pas la categorie.
+*/
+details.groupe > summary { border-bottom: 1px solid transparent; }
+details.groupe[open] > summary {
+  border-bottom-color: var(--bord); border-radius: var(--r-l) var(--r-l) 0 0;
+}
+details.groupe[open] > summary .titre { color: var(--rouge-vif); }
+details.groupe .dedans { padding: 0; background: var(--surface-2); border-radius: 0 0 var(--r-l) var(--r-l); }
+
+.sous-liste { padding: 6px 14px 12px 0; margin-left: 26px; border-left: 2px solid var(--bord-fort); }
+.sous-liste > * { margin-left: 18px; }
+
+a.produit-ligne {
+  display: grid; grid-template-columns: 1fr auto 16px; gap: 14px; align-items: center;
+  padding: 12px 14px; border-radius: var(--r-m); background: var(--surface);
+  border: 1px solid var(--bord); margin-top: 8px;
+}
+a.produit-ligne:hover { border-color: var(--bord-fort); }
+a.produit-ligne.epuise { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+a.produit-ligne .nom { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; }
+a.produit-ligne .meta { font-size: 11.5px; color: var(--texte-3); margin-top: 2px; }
+a.produit-ligne .fleche { color: var(--texte-3); display: flex; }
+@media (max-width: 620px) {
+  a.produit-ligne { grid-template-columns: 1fr auto; }
+  a.produit-ligne .fleche { display: none; }
+  a.produit-ligne .chiffres { gap: 12px; }
+  .sous-liste { margin-left: 12px; }
+  .sous-liste > * { margin-left: 12px; }
+}
+
+/* ------------------------------------------------------------- fiche produit */
+.ou-est { display: grid; gap: 8px; }
+.ou-est .lieu-ligne {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface);
+}
+.ou-est .lieu-ligne.reserve { border-color: var(--bord-fort); }
+.ou-est .pastille-lieu {
+  width: 30px; height: 30px; border-radius: var(--r-s); flex: none;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--texte-2);
+}
+.ou-est .reserve .pastille-lieu { background: var(--texte); color: var(--fond); }
+.ou-est .nom-lieu { font-weight: 650; font-size: 14px; }
+.ou-est .detail-lieu { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
+.ou-est .n { margin-left: auto; font-size: 19px; font-weight: 750;
+             font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+
+.mouvements .motif {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; background: var(--surface-2); color: var(--texte-3);
+}
+.mouvements .motif.reception { background: var(--vert-fond); color: var(--vert); }
+.mouvements .motif.transfert { background: var(--rouge-fond); color: var(--rouge-vif); }
+.mouvements .motif.vente     { background: var(--surface-3); color: var(--texte-2); }
+.mouvements .delta { font-variant-numeric: tabular-nums; font-weight: 700; }
+.mouvements .delta.plus  { color: var(--vert); }
+.mouvements .delta.moins { color: var(--texte-2); }
+.mouvements .delta.neutre { color: var(--texte-3); }
