@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { PICTOS } from "@/lib/pictos";
-import { recadrer } from "@/lib/recadrer";
 
 /** Le pictogramme, dessine comme la borne le dessine — meme trace, meme trait. */
 export function Picto({ cle, taille = 26 }: { cle: string; taille?: number }) {
@@ -105,15 +104,12 @@ export default function Vignette({
                if (apercu) URL.revokeObjectURL(apercu);
                if (!brut) { poser(null); return; }
 
-               // On REMPLACE le contenu du champ par la version recadree : c'est
-               // elle qui partira, et l'apercu montre donc exactement ce que la
-               // borne affichera.
-               const net = await recadrer(brut);
-               const sac = new DataTransfer();
-               sac.items.add(net);
-               if (champ.current) champ.current.files = sac.files;
-
-               poser(URL.createObjectURL(net));
+               // LE FICHIER PART TEL QUEL. Il etait rogne au format du cadre
+               // et reencode en JPEG : une photo verticale y perdait le haut et
+               // le bas, et un visuel propre y gagnait du grain. On le laisse
+               // intact, et c'est l'AFFICHAGE qui s'adapte — le cadre contient
+               // l'image entiere au lieu de la remplir.
+               poser(URL.createObjectURL(brut));
                oter(false);
              }} />
     </div>

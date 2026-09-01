@@ -23,11 +23,13 @@ export default async function Detail({
   params, searchParams,
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
-                             reveil?: string; delier?: string; pin?: string }> }) {
+                             reveil?: string; delier?: string; pin?: string;
+                             reconcilie?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
-  const { charge, canaux: nCanaux, refuses, reveil, delier, pin } = await searchParams;
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie } =
+    await searchParams;
 
   const b = await q1<Borne>(
     `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
@@ -169,6 +171,17 @@ export default async function Detail({
           </div>
         ) : null}
 
+        {reconcilie ? (
+          <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
+            <span className="pilule ok"><i />Spire {reconcilie} réconciliée</span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              Nos livres sont à jour et la correction part vers la machine : elle la
+              pose sur son compteur à sa prochaine synchronisation. L’écart affiché
+              disparaîtra à ce moment-là, pas avant.
+            </p>
+          </div>
+        ) : null}
+
         {reveil ? (
           <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
             <span className="pilule ok"><i />Borne réveillée</span>
@@ -293,10 +306,30 @@ export default async function Detail({
                         la saisie ratee, et c'est la seule facon de les voir.
                       */}
                       {c.quantite_borne !== null && c.quantite_borne !== c.quantite ? (
-                        <span className="faible" style={{ fontWeight: 500, marginLeft: 6 }}
-                              title={`La machine en compte ${c.quantite_borne}`}>
-                          (borne&nbsp;{c.quantite_borne})
-                        </span>
+                        // L'ECART SE LIT COMME UN ECART, pas comme un second
+                        // total. « borne 10 » se lisait « borne numero 10 » —
+                        // le mot designe la machine partout ailleurs, et il
+                        // tombait ici a cote d'un autre nombre. On montre donc
+                        // la difference signee, en ambre : ce n'est pas une
+                        // information neutre, c'est du stock qui manque ou qui
+                        // apparait sans raison.
+                        // L'ecart MENE quelque part : le voir sans pouvoir le
+                        // regler laisse l'exploitant devant un chiffre qu'il
+                        // sait faux et qu'il ne peut qu'attendre.
+                        <Link href={`/bornes/${id}/canal/${c.lane}/reconcilier`}
+                              style={{ fontWeight: 600, marginLeft: 8, fontSize: 12.5,
+                                       color: "var(--ambre)", textDecoration: "underline",
+                                       textUnderlineOffset: 3 }}
+                              title={`La machine en compte ${c.quantite_borne}, nous ${c.quantite} — réconcilier`}>
+                          {c.quantite_borne > c.quantite ? "+" : "−"}
+                          {Math.abs(c.quantite_borne - c.quantite)} machine
+                        </Link>
+                      ) : peutCharger(u) && c.produit_id ? (
+                        <Link href={`/bornes/${id}/canal/${c.lane}/reconcilier`}
+                              className="faible" style={{ fontWeight: 500, marginLeft: 8, fontSize: 12 }}
+                              title="Corriger le compteur de cette spire">
+                          corriger
+                        </Link>
                       ) : null}
                     </div>
                     {c.en_route > 0 ? <div className="faible num" style={{ fontSize: 12, color: "var(--ambre)" }}>+{c.en_route}</div> : null}

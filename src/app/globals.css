@@ -1219,7 +1219,10 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
     linear-gradient(45deg, var(--surface-3) 25%, transparent 25% 75%, var(--surface-3) 75%);
   background-size: 14px 14px; background-position: 0 0, 7px 7px;
 }
-.vignette img, .vignette video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* CONTAIN, PAS COVER. Le fichier n'est plus rogne a l'import : le cadre montre
+   donc l'image entiere, quitte a laisser du vide sur les cotes. Remplir aurait
+   rogne a l'affichage ce qu'on vient d'arreter de rogner au fichier. */
+.vignette img, .vignette video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .vignette .genre {
   position: absolute; left: 5px; bottom: 5px;
   font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
@@ -1543,7 +1546,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 }
 .vignette-item.rond .cadre { border-radius: 50%; }
 .vignette-item .cadre:hover { border-color: var(--rouge); }
-.vignette-item .cadre img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vignette-item .cadre img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .vignette-item .cadre:has(img) { border-style: solid; border-color: var(--bord); }
 .vignette-item .rien {
   display: grid; place-items: center; width: 100%; height: 100%;

@@ -442,3 +442,33 @@ ALTER TABLE canal ADD COLUMN IF NOT EXISTS releve_borne_le TIMESTAMPTZ;
 -- machine : on part de la plutot que de zero, sinon tout le parc s'annoncerait
 -- vide au premier deploiement.
 UPDATE canal SET quantite_borne = quantite WHERE quantite_borne IS NULL;
+
+-- ------------------------------------------------------- reconciliation d'un canal
+
+-- METTRE LES DEUX COMPTEURS D'ACCORD.
+--
+-- Nos livres disent 3, la machine dit 10. L'un des deux a tort, parfois les
+-- deux. Corriger nos livres seuls laisse la borne vendre sur un chiffre faux ;
+-- corriger la machine seule laisse notre stock faux. La reconciliation ecrit
+-- donc des DEUX cotes.
+--
+-- Cote SaaS, la correction est un mouvement d'inventaire — le motif existait
+-- deja et n'avait jamais servi. Cote machine, elle voyage ici : une valeur
+-- ABSOLUE pour une spire, que la borne pose sur son compteur. Ce n'est pas un
+-- transfert, qui est un ecart et s'ajoute ; c'est un « ta spire 3 contient 8 »,
+-- et un ecart n'aurait pas su corriger une machine qui a deja tort.
+--
+-- `applique_le` la ferme. Sans lui, une correction repartirait a chaque appel et
+-- ecraserait indefiniment les ventes survenues depuis.
+CREATE TABLE IF NOT EXISTS correction_canal (
+  id          BIGSERIAL PRIMARY KEY,
+  borne_id    BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
+  lane        INTEGER NOT NULL,
+  quantite    INTEGER NOT NULL CHECK (quantite >= 0),
+  par         TEXT,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  applique_le TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS i_correction_vive
+  ON correction_canal (borne_id) WHERE applique_le IS NULL;

@@ -24,6 +24,7 @@ type Releve = {
   ventes?: { commande_id: string; lane?: number | null; sku?: string | null;
              prix_centimes: number; statut: string; faite_le: string }[];
   transferts_appliques?: number[];
+  corrections_appliquees?: number[];
 };
 
 const STATUTS = new Set(["distribue", "non_distribue", "litige"]);
@@ -98,6 +99,18 @@ export async function POST(req: Request) {
           "UPDATE canal SET quantite = quantite + $1 WHERE borne_id = $2 AND lane = $3",
           [m.quantite, borne.id, m.lane]);
       }
+    }
+
+    // 1 ter. Les corrections de compteur qu'elle vient de poser. On les ferme
+    //     avant de lire son releve : le compteur qu'elle annonce est deja le
+    //     corrige, et une correction laissee ouverte repartirait au tour
+    //     suivant pour ecraser les ventes survenues depuis.
+    const idsCorr = (r.corrections_appliquees ?? []).filter(Number.isInteger);
+    if (idsCorr.length > 0) {
+      await c.query(`
+        UPDATE correction_canal SET applique_le = now()
+         WHERE id = ANY($1::bigint[]) AND borne_id = $2 AND applique_le IS NULL`,
+        [idsCorr, borne.id]);
     }
 
     // 2. Les compteurs de la machine.

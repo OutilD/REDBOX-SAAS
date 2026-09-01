@@ -28,7 +28,8 @@ export async function GET(req: Request) {
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
   // Tout ce que la borne doit recevoir se lit d'un seul elan. L'horodatage de
   // passage part avec le reste : il n'interesse personne dans cette reponse.
-  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin] = await Promise.all([
+  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin, corrections] =
+    await Promise.all([
     q("UPDATE borne SET vue_le = now() WHERE id = $1", [borne.id]),
 
     catalogueDe(borne.compte_id!, borne.id),
@@ -64,6 +65,13 @@ export async function GET(req: Request) {
     // la machine vient le prendre : ce que le SaaS affiche est alors ce que la
     // borne accepte vraiment, meme apres des jours hors ligne.
     pinLivrable(borne.id),
+
+    // Les compteurs a remettre d'aplomb. Ce sont des valeurs ABSOLUES, pas des
+    // ecarts comme les transferts : on corrige une machine qui a deja tort, et
+    // un ecart applique a un chiffre faux donne un autre chiffre faux.
+    q(`SELECT id, lane, quantite FROM correction_canal
+        WHERE borne_id = $1 AND applique_le IS NULL
+        ORDER BY id`, [borne.id]),
   ]);
 
   // L'empreinte evite le travail inutile : la borne ne reconstruit son inventaire
@@ -83,6 +91,8 @@ export async function GET(req: Request) {
     sav,
     maintenance: pin ? { pin } : null,
     transferts,
-    prochain_appel_s: transferts.length > 0 ? RYTHME_VIF : RYTHME_CALME,
+    corrections,
+    prochain_appel_s:
+      transferts.length > 0 || corrections.length > 0 ? RYTHME_VIF : RYTHME_CALME,
   });
 }

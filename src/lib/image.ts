@@ -4,13 +4,17 @@ import type { PgClient } from "@/db";
 /**
  * LES IMAGES DU CATALOGUE.
  *
- * Petites par nature : une vignette de rayon, une photo d'article. Le plafond
- * est donc bas — deux megaoctets — et ce n'est pas de l'avarice. Ces images
- * partent sur CHAQUE borne, par la 4G d'une cave, et la machine doit pouvoir
- * les afficher instantanement une fois en cache. Une photo de reflex de huit
- * megaoctets ferait la meme vignette de 200 px, en quinze fois plus lourd.
+ * Le navigateur les reduisait avant l'envoi : deux megaoctets suffisaient donc
+ * largement, une photo de telephone arrivant a cent kilo-octets. On ne les
+ * touche plus — ni rognage ni reencodage — et c'est le fichier d'origine qui
+ * monte. Le plafond suit, sinon la moitie des photos serait refusee.
+ *
+ * IL RESTE UN PLAFOND, et bas pour ce que peut peser une photo moderne : ces
+ * images partent sur CHAQUE borne, par la 4G d'une cave, et la machine doit
+ * pouvoir les afficher instantanement une fois en cache. Un fichier de vingt
+ * megaoctets ferait la meme vignette, en trente fois plus lourd sur le reseau.
  */
-export const IMAGE_MAX = 2 * 1024 * 1024;
+export const IMAGE_MAX = 8 * 1024 * 1024;
 
 export const IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
