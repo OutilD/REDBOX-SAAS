@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS mouvement (
   vers_lieu_id BIGINT REFERENCES lieu(id) ON DELETE SET NULL,
   quantite     INTEGER NOT NULL CHECK (quantite > 0),
   motif        TEXT NOT NULL CHECK (motif IN
-                 ('reception','transfert','vente','perte','retour','inventaire')),
+                 ('reception','transfert','vente','perte','retour','inventaire',
+                  'casse','vol','peremption','autre')),
   prix_achat_c INTEGER,               -- renseigne sur les receptions : valeur du stock, marge
   lane         INTEGER,               -- canal vise, sur un transfert
   reference    TEXT,                  -- bon de livraison, commande, ce qu'on veut retrouver
@@ -348,3 +349,96 @@ CREATE TABLE IF NOT EXISTS visuel (
   cree_le     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS visuel_playlist ON visuel (playlist_id, ordre);
+
+-- ------------------------------------------------------------------ assistance
+
+-- LE NUMERO A APPELER QUAND CA COINCE.
+--
+-- Une borne est seule dans un bar, la nuit. Quand elle refuse une carte, avale
+-- un paiement ou ne descend pas un produit, le client n'a personne a qui le
+-- dire : il s'en va, et l'exploitant ne saura jamais qu'il a perdu une vente et
+-- un client. Un numero affiche coute une ligne de texte et rattrape les deux.
+--
+-- Il vit sur le COMPTE et non sur la borne : c'est le meme exploitant qui
+-- repond pour toutes ses machines. Une borne qui aurait besoin du sien pourra
+-- l'obtenir plus tard sans defaire celui-ci.
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS sav_tel   TEXT;
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS sav_texte TEXT;
+
+-- ------------------------------------------------------- fiche produit
+
+-- CE QU'ON PEUT DIRE D'UN PRODUIT AU CLIENT, DEVANT LA MACHINE.
+--
+-- Un distributeur ne laisse pas retourner la boite pour lire l'etiquette. Le
+-- client voit un nom, un prix, et doit decider. Ces deux champs sont ce qui
+-- remplace l'etiquette : la description, qui aide a choisir, et la mention
+-- legale, qui n'est pas facultative sur des produits reglementes.
+--
+-- LA MENTION EST ECRITE PAR L'EXPLOITANT, pas devinee par nous. Le libelle
+-- exact engage sa responsabilite, il varie avec le produit et avec la loi ; une
+-- phrase que nous aurions fabriquee serait fausse quelque part. La machine, elle,
+-- ajoute d'office ce qu'elle SAIT — la restriction d'age, qu'elle applique deja.
+ALTER TABLE produit ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE produit ADD COLUMN IF NOT EXISTS mention     TEXT;
+
+-- --------------------------------------------------- mot de passe de maintenance
+
+-- LE CODE QUI OUVRE LA CONSOLE DE LA MACHINE.
+--
+-- Il valait 123450 pour tout le parc, ecrit en dur dans l'application : un code
+-- que personne ne change est un code que tout le monde finit par connaitre, et
+-- la console commande les moteurs, vide les compteurs et remet la machine a
+-- neuf. Il devient donc propre a chaque borne, et il tourne.
+--
+-- IL EST DELIVRE, PAS DECIDE. Le SaaS ne le renouvelle qu'au moment ou la
+-- machine vient le chercher : ce que cette page affiche est ce que la borne
+-- porte VRAIMENT. Une machine hors ligne garde son code, et le technicien qui
+-- se deplace entre dedans — l'inverse l'aurait laisse devant une porte fermee.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS maintenance_pin    TEXT;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS maintenance_pin_le TIMESTAMPTZ;
+
+-- Ce que la borne DIT porter comme code, a son dernier passage. Vide tant
+-- qu'elle tourne sur une version qui ignore le champ : le SaaS s'abstient alors
+-- de renouveler quoi que ce soit, et la machine reste sur le code d'usine.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS maintenance_vu TEXT;
+
+-- --------------------------------------------------------- sorties de stock
+
+-- POURQUOI LA MARCHANDISE A DISPARU.
+--
+-- Une bouteille tombe, un carton part avec quelqu'un, une date limite passe :
+-- ces unites quittent la reserve sans passer par une machine. Elles n'avaient
+-- pas de motif — l'ecart se retrouvait au prochain inventaire, des mois plus
+-- tard, sous la forme d'un chiffre faux et sans explication.
+--
+-- Des motifs SEPARES plutot qu'une perte unique commentee : douze casses sur un
+-- produit appellent un autre geste que douze vols, et une note libre ne se
+-- compte pas. La contrainte est refaite ici parce que la table existe deja —
+-- un CREATE TABLE IF NOT EXISTS ne la reprendrait pas.
+ALTER TABLE mouvement DROP CONSTRAINT IF EXISTS mouvement_motif_check;
+ALTER TABLE mouvement ADD CONSTRAINT mouvement_motif_check CHECK (motif IN
+  ('reception','transfert','vente','perte','retour','inventaire',
+   'casse','vol','peremption','autre'));
+
+-- ------------------------------------------------- compteur du SaaS et compteur de la borne
+
+-- DEUX CHIFFRES, ET L'ECART ENTRE EUX.
+--
+-- `canal.quantite` etait ce que la machine annonçait, ecrase a chaque releve.
+-- Un chargement saisi ici disparaissait donc des que la borne parlait, et
+-- l'exploitant ne pouvait pas corriger un stock : la machine avait toujours le
+-- dernier mot.
+--
+-- Desormais `quantite` est NOTRE compte, tenu par les evenements — solde
+-- d'ouverture a l'appairage, plus les transferts confirmes, moins les ventes
+-- distribuees et les sorties. `quantite_borne` garde ce que la machine dit
+-- porter. L'ecart entre les deux n'est pas un defaut a lisser : c'est le vol,
+-- la casse, le capteur muet et la saisie ratee, et c'est la seule facon de les
+-- voir.
+ALTER TABLE canal ADD COLUMN IF NOT EXISTS quantite_borne INTEGER;
+ALTER TABLE canal ADD COLUMN IF NOT EXISTS releve_borne_le TIMESTAMPTZ;
+
+-- Les bornes deja en service n'ont jamais rien eu d'autre que le compteur de la
+-- machine : on part de la plutot que de zero, sinon tout le parc s'annoncerait
+-- vide au premier deploiement.
+UPDATE canal SET quantite_borne = quantite WHERE quantite_borne IS NULL;

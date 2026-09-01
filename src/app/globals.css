@@ -1634,3 +1634,62 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
    trois pour deux, comme le cadre de la machine. Ce qu'on voit ici est ce qui
    s'affichera la-bas. */
 .vignette-item.carre .cadre { width: 66px; height: 44px; }
+
+/* ------------------------------------------------------ fiche produit
+   Le panneau depliable sous une ligne de catalogue : la description que la
+   borne montrera au client, et la mention legale qui l'accompagne.
+
+   Il occupe TOUTE la largeur de la ligne (flex-basis: 100%), sinon il se
+   tasserait entre deux boutons — c'est du texte qu'on ecrit, pas une case. */
+.fiche-produit {
+  flex-basis: 100%;
+  margin-top: 10px; padding-top: 12px;
+  border-top: 1px solid var(--bord);
+  cursor: default;
+}
+.fiche-produit label {
+  display: block; margin-bottom: 5px;
+  font-size: 12.5px; font-weight: 500; color: var(--texte-2);
+}
+.fiche-produit textarea {
+  width: 100%; margin-bottom: 12px; resize: vertical;
+  font: inherit; font-size: 13.5px; line-height: 1.45;
+  padding: 9px 11px; border-radius: var(--r-s);
+  border: 1px solid var(--bord); background: var(--fond); color: var(--texte);
+}
+.fiche-produit textarea:focus-visible { outline: 2px solid var(--rouge); outline-offset: 1px; }
+.fiche-produit textarea:last-of-type { margin-bottom: 0; }
+
+/* ------------------------------------------------------- sortie de stock */
+/*
+   LE CHOIX DE LA CAUSE, ETALE ET NON DEROULE.
+
+   La cause est le sujet de cet ecran : c'est elle qu'on relira en statistique,
+   pas la quantite. Une liste deroulante l'aurait cachee derriere un clic et
+   aurait laisse le premier choix passer par defaut sans etre lu — sur cinq
+   options, les voir toutes coute trois lignes et evite des « perte » posees
+   faute d'avoir deroule.
+*/
+.choix-motifs { display: grid; gap: 8px; }
+@media (min-width: 620px) { .choix-motifs { grid-template-columns: repeat(2, 1fr); } }
+.choix-motifs .choix {
+  display: flex; align-items: center; gap: 11px; padding: 11px 13px; cursor: pointer;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+}
+.choix-motifs .choix:hover { border-color: var(--bord-fort); }
+.choix-motifs .choix:has(input:checked) {
+  border-color: var(--rouge); background: var(--rouge-fond);
+}
+.choix-motifs .choix input { width: 19px; height: 19px; accent-color: var(--rouge); flex: none; }
+.choix-motifs .choix > span { display: flex; flex-direction: column; min-width: 0; }
+.choix-motifs .titre { font-weight: 650; font-size: 14px; }
+.choix-motifs .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 1px; }
+
+/* Les sorties au grand livre. Elles ne se confondent pas avec une vente : une
+   vente rapporte, une casse coute, et l'oeil doit faire la difference en
+   parcourant la colonne. */
+.mouvements .motif.casse,
+.mouvements .motif.vol,
+.mouvements .motif.peremption,
+.mouvements .motif.perte,
+.mouvements .motif.autre { background: var(--ambre-fond); color: var(--ambre); }

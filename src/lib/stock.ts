@@ -73,7 +73,11 @@ export type LigneCanal = {
   produit_id: number | null; sku: string | null; nom: string | null;
   categorie_id: number | null; categorie: string; ordre: number;
   prix_vente_c: number | null;
-  quantite: number; capacite: number; seuil_bas: number;
+  /** Notre compte, tenu par les evenements. C'est lui qui fait foi ici. */
+  quantite: number;
+  /** Ce que la machine dit porter. L'ecart avec le notre est l'information. */
+  quantite_borne: number | null;
+  capacite: number; seuil_bas: number;
   releve_le: Date | null; en_route: number; reserve: number;
 };
 
@@ -83,7 +87,7 @@ export async function canauxDe(borne_id: number, compte_id: number): Promise<Lig
            p.sku, p.nom, p.prix_vente_c,
            p.categorie_id, COALESCE(cat.nom, 'sans catégorie') AS categorie,
            COALESCE(cat.ordre, 999) AS ordre,
-           c.quantite, c.capacite, c.seuil_bas, c.releve_le,
+           c.quantite, c.quantite_borne, c.capacite, c.seuil_bas, c.releve_le,
            COALESCE((SELECT SUM(m.quantite) FROM mouvement m
                       WHERE m.vers_lieu_id = b.lieu_id AND m.lane = c.lane
                         AND m.confirme_le IS NULL AND m.annule_le IS NULL), 0)::int AS en_route,

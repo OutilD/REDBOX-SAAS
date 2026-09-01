@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import Vignette from "../../vignette";
+import { DESC_MAX, MENTION_MAX, mentionDAge } from "@/lib/fiche";
 
 export type Prod = {
   id: number; sku: string; nom: string; prix_vente_c: number;
   categorie_id: number | null; actif: boolean; ordre: number;
   canaux: number; bouge: number;      // bouge = mouvements de stock enregistres
   image: number | null; icone: string | null;
+  age_min: number; description: string | null; mention: string | null;
 };
 export type Cat = { id: number; nom: string; ordre: number };
 
@@ -34,6 +36,10 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
   const [pris, prendre] = useState<number | null>(null);
   const [cible, viser] = useState<string | null>(null);
   const [aConfirmer, confirmer] = useState<number | null>(null);
+  // La fiche ouverte, s'il y en a une. Une seule a la fois : c'est un texte
+  // qu'on ecrit, pas une case qu'on coche, et deux champs longs ouverts cote a
+  // cote font perdre la ligne qu'on etait en train de lire.
+  const [fiche, ouvrirFiche] = useState<number | null>(null);
   // Le rayon montre dans l'apercu. Par defaut le premier — c'est celui que le
   // client voit en haut de son ecran d'accueil.
   const [vu, regarder] = useState<number | null>(cats[0] ? Number(cats[0].id) : null);
@@ -135,6 +141,16 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         Réassort
       </Link>
 
+      {/* La fiche : ce que la borne montrera quand le client touchera le « i ».
+          Repliee par defaut — deux textes longs sur chaque ligne rendraient la
+          liste illisible, et on ne les ecrit qu'une fois. */}
+      <button type="button" className="bouton petit discret"
+              onClick={() => ouvrirFiche(fiche === p.id ? null : p.id)}
+              aria-expanded={fiche === p.id}
+              title={`Fiche de ${p.nom} — description et mention légale`}>
+        Fiche{p.description || p.mention ? " ·" : ""}
+      </button>
+
       <button type="button" className="bouton petit"
               onClick={() => modifier(p.id, { actif: !p.actif })}
               aria-pressed={!p.actif}>
@@ -153,6 +169,34 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
 
       <input type="hidden" name={`pord_${p.id}`} value={(i + 1) * 10} />
       <input type="hidden" name={`cat_${p.id}`} value={cat ?? ""} />
+
+      {/*
+        Le panneau est TOUJOURS dans la page, seulement masque : un champ retire
+        du document ne part pas avec le formulaire, et fermer la fiche aurait
+        efface ce qu'on venait d'y ecrire.
+      */}
+      <div className="fiche-produit" hidden={fiche !== p.id}>
+        <label htmlFor={`desc_${p.id}`}>Description — ce qui aide à choisir</label>
+        <textarea id={`desc_${p.id}`} name={`desc_${p.id}`} rows={2} maxLength={DESC_MAX}
+                  draggable={false} placeholder="600 bouffées · 2 % de nicotine · goût menthe glaciale"
+                  value={p.description ?? ""}
+                  onChange={(ev) => modifier(p.id, { description: ev.target.value })}
+                  onDragStart={(ev) => { ev.preventDefault(); ev.stopPropagation(); }} />
+
+        <label htmlFor={`ment_${p.id}`}>Mention légale — affichée sous la description</label>
+        <textarea id={`ment_${p.id}`} name={`ment_${p.id}`} rows={3} maxLength={MENTION_MAX}
+                  draggable={false}
+                  placeholder="Le libellé exact est de votre responsabilité — il dépend du produit et de la réglementation."
+                  value={p.mention ?? ""}
+                  onChange={(ev) => modifier(p.id, { mention: ev.target.value })}
+                  onDragStart={(ev) => { ev.preventDefault(); ev.stopPropagation(); }} />
+
+        {mentionDAge(p.age_min) ? (
+          <p className="faible" style={{ fontSize: 12.5, margin: "8px 0 0" }}>
+            La borne ajoute d’office : « {mentionDAge(p.age_min)} »
+          </p>
+        ) : null}
+      </div>
 
       {aConfirmer === p.id ? (
         <div className="confirme-oter">

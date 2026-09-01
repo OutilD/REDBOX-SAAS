@@ -2,6 +2,8 @@ import { q } from "@/db";
 import { catalogueDe, empreinte, parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { empreintePub, pubVide, visuelsPour } from "@/lib/pub";
 import { illustrationsDe } from "@/lib/illustration";
+import { savDe } from "@/lib/sav";
+import { pinLivrable } from "@/lib/maintenance";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export async function GET(req: Request) {
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
   // Tout ce que la borne doit recevoir se lit d'un seul elan. L'horodatage de
   // passage part avec le reste : il n'interesse personne dans cette reponse.
-  const [, catalogue, visuels, pubDeserte, illustrations, transferts] = await Promise.all([
+  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin] = await Promise.all([
     q("UPDATE borne SET vue_le = now() WHERE id = $1", [borne.id]),
 
     catalogueDe(borne.compte_id!, borne.id),
@@ -46,11 +48,22 @@ export async function GET(req: Request) {
     // Une liste vide veut dire « garde les tiennes ».
     illustrationsDe(borne.compte_id!),
 
+    // Le numero d'assistance. Il ne pese rien et ne change presque jamais : il
+    // part a chaque appel plutot que derriere une empreinte, parce qu'une borne
+    // qui afficherait l'ancien numero pendant une panne serait pire qu'une
+    // borne qui n'en affiche aucun.
+    savDe(borne.compte_id!),
+
     q(`SELECT m.id, m.lane, m.quantite, p.sku, p.nom
          FROM mouvement m JOIN produit p ON p.id = m.produit_id
         WHERE m.vers_lieu_id = $1 AND m.motif = 'transfert'
           AND m.confirme_le IS NULL AND m.annule_le IS NULL
         ORDER BY m.id`, [borne.lieu_id]),
+
+    // Le code de la console de maintenance. Il est renouvele ICI, au moment ou
+    // la machine vient le prendre : ce que le SaaS affiche est alors ce que la
+    // borne accepte vraiment, meme apres des jours hors ligne.
+    pinLivrable(borne.id),
   ]);
 
   // L'empreinte evite le travail inutile : la borne ne reconstruit son inventaire
@@ -67,6 +80,8 @@ export async function GET(req: Request) {
     catalogue: { version, vide, ...catalogue },
     pub: { version: empreintePub(visuels), vide: pubDeserte, visuels },
     ecrans: illustrations,
+    sav,
+    maintenance: pin ? { pin } : null,
     transferts,
     prochain_appel_s: transferts.length > 0 ? RYTHME_VIF : RYTHME_CALME,
   });

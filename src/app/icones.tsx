@@ -159,6 +159,13 @@ export const IcoPub = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Assistance : une combine. Le seul objet qui veut dire « appelez ». */
+export const IcoSav = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M6.6 3.2 8.3 6.4a1 1 0 0 1-.22 1.2l-1.1 1a10 10 0 0 0 3.9 3.9l1-1.1a1 1 0 0 1 1.2-.22l3.2 1.7a1 1 0 0 1 .5 1.05l-.35 1.9a1.4 1.4 0 0 1-1.5 1.15C8.6 16.5 3.5 11.4 3 5.05A1.4 1.4 0 0 1 4.15 3.55l1.9-.35a1 1 0 0 1 1.05.5z" />
+  </svg>
+);
+
 export const IcoHorloge = ({ size = 14 }: P) => (
   <svg {...base(size)}>
     <circle cx="10" cy="10" r="7.2" />

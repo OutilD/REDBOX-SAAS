@@ -5,6 +5,7 @@ import { prefixeSku } from "@/lib/sku";
 import { laneDe, spireValide } from "@/lib/machine";
 import { balayerImages, rangerImage } from "@/lib/image";
 import { CLES_PICTO } from "@/lib/pictos";
+import { DESC_MAX, MENTION_MAX } from "@/lib/fiche";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +172,16 @@ async function enregistrer(f: FormData, compte_id: number): Promise<void> {
         if (!nom) continue;   // un nom vide effacerait l'identite du produit
         await c.query("UPDATE produit SET nom = $1 WHERE id = $2 AND compte_id = $3",
                       [nom, Number(cle.slice(5)), compte_id]);
+      } else if (cle.startsWith("desc_")) {
+        // LA FICHE PEUT ETRE VIDEE. Un texte efface est une intention : on ne
+        // garde pas une description dont l'exploitant ne veut plus.
+        const t = String(valeur).trim().slice(0, DESC_MAX);
+        await c.query("UPDATE produit SET description = $1 WHERE id = $2 AND compte_id = $3",
+                      [t || null, Number(cle.slice(5)), compte_id]);
+      } else if (cle.startsWith("ment_")) {
+        const t = String(valeur).trim().slice(0, MENTION_MAX);
+        await c.query("UPDATE produit SET mention = $1 WHERE id = $2 AND compte_id = $3",
+                      [t || null, Number(cle.slice(5)), compte_id]);
       } else if (cle.startsWith("pord_")) {
         const n = Number(valeur);
         if (!Number.isInteger(n)) continue;

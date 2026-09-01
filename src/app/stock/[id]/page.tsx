@@ -5,6 +5,8 @@ import { Repli } from "../../repli";
 import { IcoBorne, IcoFleche, IcoReception, IcoStock } from "../../icones";
 import { q, q1, euros, depuis, leJour } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
+import { MOTIFS_SORTIE, PARTICIPE, estMotifSortie } from "@/lib/sortie";
+import { IcoSortir } from "../../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +32,14 @@ type Mouvement = {
  * exactement mon stock, et d'ou vient ce chiffre ? » — l'emplacement precis, et
  * le grand livre qui l'explique ligne par ligne.
  */
-export default async function Produit({ params }: { params: Promise<{ id: string }> }) {
+export default async function Produit({
+  params, searchParams,
+}: { params: Promise<{ id: string }>;
+     searchParams: Promise<{ sortie?: string; motif?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
+  const { sortie, motif: motifSorti } = await searchParams;
 
   const p = await q1<Fiche>(`
     SELECT p.id, p.sku, p.nom, COALESCE(cat.nom, 'sans catégorie') AS categorie,
@@ -101,6 +107,20 @@ export default async function Produit({ params }: { params: Promise<{ id: string
           </div>
         </div>
 
+        {sortie && motifSorti && estMotifSortie(motifSorti) ? (
+          <div className="carte" style={{ borderColor: "var(--ambre)", marginTop: 14 }}>
+            <span className="pilule attente"><i />
+              {sortie} {Number(sortie) > 1 ? "unités sorties" : "unité sortie"} ·{" "}
+              {MOTIFS_SORTIE[motifSorti].nom.toLowerCase()}
+            </span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              Le stock a baissé et la ligne figure dans l’historique ci-dessous.
+              Une sortie ne s’annule pas : si elle est fausse, corrigez-la par une
+              réception du même nombre.
+            </p>
+          </div>
+        ) : null}
+
         <div className="bandeau" style={{ marginTop: 16 }}>
           <div><div className="stat">
             <span className="valeur num" style={p.reserve === 0 ? { color: "var(--rouge-vif)" } : undefined}>
@@ -144,6 +164,14 @@ export default async function Produit({ params }: { params: Promise<{ id: string
               <span>
                 <span className="titre">Charger une borne</span>
                 <span className="quoi">Passer du stock en machine</span>
+              </span>
+              <span className="fleche"><IcoFleche /></span>
+            </Link>
+            <Link href={`/stock/${p.id}/sortie`}>
+              <span className="rond"><IcoSortir /></span>
+              <span>
+                <span className="titre">Sortir du stock</span>
+                <span className="quoi">Casse, vol, périmé, perte</span>
               </span>
               <span className="fleche"><IcoFleche /></span>
             </Link>
@@ -206,6 +234,7 @@ export default async function Produit({ params }: { params: Promise<{ id: string
                       {m.motif === "transfert" ? `${m.de} → ${m.vers}`
                         : m.motif === "reception" ? `entrée en ${m.vers}`
                         : m.motif === "vente" ? `vendu · ${m.de}`
+                        : estMotifSortie(m.motif) ? `${PARTICIPE[m.motif]} · ${m.de}`
                         : `${m.de ?? "—"} → ${m.vers ?? "—"}`}
                       {m.lane ? <span className="faible"> · canal {m.lane}</span> : null}
                     </div>

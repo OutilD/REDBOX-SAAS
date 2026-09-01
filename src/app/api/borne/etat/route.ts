@@ -16,6 +16,7 @@ type CatalogueLocal = {
 
 type Releve = {
   version?: string;
+  maintenance_pin?: string;
   catalogue_version?: string;
   sante?: unknown;
   catalogue_local?: CatalogueLocal;
@@ -53,10 +54,11 @@ export async function POST(req: Request) {
   const bilan = await transaction(async (c) => {
     await c.query(
       `UPDATE borne SET vue_le = now(), version = COALESCE($1, version),
-              catalogue_version = COALESCE($4, catalogue_version), sante = $2
+              catalogue_version = COALESCE($4, catalogue_version), sante = $2,
+              maintenance_vu = COALESCE($5, maintenance_vu)
         WHERE id = $3`,
       [r.version ?? null, r.sante ? JSON.stringify(r.sante) : null, borne.id,
-       r.catalogue_version ?? null]);
+       r.catalogue_version ?? null, r.maintenance_pin ?? null]);
 
     // 0. Adoption du catalogue de la machine.
     //
@@ -78,12 +80,24 @@ export async function POST(req: Request) {
     let confirmes = 0;
     const ids = (r.transferts_appliques ?? []).filter(Number.isInteger);
     if (ids.length > 0 && borne.lieu_id) {
-      const u = await c.query(`
+      // `RETURNING` plutot qu'une relecture : la clause WHERE ne laisse passer
+      // que les transferts encore ouverts, donc ce qui sort d'ici est
+      // exactement ce qui vient d'etre confirme — un acquittement rejoue ne
+      // recompte rien.
+      const u = await c.query<{ lane: number | null; quantite: number }>(`
         UPDATE mouvement SET confirme_le = now()
          WHERE id = ANY($1::bigint[]) AND vers_lieu_id = $2
-           AND motif = 'transfert' AND confirme_le IS NULL AND annule_le IS NULL`,
+           AND motif = 'transfert' AND confirme_le IS NULL AND annule_le IS NULL
+        RETURNING lane, quantite`,
         [ids, borne.lieu_id]);
       confirmes = u.rowCount ?? 0;
+
+      for (const m of u.rows) {
+        if (m.lane === null) continue;
+        await c.query(
+          "UPDATE canal SET quantite = quantite + $1 WHERE borne_id = $2 AND lane = $3",
+          [m.quantite, borne.id, m.lane]);
+      }
     }
 
     // 2. Les compteurs de la machine.
@@ -116,16 +130,40 @@ export async function POST(req: Request) {
     const canaux = propres.length;
     if (canaux > 0) {
       await c.query(`
-        INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, capacite, releve_le)
+        INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id,
+                           quantite, quantite_borne, capacite, releve_le, releve_borne_le)
         SELECT $1, d.lane, (d.lane - 1) / 10 + 1, (d.lane - 1) % 10 + 1,
-               p.id, d.quantite, COALESCE(d.capacite, 10), now()
+               p.id, d.quantite, d.quantite, COALESCE(d.capacite, 10), now(), now()
           FROM unnest($2::int[], $3::text[], $4::int[], $5::int[])
                  AS d(lane, sku, quantite, capacite)
           LEFT JOIN produit p ON p.compte_id = $6 AND p.sku = d.sku
         ON CONFLICT (borne_id, lane) DO UPDATE
-          SET quantite   = EXCLUDED.quantite,
-              produit_id = COALESCE(EXCLUDED.produit_id, canal.produit_id),
-              capacite   = COALESCE(EXCLUDED.capacite, canal.capacite),
+          SET quantite_borne  = EXCLUDED.quantite_borne,
+              releve_borne_le = now(),
+              -- LE SAAS DIT QUOI, LA MACHINE DIT COMBIEN.
+              --
+              -- Ces deux lignes prenaient l'affectation et la capacite annoncees
+              -- par la borne. Un planogramme modifie ici revenait donc a
+              -- l'ancien des la synchronisation suivante : la machine annonce ce
+              -- qu'elle porte ENCORE, on l'ecrivait par-dessus le changement, et
+              -- l'empreinte du catalogue repartait a l'ancienne valeur — la
+              -- borne recevait alors son propre ancien plan comme s'il etait
+              -- neuf. Le changement etait detruit avant d'avoir pu s'appliquer.
+              --
+              -- La machine ne redefinit plus ce qu'elle vend. Elle ne comble
+              -- qu'un vide : un canal que le SaaS ne sait pas encore affecte
+              -- prend ce que la borne y voit, ce qui reste utile a l'arrivee
+              -- d'une machine deja chargee.
+              -- NOTRE COMPTEUR N'EST PLUS TOUCHE ICI.
+              --
+              -- Il vaut le solde d'ouverture pris a l'appairage, augmente des
+              -- transferts confirmes et diminue des ventes distribuees : des
+              -- EVENEMENTS, tous traites plus bas dans cette meme transaction.
+              -- Le prendre du releve rendait toute correction impossible — un
+              -- chargement saisi dans le SaaS disparaissait des que la machine
+              -- reparlait, et l'exploitant n'avait aucun moyen de dire « non,
+              -- j'en ai remis douze ».
+              produit_id = COALESCE(canal.produit_id, EXCLUDED.produit_id),
               releve_le  = now()`,
         [borne.id,
          propres.map((ca) => ca.lane),
@@ -163,6 +201,16 @@ export async function POST(req: Request) {
                                  lane, par, fait_le, confirme_le, vente_id)
           VALUES ($1,$2,$3,1,'vente',$4,'borne',$5,$5,$6)`,
           [borne.compte_id, produit, borne.lieu_id, v.lane ?? null, v.faite_le, ins.rows[0].id]);
+
+        // Le canal suit la vente. `GREATEST` parce qu'un compteur negatif ne
+        // veut rien dire : si la machine a distribue plus que ce que nous
+        // pensions qu'elle portait, c'est notre chiffre qui etait faux, et
+        // l'ecart avec le sien le dira mieux qu'un nombre en dessous de zero.
+        if (v.lane !== null && v.lane !== undefined) {
+          await c.query(`
+            UPDATE canal SET quantite = GREATEST(0, quantite - 1)
+             WHERE borne_id = $1 AND lane = $2`, [borne.id, v.lane]);
+        }
       }
     }
 
@@ -237,11 +285,14 @@ async function adopter(c: PgClient, compte_id: number, borne_id: number, lieu_id
     if (!Number.isInteger(ca.lane)) continue;
     const pid = ca.sku ? parSku.get(String(ca.sku).toUpperCase()) ?? null : null;
     await c.query(`
-      INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, capacite, seuil_bas, releve_le)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
+      INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, quantite_borne,
+                         capacite, seuil_bas, releve_le, releve_borne_le)
+      VALUES ($1,$2,$3,$4,$5,$6,$6,$7,$8, now(), now())
       ON CONFLICT (borne_id, lane) DO UPDATE
         SET produit_id = EXCLUDED.produit_id, capacite = EXCLUDED.capacite,
-            seuil_bas = EXCLUDED.seuil_bas, quantite = EXCLUDED.quantite, releve_le = now()`,
+            seuil_bas = EXCLUDED.seuil_bas, quantite = EXCLUDED.quantite,
+            quantite_borne = EXCLUDED.quantite_borne,
+            releve_le = now(), releve_borne_le = now()`,
       [borne_id, ca.lane, ca.rangee ?? Math.ceil(ca.lane / 10),
        ca.colonne ?? ((ca.lane - 1) % 10) + 1, pid,
        Math.max(0, ca.quantite ?? 0), ca.capacite ?? 10, ca.seuil_bas ?? 2]);

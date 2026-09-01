@@ -5,6 +5,7 @@ import { q, q1, euros, depuis, enLigne, codeCanal } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { canauxDe } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
+import { ROTATION_MIN } from "@/lib/maintenance";
 import { Repli } from "../../repli";
 import { IcoAlerte } from "../../icones";
 
@@ -14,20 +15,23 @@ type Borne = {
   id: number; nom: string; adresse: string | null; vue_le: Date | null;
   jeton: string | null; version: string | null; catalogue_version: string | null;
   sante: Record<string, unknown> | null;
+  maintenance_pin: string | null; maintenance_pin_le: Date | null;
+  maintenance_vu: string | null;
 };
 
 export default async function Detail({
   params, searchParams,
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
-                             reveil?: string; delier?: string }> }) {
+                             reveil?: string; delier?: string; pin?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
-  const { charge, canaux: nCanaux, refuses, reveil, delier } = await searchParams;
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin } = await searchParams;
 
   const b = await q1<Borne>(
-    `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante
+    `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
+            maintenance_pin, maintenance_pin_le, maintenance_vu
        FROM borne WHERE id = $1 AND compte_id = $2`,
     [id, u.compte_id]);
   if (!b) notFound();
@@ -52,6 +56,17 @@ export default async function Detail({
   // renommee ou un prix change peut dormir des heures sans qu'on le sache.
   const attendue = await empreinteDe(u.compte_id, id);
   const aJour = b.catalogue_version === attendue;
+
+  // Un renouvellement demande se reconnait au code encore present dont la date
+  // a ete effacee : le SaaS attend que la machine vienne prendre le suivant.
+  const renouvellementDemande = Boolean(b.maintenance_pin) && !b.maintenance_pin_le;
+  // Une borne qui n'annonce pas son code tourne sur une version anterieure :
+  // elle reste au code d'usine et rien ne sert de lui en delivrer un.
+  const codeGere = b.maintenance_vu !== null;
+  // Delivre mais pas encore repris : le technicien doit savoir lequel emporter.
+  const enRetard = codeGere && Boolean(b.maintenance_pin)
+                   && b.maintenance_vu !== b.maintenance_pin;
+  const peutRenouveler = peutCharger(u) && codeGere;
 
   const vivante = enLigne(b.vue_le);
   const unites = canaux.reduce((s, c) => s + c.quantite, 0);
@@ -144,6 +159,16 @@ export default async function Detail({
             <span className="libelle">canaux vides</span></div></div>
         </div>
 
+        {pin ? (
+          <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
+            <span className="pilule ok"><i />Renouvellement demandé</span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              La borne a été réveillée : elle prend son nouveau code dans la seconde si
+              elle est en ligne, à son retour sinon. D’ici là, l’ancien code fonctionne.
+            </p>
+          </div>
+        ) : null}
+
         {reveil ? (
           <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
             <span className="pilule ok"><i />Borne réveillée</span>
@@ -170,6 +195,46 @@ export default async function Detail({
                 <Link href={`/bornes/${id}?delier=1`} className="bouton discret">Désappairer…</Link>
               </>
             ) : null}
+          </div>
+        ) : null}
+
+        {b.jeton && peutCharger(u) ? (
+          <div className="carte" style={{ marginTop: 14 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+              <strong>Code de maintenance</strong>
+              <span className="faible" style={{ fontSize: 13.5 }}>
+                Pour ouvrir la console sur la machine.
+              </span>
+            </div>
+
+            <div style={{ display: "flex", gap: 14, alignItems: "center",
+                          marginTop: 10, flexWrap: "wrap" }}>
+              <span className="num" style={{ fontSize: 30, fontWeight: 700,
+                                             letterSpacing: "0.18em" }}>
+                {!codeGere ? "123450" : (b.maintenance_vu || b.maintenance_pin || "······")}
+              </span>
+              {peutRenouveler ? (
+                <form method="post" action={`/api/bornes/${id}/maintenance`}>
+                  <button className="bouton petit">Renouveler</button>
+                </form>
+              ) : null}
+            </div>
+
+            {/*
+              Ce qui compte n'est pas la date du code, c'est de savoir si la
+              machine le porte. Un renouvellement demande laisse l'ancien code
+              actif jusqu'a la synchronisation : le dire evite le deplacement
+              d'un technicien avec un code que la borne refuse.
+            */}
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              {!codeGere
+                ? "Cette borne tourne encore sur une version qui ne reçoit pas de code : elle ouvre avec le code d’usine. Mettez son application à jour pour qu’elle prenne un code propre."
+                : enRetard
+                  ? "Un nouveau code est prêt mais la machine ne l’a pas encore repris. Emportez celui affiché — c’est celui qu’elle accepte."
+                  : renouvellementDemande
+                    ? "Renouvellement demandé. La machine ouvre encore avec le code ci-dessus jusqu’à sa prochaine synchronisation."
+                    : `Délivré ${depuis(b.maintenance_pin_le)}. Il est renouvelé toutes les ${ROTATION_MIN} min, au moment où la machine vient le chercher.`}
+            </p>
           </div>
         ) : null}
 
@@ -219,7 +284,21 @@ export default async function Detail({
                     </div>
                   </div>
                   <div className="fin">
-                    <div className="num" style={{ fontWeight: 700 }}>{c.quantite}<span className="faible" style={{ fontWeight: 500 }}>/{c.capacite}</span></div>
+                    <div className="num" style={{ fontWeight: 700 }}>
+                      {c.quantite}
+                      <span className="faible" style={{ fontWeight: 500 }}>/{c.capacite}</span>
+                      {/*
+                        L'ecart entre notre compte et celui de la machine. Il ne
+                        se lisse pas : c'est le vol, la casse, le capteur muet ou
+                        la saisie ratee, et c'est la seule facon de les voir.
+                      */}
+                      {c.quantite_borne !== null && c.quantite_borne !== c.quantite ? (
+                        <span className="faible" style={{ fontWeight: 500, marginLeft: 6 }}
+                              title={`La machine en compte ${c.quantite_borne}`}>
+                          (borne&nbsp;{c.quantite_borne})
+                        </span>
+                      ) : null}
+                    </div>
                     {c.en_route > 0 ? <div className="faible num" style={{ fontSize: 12, color: "var(--ambre)" }}>+{c.en_route}</div> : null}
                   </div>
                 </div>

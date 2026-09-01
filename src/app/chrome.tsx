@@ -4,13 +4,13 @@ import { cookies } from "next/headers";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes"
-  | "reglages" | "catalogue" | "categories" | "equipe" | "pub";
+  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -51,6 +51,8 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: peutConfigurer },
       { cle: "catalogue",  nom: "Catalogue",  icone: <IcoCatalogue />,  vers: "/reglages/catalogue" },
       { cle: "pub",        nom: "Écran d’accueil", icone: <IcoPub />, vers: "/reglages/pub" },
+      { cle: "sav",        nom: "Assistance", icone: <IcoSav />, vers: "/reglages/sav",
+        droit: peutConfigurer },
       { cle: "equipe",     nom: "Équipe",     icone: <IcoEquipe />,     vers: "/reglages/equipe",
         droit: peutGererEquipe },
     ],
@@ -70,6 +72,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 const FAMILLE: Partial<Record<Page, Page>> = {
   reception: "stock", reassort: "stock",
   catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
+  sav: "reglages",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -84,6 +87,7 @@ const FIL: Record<Page, [string, string?]> = {
   categories: ["Catégories", "Configuration"],
   equipe:     ["Équipe", "Configuration"],
   pub:        ["Écran d’accueil", "Configuration"],
+  sav:        ["Assistance", "Configuration"],
 };
 
 /** Deux lettres tirees de l'adresse : « ali.b@… » donne AB, « marc@… » donne MA. */

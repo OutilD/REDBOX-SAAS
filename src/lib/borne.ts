@@ -134,6 +134,7 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
     // la machine la parcourt telle quelle. Ce qu'on veut vendre passe devant.
     q(`SELECT p.sku, p.nom, p.categorie_id, p.prix_vente_c AS prix_centimes,
               p.age_min, p.capteur_fiable, p.icone,
+              p.description, p.mention,
               p.image_id AS image, i.empreinte AS image_e
          FROM produit p LEFT JOIN image i ON i.id = p.image_id
         WHERE p.compte_id = $1 AND p.actif
