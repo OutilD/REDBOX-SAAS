@@ -140,6 +140,25 @@ export const IcoAlerte = ({ size = 14 }: P) => (
   </svg>
 );
 
+/** Reassort : la planchette a pince qu'on emporte en tournee. */
+export const IcoReassort = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M7.5 4H6a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 6 17h8a1.5 1.5 0 0 0 1.5-1.5v-10A1.5 1.5 0 0 0 14 4h-1.5" />
+    <rect x="7.5" y="2.5" width="5" height="3" rx="1" />
+    <path d="M7.8 9.5h4.4M7.8 12.5h2.8" />
+  </svg>
+);
+
+/** Publicite : un ecran et un rayon — ce qui s'affiche, pas ce qu'on vend. */
+export const IcoPub = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="4" width="15" height="10.5" rx="1.5" />
+    <path d="M7.5 17.5h5M10 14.5v3" />
+    <path d="M6.5 11.2 8.6 7.4l2.1 3.8M7.2 10h2.9" />
+    <path d="M13 7.4v3.8" />
+  </svg>
+);
+
 export const IcoHorloge = ({ size = 14 }: P) => (
   <svg {...base(size)}>
     <circle cx="10" cy="10" r="7.2" />

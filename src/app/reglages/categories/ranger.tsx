@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import Vignette from "../../vignette";
 
-export type Cat = { id: number; nom: string; ordre: number; produits: number; unites: number };
+export type Cat = {
+  id: number; nom: string; ordre: number; produits: number; unites: number;
+  image: number | null; icone: string | null;
+};
 
 /**
  * Ranger les categories par glisser-deposer.
@@ -20,6 +25,12 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
   const [cats, poser] = useState(initiales);
   const [pris, prendre] = useState<number | null>(null);
   const [survole, survoler] = useState<number | null>(null);
+  // Supprimer une categorie qui porte encore des produits demande une seconde
+  // pour comprendre ce qu'on fait. Une categorie vide, non : rien a expliquer.
+  const [aConfirmer, confirmer] = useState<number | null>(null);
+
+  const renommer = (id: number, nom: string) =>
+    poser((l) => l.map((c) => (c.id === id ? { ...c, nom } : c)));
 
   const deplacer = (de: number, vers: number) => {
     if (de === vers) return;
@@ -47,12 +58,27 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
                onDrop={(e) => { e.preventDefault(); if (pris !== null) deplacer(pris, i); prendre(null); survoler(null); }}>
             <span className="poignee" aria-hidden>⠿</span>
             <span className="rang">{i + 1}</span>
+            <Vignette id={c.id} nom={c.nom} image={c.image} icone={c.icone} forme="rond" />
             <div className="corps">
-              <div className="nom">{c.nom}</div>
+              {/* Le nom s'edite la ou on le lit. Un champ separe plus bas
+                  obligeait a chercher la meme ligne deux fois. */}
+              <input className="nom-modifiable" value={c.nom} name={`n_${c.id}`} required
+                     aria-label={`Nom de ${c.nom}`} draggable={false}
+                     onChange={(ev) => renommer(c.id, ev.target.value)}
+                     onDragStart={(ev) => { ev.preventDefault(); ev.stopPropagation(); }} />
               <div className="meta">
                 {c.produits} produit{c.produits > 1 ? "s" : ""} · {c.unites} unités
               </div>
             </div>
+
+            {/* Vers les produits de CE rayon. Depuis une categorie, ce qu'on veut
+                voir ensuite est presque toujours ce qu'elle contient. */}
+            {c.produits > 0 ? (
+              <Link href={`/reglages/catalogue?cat=${c.id}`} className="bouton petit"
+                    onClick={(e) => e.stopPropagation()} draggable={false}>
+                Ses produits
+              </Link>
+            ) : null}
 
             {/* Les fleches font le meme travail au doigt et au clavier : tout le
                 monde n'attrape pas un element a la souris. */}
@@ -64,10 +90,38 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
                       disabled={i === cats.length - 1}>↓</button>
             </div>
 
+            {/* Supprimer, sur la meme ligne. Vide : on y va. Pleine : on
+                explique d'abord ce qui arrive aux produits. */}
+            {c.produits === 0 ? (
+              <button className="bouton petit discret oter" name="supprimer" value={c.id}
+                      aria-label={`Supprimer ${c.nom}`}>✕</button>
+            ) : (
+              <button type="button" className="bouton petit discret oter"
+                      aria-label={`Supprimer ${c.nom}`}
+                      onClick={() => confirmer(aConfirmer === c.id ? null : c.id)}>✕</button>
+            )}
+
             {/* L'ordre part avec le formulaire. De dix en dix : il restera
                 toujours de la place pour glisser quelque chose entre deux. */}
             <input type="hidden" name={`o_${c.id}`} value={(i + 1) * 10} />
-            <input type="hidden" name={`n_${c.id}`} value={c.nom} />
+
+            {aConfirmer === c.id ? (
+              <div className="confirme-oter">
+                <div>
+                  <b>Supprimer « {c.nom} » ?</b> Ses {c.produits} produit
+                  {c.produits > 1 ? "s" : ""} ne sont pas effacés : ils passent
+                  « sans catégorie », et la borne les regroupe sous « Divers ».
+                  Vous pourrez les reclasser depuis le catalogue.
+                </div>
+                <div className="actions">
+                  <button type="button" className="bouton petit"
+                          onClick={() => confirmer(null)}>Annuler</button>
+                  <button className="bouton petit danger" name="supprimer" value={c.id}>
+                    Supprimer quand même
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
         </div>

@@ -18,7 +18,7 @@ const VALIDITE_MIN = 20;
  * donc quelqu'un qui est physiquement devant elle.
  */
 export async function POST(req: Request) {
-  let corps: { modele?: string; version?: string } = {};
+  let corps: { modele?: string; version?: string; machine?: string } = {};
   try { corps = await req.json(); } catch { /* un corps vide est acceptable */ }
 
   const secret = randomBytes(24).toString("base64url");
@@ -30,9 +30,10 @@ export async function POST(req: Request) {
   }
   if (!code) return Response.json({ erreur: "reessayez" }, { status: 503 });
 
-  await q1(`INSERT INTO appairage (code, secret, modele, version, expire_le)
-            VALUES ($1,$2,$3,$4, now() + interval '${VALIDITE_MIN} minutes')`,
-           [code, secret, corps.modele ?? null, corps.version ?? null]);
+  await q1(`INSERT INTO appairage (code, secret, modele, version, machine, expire_le)
+            VALUES ($1,$2,$3,$4,$5, now() + interval '${VALIDITE_MIN} minutes')`,
+           [code, secret, corps.modele ?? null, corps.version ?? null,
+            String(corps.machine ?? "").slice(0, 64) || null]);
 
   // L'adresse que le QR encode. Scannee avec l'appareil photo du telephone, elle
   // ouvre le SaaS avec le code deja saisi : il ne reste qu'a nommer la borne.

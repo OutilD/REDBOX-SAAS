@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { q, q1 } from "@/db";
+import { COLONNES, RANGEES } from "./machine";
 
 export type Borne = {
   id: number; compte_id: number | null; lieu_id: number | null;
@@ -108,22 +109,63 @@ export type Catalogue = {
 };
 
 export async function catalogueDe(compte_id: number, borne_id: number): Promise<Catalogue> {
-  const categories = await q(`
-    SELECT id, nom, ordre FROM categorie
-     WHERE compte_id = $1 ORDER BY ordre, nom`, [compte_id]);
+  // LES TROIS LECTURES PARTENT ENSEMBLE. Elles ne dependent pas les unes des
+  // autres, et chaque aller-retour vers Neon coute un demi-tour de reseau. En
+  // serie, la borne attendait une seconde et demie pour rien — sur une machine
+  // en 4G de cave, c'est la difference entre une synchronisation et un delai
+  // depasse. Le pool fournit une connexion par requete.
+  const [categories, produits, planogramme] = await Promise.all([
+    // CE QUE CETTE BORNE MASQUE ne sort pas de la base : on l'omet seulement de
+    // ce qu'on lui envoie. Le canal garde son produit, son compteur et son
+    // historique ; il est simplement annonce comme libre. Effacer l'affectation
+    // pour cacher un article ferait perdre le stock qui dort dans la spirale.
+    // `image` porte l'EMPREINTE, pas l'identifiant : c'est elle qui nomme le
+    // fichier dans le cache de la machine. Reposer la meme photo ailleurs ne
+    // fait donc rien retelecharger, et remplacer une photo change l'empreinte
+    // donc le nom, donc le fichier — jamais d'ancienne image sous un nom neuf.
+    q(`SELECT c.id, c.nom, c.ordre, c.icone, c.image_id AS image, i.empreinte AS image_e
+         FROM categorie c LEFT JOIN image i ON i.id = c.image_id
+        WHERE c.compte_id = $1
+          AND c.id NOT IN (SELECT categorie_id FROM borne_masque
+                            WHERE borne_id = $2 AND categorie_id IS NOT NULL)
+        ORDER BY c.ordre, c.nom`, [compte_id, borne_id]),
 
-  const produits = await q(`
-    SELECT p.sku, p.nom, p.categorie_id, p.prix_vente_c AS prix_centimes,
-           p.age_min, p.capteur_fiable
-      FROM produit p
-     WHERE p.compte_id = $1 AND p.actif
-     ORDER BY p.nom`, [compte_id]);
+    // L'ordre de cette liste EST celui que le client voit dans chaque rayon :
+    // la machine la parcourt telle quelle. Ce qu'on veut vendre passe devant.
+    q(`SELECT p.sku, p.nom, p.categorie_id, p.prix_vente_c AS prix_centimes,
+              p.age_min, p.capteur_fiable, p.icone,
+              p.image_id AS image, i.empreinte AS image_e
+         FROM produit p LEFT JOIN image i ON i.id = p.image_id
+        WHERE p.compte_id = $1 AND p.actif
+        ORDER BY p.ordre, p.nom`, [compte_id]),
 
-  const planogramme = await q(`
-    SELECT c.lane, c.rangee, c.colonne, c.capacite, c.seuil_bas, p.sku
-      FROM canal c LEFT JOIN produit p ON p.id = c.produit_id
-     WHERE c.borne_id = $1
-     ORDER BY c.lane`, [borne_id]);
+    // Un canal masque part avec sku = NULL : la machine le traite alors comme
+    // un canal libre, chemin qu'elle connait deja par coeur. Rien de neuf a
+    // apprendre cote borne pour une fonction entierement nouvelle cote SaaS.
+    // EXISTS, surtout pas une jointure : masquer a la fois le produit ET sa
+    // categorie appariait DEUX lignes de masque pour un seul canal, et le canal
+    // sortait en double. Onze spirales en annoncaient vingt, la machine s'en
+    // serait fait une idee tres personnelle.
+    // ET SEULEMENT LES SPIRES QUI EXISTENT. Une adresse hors geometrie —
+    // heritee d'une vitrine de demonstration fautive — resterait en base avec
+    // son stock, mais la machine ne doit jamais la proposer : une vente y serait
+    // encaissee sans que rien ne tombe. On ne l'efface pas pour autant : c'est a
+    // l'exploitant de dire ou cette marchandise se trouve vraiment.
+    q(`SELECT c.lane, c.rangee, c.colonne, c.capacite, c.seuil_bas,
+              -- Suspendu vaut masque : un produit retire de la vente ne doit pas
+              -- laisser derriere lui un canal servi dont la machine ne connait
+              -- plus le prix. Meme chemin, meme resultat — le canal est libre.
+              CASE WHEN NOT p.actif OR EXISTS (
+                     SELECT 1 FROM borne_masque m
+                      WHERE m.borne_id = c.borne_id
+                        AND (m.produit_id = p.id OR m.categorie_id = p.categorie_id))
+                   THEN NULL ELSE p.sku END AS sku
+         FROM canal c
+         LEFT JOIN produit p ON p.id = c.produit_id
+        WHERE c.borne_id = $1
+          AND c.rangee BETWEEN 1 AND $2 AND c.colonne BETWEEN 1 AND $3
+        ORDER BY c.lane`, [borne_id, RANGEES, COLONNES]),
+  ]);
 
   return { categories, produits, planogramme };
 }

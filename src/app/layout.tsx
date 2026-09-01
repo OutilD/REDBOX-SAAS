@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import Occupe from "./occupe";
+import { Suspense } from "react";
+import Notif from "./notif";
 
 export const metadata: Metadata = {
   title: "RedBox",
@@ -35,6 +37,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fr" {...attr}>
       <body>
+        {/* `useSearchParams` exige une frontiere differee : sans elle, Next
+            refuse de rendre la page cote serveur. */}
+        <Suspense fallback={null}><Notif /></Suspense>
         {/*
           Filet sans JavaScript.
 

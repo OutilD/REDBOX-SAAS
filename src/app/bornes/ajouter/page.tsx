@@ -30,6 +30,9 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
     code: "Code inconnu ou expiré. La borne en affiche un nouveau toutes les vingt minutes.",
     nom: "Donnez un nom à la borne.",
     prise: "Cette demande a déjà été adoptée.",
+    deja: "Cette borne est déjà rattachée à un compte. Une machine ne peut appartenir "
+        + "qu’à un seul SaaS à la fois : faites-la désappairer depuis le compte qui la "
+        + "détient, puis recommencez. Son catalogue et ses visuels seront repris ici.",
   };
 
   return (

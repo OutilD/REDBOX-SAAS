@@ -9,7 +9,10 @@ import Ranger from "./ranger";
 
 export const dynamic = "force-dynamic";
 
-type Cat = { id: number; nom: string; ordre: number; produits: number; unites: number };
+type Cat = {
+  id: number; nom: string; ordre: number; produits: number; unites: number;
+  image: number | null; icone: string | null;
+};
 
 /**
  * Les categories.
@@ -18,14 +21,16 @@ type Cat = { id: number; nom: string; ordre: number; produits: number; unites: n
  * au client, sur son ecran d'accueil. Ce qu'on veut vendre en premier se met en
  * premier.
  */
-export default async function Categories({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
+export default async function Categories({
+  searchParams,
+}: { searchParams: Promise<{ e?: string; detaches?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   if (!peutConfigurer(u)) redirect("/reglages");
-  const { e } = await searchParams;
+  const { e, detaches } = await searchParams;
 
   const cats = await q<Cat>(`
-    SELECT c.id, c.nom, c.ordre,
+    SELECT c.id, c.nom, c.ordre, c.image_id AS image, c.icone,
            (SELECT COUNT(*)::int FROM produit p WHERE p.categorie_id = c.id AND p.actif) AS produits,
            COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s
                        JOIN produit p ON p.id = s.produit_id
@@ -35,7 +40,6 @@ export default async function Categories({ searchParams }: { searchParams: Promi
 
   const messages: Record<string, string> = {
     nom: "Donnez un nom, et un nom qui n’existe pas déjà.",
-    pleine: "Cette catégorie contient encore des produits. Déplacez-les d’abord.",
   };
 
   return (
@@ -47,10 +51,18 @@ export default async function Categories({ searchParams }: { searchParams: Promi
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Catégories</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Faites-les glisser pour les ranger. L’ordre vaut ici et sur l’écran d’accueil
-          des bornes — l’aperçu montre ce que verra le client.
+          Faites-les glisser pour les ranger, renommez-les sur place. L’ordre vaut ici
+          et sur l’écran d’accueil des bornes — l’aperçu montre ce que verra le client.
         </p>
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
+        {detaches ? (
+          <p className="faible" style={{ fontSize: 13.5 }}>
+            Catégorie supprimée. {detaches} produit{Number(detaches) > 1 ? "s sont" : " est"}
+            {" "}passé{Number(detaches) > 1 ? "s" : ""} « sans catégorie » —
+            {" "}<Link href="/reglages/catalogue" style={{ textDecoration: "underline" }}>
+            reclassez-{Number(detaches) > 1 ? "les" : "le"} depuis le catalogue</Link>.
+          </p>
+        ) : null}
 
         <form method="post" action="/api/categories" className="carte">
           <input type="hidden" name="action" value="ajouter" />
@@ -74,41 +86,14 @@ export default async function Categories({ searchParams }: { searchParams: Promi
                  texte="Créez-en une ci-dessus — « Vapes », « Boissons »… Vous les rangerez ensuite en les faisant glisser."
                  dedans />
         ) : (
-          <form method="post" action="/api/categories">
+          <form method="post" action="/api/categories" encType="multipart/form-data">
             <input type="hidden" name="action" value="enregistrer" />
             <div className="ranger-duo">
-              <Ranger initiales={cats} />
+              <Ranger key={cats.map((c) => `${c.id}:${c.ordre}:${c.nom}`).join()}
+                      initiales={cats} />
             </div>
           </form>
         )}
-
-        {cats.length > 0 ? (
-          <>
-            <h2>Renommer ou supprimer</h2>
-            <form method="post" action="/api/categories">
-              <input type="hidden" name="action" value="enregistrer" />
-              {cats.map((c) => (
-                <div className="carte" key={c.id} style={{ marginBottom: 10 }}>
-                  <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                    <div style={{ flex: 1, minWidth: 170 }}>
-                      <label htmlFor={`n_${c.id}`}>Nom</label>
-                      <input id={`n_${c.id}`} name={`n_${c.id}`} defaultValue={c.nom} required />
-                    </div>
-                    <input type="hidden" name={`o_${c.id}`} value={c.ordre} />
-                    {c.produits === 0 ? (
-                      <button className="bouton danger" name="supprimer" value={c.id}>Supprimer</button>
-                    ) : (
-                      <span className="faible" style={{ fontSize: 12.5, alignSelf: "center" }}>
-                        {c.produits} produit{c.produits > 1 ? "s" : ""} — à vider avant de pouvoir la supprimer
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <button className="bouton">Enregistrer les noms</button>
-            </form>
-          </>
-        ) : null}
 
       </main>
       <NavBasse page="categories" />

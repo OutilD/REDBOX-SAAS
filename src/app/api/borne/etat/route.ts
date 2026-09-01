@@ -1,5 +1,6 @@
 import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
+import { spireValide } from "@/lib/machine";
 
 export const dynamic = "force-dynamic";
 
@@ -86,30 +87,52 @@ export async function POST(req: Request) {
     }
 
     // 2. Les compteurs de la machine.
-    let canaux = 0;
-    for (const ca of r.canaux ?? []) {
-      if (!Number.isInteger(ca.lane) || !Number.isInteger(ca.quantite)) continue;
-      const produit = ca.sku
-        ? (await c.query<{ id: number }>(
-            "SELECT id FROM produit WHERE compte_id = $1 AND sku = $2",
-            [borne.compte_id, ca.sku])).rows[0]?.id ?? null
-        : null;
-      const maj = await c.query(`
-        UPDATE canal SET quantite = $1,
-                         produit_id = COALESCE($2, produit_id),
-                         capacite = COALESCE($3, capacite),
-                         releve_le = now()
-         WHERE borne_id = $4 AND lane = $5`,
-        [ca.quantite, produit, ca.capacite ?? null, borne.id, ca.lane]);
-      if ((maj.rowCount ?? 0) === 0) {
-        // Un canal apparu sur la machine : on l'enregistre plutot que de l'ignorer.
-        await c.query(`
-          INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, capacite, releve_le)
-          VALUES ($1,$2,$3,$4,$5,$6,$7, now())`,
-          [borne.id, ca.lane, Math.ceil(ca.lane / 10), ((ca.lane - 1) % 10) + 1,
-           produit, ca.quantite, ca.capacite ?? 10]);
-      }
-      canaux++;
+    //
+    // EN UNE SEULE INSTRUCTION, pas une par canal. Chaque aller-retour vers la
+    // base coute un demi-tour de reseau, et une transaction ne peut pas les
+    // paralleliser — elle tient une connexion unique. Onze spirales faisaient
+    // donc vingt-deux allers-retours et frolaient les douze secondes de delai
+    // cote borne : le releve expirait, la machine reessayait deux minutes plus
+    // tard, et le parc paraissait capricieux. Une machine a soixante canaux
+    // n'aurait jamais abouti.
+    //
+    // `unnest` deplie les tableaux en lignes ; le `LEFT JOIN` sur le SKU resout
+    // les produits au passage, et `ON CONFLICT` couvre le canal apparu depuis.
+    // ON N'ENREGISTRE QUE DES SPIRES QUI EXISTENT.
+    //
+    // C'est par ici que les fausses entraient : la route accueillait tout canal
+    // annonce par la machine, pour ne pas perdre une spire apparue. Mais une
+    // machine dont la vitrine de demonstration inventait une 601 faisait naitre
+    // une 601 dans le SaaS — qu'on pouvait ensuite charger, vendre, et qui
+    // n'aurait jamais rien distribue.
+    //
+    // Une adresse hors geometrie est donc ignoree, et comptee pour qu'on le
+    // sache plutot que de le deviner.
+    const annonces = (r.canaux ?? []).filter(
+      (ca) => Number.isInteger(ca.lane) && Number.isInteger(ca.quantite));
+    const propres = annonces.filter(
+      (ca) => spireValide(Math.ceil(ca.lane / 10), ((ca.lane - 1) % 10) + 1));
+    const refuses = annonces.length - propres.length;
+    const canaux = propres.length;
+    if (canaux > 0) {
+      await c.query(`
+        INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, capacite, releve_le)
+        SELECT $1, d.lane, (d.lane - 1) / 10 + 1, (d.lane - 1) % 10 + 1,
+               p.id, d.quantite, COALESCE(d.capacite, 10), now()
+          FROM unnest($2::int[], $3::text[], $4::int[], $5::int[])
+                 AS d(lane, sku, quantite, capacite)
+          LEFT JOIN produit p ON p.compte_id = $6 AND p.sku = d.sku
+        ON CONFLICT (borne_id, lane) DO UPDATE
+          SET quantite   = EXCLUDED.quantite,
+              produit_id = COALESCE(EXCLUDED.produit_id, canal.produit_id),
+              capacite   = COALESCE(EXCLUDED.capacite, canal.capacite),
+              releve_le  = now()`,
+        [borne.id,
+         propres.map((ca) => ca.lane),
+         propres.map((ca) => ca.sku ?? null),
+         propres.map((ca) => ca.quantite),
+         propres.map((ca) => ca.capacite ?? null),
+         borne.compte_id]);
     }
 
     // 3. Les ventes. Le mouvement n'est cree que si la vente etait nouvelle :
@@ -148,12 +171,13 @@ export async function POST(req: Request) {
        WHERE vers_lieu_id = $1 AND motif = 'transfert'
          AND confirme_le IS NULL AND annule_le IS NULL`, [borne.lieu_id]);
 
-    return { canaux, retenues, confirmes, adopte, attente: attente.rows[0].n };
+    return { canaux, refuses, retenues, confirmes, adopte, attente: attente.rows[0].n };
   });
 
   return Response.json({
     ok: true,
     canaux: bilan.canaux,
+    canaux_refuses: bilan.refuses,   // adresses hors des dix spires
     catalogue_adopte: bilan.adopte,
     ventes_retenues: bilan.retenues,
     transferts_confirmes: bilan.confirmes,

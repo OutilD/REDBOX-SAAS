@@ -3,14 +3,14 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAuto, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoLune,
-         IcoReception, IcoSoleil, IcoSortir, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReplier } from "./icones";
+import { IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+         IcoReglages, IcoReassort, IcoPub } from "./icones";
+import { BasculeRail, BasculeTheme } from "./bascules";
 
 export type Page =
-  | "tableau" | "stock" | "reception"
+  | "tableau" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes"
-  | "reglages" | "catalogue" | "categories" | "equipe";
+  | "reglages" | "catalogue" | "categories" | "equipe" | "pub";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -38,14 +38,19 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
     items: [
       { cle: "stock",     nom: "Mon stock", icone: <IcoStock />,     vers: "/stock" },
       { cle: "reception", nom: "Réception", icone: <IcoReception />, vers: "/reception" },
+      { cle: "reassort",  nom: "Réassort",  icone: <IcoReassort />,  vers: "/reassort" },
     ],
   },
   {
     titre: "Configuration",
     items: [
-      { cle: "catalogue",  nom: "Catalogue",  icone: <IcoCatalogue />,  vers: "/reglages/catalogue" },
+      // L'ordre du travail reel : on cree une categorie, on y range des produits,
+      // puis on decide de ce qui defile sur l'ecran. Un menu qui suit la
+      // chronologie s'apprend une fois et ne se cherche plus.
       { cle: "categories", nom: "Catégories", icone: <IcoCategories />, vers: "/reglages/categories",
         droit: peutConfigurer },
+      { cle: "catalogue",  nom: "Catalogue",  icone: <IcoCatalogue />,  vers: "/reglages/catalogue" },
+      { cle: "pub",        nom: "Écran d’accueil", icone: <IcoPub />, vers: "/reglages/pub" },
       { cle: "equipe",     nom: "Équipe",     icone: <IcoEquipe />,     vers: "/reglages/equipe",
         droit: peutGererEquipe },
     ],
@@ -63,7 +68,8 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 
 /** La page ouverte, ramenee a l'onglet du pouce qui la contient. */
 const FAMILLE: Partial<Record<Page, Page>> = {
-  reception: "stock", catalogue: "reglages", categories: "reglages", equipe: "reglages",
+  reception: "stock", reassort: "stock",
+  catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -72,10 +78,12 @@ const FIL: Record<Page, [string, string?]> = {
   bornes:     ["Bornes"],
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
+  reassort:   ["Réassort", "Approvisionnement"],
   reglages:   ["Réglages"],
   catalogue:  ["Catalogue", "Configuration"],
   categories: ["Catégories", "Configuration"],
   equipe:     ["Équipe", "Configuration"],
+  pub:        ["Écran d’accueil", "Configuration"],
 };
 
 /** Deux lettres tirees de l'adresse : « ali.b@… » donne AB, « marc@… » donne MA. */
@@ -86,10 +94,6 @@ function initiales(email: string): string {
   return deux.toUpperCase();
 }
 
-const SUITE_THEME: Record<string, string> = { auto: "dark", dark: "light", light: "auto" };
-const NOM_THEME: Record<string, string> = {
-  auto: "Thème : automatique", dark: "Thème : sombre", light: "Thème : clair",
-};
 
 export async function Entete({ page }: { page: Page }) {
   const u = await utilisateur();
@@ -131,28 +135,13 @@ export async function Entete({ page }: { page: Page }) {
           <Link href="/" className="logo-mobile">
             <Image src="/logo-redbox.png" alt="RedBox" width={155} height={100} priority />
           </Link>
-          <form method="post" action="/api/rail">
-            <input type="hidden" name="actuel" value={rail} />
-            <input type="hidden" name="retour" value={ici} />
-            <button className="bouton icone rail-bascule"
-                    title={rail === "ferme" ? "Déplier le menu" : "Replier le menu"}
-                    aria-label={rail === "ferme" ? "Déplier le menu" : "Replier le menu"}>
-              <IcoReplier />
-            </button>
-          </form>
+          <BasculeRail depart={rail} retour={ici} />
           <div className="fil">
             {parent ? <span className="parent">{parent} · </span> : null}{titre}
           </div>
 
           <div className="droite">
-            <form method="post" action="/api/theme">
-              <input type="hidden" name="actuel" value={theme} />
-              <input type="hidden" name="retour" value={ici} />
-              <button className="bouton icone" title={NOM_THEME[theme]}
-                      aria-label={`${NOM_THEME[theme]} — passer à ${SUITE_THEME[theme]}`}>
-                {theme === "dark" ? <IcoLune /> : theme === "light" ? <IcoSoleil /> : <IcoAuto />}
-              </button>
-            </form>
+            <BasculeTheme depart={theme} retour={ici} />
 
             <div className="compte-chip">
               <span className="jeton">{u ? initiales(u.email) : "—"}</span>

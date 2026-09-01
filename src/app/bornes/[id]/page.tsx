@@ -6,6 +6,7 @@ import { peutCharger, utilisateur } from "@/lib/auth";
 import { canauxDe } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { Repli } from "../../repli";
+import { IcoAlerte } from "../../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,12 @@ type Borne = {
 export default async function Detail({
   params, searchParams,
 }: { params: Promise<{ id: string }>;
-     searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string; reveil?: string }> }) {
+     searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
+                             reveil?: string; delier?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
-  const { charge, canaux: nCanaux, refuses, reveil } = await searchParams;
+  const { charge, canaux: nCanaux, refuses, reveil, delier } = await searchParams;
 
   const b = await q1<Borne>(
     `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante
@@ -81,6 +83,29 @@ export default async function Detail({
             ? <Link href="/ventes" className="pilule mal"><i />{soucis.n} à regarder</Link> : null}
         </div>
 
+        {/* Delier n'efface rien de l'historique, mais rend la machine a quelqu'un
+            d'autre : cela merite une question, pas un clic. */}
+        {delier && b.jeton ? (
+          <div className="avis" style={{ borderLeftColor: "var(--rouge)" }}>
+            <IcoAlerte size={17} />
+            <div className="dit">
+              <div className="titre">Désappairer « {b.nom} » ?</div>
+              <div className="texte">
+                La machine cessera de répondre à ce compte et réaffichera un code
+                d’appairage. Vos ventes et votre historique restent ici — ils vous
+                appartiennent. La borne, elle, garde son catalogue et ses visuels :
+                le compte qui l’adoptera ensuite les reprendra tels quels.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flex: "none", alignItems: "center" }}>
+              <Link href={`/bornes/${id}`} className="bouton petit">Annuler</Link>
+              <form method="post" action={`/api/bornes/${id}/desapparier`}>
+                <button className="bouton petit danger">Désappairer</button>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
         {charge ? (
           <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
             <span className="pilule ok"><i />{charge} unités envoyées sur {nCanaux} canaux</span>
@@ -132,13 +157,18 @@ export default async function Detail({
         {peutCharger(u) ? (
           <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
             <Link href={`/bornes/${id}/charger`} className="bouton primaire">Charger</Link>
+            <Link href={`/reassort/fiche?b=${id}`} className="bouton">Fiche de réassort</Link>
             <Link href={`/bornes/${id}/planogramme`} className="bouton">Planogramme</Link>
+            <Link href={`/bornes/${id}/affichage`} className="bouton">Affichage</Link>
             {b.jeton ? (
-              <form method="post" action="/api/bornes/reveiller">
-                <input type="hidden" name="id" value={id} />
-                <input type="hidden" name="retour" value={`/bornes/${id}`} />
-                <button className="bouton">Synchroniser maintenant</button>
-              </form>
+              <>
+                <form method="post" action="/api/bornes/reveiller">
+                  <input type="hidden" name="id" value={id} />
+                  <input type="hidden" name="retour" value={`/bornes/${id}`} />
+                  <button className="bouton">Synchroniser maintenant</button>
+                </form>
+                <Link href={`/bornes/${id}?delier=1`} className="bouton discret">Désappairer…</Link>
+              </>
             ) : null}
           </div>
         ) : null}

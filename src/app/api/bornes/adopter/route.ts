@@ -24,20 +24,37 @@ export async function POST(req: Request) {
   if (!nom) return vers("nom");
 
   const issue = await transaction<{ souci: string | null; borne: number }>(async (c) => {
-    const d = (await c.query<{ id: number; borne_id: number | null; version: string | null }>(`
-      SELECT id, borne_id, version FROM appairage
+    const d = (await c.query<{
+      id: number; borne_id: number | null; version: string | null; machine: string | null;
+    }>(`
+      SELECT id, borne_id, version, machine FROM appairage
        WHERE code = $1 AND expire_le > now() FOR UPDATE`, [code])).rows[0];
     if (!d) return { souci: "code", borne: 0 };
     if (d.borne_id) return { souci: "prise", borne: 0 };
+
+    // UNE BORNE, UN COMPTE.
+    //
+    // La machine porte une identite qui survit aux appairages. Si elle repond
+    // deja a un compte, on refuse ici plutot que de creer un second titulaire :
+    // deux SaaS qui pilotent le meme distributeur, ce sont deux catalogues qui
+    // s'ecrasent l'un l'autre et des ventes comptees a moitie. Il faut la delier
+    // d'abord — les anciennes lignes depairees, elles, restent et gardent leur
+    // historique.
+    if (d.machine) {
+      const prise = (await c.query<{ n: number }>(
+        "SELECT COUNT(*)::int n FROM borne WHERE machine = $1 AND jeton IS NOT NULL",
+        [d.machine])).rows[0];
+      if (prise.n > 0) return { souci: "deja", borne: 0 };
+    }
 
     const lieu = (await c.query<{ id: number }>(
       "INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'borne',$2) RETURNING id",
       [u.compte_id, nom])).rows[0];
     const jeton = nouveauJeton();
     const b = (await c.query<{ id: number }>(`
-      INSERT INTO borne (compte_id, lieu_id, nom, adresse, jeton, appairee_le, version)
-      VALUES ($1,$2,$3,$4,$5, now(), $6) RETURNING id`,
-      [u.compte_id, lieu.id, nom, adresse, jeton, d.version])).rows[0];
+      INSERT INTO borne (compte_id, lieu_id, nom, adresse, jeton, appairee_le, version, machine)
+      VALUES ($1,$2,$3,$4,$5, now(), $6, $7) RETURNING id`,
+      [u.compte_id, lieu.id, nom, adresse, jeton, d.version, d.machine])).rows[0];
     await c.query("UPDATE appairage SET borne_id = $1, jeton = $2 WHERE id = $3", [b.id, jeton, d.id]);
     return { souci: null, borne: b.id };
   });

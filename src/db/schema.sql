@@ -293,3 +293,58 @@ CREATE INDEX IF NOT EXISTS i_produit_categorie ON produit(categorie_id);
 -- change de box internet.
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS reveil_le TIMESTAMPTZ;
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS reveil_motif TEXT;
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LA PUBLICITE DE L'ECRAN D'ACCUEIL
+
+   Une PLAYLIST est une campagne : « Promo rentree », « Soiree du samedi ». Elle
+   porte ce qui vaut pour l'ensemble — ou ca passe, a partir de quand, jusqu'a
+   quand, et si ca tourne. On ne choisit pas des bornes et des dates douze fois
+   pour douze photos de la meme operation.
+
+   Les MEDIAS qu'elle contient ne portent que leur duree et leur rang. Le fichier
+   vit ICI, dans la base : un compte de moins a creer, une cle de moins a perdre,
+   et la borne le tire par le meme jeton que le reste. Le prix de ce choix est
+   une limite dure sur la taille — voir TAILLE_MAX cote application. Le jour ou
+   la video prend de la place, `octets` devient une URL et rien d'autre ne bouge.
+
+   L'EMPREINTE EST LA CLE. La borne garde les fichiers qu'elle a deja et ne
+   retelecharge que ce qu'elle ne connait pas. Sans elle, une machine en 4G
+   rapatrierait quinze megaoctets toutes les trente secondes.
+   ───────────────────────────────────────────────────────────────────────────── */
+CREATE TABLE IF NOT EXISTS playlist (
+  id        BIGSERIAL PRIMARY KEY,
+  compte_id BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  nom       TEXT NOT NULL,
+  ordre     INTEGER NOT NULL DEFAULT 0,
+  actif     BOOLEAN NOT NULL DEFAULT TRUE,
+  partout   BOOLEAN NOT NULL DEFAULT TRUE,    -- sinon, voir playlist_borne
+  debut_le  DATE,                             -- bornes de diffusion, facultatives
+  fin_le    DATE,
+  reprise_de BIGINT REFERENCES borne(id) ON DELETE SET NULL,  -- nee d'une reprise de machine
+  cree_le   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS playlist_compte ON playlist (compte_id, ordre);
+
+CREATE TABLE IF NOT EXISTS playlist_borne (
+  playlist_id BIGINT NOT NULL REFERENCES playlist(id) ON DELETE CASCADE,
+  borne_id    BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
+  PRIMARY KEY (playlist_id, borne_id)
+);
+
+CREATE TABLE IF NOT EXISTS visuel (
+  id          BIGSERIAL PRIMARY KEY,
+  compte_id   BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  playlist_id BIGINT NOT NULL REFERENCES playlist(id) ON DELETE CASCADE,
+  nom         TEXT NOT NULL,
+  genre       TEXT NOT NULL CHECK (genre IN ('image','video')),
+  type_mime   TEXT NOT NULL,
+  octets      BYTEA NOT NULL,
+  taille      INTEGER NOT NULL,
+  empreinte   TEXT NOT NULL,                  -- sha256 du contenu
+  duree_s     INTEGER NOT NULL DEFAULT 7,     -- une image dure ce qu'on dit ; une video, ce qu'elle dure
+  ordre       INTEGER NOT NULL DEFAULT 0,     -- son rang dans la playlist
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS visuel_playlist ON visuel (playlist_id, ordre);

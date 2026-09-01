@@ -353,6 +353,13 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .bouton.primaire:hover { background: var(--rouge-vif); border-color: var(--rouge-vif); }
 .bouton.large { width: 100%; }
 .bouton.danger { color: var(--rouge-vif); }
+/* Le bouton qu'on ne veut pas voir cliquer par megarde. Sans cadre ni fond : il
+   reste atteignable, mais l'oeil tombe d'abord sur l'action reversible d'a cote. */
+.bouton.discret {
+  border-color: transparent; background: none; color: var(--texte-3);
+  font-weight: 500;
+}
+.bouton.discret:hover { color: var(--texte-2); background: var(--surface-2); }
 .bouton:disabled { opacity: .4; cursor: default; transform: none; }
 .bouton.petit { min-height: 38px; padding: 0 14px; font-size: 14px; border-radius: var(--r-s); }
 
@@ -987,7 +994,13 @@ a.produit-ligne .fleche { color: var(--texte-3); display: flex; }
   display: flex; align-items: center; gap: 12px; padding: 12px 14px;
   border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface);
   cursor: grab;
+  /* Le bloc de confirmation se pose SOUS la ligne : sans retour a la ligne, il
+     se serait tasse entre deux boutons. */
+  flex-wrap: wrap;
 }
+/* Le champ de nom ne se saisit pas avec une main de demenageur : au-dessus de
+   lui, le curseur redevient un curseur de texte. */
+.rangeable .nom-modifiable { cursor: text; }
 .rangeable:active { cursor: grabbing; }
 .rangeable.pris { opacity: .45; border-style: dashed; }
 .rangeable.cible { border-color: var(--rouge); box-shadow: inset 0 2px 0 var(--rouge); }
@@ -1059,3 +1072,565 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 @media (prefers-reduced-motion: reduce) {
   .bouton.occupe::before, a.occupe::before { animation: none; opacity: .5; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA FICHE DE REASSORT
+
+   Un document, pas un ecran. Il vit deux vies : sur le telephone dans la
+   voiture, et sur le papier pose sur la machine ouverte. Les memes regles de
+   lecture servent aux deux — un chiffre gros a droite, un code de canal en
+   chiffres fixes a gauche, une case a cocher devant chaque geste.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* La ligne qu'on coche pour composer sa tournee. */
+.ligne.choix { cursor: pointer; align-items: center; }
+.ligne.choix input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--rouge); flex: none; }
+.ligne.choix:hover { background: var(--surface-2); }
+
+.fiche-tete {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  padding: 16px 0 14px; margin-top: 8px; border-bottom: 2px solid var(--texte);
+}
+.fiche-titre { font-size: 19px; font-weight: 800; letter-spacing: -.03em; }
+.fiche-date  { font-size: 13px; color: var(--texte-2); margin-top: 2px; text-transform: capitalize; }
+.fiche-chiffre { text-align: right; line-height: 1.1; flex: none; }
+.fiche-chiffre b { display: block; font-size: 30px; font-weight: 800; letter-spacing: -.04em; }
+.fiche-chiffre span { font-size: 12px; color: var(--texte-2); }
+
+.fiche-bloc { margin-top: 26px; }
+.fiche-h2 {
+  font-size: 15px; font-weight: 750; letter-spacing: -.02em; margin: 0 0 10px;
+  padding-bottom: 7px; border-bottom: 1px solid var(--bord-fort);
+}
+.fiche-h2-note { display: block; font-size: 12.5px; font-weight: 450; color: var(--texte-2); margin-top: 3px; }
+
+.fiche-groupe { margin-top: 14px; }
+.fiche-cat {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--texte-2); padding: 0 2px 5px;
+}
+.fiche-cat span { font-weight: 600; letter-spacing: 0; text-transform: none; }
+
+.tableau-fiche { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tableau-fiche th {
+  font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--texte-3); text-align: left; padding: 0 8px 6px; border-bottom: 1px solid var(--bord);
+}
+.tableau-fiche td { padding: 9px 8px; border-bottom: 1px solid var(--bord); vertical-align: middle; }
+.tableau-fiche tbody tr:last-child td { border-bottom: none; }
+.tableau-fiche .num  { text-align: right; white-space: nowrap; }
+.tableau-fiche .gros { font-size: 19px; font-weight: 800; letter-spacing: -.03em; }
+.tableau-fiche .pale { color: var(--texte-2); }
+.tableau-fiche .sur  { color: var(--texte-3); font-size: 12px; }
+.tableau-fiche .cat  { color: var(--texte-3); font-size: 12.5px; font-weight: 400; }
+.tableau-fiche .ref  { color: var(--texte-2); font-size: 12.5px; }
+.tableau-fiche .canal { width: 54px; font-weight: 700; font-size: 15px; }
+.tableau-fiche .case { width: 30px; }
+.tableau-fiche .case input { width: 18px; height: 18px; accent-color: var(--rouge); }
+/* Un canal a zero ne vend rien : c'est la seule ligne qui merite d'etre criee. */
+.tableau-fiche tr.vide .canal { color: var(--rouge-vif); }
+.tableau-fiche tr.vide .canal::after { content: " ●"; font-size: 9px; vertical-align: middle; }
+/* La categorie separe, elle ne titre pas : un filet et une capitale, pas un
+   deuxieme niveau de tableau. */
+.tableau-fiche tr.separateur td {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--texte-2); background: var(--surface-2);
+  padding: 6px 8px; border-bottom: 1px solid var(--bord);
+}
+.tableau-fiche tr.separateur td.num { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.tableau-fiche tbody + tbody tr.separateur td { border-top: 1px solid var(--bord); }
+.tableau-fiche tbody:last-child tr:last-child td { border-bottom: none; }
+
+.tableau-fiche tfoot td { padding-top: 10px; font-weight: 700; border-top: 2px solid var(--texte); border-bottom: none; }
+
+/* Qui a fait quoi, quand. Trois traits a remplir a la bille. */
+.fiche-signature { display: flex; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+.fiche-signature > div { flex: 1; min-width: 120px; border-bottom: 1px solid var(--bord-fort); padding-top: 22px; }
+.fiche-signature > div.large { flex: 2.4; min-width: 200px; }
+.fiche-signature span { font-size: 11px; color: var(--texte-3); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── Le papier ────────────────────────────────────────────────────────────── */
+@media print {
+  /* Noir sur blanc, quel que soit le theme choisi a l'ecran : une feuille au
+     fond gris fonce vide une cartouche et se lit mal. */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    --fond: #fff; --surface: #fff; --surface-2: #fff; --surface-3: #fff;
+    --bord: #c8c8c8; --bord-fort: #888;
+    --texte: #000; --texte-2: #333; --texte-3: #555;
+    --rouge: #000; --rouge-vif: #000; --ambre: #000;
+    --ambre-fond: #fff; --vert-fond: #fff; --rouge-fond: #fff;
+  }
+  @page { margin: 14mm 12mm; }
+  html, body { background: #fff; }
+
+  /* Tout le decor de l'application disparait : rail, en-tete, barre du bas,
+     boutons. Il ne reste que le document. */
+  .rail, .entete, .nav-bas, .sans-impression, .bouton, .repli .actions { display: none !important; }
+  .ecran { padding: 0 !important; max-width: none !important; }
+  main { margin: 0 !important; }
+
+  .fiche { font-size: 11.5pt; }
+  .fiche-tete { margin: 0; padding-top: 0; }
+  .fiche-bloc { margin-top: 9mm; }
+  .saut-page { break-before: page; page-break-before: always; }
+  /* Ne jamais couper un produit de son canal, ni un titre de son tableau. */
+  .fiche-groupe, .tableau-fiche tr, .avis { break-inside: avoid; page-break-inside: avoid; }
+  .fiche-h2, .fiche-cat { break-after: avoid; page-break-after: avoid; }
+  .tableau-fiche { font-size: 11pt; }
+  .tableau-fiche td { padding: 2.4mm 2mm; }
+  .tableau-fiche .gros { font-size: 14pt; }
+  .tableau-fiche tr.separateur td { background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* L'en-tete se repete en haut de chaque feuille : sur une tournee de six
+     bornes, la page 4 doit se lire sans revenir a la page 1. */
+  .tableau-fiche thead { display: table-header-group; }
+  /* La case a cocher imprimee : un carre a la bille, pas un widget grise. */
+  .tableau-fiche .case input {
+    -webkit-appearance: none; appearance: none;
+    width: 4.2mm; height: 4.2mm; border: 1px solid #000; border-radius: .6mm;
+    background: #fff; display: block;
+  }
+  .avis { border: 1px solid #000; border-left-width: 3px; background: #fff; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L'ECRAN D'ACCUEIL — gestion des visuels
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Une case a cocher et son libelle, cliquables ensemble. La zone de contact
+   fait toute la ligne : on ne vise pas un carre de 13 px avec un pouce. */
+.coche { display: flex; align-items: center; gap: 9px; cursor: pointer; font-size: 14px; min-height: 34px; }
+.coche input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--rouge); flex: none; }
+.coche span { user-select: none; }
+
+.grille-coches {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 2px 16px; padding: 8px 2px 2px;
+}
+
+/* La vignette. Fond damier : un visuel a fond transparent ou tres clair doit se
+   distinguer de la carte qui le porte, sinon on croit l'image cassee. */
+.vignette {
+  position: relative; flex: none;
+  width: 132px; height: 76px; border-radius: var(--r-m); overflow: hidden;
+  border: 1px solid var(--bord); background: var(--surface-2);
+  background-image:
+    linear-gradient(45deg, var(--surface-3) 25%, transparent 25% 75%, var(--surface-3) 75%),
+    linear-gradient(45deg, var(--surface-3) 25%, transparent 25% 75%, var(--surface-3) 75%);
+  background-size: 14px 14px; background-position: 0 0, 7px 7px;
+}
+.vignette img, .vignette video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vignette .genre {
+  position: absolute; left: 5px; bottom: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(0,0,0,.66); color: #fff;
+}
+
+/* Un visuel hors periode reste lisible mais recule : il existe, il ne passe pas. */
+.carte.visuel.dormant .vignette img,
+.carte.visuel.dormant .vignette video { filter: grayscale(1); opacity: .55; }
+
+@media (max-width: 520px) {
+  .vignette { width: 96px; height: 56px; }
+}
+
+/* Un groupe de reglages qui se tient : le cadre dit « ces cases vont ensemble ».
+   Sans lui, « toutes mes bornes » flotte au milieu du formulaire et on ne voit
+   pas que la liste au-dessous en depend. */
+.cadre-choix {
+  margin: 16px 0 0; padding: 12px 14px 10px;
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2);
+}
+.cadre-choix legend {
+  padding: 0 6px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--texte-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PLAYLISTS — apercu, medias, choix des bornes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* L'apercu qui defile : les images sont empilees, une seule visible. Un fondu
+   plutot qu'un saut — le saut donne l'impression d'un bug d'affichage. */
+.vignette.defile { width: 132px; }
+.vignette.defile img, .vignette.defile video {
+  position: absolute; inset: 0; opacity: 0;
+  transition: opacity .45s ease;
+}
+.vignette.defile img.vu, .vignette.defile video.vu { opacity: 1; }
+.vignette .compteur {
+  position: absolute; right: 5px; top: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .03em;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(0,0,0,.66); color: #fff;
+}
+.vignette.petite { width: 64px; height: 38px; border-radius: var(--r-s); }
+.vignette.petite .genre { display: none; }
+
+/* Les medias d'une playlist, dans l'ordre ou ils passent. */
+.medias { margin-top: 14px; border-top: 1px solid var(--bord); }
+.media {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 2px; border-bottom: 1px solid var(--bord);
+}
+.media:last-child { border-bottom: none; }
+.media .rang {
+  flex: none; width: 20px; text-align: center;
+  font-size: 12px; font-weight: 700; color: var(--texte-3);
+  font-variant-numeric: tabular-nums;
+}
+.media .nom-media {
+  font-size: 13.5px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.media .meta { font-size: 12px; color: var(--texte-3); }
+
+/* Le choix des bornes : on coche un LIEU, pas une case. */
+.bornes-choix {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px;
+}
+.borne-carte { position: relative; display: block; cursor: pointer; }
+.borne-carte input {
+  position: absolute; top: 11px; left: 11px; margin: 0;
+  width: 17px; height: 17px; accent-color: var(--rouge);
+}
+.borne-carte .dedans {
+  display: block; padding: 10px 12px 10px 36px;
+  border: 1px solid var(--bord); border-radius: var(--r-m);
+  background: var(--surface); transition: border-color .12s, background .12s;
+}
+.borne-carte:hover .dedans { border-color: var(--bord-fort); }
+/* La borne retenue se voit sans lire la case : le cadre change, pas seulement
+   le petit carre. On coche vite, on relit de loin. */
+.borne-carte:has(input:checked) .dedans {
+  border-color: var(--rouge); background: var(--rouge-fond);
+}
+.borne-carte .nom {
+  display: block; font-size: 13.5px; font-weight: 650; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.borne-carte .lieu {
+  display: block; font-size: 12px; color: var(--texte-2); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.borne-carte .etat { display: block; font-size: 11px; color: var(--texte-3); margin-top: 3px; }
+.borne-carte .etat.ok { color: var(--vert); }
+
+/* Quand « toutes les bornes » est coche, la liste en dessous ne sert plus :
+   on la met en retrait plutot que de la cacher — disparaitre ferait croire a
+   un bug, et on doit pouvoir lire ses bornes avant de decider. */
+.cadre-choix:has(.maitresse input:checked) .bornes-choix { opacity: .42; }
+
+/* Le nom d'une categorie s'edite la ou on le lit — pas dans un second
+   formulaire plus bas qui obligeait a retrouver la meme ligne deux fois.
+   Sans cadre au repos : c'est un titre, il ne doit pas ressembler a un champ
+   tant qu'on ne s'en approche pas. */
+.nom-modifiable {
+  width: 100%; min-height: 0; padding: 2px 6px; margin: -2px -6px 1px;
+  border: 1px solid transparent; border-radius: var(--r-s); background: none;
+  font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; color: var(--texte);
+}
+.nom-modifiable:hover { border-color: var(--bord); background: var(--surface-2); }
+.nom-modifiable:focus { border-color: var(--rouge); background: var(--surface); outline: none; }
+
+/* La croix de suppression. Discrete au repos, rouge quand on la vise : elle est
+   atteignable sans etre le premier bouton que l'oeil rencontre. */
+.bouton.oter { width: 34px; min-height: 34px; padding: 0; flex: none; font-size: 15px; }
+.bouton.oter:hover { color: var(--rouge-vif); background: var(--rouge-fond); }
+
+.confirme-oter {
+  flex-basis: 100%; margin-top: 10px; padding: 11px 13px;
+  border: 1px solid var(--bord); border-left: 3px solid var(--rouge);
+  border-radius: var(--r-m); background: var(--rouge-fond);
+  font-size: 13px; line-height: 1.5; color: var(--texte-2);
+}
+.confirme-oter b { color: var(--texte); }
+.confirme-oter .actions { display: flex; gap: 8px; margin-top: 10px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RANGER LE CATALOGUE — rayons, produits, apercu detaille
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rayon { margin-bottom: 18px; }
+.rayon .fiche-cat { padding: 0 2px 7px; }
+/* La zone de depot d'un rayon reste visible meme vide : sans hauteur minimale,
+   on ne pourrait jamais deposer le premier produit d'une categorie. */
+.rayon .ranger { min-height: 48px; border-radius: var(--r-m); }
+.rayon .ranger.vise { outline: 2px dashed var(--rouge); outline-offset: 3px; }
+.rayon-vide {
+  margin: 0; padding: 14px; text-align: center;
+  font-size: 12.5px; color: var(--texte-3);
+  border: 1px dashed var(--bord-fort); border-radius: var(--r-m);
+}
+
+.rangeable.produit { gap: 10px; }
+/* Suspendu : present, lisible, mais visiblement hors antenne. */
+.rangeable.suspendu { opacity: .55; }
+.rangeable.suspendu .nom-modifiable { text-decoration: line-through; }
+
+.prix-champ { display: flex; align-items: center; gap: 5px; flex: none; }
+.prix-champ input {
+  width: 78px; min-height: 36px; text-align: right;
+  font-variant-numeric: tabular-nums; font-weight: 650;
+}
+.prix-champ span { color: var(--texte-3); font-size: 13px; }
+
+/* L'apercu detaille : le rayon tel que le client le lit, prix compris. */
+
+
+@media (max-width: 860px) {
+  .prix-champ input { width: 66px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   L'APERCU PAR RAYON
+
+   L'ecran de la borne, un rayon a la fois, avec de quoi passer de l'un a
+   l'autre. Empiler toutes les categories dans une colonne de 300 px les
+   coupait toutes : on ne lisait ni les noms ni les prix, donc l'apercu ne
+   servait a rien.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.onglets-rayon {
+  display: flex; gap: 6px; margin-bottom: 9px;
+  overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.onglet {
+  flex: none; display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--bord); background: var(--surface);
+  font-size: 12px; font-weight: 650; color: var(--texte-2);
+  white-space: nowrap;
+}
+.onglet:hover { border-color: var(--bord-fort); color: var(--texte); }
+.onglet.actif { border-color: var(--rouge); background: var(--rouge-fond); color: var(--texte); }
+.onglet span {
+  font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 999px;
+  background: var(--surface-3); color: var(--texte-3);
+}
+/* Un rayon que la borne n'affichera pas reste visitable — on doit pouvoir
+   verifier POURQUOI il est vide — mais il ne se fait pas passer pour vivant. */
+.onglet.creux { opacity: .5; }
+.onglet.creux span { color: var(--rouge-vif); }
+
+.ecran-borne.catalogue { padding: 0; aspect-ratio: 9 / 15; }
+.ecran-borne.catalogue .tete-cat {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 12px; border-bottom: 1px solid #1e1e25;
+}
+.ecran-borne.catalogue .retour {
+  width: 20px; height: 20px; border-radius: 6px; background: #1c1c20;
+  display: grid; place-items: center; font-size: 13px; color: #a6a6ae; flex: none;
+}
+.ecran-borne.catalogue .titre {
+  font-size: 13px; font-weight: 800; letter-spacing: -.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ecran-borne.catalogue .pousse { flex: 1; }
+.ecran-borne.catalogue .marque {
+  font-size: 11px; font-weight: 900; letter-spacing: -.04em; color: #d70005; flex: none;
+}
+.ecran-borne.catalogue .panier {
+  font-size: 9.5px; font-weight: 700; color: #fff; flex: none;
+  background: #d70005; border-radius: 6px; padding: 4px 8px;
+}
+.ecran-borne.catalogue .invite {
+  font-size: 9.5px; color: #74747d; padding: 10px 12px 8px;
+}
+.ecran-borne.catalogue .grille-produits {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+  padding: 0 12px; align-content: start; overflow: hidden; flex: 1;
+}
+.ecran-borne.catalogue .carte-produit {
+  border: 1px solid #26262b; border-radius: 9px; background: #141416;
+  padding: 9px; display: flex; flex-direction: column; gap: 5px; min-height: 56px;
+}
+.ecran-borne.catalogue .cp-nom {
+  font-size: 10.5px; font-weight: 700; line-height: 1.25; color: #f5f5f6;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ecran-borne.catalogue .cp-prix {
+  font-size: 12px; font-weight: 800; color: #fff; margin-top: auto;
+  font-variant-numeric: tabular-nums;
+}
+.ecran-borne.catalogue .pied-cat {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; margin-top: 10px; background: #141416; border-top: 1px solid #1e1e25;
+  font-size: 9.5px; color: #74747d; line-height: 1.5;
+}
+.ecran-borne.catalogue .pied-cat b { color: #f5f5f6; font-size: 11px; }
+.ecran-borne.catalogue .cta {
+  background: #d70005; color: #fff; font-weight: 700; font-size: 10px;
+  border-radius: 7px; padding: 7px 11px; flex: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA MODALE
+
+   Ce qui ne sert qu'une fois de temps en temps ne doit pas occuper la page
+   qu'on consulte tout le temps.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.modale {
+  width: min(660px, calc(100vw - 32px));
+  max-height: min(86vh, 900px);
+  padding: 0; border: none; border-radius: 14px;
+  background: var(--surface); color: var(--texte);
+  box-shadow: 0 24px 60px rgba(0,0,0,.45);
+  overflow: hidden;
+}
+/* Le fond assombri vient de ::backdrop, pas d'un div : c'est le navigateur qui
+   le gere, avec le piege a focus et la fermeture par Echap qui vont avec. */
+.modale::backdrop { background: rgba(0,0,0,.62); }
+
+.modale-tete {
+  display: flex; align-items: center; gap: 12px;
+  padding: 15px 18px; border-bottom: 1px solid var(--bord);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.modale-tete h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; flex: 1; }
+.modale-tete .fermeture { width: 34px; min-height: 34px; padding: 0; font-size: 15px; flex: none; }
+.modale-tete .fermeture:hover { color: var(--rouge-vif); background: var(--rouge-fond); }
+
+/* Le corps defile seul : sur un telephone en paysage, un formulaire de six
+   champs depasse l'ecran et l'en-tete doit rester atteignable. */
+.modale-corps { padding: 16px 18px 20px; overflow-y: auto; max-height: calc(86vh - 62px); }
+.modale-corps > form { margin: 0; }
+
+/* Le declencheur ne prend pas toute la largeur : c'est une action ponctuelle,
+   pas le sujet de la page. */
+.bouton.declencheur { width: auto; margin-bottom: 4px; }
+
+@media (max-width: 620px) {
+  .modale { width: 100vw; max-width: none; max-height: 100vh; height: 100%; border-radius: 0; }
+  .modale-corps { max-height: calc(100vh - 62px); }
+}
+
+/* Les messages d'un formulaire : sous le champ concerne, pas en haut de page.
+   Un avertissement qu'il faut aller chercher ailleurs n'avertit personne. */
+.dit-faible, .dit-mal {
+  font-size: 12.5px; line-height: 1.5; margin: 7px 2px 0;
+}
+.dit-faible { color: var(--texte-3); }
+.dit-mal    { color: var(--rouge-vif); }
+.dit-faible b, .dit-mal b { color: var(--texte); }
+
+/* Le champ fautif se signale lui-meme, pour qu'on sache LEQUEL relire. */
+input[aria-invalid="true"], select[aria-invalid="true"] {
+  border-color: var(--rouge); background: var(--rouge-fond);
+}
+.bouton[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* Le bouton qui n'a de sens qu'avec du script disparait quand il n'y en a pas —
+   le formulaire de repli prend alors sa place, et on n'a pas deux boutons. */
+@media (scripting: none) { .avec-script { display: none; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES IMAGES DU CATALOGUE
+
+   L'image se change LA OU ELLE SE VOIT. Un formulaire d'upload separe obligeait
+   a retrouver la meme ligne deux fois.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.vignette-item { position: relative; flex: none; }
+.vignette-item .cadre {
+  display: block; padding: 0; cursor: pointer; overflow: hidden;
+  width: 46px; height: 46px; border-radius: var(--r-m);
+  border: 1px dashed var(--bord-fort); background: var(--surface-2);
+}
+.vignette-item.rond .cadre { border-radius: 50%; }
+.vignette-item .cadre:hover { border-color: var(--rouge); }
+.vignette-item .cadre img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vignette-item .cadre:has(img) { border-style: solid; border-color: var(--bord); }
+.vignette-item .rien {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  color: var(--texte-3); font-size: 17px; line-height: 1;
+}
+
+/* La croix se pose SUR la vignette : elle n'a de sens que la, et elle ne prend
+   pas une colonne de plus dans une ligne deja chargee. */
+.vignette-item .oter-image {
+  position: absolute; top: -6px; right: -6px;
+  width: 20px; height: 20px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 1px solid var(--bord-fort); background: var(--surface);
+  color: var(--texte-2); font-size: 11px; line-height: 1;
+}
+.vignette-item .oter-image:hover { color: #fff; background: var(--rouge); border-color: var(--rouge); }
+
+/* Le vrai champ reste dans le formulaire — c'est lui qui porte le fichier —
+   mais on ne le montre pas : la vignette EST le bouton. */
+.fichier-cache { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+@media (max-width: 620px) {
+  .vignette-item .cadre { width: 38px; height: 38px; }
+}
+
+/* Le choix d'image : les pictogrammes de la machine d'abord, la photo ensuite.
+   Ce n'est pas un pis-aller — un vectoriel deja embarque reste net a toute
+   taille et ne traverse aucun reseau. */
+.vignette-item .picto { display: grid; place-items: center; width: 100%; height: 100%;
+                        color: var(--texte-2); }
+.choix-image {
+  position: absolute; z-index: 20; top: calc(100% + 8px); left: 0;
+  padding: 10px; border-radius: var(--r-m);
+  border: 1px solid var(--bord-fort); background: var(--surface);
+  box-shadow: 0 14px 34px rgba(0,0,0,.4);
+}
+.choix-image .pictos { display: grid; grid-template-columns: repeat(3, 40px); gap: 6px; }
+.picto-choix {
+  width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--bord); border-radius: var(--r-s);
+  background: var(--surface-2); color: var(--texte-2);
+}
+.picto-choix:hover { border-color: var(--bord-fort); color: var(--texte); }
+.picto-choix.actif { border-color: var(--rouge); background: var(--rouge-fond); color: var(--texte); }
+.choix-image .choix-actions { display: flex; gap: 6px; margin-top: 9px; }
+
+/* ── Le bandeau de confirmation ──────────────────────────────────────────────
+   En bas, pas en haut : le regard est sur le bouton qu'on vient de presser, et
+   un message qui surgit tout en haut se rate une fois sur deux. Il ne bloque
+   rien et s'efface seul — une action reussie n'a pas a etre acquittee. */
+.notif {
+  position: fixed; z-index: 90;
+  left: 50%; bottom: calc(22px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; border-radius: 999px;
+  border: 1px solid var(--bord-fort); background: var(--surface);
+  box-shadow: 0 12px 32px rgba(0,0,0,.4);
+  font-size: 14px; font-weight: 600; color: var(--texte);
+  animation: notif-entre .22s cubic-bezier(.2,.9,.3,1.2);
+  max-width: calc(100vw - 32px);
+}
+.notif .marque {
+  width: 20px; height: 20px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  background: var(--vert); color: #fff;
+}
+.notif.mal { border-color: var(--rouge); }
+.notif.mal .marque { background: var(--rouge); }
+.notif.sort { animation: notif-sort .4s ease forwards; }
+
+@keyframes notif-entre {
+  from { opacity: 0; transform: translate(-50%, 14px) scale(.96); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes notif-sort {
+  to { opacity: 0; transform: translate(-50%, 10px); }
+}
+/* Une animation qui surgit est un confort, pas une information : qui a demande
+   moins de mouvement recoit le bandeau sans le ressort. */
+@media (prefers-reduced-motion: reduce) {
+  .notif, .notif.sort { animation: none; }
+  .notif.sort { opacity: 0; }
+}
+/* La barre du bas du telephone occupe deja le pied de l'ecran. */
+@media (max-width: 860px) { .notif { bottom: calc(88px + env(safe-area-inset-bottom)); } }
+
+/* La vignette montre l'image AU FORMAT DE LA BORNE, pas au format d'origine :
+   trois pour deux, comme le cadre de la machine. Ce qu'on voit ici est ce qui
+   s'affichera la-bas. */
+.vignette-item.carre .cadre { width: 66px; height: 44px; }
