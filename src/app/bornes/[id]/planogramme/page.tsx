@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q, q1, euros, codeCanal } from "@/db";
-import { peutConfigurer, utilisateur } from "@/lib/auth";
+import { peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { Repli } from "../../../repli";
 import { IcoBorne } from "../../../icones";
 import { canauxDe } from "@/lib/stock";
@@ -16,6 +16,9 @@ export default async function Planogramme({
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
+  // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
+  // qu'un refus, qui confirmerait au passage qu'elle existe.
+  if (!peutVoirBorne(u, id)) notFound();
   const { e } = await searchParams;
   if (!peutConfigurer(u)) redirect(`/bornes/${id}`);
 

@@ -211,6 +211,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 :root[data-rail="ferme"] .rail a.item .glyphe { font-size: 15px; }
 :root[data-rail="ferme"] .rail a.item.actif::before { left: -8px; }
 :root[data-rail="ferme"] .rail .pied { font-size: 0; }
+
+/*
+  LE SELECTEUR DE COMPTE, AU PIED DU RAIL.
+
+  Il prend la place du nom du compte, et il en garde la discretion : ce n'est pas
+  un geste qu'on fait dix fois par jour. Le rail replie n'a plus la largeur d'un
+  menu deroulant — on le cache alors, comme le reste du texte.
+*/
+.rail .pied-comptes { display: flex; gap: 6px; align-items: center; }
+.rail .pied-comptes select { flex: 1; min-width: 0; min-height: 34px; font-size: 12.5px; }
+.rail .pied-comptes .bouton { min-height: 34px; padding: 0 10px; }
+:root[data-rail="ferme"] .rail .pied-comptes { display: none; }
 .rail-bascule { display: none; }
 @media (min-width: 980px) { .rail-bascule { display: inline-grid; } }
 

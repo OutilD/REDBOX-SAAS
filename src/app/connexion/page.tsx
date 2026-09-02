@@ -33,6 +33,18 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
           Pas encore de compte ?{" "}
           <Link href="/inscription" style={{ textDecoration: "underline" }}>En créer un</Link>
         </p>
+        {/*
+          LA PORTE DES INVITES.
+
+          Elle manquait, et la page /rejoindre restait donc orpheline : on donnait
+          un code a quelqu'un qui n'avait nulle part ou le taper. Quelqu'un qu'on
+          invite arrive TOUJOURS par la page de connexion — c'est la seule adresse
+          qu'il connaisse — et c'est donc la que la porte doit etre.
+        */}
+        <p className="faible" style={{ fontSize: 13, textAlign: "center", margin: "8px 0 0" }}>
+          Vous avez un code d’invitation ?{" "}
+          <Link href="/rejoindre" style={{ textDecoration: "underline" }}>Rejoindre une équipe</Link>
+        </p>
       </form>
     </main>
   );

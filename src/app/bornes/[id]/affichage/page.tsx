@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q, q1, euros, codeCanal } from "@/db";
-import { peutConfigurer, utilisateur } from "@/lib/auth";
+import { peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { IcoAlerte } from "../../../icones";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,9 @@ export default async function Affichage({
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
+  // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
+  // qu'un refus, qui confirmerait au passage qu'elle existe.
+  if (!peutVoirBorne(u, id)) notFound();
   const { ok } = await searchParams;
 
   const b = await q1<{ id: number; nom: string; adresse: string | null }>(

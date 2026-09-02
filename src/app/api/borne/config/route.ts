@@ -85,6 +85,13 @@ export async function GET(req: Request) {
 
   return Response.json({
     borne: { id: borne.id, nom: borne.nom, adresse: borne.adresse },
+
+    // LA MISE HORS SERVICE DECIDEE ICI. Elle voyage a chaque appel, sans
+    // empreinte : c'est un etat, pas un catalogue, et une borne qui resterait
+    // ouverte une synchronisation de trop vendrait ce qu'on vient d'interdire.
+    hors_service: borne.hors_service
+      ? { actif: true, texte: borne.hors_service_texte ?? null }
+      : { actif: false, texte: null },
     catalogue: { version, vide, ...catalogue },
     pub: { version: empreintePub(visuels), vide: pubDeserte, visuels },
     ecrans: illustrations,

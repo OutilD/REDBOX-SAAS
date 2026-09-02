@@ -21,6 +21,21 @@ export const dynamic = "force-dynamic";
 export default async function Tableau({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+
+  /**
+   * LE TABLEAU DE BORD COMPTE TOUT LE PARC.
+   *
+   * Chiffre d'affaires, marge, ventes par borne, categories : tout y est agrege
+   * sur le compte. C'est juste pour un exploitant ; ca ne l'est pas pour
+   * quelqu'un qu'on a invite sur une seule machine — a qui l'on montrerait le
+   * chiffre des autres bars sans qu'il ait rien demande.
+   *
+   * On l'envoie donc a ses bornes. Filtrer les statistiques par portee reste a
+   * faire, et se fera dans `lib/tableau.ts` ; jusque-la, ne rien montrer vaut
+   * mieux que montrer ce qui ne le regarde pas.
+   */
+  if (u.bornes !== null) redirect("/bornes");
+
   const { f } = await searchParams;
   const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES[1];
   const j = fen.jours;

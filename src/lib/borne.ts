@@ -8,6 +8,7 @@ export type Borne = {
   code_appairage: string | null; jeton: string | null;
   appairee_le: Date | null; vue_le: Date | null;
   version: string | null; catalogue_version: string | null; sante: unknown;
+  hors_service: boolean; hors_service_texte: string | null;
 };
 
 /**
@@ -64,11 +65,25 @@ export const RYTHME_CALME = 300;
  * portent l'adresse publique.
  */
 export function origineVue(req: Request): string {
-  const h = req.headers;
+  return origineDes(req.headers) ?? new URL(req.url).origin;
+}
+
+/**
+ * La meme chose depuis des en-tetes seuls.
+ *
+ * Une page serveur n'a pas de `Request` sous la main — elle lit `headers()`. Or
+ * elle en a besoin pour la meme raison qu'un QR : donner a quelqu'un une adresse
+ * qu'il puisse taper ailleurs que sur cette machine.
+ *
+ * Le protocole se deduisait en « http » dans les deux branches d'un ternaire :
+ * une coquille, sans consequence derriere un proxy qui pose `x-forwarded-proto`,
+ * mais qui aurait rendu une adresse en clair sur un serveur en https direct.
+ */
+export function origineDes(h: Headers): string | null {
   const hote = h.get("x-forwarded-host") ?? h.get("host");
-  if (!hote) return new URL(req.url).origin;
-  const protocole = h.get("x-forwarded-proto")
-    ?? (hote.startsWith("localhost") || hote.startsWith("127.") ? "http" : "http");
+  if (!hote) return null;
+  const local = hote.startsWith("localhost") || hote.startsWith("127.");
+  const protocole = h.get("x-forwarded-proto") ?? (local ? "http" : "https");
   return `${protocole}://${hote}`;
 }
 

@@ -26,6 +26,10 @@ export default async function Reception({ searchParams }:
   { searchParams: Promise<{ e?: string; ok?: string; refs?: string; p?: string; q?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+  // LE DEPOT EST L'AFFAIRE DE L'EXPLOITANT. Ce qui dort en reserve, ce qui a ete
+  // recu, ce qui a ete paye : rien de tout cela ne regarde quelqu'un qu'on a
+  // invite sur une machine. On le renvoie a ses bornes.
+  if (u.bornes !== null) redirect("/bornes");
   if (!peutCharger(u)) redirect("/");
   const { e, ok, refs, p: cible, q: quantite } = await searchParams;
 

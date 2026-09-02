@@ -27,19 +27,28 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
   if (!u) redirect("/connexion");
   const { f } = await searchParams;
   const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES[1];
-  const p = [u.compte_id, `${fen.jours} days`];
+  /**
+   * LA PORTEE VOYAGE AVEC LES PARAMETRES.
+   *
+   * Cette page joint `vente` a `borne` et ne filtrait que sur le compte : elle
+   * montrait donc a quelqu'un invite sur une machine le chiffre de toutes les
+   * autres. Le troisieme parametre est nul pour un associe — tout le parc, comme
+   * avant — et porte la liste des bornes ouvertes sinon.
+   */
+  const p = [u.compte_id, `${fen.jours} days`, u.bornes];
+  const PORTEE = "AND ($3::bigint[] IS NULL OR b.id = ANY($3))";
 
   const total = await q1<{ n: number; total: number }>(`
     SELECT COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue'
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
        AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'`, p);
 
   const jours = await q<Jour>(`
     SELECT to_char(date_trunc('day', v.faite_le), 'DD/MM') AS jour,
            COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue'
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
        AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
      GROUP BY date_trunc('day', v.faite_le) ORDER BY date_trunc('day', v.faite_le)`, p);
 
@@ -52,7 +61,7 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
       JOIN borne b   ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
       LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue'
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
        AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
      GROUP BY pr.nom ORDER BY total DESC`, p);
 
@@ -64,7 +73,8 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
       FROM vente v JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
      WHERE b.compte_id = $1 AND v.statut <> 'distribue' AND v.traite_le IS NULL
-     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id]);
+       AND ($2::bigint[] IS NULL OR b.id = ANY($2))
+     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, u.bornes]);
 
   const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
   const sommet = Math.max(1, ...jours.map((j) => j.total));

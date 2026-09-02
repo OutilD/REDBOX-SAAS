@@ -17,7 +17,11 @@ export async function POST(req: Request) {
   const f = await req.formData();
   await q(`UPDATE vente SET traite_le = now(), traite_par = $1, note = $2
             WHERE id = $3 AND traite_le IS NULL
-              AND borne_id IN (SELECT id FROM borne WHERE compte_id = $4)`,
-          [u.email, String(f.get("note") ?? "").trim() || null, Number(f.get("id")), u.compte_id]);
+              AND borne_id IN (SELECT id FROM borne WHERE compte_id = $4)
+              -- Et dans la portee : un litige d'une machine qu'on ne voit pas
+              -- ne doit pas pouvoir etre classe depuis un identifiant devine.
+              AND ($5::bigint[] IS NULL OR borne_id = ANY($5))`,
+          [u.email, String(f.get("note") ?? "").trim() || null, Number(f.get("id")),
+           u.compte_id, u.bornes]);
   return versPage(req, "/ventes");
 }

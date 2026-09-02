@@ -16,8 +16,23 @@ export function concorde(mdp: string, stocke: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+export type Appartenance = { compte_id: number; compte: string; role: string };
+
 export type Utilisateur = {
   id: number; compte_id: number; email: string; role: string; compte: string;
+  /**
+   * LES BORNES QU'IL A LE DROIT DE VOIR, OU `null` POUR TOUTES.
+   *
+   * `null` n'est pas un oubli, c'est le cas ordinaire : un associe voit tout le
+   * parc et n'a aucune ligne dans `acces_borne`. La liste ne se remplit que pour
+   * quelqu'un invite sur une machine et une seule — le patron du bar qui
+   * l'heberge, par exemple. Distinguer « aucune restriction » de « aucune
+   * borne » est la seule chose a ne pas se tromper ici : confondre les deux
+   * ferme le parc a tout le monde, ou l'ouvre a tout le monde.
+   */
+  bornes: number[] | null;
+  /** Les comptes auxquels il appartient. Un seul, pour presque tout le monde. */
+  comptes: Appartenance[];
 };
 
 const DUREE = 30 * 24 * 3600 * 1000;
@@ -51,20 +66,86 @@ export function enTeteBiscuit(jeton: string | null): string {
                : `${BISCUIT}=; ${commun}; Max-Age=0`;
 }
 
+/**
+ * LA SESSION, LE COMPTE ACTIF, ET CE QU'IL DONNE A VOIR.
+ *
+ * Trois lectures au lieu d'une, et c'est ce qui permet a tout le reste du code
+ * de ne pas bouger : `compte_id` et `role` gardent leur sens — le compte sur
+ * lequel on travaille et ce qu'on y peut — mais ils ne viennent plus de la
+ * colonne de l'utilisateur, ils viennent de son APPARTENANCE au compte actif.
+ *
+ * Le compte actif est celui que porte la session. Nul, ou devenu invalide parce
+ * qu'on a retire la personne du compte, on retombe sur sa premiere
+ * appartenance. Une personne sans aucune appartenance n'existe plus : sa session
+ * ne vaut rien, et le dire tot evite de la promener sur des pages vides.
+ */
 async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
   if (!jeton) return null;
-  const l = await q1<Utilisateur & { expire_le: Date }>(`
-    SELECT u.id, u.compte_id, u.email, u.role, c.nom AS compte, s.expire_le
+  const l = await q1<{ id: number; email: string; origine: number; expire_le: Date;
+                       actif: number | null }>(`
+    SELECT u.id, u.email, u.compte_id AS origine, s.expire_le, s.compte_id AS actif
       FROM session s
       JOIN utilisateur u ON u.id = s.utilisateur_id
-      JOIN compte c      ON c.id = u.compte_id
      WHERE s.jeton = $1`, [jeton]);
   if (!l) return null;
   if (new Date(l.expire_le).getTime() < Date.now()) {
     await q("DELETE FROM session WHERE jeton = $1", [jeton]);
     return null;
   }
-  return { id: l.id, compte_id: l.compte_id, email: l.email, role: l.role, compte: l.compte };
+
+  const comptes = await q<Appartenance>(`
+    SELECT m.compte_id, c.nom AS compte, m.role
+      FROM membre m JOIN compte c ON c.id = m.compte_id
+     WHERE m.utilisateur_id = $1
+     ORDER BY (m.compte_id = $2) DESC, c.nom`, [l.id, l.origine]);
+  if (comptes.length === 0) return null;
+
+  const choisi = comptes.find((a) => a.compte_id === l.actif) ?? comptes[0];
+
+  // Les bornes autorisees, DANS LE COMPTE ACTIF seulement : une restriction
+  // posee chez un exploitant ne dit rien de ce qu'on peut voir chez un autre.
+  const restreint = await q<{ borne_id: number }>(`
+    SELECT a.borne_id FROM acces_borne a
+      JOIN borne b ON b.id = a.borne_id
+     WHERE a.utilisateur_id = $1 AND b.compte_id = $2`, [l.id, choisi.compte_id]);
+
+  return {
+    id: l.id, email: l.email,
+    compte_id: choisi.compte_id, compte: choisi.compte, role: choisi.role,
+    bornes: restreint.length > 0 ? restreint.map((r) => r.borne_id) : null,
+    comptes,
+  };
+}
+
+/**
+ * Le compte sur lequel la session travaille. Rend faux si la personne n'y
+ * appartient pas — on ne change pas de compte en devinant un numero.
+ */
+export async function basculerCompte(jeton: string, utilisateur_id: number,
+                                     compte_id: number): Promise<boolean> {
+  const ok = await q1("SELECT 1 FROM membre WHERE utilisateur_id = $1 AND compte_id = $2",
+                      [utilisateur_id, compte_id]);
+  if (!ok) return false;
+  await q("UPDATE session SET compte_id = $2 WHERE jeton = $1", [jeton, compte_id]);
+  return true;
+}
+
+/**
+ * EST-IL RESTREINT A CERTAINES BORNES ?
+ *
+ * Si oui, le COMPTE ne lui appartient pas : le catalogue, le depot, les affiches
+ * et le parc lui-meme sont l'affaire de l'exploitant. Il peut avoir un role qui
+ * l'autoriserait a les changer — on peut inviter un gerant sur une seule machine
+ * — et c'est precisement pour ce cas que ce predicat existe : le role dit ce
+ * qu'on sait faire, la portee dit sur quoi.
+ */
+export function estRestreint(u: Utilisateur): boolean {
+  return u.bornes !== null;
+}
+
+/** Cette borne lui est-elle ouverte ? Le compte a deja ete verifie ailleurs. */
+export function peutVoirBorne(u: Utilisateur, borne_id: number): boolean {
+  return u.bornes === null || u.bornes.includes(borne_id);
 }
 
 /** Cote page : le rendu a acces aux en-tetes de la requete. */

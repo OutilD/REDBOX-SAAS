@@ -28,7 +28,11 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
   {
     titre: "Exploitation",
     items: [
-      { cle: "tableau", nom: "Tableau de bord", icone: <IcoTableau />, vers: "/" },
+      // Le tableau de bord agrege tout le parc, et le depot appartient a
+      // l'exploitant : une personne restreinte a une machine y serait renvoyee.
+      // Autant ne pas lui montrer la porte.
+      { cle: "tableau", nom: "Tableau de bord", icone: <IcoTableau />, vers: "/",
+        droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "Bornes",  icone: <IcoBorne />,  vers: "/bornes" },
     ],
@@ -36,8 +40,10 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
   {
     titre: "Approvisionnement",
     items: [
-      { cle: "stock",     nom: "Mon stock", icone: <IcoStock />,     vers: "/stock" },
-      { cle: "reception", nom: "Réception", icone: <IcoReception />, vers: "/reception" },
+      { cle: "stock",     nom: "Mon stock", icone: <IcoStock />,     vers: "/stock",
+        droit: (u) => u.bornes === null },
+      { cle: "reception", nom: "Réception", icone: <IcoReception />, vers: "/reception",
+        droit: (u) => u.bornes === null },
       { cle: "reassort",  nom: "Réassort",  icone: <IcoReassort />,  vers: "/reassort" },
     ],
   },
@@ -131,7 +137,30 @@ export async function Entete({ page }: { page: Page }) {
             );
           })}
         </nav>
-        <div className="pied">{u?.compte}</div>
+        {/*
+          LE COMPTE, ET LE MOYEN D'EN CHANGER.
+
+          Une seule appartenance — le cas de presque tout le monde — et c'est un
+          simple nom, comme avant. Plusieurs, et il faut pouvoir passer de l'une a
+          l'autre : sans ce selecteur, un reassortisseur qui sert deux exploitants
+          restait bloque sur celui de son inscription.
+
+          Un bouton plutot qu'un envoi automatique au changement : la console doit
+          marcher sans JavaScript, sur le telephone qu'on a en main dans un bar
+          mal couvert.
+        */}
+        {u && u.comptes.length > 1 ? (
+          <form method="post" action="/api/compte/basculer" className="pied pied-comptes">
+            <select name="compte_id" defaultValue={u.compte_id} aria-label="Compte">
+              {u.comptes.map((a) => (
+                <option key={a.compte_id} value={a.compte_id}>{a.compte}</option>
+              ))}
+            </select>
+            <button className="bouton petit">Aller</button>
+          </form>
+        ) : (
+          <div className="pied">{u?.compte}</div>
+        )}
       </aside>
 
       <header className="entete">

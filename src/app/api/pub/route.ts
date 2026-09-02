@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { q, transaction } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { reveillerLeCompte } from "@/lib/borne";
 import { TAILLE_MAX, TYPES } from "@/lib/pub";
 import { oterIllustration, poserIllustration } from "@/lib/illustration";
@@ -18,6 +18,9 @@ function date(v: FormDataEntryValue | null): string | null {
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Le compte n'est pas le sien : une portee par borne ne donne pas la main
+  // sur le catalogue, le depot ou le parc de l'exploitant.
+  if (estRestreint(u)) return versPage(req, "/reglages/pub");
   if (!peutConfigurer(u)) return versPage(req, "/reglages");
   const f = await req.formData();
 

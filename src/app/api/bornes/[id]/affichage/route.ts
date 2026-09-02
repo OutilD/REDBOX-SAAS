@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!u) return versPage(req, "/connexion");
   const id = Number((await ctx.params).id);
   if (!peutConfigurer(u)) return versPage(req, `/bornes/${id}`);
+  // CETTE BORNE LUI EST-ELLE OUVERTE ? Le compte ne suffit plus : quelqu'un
+  // invite pour une seule machine appartient bien au compte, et pourrait
+  // agir sur les autres en tapant leur numero dans l'adresse.
+  if (!peutVoirBorne(u, id)) return versPage(req, "/bornes");
 
   const f = await req.formData();
   const vues = (prefixe: string) =>

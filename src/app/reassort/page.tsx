@@ -52,7 +52,10 @@ export default async function Reassort({
                     FILTER (WHERE c.produit_id IS NOT NULL), 0)::int AS manquant
       FROM borne b LEFT JOIN canal c ON c.borne_id = b.id
      WHERE b.compte_id = $1
-     GROUP BY b.id ORDER BY vides DESC, sous_seuil DESC, b.nom`, [u.compte_id]);
+       -- La meme portee qu'ailleurs : on ne prepare pas une tournee pour des
+       -- machines qu'on n'a pas le droit de voir.
+       AND ($2::bigint[] IS NULL OR b.id = ANY($2))
+     GROUP BY b.id ORDER BY vides DESC, sous_seuil DESC, b.nom`, [u.compte_id, u.bornes]);
 
   const servables = bornes.filter((b) => b.canaux > 0);
 

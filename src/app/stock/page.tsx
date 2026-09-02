@@ -24,6 +24,10 @@ export const dynamic = "force-dynamic";
 export default async function Stock() {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+  // LE DEPOT EST L'AFFAIRE DE L'EXPLOITANT. Ce qui dort en reserve, ce qui a ete
+  // recu, ce qui a ete paye : rien de tout cela ne regarde quelqu'un qu'on a
+  // invite sur une machine. On le renvoie a ses bornes.
+  if (u.bornes !== null) redirect("/bornes");
 
   const lignes = await stockParProduit(u.compte_id);
   const groupes = grouperParCategorie(lignes);

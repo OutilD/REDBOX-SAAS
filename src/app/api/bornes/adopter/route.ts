@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { nouveauJeton } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Le compte n'est pas le sien : une portee par borne ne donne pas la main
+  // sur le catalogue, le depot ou le parc de l'exploitant.
+  if (estRestreint(u)) return versPage(req, "/bornes");
   if (!peutConfigurer(u)) return versPage(req, "/bornes");
 
   const f = await req.formData();

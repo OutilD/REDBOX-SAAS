@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import Pas from "../../../pas";
 import { q1, euros, depuis, codeCanal } from "@/db";
-import { peutCharger, utilisateur } from "@/lib/auth";
+import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { Repli } from "../../../repli";
 import { IcoBorne } from "../../../icones";
 import { canauxDe, grouperCanaux, type GroupeCanal, type LigneCanal } from "@/lib/stock";
@@ -29,6 +29,9 @@ export default async function Charger({ params }: { params: Promise<{ id: string
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
+  // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
+  // qu'un refus, qui confirmerait au passage qu'elle existe.
+  if (!peutVoirBorne(u, id)) notFound();
   if (!peutCharger(u)) redirect(`/bornes/${id}`);
 
   const borne = await q1<{ id: number; nom: string; adresse: string | null; vue_le: Date | null }>(

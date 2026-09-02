@@ -472,3 +472,70 @@ CREATE TABLE IF NOT EXISTS correction_canal (
 
 CREATE INDEX IF NOT EXISTS i_correction_vive
   ON correction_canal (borne_id) WHERE applique_le IS NULL;
+
+-- ------------------------------------------------------- mise hors service
+
+-- ARRETER LA VENTE SANS SE DEPLACER.
+--
+-- Une spirale bloquee, un produit rappele, un bar ferme trois semaines : la
+-- machine fonctionne mais ne doit plus servir. Jusqu'ici la seule facon d'y
+-- arriver etait de la debrancher — ce qui coupe aussi la synchronisation, donc
+-- la remontee des ventes et toute possibilite de la reprendre a distance.
+--
+-- L'ecran hors service existait deja, mais seule la machine pouvait le decider,
+-- sur une panne materielle. C'est maintenant aussi une decision d'exploitant.
+--
+-- LE MOTIF EST AFFICHE AU CLIENT. « Momentanement indisponible » sans plus
+-- laisse quelqu'un devant une machine muette ; « Reouverture lundi » lui evite
+-- d'attendre.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS hors_service       BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS hors_service_texte TEXT;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS hors_service_le    TIMESTAMPTZ;
+
+-- ------------------------------------------------- appartenance et acces
+
+-- UNE PERSONNE, PLUSIEURS EXPLOITANTS.
+--
+-- `utilisateur.compte_id` liait une adresse a un compte et un seul. C'etait
+-- juste tant qu'un utilisateur etait un associe ; ca ne l'est plus des qu'on
+-- invite le patron d'un bar, ou un reassortisseur independant qui tourne pour
+-- trois exploitants. Il lui fallait autant d'adresses que de clients.
+--
+-- L'appartenance devient donc une ligne a part, avec son role. La colonne
+-- `utilisateur.compte_id` reste : c'est le compte d'origine, celui de
+-- l'inscription, et elle sert de reprise pour tout ce qui existait avant.
+CREATE TABLE IF NOT EXISTS membre (
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  compte_id      BIGINT NOT NULL REFERENCES compte(id)      ON DELETE CASCADE,
+  role           TEXT   NOT NULL,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (utilisateur_id, compte_id)
+);
+
+-- La reprise de l'existant. Idempotente : elle peut tourner a chaque migration.
+INSERT INTO membre (utilisateur_id, compte_id, role)
+  SELECT id, compte_id, role FROM utilisateur
+  ON CONFLICT (utilisateur_id, compte_id) DO NOTHING;
+
+-- L'ACCES PAR BORNE.
+--
+-- AUCUNE LIGNE VEUT DIRE TOUTES LES BORNES. C'est ce qui permet a la refonte de
+-- ne rien casser : un associe n'a aucune ligne ici et voit tout le parc, comme
+-- avant. Une ligne restreint — et c'est ce qu'on pose en invitant quelqu'un
+-- pour une machine et une seule.
+CREATE TABLE IF NOT EXISTS acces_borne (
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  borne_id       BIGINT NOT NULL REFERENCES borne(id)       ON DELETE CASCADE,
+  PRIMARY KEY (utilisateur_id, borne_id)
+);
+
+-- LE COMPTE SUR LEQUEL LA SESSION TRAVAILLE.
+--
+-- Une personne qui appartient a deux comptes doit pouvoir passer de l'un a
+-- l'autre sans se reconnecter, et la borne qu'elle regarde ne doit jamais
+-- dependre de l'ordre des lignes en base. Nul = le compte d'origine.
+ALTER TABLE session ADD COLUMN IF NOT EXISTS compte_id BIGINT REFERENCES compte(id) ON DELETE CASCADE;
+
+-- UNE INVITATION PEUT NE DONNER QU'UNE BORNE.
+-- Nul = tout le compte, ce qu'elle a toujours fait.
+ALTER TABLE invitation ADD COLUMN IF NOT EXISTS borne_id BIGINT REFERENCES borne(id) ON DELETE CASCADE;

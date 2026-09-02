@@ -29,6 +29,10 @@ export default async function Sortie({
      searchParams: Promise<{ e?: string; dispo?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+  // LE DEPOT EST L'AFFAIRE DE L'EXPLOITANT. Ce qui dort en reserve, ce qui a ete
+  // recu, ce qui a ete paye : rien de tout cela ne regarde quelqu'un qu'on a
+  // invite sur une machine. On le renvoie a ses bornes.
+  if (u.bornes !== null) redirect("/bornes");
   const id = Number((await params).id);
   const { e, dispo } = await searchParams;
   if (!peutCharger(u)) redirect(`/stock/${id}`);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q, q1, euros, depuis, enLigne, codeCanal } from "@/db";
-import { peutCharger, utilisateur } from "@/lib/auth";
+import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { canauxDe } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
@@ -16,6 +16,7 @@ type Borne = {
   jeton: string | null; version: string | null; catalogue_version: string | null;
   sante: Record<string, unknown> | null;
   maintenance_pin: string | null; maintenance_pin_le: Date | null;
+  hors_service: boolean; hors_service_texte: string | null; hors_service_le: Date | null;
   maintenance_vu: string | null;
 };
 
@@ -24,16 +25,20 @@ export default async function Detail({
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
                              reveil?: string; delier?: string; pin?: string;
-                             reconcilie?: string }> }) {
+                             reconcilie?: string; hs?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
-  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie } =
+  // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
+  // qu'un refus, qui confirmerait au passage qu'elle existe.
+  if (!peutVoirBorne(u, id)) notFound();
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs } =
     await searchParams;
 
   const b = await q1<Borne>(
     `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
-            maintenance_pin, maintenance_pin_le, maintenance_vu
+            maintenance_pin, maintenance_pin_le, maintenance_vu,
+            hors_service, hors_service_texte, hors_service_le
        FROM borne WHERE id = $1 AND compte_id = $2`,
     [id, u.compte_id]);
   if (!b) notFound();
@@ -136,6 +141,37 @@ export default async function Detail({
           </div>
         ) : null}
 
+        {hs !== undefined ? (
+          <div className="carte" style={{ borderColor: "var(--vert)", marginTop: 14 }}>
+            <span className="pilule ok"><i />
+              {hs === "1" ? "Borne mise hors service" : "Borne remise en service"}
+            </span>
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+              Elle a été réveillée : l’écran change dans la seconde si elle est en ligne,
+              à son retour sinon.
+            </p>
+          </div>
+        ) : null}
+
+        {b.hors_service ? (
+          <div className="carte chaude" style={{ marginTop: 14 }}>
+            <strong>Cette borne est hors service.</strong>
+            <p className="faible" style={{ margin: "8px 0 14px", fontSize: 14 }}>
+              Elle n’encaisse plus rien et affiche l’écran d’indisponibilité
+              {b.hors_service_texte ? ` : « ${b.hors_service_texte} »` : ""}.
+              {b.hors_service_le ? ` Depuis ${depuis(b.hors_service_le)}.` : ""}
+              {" "}Elle continue de se synchroniser : ses ventes remontent et l’ordre
+              inverse la joindra.
+            </p>
+            {peutCharger(u) ? (
+              <form method="post" action={`/api/bornes/${id}/hors-service`}>
+                <input type="hidden" name="actif" value="0" />
+                <button className="bouton large">Remettre en service</button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+
         {!b.jeton ? (
           <div className="carte chaude" style={{ marginTop: 14 }}>
             <strong>Cette borne n’est pas encore appairée.</strong>
@@ -209,6 +245,35 @@ export default async function Detail({
               </>
             ) : null}
           </div>
+        ) : null}
+
+        {b.jeton && peutCharger(u) && !b.hors_service ? (
+          <form method="post" action={`/api/bornes/${id}/hors-service`}
+                className="carte" style={{ marginTop: 14 }}>
+            <input type="hidden" name="actif" value="1" />
+            <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+              <strong>Mettre hors service</strong>
+              <span className="faible" style={{ fontSize: 13.5 }}>
+                Arrête la vente sans couper la machine.
+              </span>
+            </div>
+
+            <label htmlFor="hs-texte" style={{ marginTop: 10 }}>
+              Ce que le client lira sur l’écran
+            </label>
+            <input id="hs-texte" name="texte" maxLength={90}
+                   placeholder="Réouverture lundi · Maintenance en cours" />
+
+            <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
+              <button className="bouton">Mettre hors service</button>
+            </div>
+
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              La borne garde sa liaison : elle remonte ses ventes, reçoit ses
+              transferts, et se rouvre d’ici sans déplacement. Une vente en cours va
+              à son terme — on ne coupe pas une distribution commencée.
+            </p>
+          </form>
         ) : null}
 
         {b.jeton && peutCharger(u) ? (

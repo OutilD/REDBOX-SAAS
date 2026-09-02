@@ -32,7 +32,10 @@ export default async function Bornes({ searchParams }:
                         AND m.confirme_le IS NULL AND m.annule_le IS NULL),0)      AS en_route
       FROM borne b LEFT JOIN canal c ON c.borne_id = b.id
      WHERE b.compte_id = $1
-     GROUP BY b.id ORDER BY b.nom`, [u.compte_id]);
+       -- LA PORTEE. Nul veut dire toutes les bornes du compte, et c'est le cas
+       -- ordinaire ; une liste restreint a ce qu'on a ouvert a cette personne.
+       AND ($2::bigint[] IS NULL OR b.id = ANY($2))
+     GROUP BY b.id ORDER BY b.nom`, [u.compte_id, u.bornes]);
 
   return (
     <>

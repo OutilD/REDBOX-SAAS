@@ -1,5 +1,5 @@
 import { q, transaction } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { reveillerLeCompte } from "@/lib/borne";
 import { prefixeSku } from "@/lib/sku";
 import { laneDe, spireValide } from "@/lib/machine";
@@ -19,6 +19,9 @@ function centimes(brut: string): number | null {
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Le compte n'est pas le sien : une portee par borne ne donne pas la main
+  // sur le catalogue, le depot ou le parc de l'exploitant.
+  if (estRestreint(u)) return versPage(req, "/reglages/catalogue");
   if (!peutConfigurer(u)) return versPage(req, "/reglages/catalogue");
   const f = await req.formData();
 

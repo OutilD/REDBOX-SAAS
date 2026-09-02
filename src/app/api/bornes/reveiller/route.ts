@@ -1,5 +1,5 @@
 import { q1 } from "@/db";
-import { peutCharger, utilisateurDe, versPage } from "@/lib/auth";
+import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller, reveillerLeCompte } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,8 @@ export async function POST(req: Request) {
   const id = Number(f.get("id"));
 
   if (Number.isInteger(id) && id > 0) {
+    // Et elle doit lui etre ouverte : appartenir au compte ne suffit plus.
+    if (!peutVoirBorne(u, id)) return versPage(req, retour);
     // La borne doit etre du compte : sans ce controle, un identifiant devine
     // ferait travailler la machine du voisin.
     const b = await q1("SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2 AND jeton IS NOT NULL",
@@ -28,6 +30,14 @@ export async function POST(req: Request) {
     if (!b) return versPage(req, retour);
     await reveiller(id, "demande depuis le SaaS");
     return versPage(req, `${retour}?reveil=1`);
+  }
+
+  // REVEILLER TOUT LE PARC N'A DE SENS QUE SI ON L'A TOUT ENTIER. Quelqu'un
+  // restreint a une machine n'a rien a demander aux autres : on ne reveille
+  // alors que les siennes, une par une.
+  if (u.bornes !== null) {
+    for (const b of u.bornes) await reveiller(b, "demande depuis le SaaS");
+    return versPage(req, `${retour}?reveil=${u.bornes.length}`);
   }
 
   const n = await reveillerLeCompte(u.compte_id, "demande depuis le SaaS");
