@@ -120,7 +120,13 @@ export default async function Tableau(
                   className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
           ))}
 
-          {machines.length > 1 ? (
+          {machines.length > 0 ? (
+            // DES LA PREMIERE BORNE, PAS A PARTIR DE LA DEUXIEME. Le seuil etait
+            // a deux — un menu deroulant a une seule option n'aide personne — et
+            // c'etait un raisonnement de developpeur : sur un compte a une borne,
+            // le filtre demande devenait invisible, et on le cherchait. Mieux vaut
+            // un selecteur qui ne sert pas encore qu'un selecteur introuvable.
+            //
             // Un formulaire GET plutot qu'un envoi au changement : la console
             // doit marcher sans JavaScript, sur le telephone qu'on a en main
             // dans un bar mal couvert.
