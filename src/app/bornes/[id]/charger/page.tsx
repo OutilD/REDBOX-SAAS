@@ -93,8 +93,8 @@ export default async function Charger({ params, searchParams }:
 
             <div style={{ position: "sticky", bottom: "calc(72px + env(safe-area-inset-bottom))",
                           paddingTop: 14, marginTop: 6 }}>
-              <button className="bouton primaire large">Valider le chargement</button>
-              {/* Elle ne demande rien tant qu'aucun canal n'est en retrait. */}
+              {/* Le bouton d'envoi est dans ce composant : c'est lui qui decide
+                  s'il faut d'abord demander la raison d'un retrait. */}
               <RaisonSortie />
             </div>
           </form>

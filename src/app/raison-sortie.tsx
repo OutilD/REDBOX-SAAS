@@ -27,42 +27,60 @@ export default function RaisonSortie() {
   const [note, setNote] = useState("");
   const cadre = useRef<HTMLDivElement>(null);
 
-  // On s'accroche au formulaire qui nous contient, pas a un bouton : il y a
-  // plusieurs facons d'envoyer un formulaire, dont la touche Entree.
-  useEffect(() => {
+  /**
+   * LE BOUTON EST A NOUS, ON N'INTERCEPTE PLUS RIEN.
+   *
+   * On ecoutait l'evenement `submit` du formulaire, pose dans un `useEffect` :
+   * autrement dit apres l'hydratation. Cette page porte une trentaine de
+   * compteurs, tous des composants clients — l'hydratation prend une seconde ou
+   * deux sur un telephone. Un clic dans cet intervalle partait pour de vrai,
+   * sans motif, et la page se rechargeait sur une erreur. C'est ce qu'on voyait :
+   * « je ne peux choisir qu'une fois le chargement termine ».
+   *
+   * Le bouton visible est donc un bouton ORDINAIRE, qui ne fait rien avant que
+   * le script soit la — ne rien faire vaut mieux qu'envoyer sans la raison — et
+   * qui decide ensuite : ouvrir la boite s'il y a un retrait, envoyer sinon. Le
+   * vrai bouton d'envoi ne subsiste que dans le `<noscript>`.
+   */
+  const surClic = () => {
     const form = cadre.current?.closest("form");
     if (!form) return;
-    const surEnvoi = (e: Event) => {
-      if (form.dataset.confirme === "oui") return;
-      const negatif = [...form.querySelectorAll<HTMLInputElement>('input[type="number"]')]
-        .some((i) => Number(i.value) < 0);
-      if (!negatif) return;
-      e.preventDefault();
-      setOuvert(true);
-    };
-    form.addEventListener("submit", surEnvoi);
-    return () => form.removeEventListener("submit", surEnvoi);
-  }, []);
+    const negatif = [...form.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+      .some((i) => Number(i.value) < 0);
+    if (negatif) { setMotif(""); setNote(""); setOuvert(true); return; }
+    form.requestSubmit();
+  };
 
   const valider = () => {
     const form = cadre.current?.closest("form");
     if (!form) return;
     if (!motif) return;
     if (motif === "autre" && !note.trim()) return;
-    form.dataset.confirme = "oui";
     form.requestSubmit();
   };
+
+  // La touche Echap ferme, comme partout ailleurs.
+  useEffect(() => {
+    if (!ouvert) return;
+    const touche = (e: KeyboardEvent) => { if (e.key === "Escape") setOuvert(false); };
+    document.addEventListener("keydown", touche);
+    return () => document.removeEventListener("keydown", touche);
+  }, [ouvert]);
 
   return (
     <div ref={cadre}>
       <input type="hidden" name="motif" value={motif} />
       <input type="hidden" name="note" value={note} />
 
+      <button type="button" className="bouton primaire large avec-script" onClick={surClic}>
+        Valider le chargement
+      </button>
+
       {ouvert ? (
         <div className="voile-modale" role="dialog" aria-modal="true"
              aria-label="Raison de la sortie">
           <div className="modale">
-            <h2>Pourquoi cette sortie ?</h2>
+            <div className="titre-modale">Pourquoi cette sortie&nbsp;?</div>
             <p className="faible" style={{ fontSize: 13, margin: "0 0 14px" }}>
               Vous retirez de la marchandise de la machine. La cause est le sujet :
               « douze cassées sur ce produit » se pilote, « douze unités perdues »
@@ -102,6 +120,7 @@ export default function RaisonSortie() {
       ) : null}
 
       <noscript>
+        <button className="bouton primaire large">Valider le chargement</button>
         <div className="carte" style={{ marginTop: 12 }}>
           <div className="champ">
             <label htmlFor="motif-nu">Raison, si vous retirez de la marchandise</label>
