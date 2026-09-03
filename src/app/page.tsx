@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "./chrome";
 import { BarresClassees, Courbes, teinte } from "./graphes";
 import { IcoAlerte, IcoFleche, IcoHorloge } from "./icones";
-import { euros, depuis, enLigne } from "@/db";
+import { q, euros, depuis, enLigne } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { autonomie, avancement, categoriesDansLeTemps, entete, FENETRES, parBorne,
-         parJour, type Autonomie, type Avancement, type ParBorne } from "@/lib/tableau";
+         parJour, parProduit, type Autonomie, type Avancement, type ParBorne,
+         type ParProduit, DEFAUT } from "@/lib/tableau";
 import { Repli } from "./repli";
 import { IcoBorne, IcoReception, IcoStock, IcoVentes } from "./icones";
 
@@ -18,35 +19,42 @@ export const dynamic = "force-dynamic";
  * Quatre questions, dans cet ordre : est-ce que ca tourne, combien ca rapporte,
  * quelle borne marche le mieux, et qu'est-ce qui va me manquer.
  */
-export default async function Tableau({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
+export default async function Tableau(
+  { searchParams }: { searchParams: Promise<{ f?: string; b?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
 
-  /**
-   * LE TABLEAU DE BORD COMPTE TOUT LE PARC.
-   *
-   * Chiffre d'affaires, marge, ventes par borne, categories : tout y est agrege
-   * sur le compte. C'est juste pour un exploitant ; ca ne l'est pas pour
-   * quelqu'un qu'on a invite sur une seule machine — a qui l'on montrerait le
-   * chiffre des autres bars sans qu'il ait rien demande.
-   *
-   * On l'envoie donc a ses bornes. Filtrer les statistiques par portee reste a
-   * faire, et se fera dans `lib/tableau.ts` ; jusque-la, ne rien montrer vaut
-   * mieux que montrer ce qui ne le regarde pas.
-   */
-  if (u.bornes !== null) redirect("/bornes");
-
-  const { f } = await searchParams;
-  const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES[1];
+  const { f, b } = await searchParams;
+  const fen = FENETRES.find((x) => x.cle === f) ?? DEFAUT;
   const j = fen.jours;
 
-  const [avance, tete, jours, bornes, categories, stocks] = await Promise.all([
-    avancement(u.compte_id),
-    entete(u.compte_id, j),
-    parJour(u.compte_id, j),
-    parBorne(u.compte_id, j),
-    categoriesDansLeTemps(u.compte_id, j),
-    autonomie(u.compte_id, j),
+  /**
+   * LA PORTEE DU TABLEAU : LE FILTRE, OU CE QU'ON A LE DROIT DE VOIR.
+   *
+   * Les deux se combinent au lieu de se remplacer. Une personne invitee sur une
+   * machine ne peut pas en choisir une autre : on ne retient son choix que s'il
+   * tombe dans ce qui lui est ouvert. Sans quoi le filtre, qui n'est qu'un
+   * confort d'affichage, serait devenu une porte.
+   */
+  const machines = await q<{ id: number; nom: string }>(
+    `SELECT id, nom FROM borne
+      WHERE compte_id = $1 AND ($2::bigint[] IS NULL OR id = ANY($2))
+      ORDER BY nom`, [u.compte_id, u.bornes]);
+  const choisie = machines.find((m) => String(m.id) === b) ?? null;
+  const portee = choisie ? [choisie.id] : u.bornes;
+
+  // Le depot et la mise en route sont l'affaire de l'exploitant : ni l'un ni
+  // l'autre ne veut dire quoi que ce soit pour qui n'a qu'une machine.
+  const sienDuCompte = u.bornes === null;
+
+  const [avance, tete, jours, bornes, categories, stocks, produits] = await Promise.all([
+    sienDuCompte ? avancement(u.compte_id) : null,
+    entete(u.compte_id, j, portee),
+    parJour(u.compte_id, j, portee),
+    parBorne(u.compte_id, j, portee),
+    categoriesDansLeTemps(u.compte_id, j, portee),
+    sienDuCompte ? autonomie(u.compte_id, j) : [],
+    parProduit(u.compte_id, j, portee),
   ]);
 
   const sommet = Math.max(1, ...jours.map((x) => x.ca));
@@ -64,8 +72,13 @@ export default async function Tableau({ searchParams }: { searchParams: Promise<
   // vendu. Son proprietaire voyait donc un ecran de bienvenue a la place de ses
   // donnees — et pouvait croire que rien n'etait remonte. Ce qui compte, c'est
   // qu'il y ait un catalogue ET une machine appairee.
-  const enRoute = avance.produits === 0 || avance.appairees === 0;
-  if (enRoute) {
+  //
+  // L'ecran de bienvenue est une marche a suivre pour l'exploitant : creer un
+  // catalogue, appairer une machine. Quelqu'un invite sur une borne n'a aucune
+  // de ces mains-la, et la lui montrer serait lui demander de faire un travail
+  // qu'il ne peut pas faire. `avance` est nul pour lui, et on passe.
+  const enRoute = avance !== null && (avance.produits === 0 || avance.appairees === 0);
+  if (enRoute && avance) {
     return (
       <>
         <Entete page="tableau" />
@@ -87,13 +100,42 @@ export default async function Tableau({ searchParams }: { searchParams: Promise<
       <Entete page="tableau" />
       <main className="ecran">
         <h1>Tableau de bord</h1>
-        <p className="sous">Compte {u.compte} — sur les {fen.nom}.</p>
+        <p className="sous">
+          Compte {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"},
+          sur {fen.cle === "1" ? "la journée" : `les ${fen.nom}`}.
+        </p>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {/*
+          LES DEUX FILTRES, COTE A COTE.
+
+          Chacun garde l'autre dans son lien : passer de sept a trente jours ne
+          doit pas relacher la borne qu'on venait de choisir, et l'inverse non
+          plus. C'est le genre de detail qui fait qu'on refait deux fois le meme
+          geste sans comprendre pourquoi.
+        */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap",
+                      alignItems: "center" }}>
           {FENETRES.map((x) => (
-            <Link key={x.cle} href={`/?f=${x.cle}`}
+            <Link key={x.cle} href={choisie ? `/?f=${x.cle}&b=${choisie.id}` : `/?f=${x.cle}`}
                   className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
           ))}
+
+          {machines.length > 1 ? (
+            // Un formulaire GET plutot qu'un envoi au changement : la console
+            // doit marcher sans JavaScript, sur le telephone qu'on a en main
+            // dans un bar mal couvert.
+            <form method="get" action="/" style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+              <input type="hidden" name="f" value={fen.cle} />
+              <select name="b" defaultValue={choisie ? String(choisie.id) : ""}
+                      aria-label="Borne" style={{ minHeight: 34, fontSize: 13 }}>
+                <option value="">Toutes les bornes</option>
+                {machines.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nom}</option>
+                ))}
+              </select>
+              <button className="bouton petit">Filtrer</button>
+            </form>
+          ) : null}
         </div>
 
         <div className="bandeau">
@@ -221,7 +263,51 @@ export default async function Tableau({ searchParams }: { searchParams: Promise<
           </div>
         )}
 
+        {/* ------------------------------------------------- ce qui se vend */}
+        {/*
+          QUEL PRODUIT, ET PAS SEULEMENT QUELLE BORNE.
+
+          On savait quelle machine marchait le mieux, jamais quel article. Or
+          c'est l'article qu'on rachete, qu'on arrete ou qu'on monte en prix — la
+          borne, on ne la change pas.
+
+          La marge est a cote du chiffre, et c'est elle qui compte : un produit
+          qui fait le plus gros chiffre en perdant de l'argent a chaque vente
+          trone en tete d'un classement au chiffre d'affaires. Elle est vide
+          quand aucun prix d'achat n'est connu — un tiret vaut mieux qu'un zero,
+          qui ferait passer une marge inconnue pour une marge nulle.
+        */}
+        <div className="titre-section">
+          <h2>Ce qui se vend</h2>
+          <Link href="/ventes" className="lien">Voir les ventes <IcoFleche size={13} /></Link>
+        </div>
+        {produits.length === 0 ? (
+          <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
+                 texte="Rien ne s’est vendu sur la fenêtre choisie." dedans />
+        ) : (
+          <div className="carte plate"><div className="lignes">
+            {produits.slice(0, 12).map((pr, i) => (
+              <div className="ligne" key={`${pr.id ?? "x"}-${i}`}>
+                <div className="corps">
+                  <div className="nom">{pr.nom}</div>
+                  <div className="meta">
+                    {pr.categorie}{pr.sku ? ` · ${pr.sku}` : ""} · {pr.n} vendu{pr.n > 1 ? "s" : ""}
+                  </div>
+                </div>
+                <div className="fin" style={{ textAlign: "right" }}>
+                  <div className="num">{euros(pr.ca)}</div>
+                  <div className="meta">
+                    {pr.marge === null ? "marge —" : `marge ${euros(pr.marge)}`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div></div>
+        )}
+
         {/* ------------------------------------------------- ce qui va manquer */}
+        {sienDuCompte ? (
+        <>
         <div className="titre-section">
           <h2>Ce qui va manquer</h2>
           <Link href="/reception" className="lien">Enregistrer une réception <IcoFleche size={13} /></Link>
@@ -264,6 +350,8 @@ export default async function Tableau({ searchParams }: { searchParams: Promise<
               </p>
             </div>
           </>
+        ) : null}
+        </>
         ) : null}
       </main>
       <NavBasse page="tableau" />

@@ -26,7 +26,9 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { f } = await searchParams;
-  const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES[1];
+  // Nommee, pas prise au rang : ajouter « aujourd'hui » en tete aurait fait
+  // glisser le defaut de trente jours a sept.
+  const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES.find((x) => x.cle === "30")!;
   /**
    * LA PORTEE VOYAGE AVEC LES PARAMETRES.
    *

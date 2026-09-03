@@ -10,12 +10,41 @@ import { q, q1 } from "@/db";
 
 /** La periode, en jours pleins, bornee a hier inclus + aujourd'hui. */
 export const FENETRES = [
+  // « Aujourd'hui », c'est un jour plein depuis minuit : `DEPUIS` retranche un
+  // jour puis en rajoute un, donc la fenetre a 1 commence a zero heure. C'est la
+  // vue qu'on ouvre le soir pour savoir ce que la machine a fait dans la journee.
+  { cle: "1",  nom: "Aujourd’hui", jours: 1 },
   { cle: "7",  nom: "7 jours",  jours: 7 },
   { cle: "30", nom: "30 jours", jours: 30 },
   { cle: "90", nom: "90 jours", jours: 90 },
 ] as const;
 
+/**
+ * La fenetre montree quand on n'a rien choisi.
+ *
+ * Nommee, pas prise au rang : elle etait `FENETRES[1]`, et ajouter
+ * « aujourd'hui » en tete de liste l'aurait fait passer de trente jours a sept
+ * sans que personne l'ait demande.
+ */
+export const DEFAUT = FENETRES.find((f) => f.cle === "30")!;
+
 const DEPUIS = "date_trunc('day', now()) - ($2::text || ' days')::interval + interval '1 day'";
+
+/**
+ * LA PORTEE, ECRITE UNE FOIS.
+ *
+ * `null` veut dire tout le parc du compte : c'est le cas par defaut, celui d'un
+ * exploitant qui n'a rien filtre. Une liste restreint aux bornes voulues — le
+ * filtre de l'en-tete, ou les seules machines qu'un invite a le droit de voir.
+ *
+ * LES DEUX PASSENT PAR LE MEME CHEMIN, et c'est voulu : un filtre d'affichage et
+ * une restriction d'acces qui auraient deux implementations finiraient par
+ * diverger, et c'est la divergence qui montre le chiffre d'une autre machine.
+ *
+ * Repete a la main dans quinze sous-requetes, ce fragment aurait fini par
+ * manquer dans une.
+ */
+const PORTEE = "AND ($3::bigint[] IS NULL OR b.id = ANY($3))";
 
 export type Entete = {
   bornes: number; en_ligne: number; jamais_appairees: number;
@@ -23,31 +52,39 @@ export type Entete = {
   litiges: number; canaux_vides: number;
 };
 
-export async function entete(compte_id: number, jours: number): Promise<Entete> {
+export async function entete(compte_id: number, jours: number,
+                             bornes: number[] | null = null): Promise<Entete> {
   return (await q1<Entete>(`
     SELECT
-      (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1)                        AS bornes,
-      (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1
-         AND vue_le > now() - interval '15 minutes')                                AS en_ligne,
-      (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1 AND jeton IS NULL)      AS jamais_appairees,
+      (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE})          AS bornes,
+      (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
+         AND b.vue_le > now() - interval '15 minutes')                              AS en_ligne,
+      (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
+         AND b.jeton IS NULL)                                                       AS jamais_appairees,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
-        WHERE b.compte_id = $1 AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}) AS ventes,
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS})                   AS ventes,
       (SELECT COALESCE(SUM(v.prix_c),0)::int FROM vente v JOIN borne b ON b.id = v.borne_id
-        WHERE b.compte_id = $1 AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}) AS ca,
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS})                   AS ca,
       (SELECT COALESCE(SUM(v.prix_c - COALESCE(a.prix_achat_c,0)),0)::int
          FROM vente v JOIN borne b ON b.id = v.borne_id
          LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
-        WHERE b.compte_id = $1 AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}) AS marge,
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS})                   AS marge,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
-        WHERE b.compte_id = $1 AND v.statut <> 'distribue' AND v.traite_le IS NULL)  AS litiges,
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut <> 'distribue' AND v.traite_le IS NULL)                      AS litiges,
       (SELECT COUNT(*)::int FROM canal c JOIN borne b ON b.id = c.borne_id
-        WHERE b.compte_id = $1 AND c.produit_id IS NOT NULL AND c.quantite = 0)     AS canaux_vides
-  `, [compte_id, String(jours)]))!;
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND c.produit_id IS NOT NULL AND c.quantite = 0)                          AS canaux_vides
+  `, [compte_id, String(jours), bornes]))!;
 }
 
 export type Jour = { jour: string; etiquette: string; n: number; ca: number };
 
-export async function parJour(compte_id: number, jours: number): Promise<Jour[]> {
+export async function parJour(compte_id: number, jours: number,
+                              bornes: number[] | null = null): Promise<Jour[]> {
   // La serie est generee cote base : sans elle, un jour sans vente disparaitrait
   // du graphe et le creux se lirait comme une baisse douce au lieu d'un trou.
   return q<Jour>(`
@@ -62,8 +99,9 @@ export async function parJour(compte_id: number, jours: number): Promise<Jour[]>
       FROM serie s
       LEFT JOIN vente v ON date_trunc('day', v.faite_le) = s.jour
                        AND v.statut = 'distribue'
-                       AND v.borne_id IN (SELECT id FROM borne WHERE compte_id = $1)
-     GROUP BY s.jour ORDER BY s.jour`, [compte_id, String(jours)]);
+                       AND v.borne_id IN (SELECT b.id FROM borne b
+                                           WHERE b.compte_id = $1 ${PORTEE})
+     GROUP BY s.jour ORDER BY s.jour`, [compte_id, String(jours), bornes]);
 }
 
 export type ParBorne = {
@@ -71,7 +109,8 @@ export type ParBorne = {
   n: number; ca: number; marge: number; canaux: number; vides: number;
 };
 
-export async function parBorne(compte_id: number, jours: number): Promise<ParBorne[]> {
+export async function parBorne(compte_id: number, jours: number,
+                               bornes: number[] | null = null): Promise<ParBorne[]> {
   return q<ParBorne>(`
     SELECT b.id, b.nom, b.adresse, b.vue_le,
            COALESCE(x.n, 0)     AS n,
@@ -87,8 +126,8 @@ export async function parBorne(compte_id: number, jours: number): Promise<ParBor
           FROM vente v LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
          WHERE v.borne_id = b.id AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
       ) x ON true
-     WHERE b.compte_id = $1
-     ORDER BY COALESCE(x.ca, 0) DESC, b.nom`, [compte_id, String(jours)]);
+     WHERE b.compte_id = $1 ${PORTEE}
+     ORDER BY COALESCE(x.ca, 0) DESC, b.nom`, [compte_id, String(jours), bornes]);
 }
 
 export type Croisement = {
@@ -110,6 +149,43 @@ export async function parCategorieEtBorne(compte_id: number, jours: number): Pro
      WHERE b.compte_id = $1 AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
      GROUP BY p.categorie_id, cat.nom, cat.ordre, b.id, b.nom
      ORDER BY COALESCE(cat.ordre, 999), cat.nom, ca DESC`, [compte_id, String(jours)]);
+}
+
+export type ParProduit = {
+  id: number | null; nom: string; sku: string | null;
+  categorie: string; n: number; ca: number; marge: number | null;
+};
+
+/**
+ * CE QUI SE VEND, ET CE QUE CA RAPPORTE.
+ *
+ * Le tableau de bord disait quelle BORNE marche le mieux, jamais quel PRODUIT.
+ * Or c'est le produit qu'on rachete, qu'on arrete, ou qu'on monte en prix — la
+ * borne, on ne la change pas.
+ *
+ * LA MARGE PLUTOT QUE LE CHIFFRE. Un produit qui fait le plus gros chiffre en
+ * perdant de l'argent a chaque vente est le pire de tous, et il trone en tete
+ * d'un classement au chiffre d'affaires. On garde les deux, on trie sur la
+ * marge, et elle vaut null quand aucun prix d'achat n'est connu — dire « zero »
+ * ferait passer une marge inconnue pour une marge nulle.
+ */
+export async function parProduit(compte_id: number, jours: number,
+                                 bornes: number[] | null = null): Promise<ParProduit[]> {
+  return q<ParProduit>(`
+    SELECT pr.id, COALESCE(pr.nom, 'produit retiré') AS nom, pr.sku,
+           COALESCE(cat.nom, 'sans catégorie') AS categorie,
+           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int ca,
+           CASE WHEN COUNT(a.prix_achat_c) = 0 THEN NULL
+                ELSE SUM(v.prix_c - COALESCE(a.prix_achat_c,0))::int END AS marge
+      FROM vente v
+      JOIN borne b ON b.id = v.borne_id
+      LEFT JOIN produit pr      ON pr.id = v.produit_id
+      LEFT JOIN categorie cat   ON cat.id = pr.categorie_id
+      LEFT JOIN v_prix_achat a  ON a.produit_id = v.produit_id
+     WHERE b.compte_id = $1 ${PORTEE}
+       AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
+     GROUP BY pr.id, pr.nom, pr.sku, cat.nom
+     ORDER BY ca DESC, n DESC`, [compte_id, String(jours), bornes]);
 }
 
 export type Autonomie = {
@@ -166,7 +242,8 @@ export type PointCategorie = {
  * de scie ou l'on ne lit aucune tendance. La semaine lisse le bruit sans effacer
  * l'evolution, qui est ce qu'on vient chercher.
  */
-export async function categoriesDansLeTemps(compte_id: number, jours: number) {
+export async function categoriesDansLeTemps(compte_id: number, jours: number,
+                                            bornes: number[] | null = null) {
   const pas = jours <= 7 ? "day" : "week";
   const format = pas === "day" ? "DD/MM" : '"sem. "DD/MM';
   const points = await q<PointCategorie>(`
@@ -179,9 +256,10 @@ export async function categoriesDansLeTemps(compte_id: number, jours: number) {
       JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit p     ON p.id = v.produit_id
       LEFT JOIN categorie cat ON cat.id = p.categorie_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
+     WHERE b.compte_id = $1 ${PORTEE}
+       AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
      GROUP BY 1, 2, p.categorie_id, cat.nom, cat.ordre
-     ORDER BY 1`, [compte_id, String(jours)]);
+     ORDER BY 1`, [compte_id, String(jours), bornes]);
 
   // Les seaux vides sont completes ici : une categorie qui n'a rien vendu une
   // semaine doit passer par zero, pas sauter le point — sinon la ligne relie deux
