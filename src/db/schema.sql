@@ -539,3 +539,18 @@ ALTER TABLE session ADD COLUMN IF NOT EXISTS compte_id BIGINT REFERENCES compte(
 -- UNE INVITATION PEUT NE DONNER QU'UNE BORNE.
 -- Nul = tout le compte, ce qu'elle a toujours fait.
 ALTER TABLE invitation ADD COLUMN IF NOT EXISTS borne_id BIGINT REFERENCES borne(id) ON DELETE CASCADE;
+
+-- ------------------------------------------------------- la fiche d'une borne
+
+-- CE QU'ON MET SUR UNE MACHINE POUR LA RECONNAITRE.
+--
+-- Une borne n'avait qu'un nom, saisi une fois a l'adoption et jamais repris. Un
+-- parc de vingt machines devient alors une liste de vingt lignes qui se
+-- ressemblent, et le reassortisseur qui part en tournee ne sait pas laquelle est
+-- au fond du bar et laquelle est a l'entree.
+--
+-- La description dit ce qu'aucun champ structure ne dira jamais : « au fond a
+-- gauche, derriere le flipper », « le patron ouvre a 17 h », « prise derriere le
+-- comptoir ». La photo, elle, se reconnait avant d'etre lue.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS image_id BIGINT REFERENCES image(id) ON DELETE SET NULL;

@@ -288,6 +288,39 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 @media (max-width: 700px) { .borne-chip { display: none; } }
 
+/*
+  LA FICHE D'UNE BORNE : sa photo, et le formulaire replie qui la modifie.
+
+  La photo est carree et petite — c'est un repere, pas une illustration. Ronde,
+  elle aurait ressemble a un avatar de personne ; carree et arrondie, elle se lit
+  comme un objet.
+*/
+.photo-borne {
+  width: 54px; height: 54px; flex: none;
+  object-fit: cover; border-radius: var(--r-m);
+  border: 1px solid var(--bord); background: var(--surface-2);
+}
+
+.fiche-borne { margin-top: 14px; }
+.fiche-borne > summary {
+  cursor: pointer; font-size: 13.5px; font-weight: 650; color: var(--texte-2);
+  list-style: none; padding: 2px 0;
+}
+.fiche-borne > summary::-webkit-details-marker { display: none; }
+.fiche-borne > summary::before { content: "▸ "; color: var(--texte-3); }
+.fiche-borne[open] > summary::before { content: "▾ "; }
+.fiche-borne[open] > summary { margin-bottom: 12px; }
+.fiche-borne textarea {
+  width: 100%; resize: vertical; font: inherit; font-size: 14px;
+  color: var(--texte); background: var(--surface-2);
+  border: 1px solid var(--bord); border-radius: var(--r-m); padding: 9px 11px;
+}
+.fiche-borne input[type="file"] { font-size: 13px; color: var(--texte-2); }
+.avis-ok {
+  margin: 0 0 12px; padding: 9px 12px; border-radius: var(--r-m);
+  background: var(--vert-fond); color: var(--vert, #35b46a); font-size: 13px;
+}
+
 .bouton.icone {
   min-height: 36px; width: 36px; padding: 0; border-radius: var(--r-m);
   display: inline-grid; place-items: center;

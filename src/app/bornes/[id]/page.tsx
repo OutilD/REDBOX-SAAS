@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q, q1, euros, depuis, enLigne, codeCanal } from "@/db";
-import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
+import { peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
 import { canauxDe } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
@@ -18,6 +18,7 @@ type Borne = {
   maintenance_pin: string | null; maintenance_pin_le: Date | null;
   hors_service: boolean; hors_service_texte: string | null; hors_service_le: Date | null;
   maintenance_vu: string | null;
+  description: string | null; image_id: number | null;
 };
 
 export default async function Detail({
@@ -25,20 +26,21 @@ export default async function Detail({
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
                              reveil?: string; delier?: string; pin?: string;
-                             reconcilie?: string; hs?: string }> }) {
+                             reconcilie?: string; hs?: string; fiche?: string; e?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();
-  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs } =
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche, e } =
     await searchParams;
 
   const b = await q1<Borne>(
     `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
             maintenance_pin, maintenance_pin_le, maintenance_vu,
-            hors_service, hors_service_texte, hors_service_le
+            hors_service, hors_service_texte, hors_service_le,
+            description, image_id
        FROM borne WHERE id = $1 AND compte_id = $2`,
     [id, u.compte_id]);
   if (!b) notFound();
@@ -85,9 +87,20 @@ export default async function Detail({
       <main className="ecran">
         <div className="rangee" style={{ marginTop: 18 }}>
           <Link href="/bornes" className="bouton petit">‹</Link>
+          {/* La photo se reconnait avant d'etre lue : c'est elle qui dit « celle
+              du fond, derriere le flipper » plus vite qu'aucune phrase. */}
+          {b.image_id ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/image/${b.image_id}`} alt="" className="photo-borne" />
+          ) : null}
           <div className="pousse">
             <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-.03em" }}>{b.nom}</div>
             <div className="faible" style={{ fontSize: 13 }}>{b.adresse ?? "lieu non renseigné"}</div>
+            {b.description ? (
+              <div className="faible" style={{ fontSize: 13, marginTop: 4, maxWidth: "62ch" }}>
+                {b.description}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -245,6 +258,67 @@ export default async function Detail({
               </>
             ) : null}
           </div>
+        ) : null}
+
+        {/*
+          LA FICHE DE LA MACHINE.
+
+          Repliee, parce qu'on ne renomme pas une borne tous les jours et que
+          cette page sert d'abord a la charger et a la surveiller. Ouverte d'un
+          clic, sans JavaScript : `<details>` est du HTML.
+
+          Le nom, l'adresse et la description partent avec la photo dans le meme
+          envoi — un seul formulaire, un seul enregistrement, et rien qui puisse
+          etre a moitie sauve.
+        */}
+        {peutConfigurer(u) ? (
+          <details className="carte fiche-borne">
+            <summary>Modifier la fiche</summary>
+
+            {fiche === "ok" ? <p className="avis-ok">Fiche enregistrée.</p> : null}
+            {fiche === "refus" ? (
+              <p className="erreur">
+                Photo refusée : formats acceptés JPEG, PNG ou WebP, 2 Mo au plus.
+                Le reste de la fiche a bien été enregistré.
+              </p>
+            ) : null}
+            {e === "nom" ? <p className="erreur">Le nom ne peut pas être vide.</p> : null}
+
+            <form method="post" action={`/api/bornes/${id}/fiche`} encType="multipart/form-data">
+              <div className="champ">
+                <label htmlFor="nom">Nom</label>
+                <input id="nom" name="nom" required defaultValue={b.nom} maxLength={80} />
+              </div>
+              <div className="champ">
+                <label htmlFor="adresse">Adresse</label>
+                <input id="adresse" name="adresse" defaultValue={b.adresse ?? ""}
+                       placeholder="12 rue des Lilas, Paris 11ᵉ" maxLength={160} />
+              </div>
+              <div className="champ">
+                <label htmlFor="description">Description</label>
+                <textarea id="description" name="description" rows={3} maxLength={400}
+                          defaultValue={b.description ?? ""}
+                          placeholder="Au fond à gauche, derrière le flipper. Le patron ouvre à 17 h." />
+                <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
+                  Ce qu’aucun champ ne dira : où elle est dans le bar, à qui parler, ce qui
+                  coince. C’est ce que lit le réassortisseur avant de partir.
+                </p>
+              </div>
+              <div className="champ">
+                <label htmlFor="photo">Photo</label>
+                <input id="photo" name="photo" type="file"
+                       accept="image/jpeg,image/png,image/webp" />
+                {b.image_id ? (
+                  <label className="faible" style={{ display: "flex", gap: 8, alignItems: "center",
+                                                     fontSize: 13, marginTop: 8 }}>
+                    <input type="checkbox" name="oter" /> Retirer la photo actuelle
+                  </label>
+                ) : null}
+              </div>
+              <div style={{ height: 8 }} />
+              <button className="bouton primaire">Enregistrer la fiche</button>
+            </form>
+          </details>
         ) : null}
 
         {b.jeton && peutCharger(u) && !b.hors_service ? (

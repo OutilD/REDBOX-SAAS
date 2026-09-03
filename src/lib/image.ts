@@ -60,5 +60,10 @@ export async function balayerImages(c: PgClient, compte_id: number): Promise<voi
     DELETE FROM image i
      WHERE i.compte_id = $1
        AND NOT EXISTS (SELECT 1 FROM categorie x WHERE x.image_id = i.id)
-       AND NOT EXISTS (SELECT 1 FROM produit   x WHERE x.image_id = i.id)`, [compte_id]);
+       AND NOT EXISTS (SELECT 1 FROM produit   x WHERE x.image_id = i.id)
+       -- LA BORNE EST UN PORTEUR DE PLUS. L'oublier ici aurait efface les photos
+       -- de machines au premier menage venu, sans que rien ne le signale : le
+       -- balayage ne supprime que ce que « plus rien ne designe », et il ne
+       -- regardait pas de ce cote-la.
+       AND NOT EXISTS (SELECT 1 FROM borne     x WHERE x.image_id = i.id)`, [compte_id]);
 }
