@@ -2,6 +2,7 @@ import { transaction } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reserveDe } from "@/lib/stock";
 import { reveiller } from "@/lib/borne";
+import { estMotifSortie } from "@/lib/sortie";
 
 export const dynamic = "force-dynamic";
 
@@ -32,23 +33,60 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!cle.startsWith("q_")) continue;
     const lane = Number(cle.slice(2));
     const n = Number(valeur);
-    if (Number.isInteger(lane) && Number.isInteger(n) && n > 0) demandes.set(lane, n);
+    // ZERO NE DIT RIEN, LE RESTE OUI. Un nombre positif charge depuis la reserve,
+    // un negatif sort de la machine — c'est le meme geste devant la borne
+    // ouverte, et c'etait deux ecrans.
+    if (Number.isInteger(lane) && Number.isInteger(n) && n !== 0) demandes.set(lane, n);
   }
   if (demandes.size === 0) return versPage(req, `/bornes/${id}/charger`);
+
+  // UNE SORTIE SANS CAUSE NE SE PILOTE PAS. « J'ai perdu douze unites » ne dit
+  // rien ; « douze cassees sur ce produit » se pilote. On exige donc le motif
+  // des qu'un seul canal est en retrait, comme la page de sortie de stock.
+  const retraits = [...demandes.values()].some((n) => n < 0);
+  const motif = String(f.get("motif") ?? "");
+  const note = String(f.get("note") ?? "").trim() || null;
+  if (retraits && !estMotifSortie(motif)) {
+    return versPage(req, `/bornes/${id}/charger?e=motif`);
+  }
+  if (retraits && motif === "autre" && !note) {
+    return versPage(req, `/bornes/${id}/charger?e=note`);
+  }
 
   const bilan = await transaction(async (c) => {
     const b = (await c.query<{ id: number; lieu_id: number | null }>(
       "SELECT id, lieu_id FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id])).rows[0];
-    if (!b || !b.lieu_id) return { canaux: 0, unites: 0, refuses: 0 };
+    if (!b || !b.lieu_id) return { canaux: 0, unites: 0, refuses: 0, sortis: 0 };
 
     const reserve = await reserveDe(u.compte_id, c);
-    let canaux = 0, unites = 0, refuses = 0;
+    let canaux = 0, unites = 0, refuses = 0, sortis = 0;
 
     for (const [lane, demande] of demandes) {
       const ca = (await c.query<{ produit_id: number | null; quantite: number; capacite: number }>(
         "SELECT produit_id, quantite, capacite FROM canal WHERE borne_id = $1 AND lane = $2",
         [b.id, lane])).rows[0];
       if (!ca?.produit_id) { refuses++; continue; }
+
+      // ------------------------------------------------------------- retrait
+      if (demande < 0) {
+        // On ne sort pas plus que ce que la machine porte. Le compteur du canal
+        // est celui qu'ELLE a remonte : c'est lui qui fait foi, pas notre
+        // theorie de stock.
+        const sortie = Math.min(-demande, ca.quantite);
+        if (sortie <= 0) { refuses++; continue; }
+        await c.query(`
+          INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+                                 motif, lane, note, par, fait_le)
+          VALUES ($1,$2,$3,NULL,$4,$5,$6,$7,$8, now())`,
+          [u.compte_id, ca.produit_id, b.lieu_id, sortie, motif, lane, note, u.email]);
+        // Le canal descend tout de suite : une sortie ne s'acquitte pas, elle a
+        // deja eu lieu — la marchandise est dans la poubelle, pas en route.
+        await c.query("UPDATE canal SET quantite = quantite - $1 WHERE borne_id = $2 AND lane = $3",
+                      [sortie, b.id, lane]);
+        sortis += sortie;
+        if (sortie < -demande) refuses++;
+        continue;
+      }
 
       // Ce qui est deja en route compte : sinon deux chargements successifs
       // feraient deborder le canal sans que rien ne l'ait dit.
@@ -73,13 +111,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       canaux++; unites += quantite;
       if (quantite < demande) refuses++;
     }
-    return { canaux, unites, refuses };
+    return { canaux, unites, refuses, sortis };
   });
 
   // La borne est prevenue tout de suite : elle tient une question ouverte, elle
-  // aura le chargement dans la seconde plutot qu'a son prochain reveil.
-  if (bilan.canaux > 0) await reveiller(id, "chargement à appliquer");
+  // aura le chargement dans la seconde plutot qu'a son prochain reveil. Une
+  // sortie la concerne aussi : son compteur de canal vient de descendre.
+  if (bilan.canaux > 0 || bilan.sortis > 0) {
+    await reveiller(id, bilan.canaux > 0 ? "chargement à appliquer" : "sortie de stock");
+  }
 
   return versPage(req,
-    `/bornes/${id}?charge=${bilan.unites}&canaux=${bilan.canaux}&refuses=${bilan.refuses}`);
+    `/bornes/${id}?charge=${bilan.unites}&canaux=${bilan.canaux}`
+    + `&refuses=${bilan.refuses}&sortis=${bilan.sortis}`);
 }

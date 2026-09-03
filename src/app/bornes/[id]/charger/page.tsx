@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import Pas from "../../../pas";
+import RaisonSortie from "../../../raison-sortie";
 import { q1, euros, depuis, codeCanal } from "@/db";
 import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { Repli } from "../../../repli";
@@ -25,10 +26,12 @@ export const dynamic = "force-dynamic";
  * qu'on fait avec les mains, et c'est ce que la machine sait appliquer sans
  * ecraser un compteur qui a pu bouger entre-temps.
  */
-export default async function Charger({ params }: { params: Promise<{ id: string }> }) {
+export default async function Charger({ params, searchParams }:
+  { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
+  const { e } = await searchParams;
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();
@@ -60,6 +63,17 @@ export default async function Charger({ params }: { params: Promise<{ id: string
           Indiquez ce que vous <b>ajoutez</b> dans chaque canal. Le stock part de votre réserve
           tout de suite ; la borne le confirmera à sa prochaine synchronisation.
         </p>
+        <p className="faible" style={{ fontSize: 13, marginTop: -6 }}>
+          Un nombre <b>négatif</b> retire de la marchandise de la machine — produit rappelé,
+          boîte écrasée, date passée. On vous demandera pourquoi avant d’enregistrer.
+        </p>
+
+        {e === "motif" ? (
+          <p className="erreur">Indiquez pourquoi vous retirez cette marchandise.</p>
+        ) : null}
+        {e === "note" ? (
+          <p className="erreur">Le motif « Autre » demande une note.</p>
+        ) : null}
 
         {aCharger.length === 0 ? (
           <Repli icone={<IcoBorne />} titre="Aucun canal n’a de produit affecté"
@@ -80,6 +94,8 @@ export default async function Charger({ params }: { params: Promise<{ id: string
             <div style={{ position: "sticky", bottom: "calc(72px + env(safe-area-inset-bottom))",
                           paddingTop: 14, marginTop: 6 }}>
               <button className="bouton primaire large">Valider le chargement</button>
+              {/* Elle ne demande rien tant qu'aucun canal n'est en retrait. */}
+              <RaisonSortie />
             </div>
           </form>
         )}
@@ -143,7 +159,8 @@ function Canal({ c }: { c: LigneCanal }) {
       </div>
 
       <div className="rangee" style={{ marginTop: 14 }}>
-        <Pas nom={`q_${c.lane}`} max={max} ras={place} />
+        {/* Le plancher est ce que la machine porte : on ne retire pas ce qui n'y est pas. */}
+        <Pas nom={`q_${c.lane}`} max={max} ras={place} min={-c.quantite} />
         <div className="pousse" />
         <div style={{ textAlign: "right" }}>
           <div className="num" style={{ fontWeight: 700,
