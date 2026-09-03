@@ -506,13 +506,13 @@ function Delta({ ici, avant }: { ici: number; avant: number }) {
   // Partir de zero n'a pas de pourcentage : « + 100 % » de rien serait faux, et
   // « + infini » ne se lit pas. On dit ce qui s'est passe, en toutes lettres.
   if (avant === 0) {
-    return ici > 0 ? <span className="delta neuf">nouveau</span> : null;
+    return ici > 0 ? <span className="pente neuf">nouveau</span> : null;
   }
   const p = Math.round(((ici - avant) / avant) * 100);
-  if (p === 0) return <span className="delta stable">stable</span>;
+  if (p === 0) return <span className="pente stable">stable</span>;
   const monte = p > 0;
   return (
-    <span className={`delta ${monte ? "hausse" : "baisse"}`}>
+    <span className={`pente ${monte ? "hausse" : "baisse"}`}>
       <IcoPente bas={!monte} />
       {monte ? "+" : "−"} {Math.abs(p)} %
     </span>

@@ -16,6 +16,24 @@
 
    Sur grand ecran, les memes donnees se resserrent : ce n'est pas une autre
    application, c'est la meme qui respire differemment.
+
+   ---------------------------------------------------------------------------
+   UNE QUATRIEME, APPRISE A LA DURE.
+
+   UNE REGLE SANS CONTEXTE S'APPLIQUE PARTOUT. `.vide { text-align: center;
+   padding: 46px }` est l'ecran vide generique ; posee sur une ligne de canal
+   elle centrait le nom du produit et ouvrait un bloc de quatre-vingts pixels au
+   milieu du plateau. `.empile`, une barre de douze pixels a `overflow: hidden`,
+   a efface un en-tete entier. `.delta`, la colonne signee du grand livre, s'est
+   retrouvee en jeton arrondi a fond colore. `.modale` etait ecrit deux fois.
+
+   Quatre fois le meme accident, et jamais une erreur : la feuille compile, la
+   page s'affiche, et c'est a l'ecran que ca se voit.
+
+   Donc : un ETAT s'ecrit en attribut — `data-etat="vide"`, `data-vide` — et
+   jamais en classe d'un seul mot courant. Une classe nue est reservee a ce qui
+   est vraiment global : `.carte`, `.bouton`, `.faible`, `.num`. Entre les deux,
+   on prefixe : `.serie .repere` plutot que `.grille`.
    ========================================================================== */
 
 :root {
@@ -567,6 +585,53 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .periodes a[aria-current]:hover { background: var(--rouge-vif); }
 .periodes a:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .periodes.petites a { min-height: 30px; padding: 0 11px; font-size: 13px; }
+/* Un compteur colle au libelle du filtre : « Épuisés 3 » dit d'un coup s'il vaut
+   la peine d'y aller, et evite le clic qui ne montre rien. */
+.periodes .compte {
+  margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  background: var(--surface-3); color: var(--texte-3);
+  font-size: 11.5px; font-weight: 700;
+}
+.periodes a[aria-current] .compte { background: rgba(255,255,255,.22); color: #fff; }
+
+/*
+  CHERCHER ET FILTRER, SANS JAVASCRIPT.
+
+  A cent references, retrouver une boite precise voulait dire deplier six
+  sections et parcourir des yeux ; savoir quoi racheter voulait dire refaire la
+  meme chose en cherchant les zeros. Le formulaire part en GET — la touche Entree
+  suffit, le bouton est la pour le pouce — et les filtres sont des liens
+  ordinaires : tout tient dans l'adresse, donc tout se partage et se met en
+  favori.
+*/
+.barre-outils {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.champ-recherche {
+  display: flex; align-items: center; gap: 9px; flex: 1 1 280px; min-width: 0;
+  padding: 0 6px 0 13px; min-height: var(--touche);
+  background: var(--surface-2); border: 1px solid var(--bord); border-radius: var(--r-m);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.champ-recherche:focus-within { border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.champ-recherche > svg { flex: none; color: var(--texte-3); }
+/* Le champ est deja dans un cadre : il n'en porte pas un second, et il ne
+   redessine pas l'anneau de focus que le cadre vient de prendre. */
+.champ-recherche input {
+  flex: 1; min-width: 0; padding: 0; border: none; background: none; min-height: 0;
+  font-size: 16px;   /* 16 : iOS ne zoome pas */
+}
+.champ-recherche input:focus { outline: none; box-shadow: none; border: none; }
+.champ-recherche input::-webkit-search-cancel-button { filter: grayscale(1); opacity: .5; }
+.champ-recherche .bouton { flex: none; }
+
+/* La liste a plat, quand une recherche remplace les categories. */
+.liste-produits { display: block; }
+.liste-produits > a.produit-ligne:first-child { margin-top: 0; }
+a.produit-ligne .dit-epuise {
+  color: var(--rouge-vif); font-weight: 700;
+}
+a.produit-ligne .dit-epuise::before { content: " · "; color: var(--texte-3); font-weight: 400; }
 
 /* ------------------------------------------------------- les chiffres cles */
 .chiffres-cle {
@@ -574,6 +639,14 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
   background: var(--surface); overflow: hidden; margin-bottom: 20px;
 }
 .chiffres-cle .phare { display: flex; align-items: flex-end; gap: 24px; padding: 18px 18px 17px; }
+/* Sans vignette a poser sur le cote — une barre de repartition veut toute la
+   largeur —, le phare passe en colonne au lieu de laisser un trou a droite.
+
+   Le modificateur ne s'appelle PAS `empile` : ce nom etait deja pris plus haut
+   par une barre de douze pixels a `overflow: hidden`, qui ecrasait ce bloc sans
+   rien dire. Voir le bloc supprime juste au-dessus de `.classement`. */
+.chiffres-cle .phare.colonne { flex-direction: column; align-items: stretch; gap: 15px; }
+.chiffres-cle .phare.colonne .legende { margin-top: 9px; font-size: 12.5px; }
 .chiffres-cle .phare .txt { flex: 1; min-width: 0; }
 .chiffres-cle .etiquette {
   display: block; margin: 0 0 7px;
@@ -596,6 +669,20 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .chiffres-cle .mesure + .mesure { border-left: 1px solid var(--bord); }
 .chiffres-cle .mesure .chiffre { font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
 .chiffres-cle .mesure .dessous { font-size: 11.5px; color: var(--texte-3); line-height: 1.35; }
+.chiffres-cle .mesure .chiffre.mal { color: var(--rouge-vif); }
+.chiffres-cle .mesure .chiffre.attention { color: var(--ambre); }
+
+/* « 3 épuisés » sans moyen d'aller voir lesquels oblige a refaire la recherche a
+   la main, ce que personne ne fait. La mesure devient un lien quand il y a
+   quelque chose au bout. */
+.chiffres-cle .mesure.menant { transition: background .15s ease; }
+.chiffres-cle .mesure.menant:hover { background: var(--surface-2); }
+.chiffres-cle .mesure.menant:focus-visible { outline: 2px solid var(--rouge); outline-offset: -2px; }
+.chiffres-cle .mesure .voir {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 12px; font-weight: 650; color: var(--texte-3);
+}
+.chiffres-cle .mesure.menant:hover .voir { color: var(--rouge-vif); }
 
 @media (max-width: 700px) {
   .chiffres-cle .phare { flex-direction: column; align-items: stretch; gap: 14px; }
@@ -619,15 +706,18 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
   liraient pareil pour huit pour cent des hommes. La fleche pointe dans le sens
   du mouvement, et le signe est ecrit.
 */
-.delta {
+/* Elle s'appelait `.delta`, et `.delta` designait deja tout autre chose : la
+   colonne signee du grand livre, sur la fiche d'un produit. Un jeton arrondi a
+   fond colore se posait donc sur des nombres qui n'avaient rien demande. */
+.pente {
   display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
   padding: 2px 8px; border-radius: 999px; line-height: 1.4;
   font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums;
 }
-.delta svg { flex: none; }
-.delta.hausse, .delta.neuf { color: var(--vert);      background: var(--vert-fond); }
-.delta.baisse             { color: var(--rouge-vif); background: var(--rouge-fond); }
-.delta.stable             { color: var(--texte-3);   background: var(--surface-2); }
+.pente svg { flex: none; }
+.pente.hausse, .pente.neuf { color: var(--vert);      background: var(--vert-fond); }
+.pente.baisse             { color: var(--rouge-vif); background: var(--rouge-fond); }
+.pente.stable             { color: var(--texte-3);   background: var(--surface-2); }
 
 /*
   L'ETINCELLE : la forme de la periode, en quarante-six pixels de haut.
@@ -741,7 +831,7 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .chiffres .n { font-size: 17px; font-weight: 750; letter-spacing: -.03em;
                font-variant-numeric: tabular-nums; line-height: 1.15; display: block; }
 .chiffres .q { font-size: 10.5px; color: var(--texte-3); display: block; white-space: nowrap; }
-.chiffres .vide { color: var(--texte-3); padding: 0; }
+.chiffres .n[data-vide] { color: var(--texte-3); }
 .chiffres.grands > span { min-width: 74px; }
 .chiffres.grands .n { font-size: 21px; }
 @media (max-width: 620px) {
@@ -955,12 +1045,12 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 */
 .serie { margin: 0; }
 .serie .cadre { position: relative; height: 196px; padding-left: 58px; }
-.serie .grille {
+.serie .repere {
   position: absolute; left: 58px; right: 0; height: 0;
   border-top: 1px dashed var(--bord);
 }
-.serie .grille.base { border-top: 1px solid var(--bord-fort); }
-.serie .grille b {
+.serie .repere.base { border-top: 1px solid var(--bord-fort); }
+.serie .repere b {
   position: absolute; right: calc(100% + 9px); transform: translateY(-50%);
   font-size: 10.5px; font-weight: 600; color: var(--texte-3);
   font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -987,21 +1077,15 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 .serie .sous-graphe b { color: var(--texte); font-weight: 650; }
 @media (max-width: 620px) {
   .serie .cadre { height: 158px; padding-left: 46px; }
-  .serie .grille { left: 46px; }
+  .serie .repere { left: 46px; }
   .serie .axe { padding-left: 46px; }
   .serie .barres { gap: 1px; }
 }
 
-/* Barre empilee : chaque segment est une borne, la legende dit laquelle. */
-.empile { display: flex; height: 12px; border-radius: 6px; overflow: hidden;
-          background: var(--surface-3); gap: 2px; }
-.empile span { display: block; height: 100%; }
-.teinte-0 { background: var(--rouge); }
-.teinte-1 { background: #ff7a3d; }
-.teinte-2 { background: var(--ambre); }
-.teinte-3 { background: var(--vert); }
-.teinte-4 { background: #4a9ede; }
-.teinte-5 { background: #9b6cd8; }
+/* `.empile` et ses six teintes ont ete retirees : plus aucune page ne les
+   posait, et le nom — trop general — a silencieusement ecrase un bloc du
+   tableau de bord qui s'appelait pareil. Du CSS mort ne coute rien tant qu'il
+   ne repond pas a la place d'un vivant. */
 
 /*
   LE CLASSEMENT DES BORNES.
@@ -1612,8 +1696,11 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 .tableau-fiche .case { width: 30px; }
 .tableau-fiche .case input { width: 18px; height: 18px; accent-color: var(--rouge); }
 /* Un canal a zero ne vend rien : c'est la seule ligne qui merite d'etre criee. */
-.tableau-fiche tr.vide .canal { color: var(--rouge-vif); }
-.tableau-fiche tr.vide .canal::after { content: " ●"; font-size: 9px; vertical-align: middle; }
+/* Un attribut, pas la classe `vide` : celle-ci est l'ecran vide generique, avec
+   son `text-align: center` et ses 46 px de marge. Posee sur une `<tr>`, elle
+   centrait et grisait toute la ligne de la feuille imprimee. */
+.tableau-fiche tr[data-vide] .canal { color: var(--rouge-vif); }
+.tableau-fiche tr[data-vide] .canal::after { content: " ●"; font-size: 9px; vertical-align: middle; }
 /* La categorie separe, elle ne titre pas : un filet et une capitale, pas un
    deuxieme niveau de tableau. */
 .tableau-fiche tr.separateur td {
@@ -2329,3 +2416,120 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .mouvements .motif.peremption,
 .mouvements .motif.perte,
 .mouvements .motif.autre { background: var(--ambre-fond); color: var(--ambre); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA FICHE D'UNE BORNE
+
+   Trois questions, dans cet ordre : est-ce qu'elle tourne, qu'est-ce qu'elle a
+   dans le ventre, et qu'est-ce qu'il faut aller y faire. Les canaux sont le
+   sujet — ils etaient tout en bas, sous deux reglages qu'on touche trois fois
+   par an.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tete-borne { display: flex; align-items: flex-start; gap: 14px; margin: 18px 0 16px; }
+.tete-borne .retour { flex: none; margin-top: 2px; }
+.tete-borne .photo-borne { width: 64px; height: 64px; margin-top: 2px; }
+.tete-borne .qui { flex: 1; min-width: 0; }
+.tete-borne h1 { font-size: 22px; margin: 0; letter-spacing: -.03em; }
+.tete-borne .ou { font-size: 13px; color: var(--texte-3); margin-top: 2px; }
+.tete-borne .quoi {
+  font-size: 13px; color: var(--texte-2); margin: 7px 0 0; max-width: 62ch; line-height: 1.5;
+}
+/* L'etat est colle au nom. « En ligne » repond a la premiere question qu'on se
+   pose sur une machine ; il n'a rien a faire deux blocs plus bas. */
+.tete-borne .etats { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+
+/* Un accuse de reception a le cadre de l'avertissement, en vert : ce n'est pas
+   une alerte, c'est une confirmation — et les cinq qui trainaient dans la page
+   avaient chacune sa forme. */
+.avis.reussi { border-left-color: var(--vert); background: var(--vert-fond); }
+.avis.reussi .titre { color: var(--vert); }
+
+/*
+  LES PLATEAUX.
+
+  Soixante canaux a plat, c'est une liste qu'on parcourt sans rien voir. Le
+  technicien, lui, ouvre un plateau a la fois : c'est ce decoupage-la qu'il a
+  sous les mains, et le numero de canal le dit deja — 101 est le premier du
+  plateau 1.
+*/
+.plateau {
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); overflow: hidden; margin-bottom: 10px;
+}
+.tete-plateau {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 10px 15px; border-bottom: 1px solid var(--bord); background: var(--surface-2);
+}
+.tete-plateau .nom {
+  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  font-weight: 700; color: var(--texte-2);
+}
+.tete-plateau .resume { font-size: 12px; color: var(--texte-3); }
+.plateau .lignes { padding: 0 15px; }
+
+/* --------------------------------------------------------------- un canal */
+.ligne.canal { align-items: flex-start; gap: 12px; padding: 12px 0; }
+.ligne.canal .code {
+  flex: none; width: 42px; text-align: center; padding: 3px 0; margin-top: 1px;
+  border-radius: var(--r-s); background: var(--surface-2); border: 1px solid var(--bord);
+  font-size: 12px; font-weight: 700; color: var(--texte-2);
+}
+/*
+  L'ETAT PASSE PAR UN ATTRIBUT, PAS PAR UNE CLASSE.
+
+  `vide`, `plein`, `libre` sont des mots trop courants pour etre des classes :
+  `.vide` est deja, plus haut dans cette feuille, l'ecran vide generique — avec
+  son `text-align: center` et ses 46 px de marge. Pose sur une ligne de canal,
+  il centrait le nom du produit et ouvrait un bloc de quatre-vingts pixels au
+  milieu du plateau. Un attribut ne se marche jamais sur les pieds d'un autre.
+*/
+.ligne.canal[data-etat="vide"] .code {
+  border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord)); color: var(--rouge-vif);
+}
+.ligne.canal[data-etat="bas"] .code {
+  border-color: color-mix(in srgb, var(--ambre) 55%, var(--bord)); color: var(--ambre);
+}
+.ligne.canal[data-etat="libre"] .code { opacity: .5; }
+.ligne.canal .nom { font-size: 15px; }
+/* L'etat est ECRIT a cote de la jauge : une couleur qui porte seule ne dit rien
+   a qui ne la voit pas, ni sur une fiche imprimee qu'on emporte devant la
+   machine. */
+.ligne.canal .mot-etat { margin-left: 8px; font-weight: 700; }
+.ligne.canal[data-etat="vide"] .mot-etat { color: var(--rouge-vif); }
+.ligne.canal[data-etat="bas"] .mot-etat { color: var(--ambre); }
+
+/* La jauge : ce que le canal porte sur ce qu'il peut porter. Elle remplace un
+   detournement de la barre de repartition, dont les classes disaient
+   « reserve » et « en route » pour peindre tout autre chose. */
+.jauge {
+  height: 6px; border-radius: 3px; background: var(--surface-3);
+  max-width: 260px; margin-top: 8px; overflow: hidden;
+}
+.jauge > span { display: block; height: 100%; border-radius: 3px; background: var(--vert); }
+.jauge[data-etat="bas"] > span { background: var(--ambre); }
+.jauge[data-etat="vide"] > span { background: var(--rouge); }
+
+.ligne.canal .compteur { font-weight: 700; font-size: 16px; }
+.ligne.canal .compteur .sur { font-weight: 500; color: var(--texte-3); font-size: 13px; }
+.ligne.canal .ecart {
+  display: block; margin-top: 4px; font-size: 12.5px; font-weight: 700;
+  color: var(--ambre); text-decoration: underline; text-underline-offset: 3px;
+}
+.ligne.canal .ecart:hover { color: var(--texte); }
+.ligne.canal .corriger { display: block; margin-top: 4px; font-size: 12px; color: var(--texte-3); }
+.ligne.canal .corriger:hover { color: var(--texte-2); text-decoration: underline; }
+.ligne.canal .arrive { margin-top: 4px; font-size: 12px; color: var(--ambre); }
+
+.code-maintenance { font-size: 30px; font-weight: 700; letter-spacing: .18em; }
+
+@media (max-width: 620px) {
+  .tete-borne { gap: 11px; }
+  .tete-borne .photo-borne { width: 52px; height: 52px; }
+  .tete-borne h1 { font-size: 19px; }
+  .plateau .lignes { padding: 0 12px; }
+  .tete-plateau { padding: 9px 12px; }
+  .ligne.canal { gap: 10px; }
+  .ligne.canal .code { width: 38px; }
+  .code-maintenance { font-size: 25px; letter-spacing: .14em; }
+}

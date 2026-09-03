@@ -168,7 +168,7 @@ export default async function Fiche({
                         <td className="num pale" colSpan={2}>{g.total} u.</td>
                       </tr>
                       {g.lignes.map((l) => (
-                        <tr key={l.lane} className={l.quantite + l.en_route === 0 ? "vide" : ""}>
+                        <tr key={l.lane} data-vide={l.quantite + l.en_route === 0 ? "" : undefined}>
                           <td className="case"><input type="checkbox" aria-label={`canal ${l.code} fait`} /></td>
                           <td className="canal mono">{l.code}</td>
                           <td>
