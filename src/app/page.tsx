@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "./chrome";
-import { BarresClassees, Courbes, teinte } from "./graphes";
-import { IcoAlerte, IcoFleche, IcoHorloge } from "./icones";
+import { BarresClassees, Courbes } from "./graphes";
+import { IcoAlerte, IcoFleche, IcoHorloge, IcoPente } from "./icones";
 import { q, euros, depuis, enLigne } from "@/db";
 import { utilisateur } from "@/lib/auth";
-import { autonomie, avancement, categoriesDansLeTemps, entete, FENETRES, parBorne,
-         parJour, parProduit, type Autonomie, type Avancement, type ParBorne,
-         type ParProduit, DEFAUT } from "@/lib/tableau";
+import { autonomie, avancement, categoriesDansLeTemps, comparaison, entete, FENETRES,
+         parBorne, parJour, parProduit, type Autonomie, type Avancement, type Jour,
+         type ParBorne, DEFAUT } from "@/lib/tableau";
 import { Repli } from "./repli";
 import { IcoBorne, IcoReception, IcoStock, IcoVentes } from "./icones";
 
@@ -16,8 +16,19 @@ export const dynamic = "force-dynamic";
 /**
  * Le tableau de bord.
  *
- * Quatre questions, dans cet ordre : est-ce que ca tourne, combien ca rapporte,
- * quelle borne marche le mieux, et qu'est-ce qui va me manquer.
+ * QUATRE QUESTIONS, DANS CET ORDRE : combien ca rapporte et dans quel sens ca va,
+ * qu'est-ce qui demande une main tout de suite, quelle borne et quel produit
+ * tirent le chiffre, et qu'est-ce qui va manquer.
+ *
+ * LE NIVEAU NE SUFFIT PAS, IL FAUT LA PENTE. « 3 240 € » ne dit rien tout seul :
+ * c'est beaucoup ou c'est peu selon le mois d'avant, et c'est la seule chose
+ * qu'on vient verifier en ouvrant cet ecran. Chaque chiffre qui compte porte donc
+ * sa variation contre la meme fenetre, un cran plus tot.
+ *
+ * UNE SEULE CHOSE EST EN GRAND. Six tuiles de meme taille — chiffre d'affaires,
+ * marge, canaux vides — laissent chercher par ou commencer, et l'oeil tombe sur
+ * la premiere de la rangee plutot que sur la plus importante. Le chiffre
+ * d'affaires est le phare ; le reste l'entoure, plus petit.
  */
 export default async function Tableau(
   { searchParams }: { searchParams: Promise<{ f?: string; b?: string; vue?: string }> }) {
@@ -48,9 +59,10 @@ export default async function Tableau(
   const sienDuCompte = u.bornes === null;
 
   const graphe = vue === "graphe";
-  const lien = (chg: { vue?: string }) => {
+  const lien = (chg: { f?: string; vue?: string }) => {
     const p = new URLSearchParams();
-    if (fen.cle !== DEFAUT.cle) p.set("f", fen.cle);
+    const fe = chg.f ?? fen.cle;
+    if (fe !== DEFAUT.cle) p.set("f", fe);
     if (choisie) p.set("b", String(choisie.id));
     const v = chg.vue ?? (graphe ? "graphe" : "");
     if (v) p.set("vue", v);
@@ -58,9 +70,10 @@ export default async function Tableau(
     return q ? `/?${q}` : "/";
   };
 
-  const [avance, tete, jours, bornes, categories, stocks, produits] = await Promise.all([
+  const [avance, tete, avant, jours, bornes, categories, stocks, produits] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id) : null,
     entete(u.compte_id, j, portee),
+    comparaison(u.compte_id, j, portee),
     parJour(u.compte_id, j, portee),
     parBorne(u.compte_id, j, portee),
     categoriesDansLeTemps(u.compte_id, j, portee),
@@ -68,13 +81,66 @@ export default async function Tableau(
     parProduit(u.compte_id, j, portee),
   ]);
 
-  const sommet = Math.max(1, ...jours.map((x) => x.ca));
-  const meilleur = jours.reduce((a, b) => (b.ca > a.ca ? b : a), jours[0]);
-  const parJourMoyen = jours.length ? Math.round(tete.ca / jours.length) : 0;
   const classees = [...categories.series].sort((a, b) => b.total - a.total);
+  const parJourMoyen = jours.length ? Math.round(tete.ca / jours.length) : 0;
+  const panier = tete.ventes ? Math.round(tete.ca / tete.ventes) : 0;
+  const panierAvant = avant.ventes ? Math.round(avant.ca / avant.ventes) : 0;
+  // Le taux de marge se lit mieux que la marge seule : quinze pour cent sur un
+  // gros chiffre et quinze pour cent sur un petit se pilotent de la meme facon.
+  const taux = tete.ca > 0 ? Math.round((tete.marge / tete.ca) * 100) : null;
 
   const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
+  const urgences = risques.filter((s) => (s.jours_restants ?? 99) <= 3);
   const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
+  const muettes = Math.max(0, tete.bornes - tete.en_ligne - tete.jamais_appairees);
+
+  /**
+   * CE QUI DEMANDE UNE MAIN, RASSEMBLE ET CLASSE PAR GRAVITE.
+   *
+   * C'etait dissemine : les litiges dans une tuile de la rangee du haut, les
+   * canaux vides dans une autre, les ruptures tout en bas de l'ecran. Trois
+   * endroits pour une seule question — qu'est-ce que je fais maintenant — et
+   * aucun ne disait ce qu'il fallait faire.
+   *
+   * La bande n'apparait que s'il y a quelque chose dedans. Un bandeau permanent
+   * qui affiche « 0 probleme » cesse d'etre lu au bout d'une semaine, et il ne se
+   * voit plus le jour ou il compte.
+   */
+  const aTraiter = [
+    tete.litiges > 0 && {
+      cle: "litiges", niveau: "grave" as const, n: tete.litiges,
+      quoi: `vente${tete.litiges > 1 ? "s" : ""} en litige`,
+      pourquoi: "de l’argent encaissé sans distribution, à rendre ou à récupérer",
+      vers: "/ventes", faire: "Traiter",
+    },
+    urgences.length > 0 && {
+      cle: "rupture", niveau: "grave" as const, n: urgences.length,
+      quoi: `référence${urgences.length > 1 ? "s" : ""} en rupture sous trois jours`,
+      pourquoi: "un canal vide ne vend rien, et le client va voir ailleurs",
+      vers: "/reception", faire: "Racheter",
+    },
+    muettes > 0 && {
+      cle: "muettes", niveau: "moyen" as const, n: muettes,
+      quoi: `borne${muettes > 1 ? "s" : ""} sans signe de vie`,
+      pourquoi: "elles ne remontent plus leurs ventes ; le chiffre ci-dessus est incomplet",
+      vers: "/bornes", faire: "Voir",
+    },
+    tete.canaux_vides > 0 && {
+      cle: "vides", niveau: "moyen" as const, n: tete.canaux_vides,
+      quoi: `canal${tete.canaux_vides > 1 ? "aux" : ""} vide${tete.canaux_vides > 1 ? "s" : ""}`,
+      pourquoi: "de la place qui ne rapporte rien tant qu’elle reste vide",
+      vers: "/bornes", faire: "Charger",
+    },
+    tete.jamais_appairees > 0 && {
+      cle: "appairer", niveau: "doux" as const, n: tete.jamais_appairees,
+      quoi: `borne${tete.jamais_appairees > 1 ? "s" : ""} à appairer`,
+      pourquoi: "elle est déclarée ici, mais la machine ne parle pas encore",
+      vers: "/bornes", faire: "Appairer",
+    },
+  ].filter(Boolean) as {
+    cle: string; niveau: "grave" | "moyen" | "doux"; n: number;
+    quoi: string; pourquoi: string; vers: string; faire: string;
+  }[];
 
   // La mise en route ne s'affiche que tant qu'elle n'est PAS FINIE.
   //
@@ -110,55 +176,88 @@ export default async function Tableau(
     <>
       <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
       <main className="ecran">
-        <h1>Tableau de bord</h1>
-        <p className="sous">
-          Compte {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"},
-          sur {fen.cle === "1" ? "la journée" : `les ${fen.nom}`}.
-        </p>
-
         {/*
-          LES DEUX FILTRES, COTE A COTE.
+          LA TETE : QUI, QUOI, QUAND — ET LE CHOIX DE LA FENETRE A COTE.
 
-          Chacun garde l'autre dans son lien : passer de sept a trente jours ne
-          doit pas relacher la borne qu'on venait de choisir, et l'inverse non
-          plus. C'est le genre de detail qui fait qu'on refait deux fois le meme
-          geste sans comprendre pourquoi.
+          Le selecteur de periode etait une rangee de boutons perdue sous le
+          sous-titre, a la meme hauteur que les autres liens de la page. C'est
+          pourtant la commande qui change TOUS les chiffres en dessous ; elle
+          appartient au titre, pas au contenu.
         */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap",
-                      alignItems: "center" }}>
-          {FENETRES.map((x) => (
-            <Link key={x.cle} href={choisie ? `/?f=${x.cle}&b=${choisie.id}` : `/?f=${x.cle}`}
-                  className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
-          ))}
-
-          {/* Le selecteur de borne a rejoint l'entete : il y est a cote du
-              compte, et il y reste d'une page a l'autre. */}
+        <div className="tete-tableau">
+          <div className="quoi">
+            <h1>Tableau de bord</h1>
+            <p className="sous">
+              {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"},
+              sur {fen.cle === "1" ? "la journée" : `les ${fen.nom}`}.
+            </p>
+          </div>
+          {/* Un segment, pas cinq boutons detaches : les quatre fenetres sont les
+              quatre etats d'un meme reglage, et le dessin doit le dire. */}
+          <nav className="periodes" aria-label="Période observée">
+            {FENETRES.map((x) => (
+              <Link key={x.cle} href={lien({ f: x.cle })}
+                    aria-current={x.cle === fen.cle ? "true" : undefined}>
+                {x.nom}
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        <div className="bandeau">
-          <div><div className="stat">
-            <span className="valeur num petite">{euros(tete.ca)}</span>
-            <span className="libelle">encaissé · {euros(parJourMoyen)} par jour</span></div></div>
-          <div><div className="stat">
-            <span className="valeur num petite">{euros(tete.marge)}</span>
-            <span className="libelle">marge estimée</span></div></div>
-          <div><div className="stat">
-            <span className="valeur num">{tete.ventes}</span>
-            <span className="libelle">articles vendus</span></div></div>
-          <div><div className="stat">
-            <span className="valeur num">{tete.bornes}</span>
-            <span className="libelle">
-              {tete.en_ligne} en ligne{tete.jamais_appairees ? ` · ${tete.jamais_appairees} à appairer` : ""}
-            </span></div></div>
-          <div><div className={`stat ${tete.canaux_vides ? "attention" : ""}`}>
-            <span className="valeur num">{tete.canaux_vides}</span>
-            <span className="libelle">canaux vides</span></div></div>
-          <div><div className={`stat ${tete.litiges ? "alerte" : ""}`}>
-            <span className="valeur num">{tete.litiges}</span>
-            <span className="libelle">
-              {tete.litiges ? <Link href="/ventes" style={{ textDecoration: "underline" }}>à regarder</Link>
-                            : "à regarder"}</span></div></div>
-        </div>
+        {/* ------------------------------------------------------- les chiffres */}
+        <section className="chiffres-cle" aria-label="Chiffres de la période">
+          <div className="phare">
+            <div className="txt">
+              <h2 className="etiquette">Chiffre d’affaires</h2>
+              <div className="ligne-chiffre">
+                <span className="chiffre num">{euros(tete.ca)}</span>
+                <Delta ici={tete.ca} avant={avant.ca} />
+              </div>
+              <p className="contre">
+                {avant.ca > 0
+                  ? <>contre <b className="num">{euros(avant.ca)}</b> sur la période précédente</>
+                  : <>rien sur la période précédente</>}
+                {" · "}<b className="num">{euros(parJourMoyen)}</b> par jour
+              </p>
+            </div>
+            <Etincelle jours={jours} />
+          </div>
+
+          <div className="mesures">
+            <Mesure titre="Marge estimée" valeur={euros(tete.marge)}
+                    dessous={taux === null ? "—" : `${taux} % du chiffre`}
+                    delta={<Delta ici={tete.marge} avant={avant.marge} />} />
+            <Mesure titre="Articles vendus" valeur={String(tete.ventes)}
+                    dessous={`${tete.bornes} borne${tete.bornes > 1 ? "s" : ""} · ${tete.en_ligne} en ligne`}
+                    delta={<Delta ici={tete.ventes} avant={avant.ventes} />} />
+            <Mesure titre="Panier moyen" valeur={euros(panier)}
+                    dessous="par article distribué"
+                    delta={<Delta ici={panier} avant={panierAvant} />} />
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------- a traiter */}
+        {aTraiter.length > 0 ? (
+          <>
+            <h2>À traiter</h2>
+            <ul className="a-traiter">
+              {aTraiter.map((a) => (
+                <li key={a.cle} className={a.niveau}>
+                  <Link href={a.vers}>
+                    <span className="pastille" aria-hidden="true" />
+                    <span className="dit">
+                      <span className="tete">
+                        <b className="num">{a.n}</b> {a.quoi}
+                      </span>
+                      <span className="pourquoi">{a.pourquoi}</span>
+                    </span>
+                    <span className="faire">{a.faire} <IcoFleche size={13} /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
 
         {/*
           Les deux gestes qu'on vient faire, atteignables sans chercher. Le
@@ -197,23 +296,12 @@ export default async function Tableau(
         <div className="carte">
           {tete.ventes === 0 ? (
             <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période" dedans />
+          ) : jours.length < 2 ? (
+            <Repli icone={<IcoVentes />} titre="Une seule journée à l’écran"
+                   texte="Une courbe demande au moins deux jours. Élargissez la fenêtre pour voir la tendance."
+                   dedans />
           ) : (
-            <>
-              <div className="graphe">
-                {jours.map((x) => (
-                  <div key={x.jour}
-                       className={`barre ${x.ca === 0 ? "creux" : x.ca === sommet ? "pointe" : ""}`}
-                       title={`${x.etiquette} · ${x.n} article${x.n > 1 ? "s" : ""} · ${euros(x.ca)}`}>
-                    <span style={{ height: `${Math.max(x.ca === 0 ? 3 : 8, (x.ca / sommet) * 100)}%` }} />
-                  </div>
-                ))}
-              </div>
-              <div className="axe">
-                <span>{jours[0]?.etiquette}</span>
-                <span>meilleur jour : {meilleur?.etiquette} · {euros(meilleur?.ca ?? 0)}</span>
-                <span>{jours.at(-1)?.etiquette}</span>
-              </div>
-            </>
+            <SerieJours jours={jours} />
           )}
         </div>
 
@@ -227,37 +315,7 @@ export default async function Tableau(
                  texte="Une borne se rattache à votre compte en lisant le code qu’elle affiche dans sa console de maintenance."
                  action={{ nom: "Ajouter une borne", vers: "/bornes/ajouter" }} />
         ) : (
-          <>
-            <Estrade bornes={bornes.slice(0, 3)} jours={j} />
-            {bornes.length > 3 ? (
-              <div className="rangee-cartes">
-                {bornes.slice(3).map((b, i) =>
-                  <CarteBorne key={b.id} b={b} rang={i + 4} jours={j} />)}
-              </div>
-            ) : null}
-          </>
-        )}
-
-        {/* ------------------------------------------------- ventes par categorie */}
-        <h2>Ventes par catégorie</h2>
-        {classees.length === 0 ? (
-          <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
-                 texte="Élargissez la fenêtre, ou vérifiez que les bornes remontent bien leurs ventes."
-                 dedans />
-        ) : (
-          <div className="duo viz">
-            <section>
-              <h3>Répartition</h3>
-              <BarresClassees series={classees} />
-            </section>
-            <section>
-              <h3>Évolution {j <= 7 ? "jour par jour" : "semaine par semaine"}</h3>
-              {categories.seaux.length >= 2
-                ? <Courbes seaux={categories.seaux} series={categories.series} />
-                : <Repli titre="Pas encore d’évolution"
-                         texte="Il faut au moins deux périodes de ventes pour dessiner une tendance." dedans />}
-            </section>
-          </div>
+          <Classement bornes={bornes} />
         )}
 
         {/* ------------------------------------------------- ce qui se vend */}
@@ -288,25 +346,25 @@ export default async function Tableau(
             Deux liens plutot qu'un bouton a JavaScript : la vue choisie tient
             dans l'adresse, donc elle se partage et se met en favori.
           */}
-          <div className="vues">
-            <Link href={lien({ vue: "" })}
-                  className={`bouton petit ${!graphe ? "primaire" : ""}`}>Tableau</Link>
-            <Link href={lien({ vue: "graphe" })}
-                  className={`bouton petit ${graphe ? "primaire" : ""}`}>Graphique</Link>
-          </div>
+          <nav className="periodes petites" aria-label="Présentation">
+            <Link href={lien({ vue: "" })} aria-current={!graphe ? "true" : undefined}>Tableau</Link>
+            <Link href={lien({ vue: "graphe" })} aria-current={graphe ? "true" : undefined}>Graphique</Link>
+          </nav>
         </div>
         {produits.length === 0 ? (
           <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
                  texte="Rien ne s’est vendu sur la fenêtre choisie." dedans />
         ) : graphe ? (
-          <BarresClassees series={produits.slice(0, 10).map((pr, i) => ({
-            cle: String(pr.id ?? `x${i}`), nom: pr.nom, rang: i,
-            total: pr.ca, unites: pr.n,
-            // `valeurs` sert aux courbes, pas aux barres classees : un produit
-            // n'a pas de serie dans le temps ici, et lui en inventer une serait
-            // dessiner une evolution qu'on n'a pas calculee.
-            valeurs: [],
-          }))} />
+          <div className="carte viz">
+            <BarresClassees series={produits.slice(0, 10).map((pr, i) => ({
+              cle: String(pr.id ?? `x${i}`), nom: pr.nom, rang: i,
+              total: pr.ca, unites: pr.n,
+              // `valeurs` sert aux courbes, pas aux barres classees : un produit
+              // n'a pas de serie dans le temps ici, et lui en inventer une serait
+              // dessiner une evolution qu'on n'a pas calculee.
+              valeurs: [],
+            }))} />
+          </div>
         ) : (
           <div className="carte plate tableau-enveloppe">
             <table className="tableau">
@@ -355,6 +413,28 @@ export default async function Tableau(
                 Les quinze premiers sur {produits.length}. Le total porte sur tous.
               </p>
             ) : null}
+          </div>
+        )}
+
+        {/* ------------------------------------------------- ventes par categorie */}
+        <h2>Ventes par catégorie</h2>
+        {classees.length === 0 ? (
+          <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
+                 texte="Élargissez la fenêtre, ou vérifiez que les bornes remontent bien leurs ventes."
+                 dedans />
+        ) : (
+          <div className="duo viz">
+            <section>
+              <h3>Répartition</h3>
+              <BarresClassees series={classees} />
+            </section>
+            <section>
+              <h3>Évolution {j <= 7 ? "jour par jour" : "semaine par semaine"}</h3>
+              {categories.seaux.length >= 2
+                ? <Courbes seaux={categories.seaux} series={categories.series} />
+                : <Repli titre="Pas encore d’évolution"
+                         texte="Il faut au moins deux périodes de ventes pour dessiner une tendance." dedans />}
+            </section>
           </div>
         )}
 
@@ -413,109 +493,184 @@ export default async function Tableau(
 }
 
 /**
- * L'estrade.
+ * LA VARIATION CONTRE LA FENETRE PRECEDENTE.
  *
- * Deuxieme a gauche, PREMIER AU MILIEU, troisieme a droite : la disposition
- * olympique se lit sans legende, et la hauteur du socle dit le rang avant meme
- * qu'on lise le chiffre.
+ * En pourcentage, pas en euros : « + 480 € » demande de connaitre le niveau de
+ * depart pour signifier quelque chose, « + 18 % » se lit seul.
  *
- * Les trois marches sont TOUJOURS dressees, meme quand la troisieme place n'est
- * pas prise. Une estrade a deux marches n'est plus une estrade — et la marche
- * vide dit quelque chose : il y a de la place pour une borne de plus.
- *
- * L'ordre du DOM reste 1, 2, 3 — c'est le classement reel, et c'est celui qu'un
- * lecteur d'ecran annonce. Seules les colonnes de grille sont permutees.
+ * La couleur ne porte jamais le sens toute seule — une hausse et une baisse se
+ * liraient pareil pour huit pour cent des hommes. La fleche pointe dans le sens
+ * du mouvement, et le signe est ecrit.
  */
-function Estrade({ bornes, jours }: { bornes: ParBorne[]; jours: number }) {
-  const places: (ParBorne | null)[] = [bornes[0] ?? null, bornes[1] ?? null, bornes[2] ?? null];
+function Delta({ ici, avant }: { ici: number; avant: number }) {
+  // Partir de zero n'a pas de pourcentage : « + 100 % » de rien serait faux, et
+  // « + infini » ne se lit pas. On dit ce qui s'est passe, en toutes lettres.
+  if (avant === 0) {
+    return ici > 0 ? <span className="delta neuf">nouveau</span> : null;
+  }
+  const p = Math.round(((ici - avant) / avant) * 100);
+  if (p === 0) return <span className="delta stable">stable</span>;
+  const monte = p > 0;
   return (
-    <div className="podium trois">
-      {places.map((b, i) => {
-        const rang = i + 1;
-        if (!b) return <MarcheVide key={`vide-${rang}`} rang={rang} />;
-        const vivante = enLigne(b.vue_le);
-        return (
-          <Link key={b.id} href={`/bornes/${b.id}`} className={`place r${rang}`}>
-            <div className="fiche">
-              <span className="rang-mobile">{rang}</span>
-              <div className="txt">
-                <div className="nom">{b.nom}</div>
-                <div className="lieu">{b.adresse ?? "lieu non renseigné"}</div>
-                <div className="ca num">{euros(b.ca)}</div>
-                <div className="detail">
-                  {b.n} vendus · {euros(Math.round(b.ca / Math.max(1, jours)))} par jour
-                </div>
-                <div className="detail">marge {euros(b.marge)}</div>
-                <div className="etats">
-                  <span className={`pilule ${vivante ? "ok" : "mal"}`}>
-                    <i />{vivante ? "en ligne" : `vue ${depuis(b.vue_le)}`}</span>
-                  {b.vides > 0 ? <span className="pilule attente"><i />{b.vides} vides</span> : null}
-                </div>
-              </div>
-            </div>
-            <div className="socle">{rang}</div>
-          </Link>
-        );
-      })}
+    <span className={`delta ${monte ? "hausse" : "baisse"}`}>
+      <IcoPente bas={!monte} />
+      {monte ? "+" : "−"} {Math.abs(p)} %
+    </span>
+  );
+}
+
+/** Un chiffre secondaire : plus petit que le phare, jamais aussi gros. */
+function Mesure({ titre, valeur, dessous, delta }:
+  { titre: string; valeur: string; dessous: string; delta?: React.ReactNode }) {
+  return (
+    <div className="mesure">
+      <span className="etiquette">{titre}</span>
+      <span className="ligne-chiffre">
+        <span className="chiffre num">{valeur}</span>
+        {delta}
+      </span>
+      <span className="dessous">{dessous}</span>
     </div>
   );
 }
 
-/** Une marche que personne n'occupe encore. Elle garde sa place et invite. */
-function MarcheVide({ rang }: { rang: number }) {
+/**
+ * L'ETINCELLE : la forme de la periode, en trente pixels de haut.
+ *
+ * Elle ne remplace pas le graphe plus bas et ne porte aucun chiffre — elle
+ * repond a « ca monte ou ca redescend » a cote du montant, sans faire descendre
+ * l'oeil. C'est pour ca qu'elle n'a ni axe, ni grille, ni etiquette : tout ce
+ * qu'on lui ajouterait la ferait rivaliser avec le vrai graphe.
+ */
+function Etincelle({ jours }: { jours: Jour[] }) {
+  if (jours.length < 3) return null;
+  const sommet = Math.max(1, ...jours.map((x) => x.ca));
+  const x = (i: number) => (i / (jours.length - 1)) * 100;
+  const y = (v: number) => 30 - (v / sommet) * 28;
+  const trait = jours.map((d, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(d.ca)}`).join(" ");
+
   return (
-    <Link href="/bornes/ajouter" className={`place r${rang} libre`}>
-      <div className="fiche">
-        <span className="rang-mobile">{rang}</span>
-        <div className="txt">
-          <div className="nom">Place libre</div>
-          <div className="lieu">aucune {rang}<sup>e</sup> borne</div>
-          <div className="ca num">—</div>
-          <div className="detail">Ajouter une borne</div>
-        </div>
-      </div>
-      <div className="socle">{rang}</div>
-    </Link>
+    <svg className="etincelle" viewBox="0 0 100 30" preserveAspectRatio="none"
+         role="img" aria-label={`Allure du chiffre d’affaires sur ${jours.length} jours`}>
+      <path className="aire" d={`${trait} L100,30 L0,30 Z`} />
+      <path className="trait" d={trait} />
+    </svg>
   );
 }
 
-function CarteBorne({ b, rang, jours }: { b: ParBorne; rang: number; jours: number }) {
-  const vivante = enLigne(b.vue_le);
+/**
+ * JOUR PAR JOUR.
+ *
+ * Les barres n'avaient ni echelle ni ligne de base : on voyait bien qu'un jour
+ * depassait les autres, jamais de combien, et la seule facon de lire un montant
+ * etait de survoler — ce qui n'existe pas sur un telephone. Trois reperes
+ * horizontaux et leur montant a gauche suffisent a rendre chaque barre lisible
+ * sans la toucher.
+ *
+ * LES SAMEDIS ET DIMANCHES SONT TEINTES. Un creux du mardi et un creux du
+ * dimanche n'appellent pas la meme reponse ; sans reperes, on lit une baisse la
+ * ou il n'y a qu'une semaine qui tourne.
+ */
+function SerieJours({ jours }: { jours: Jour[] }) {
+  const sommet = Math.max(1, ...jours.map((x) => x.ca));
+  const meilleur = jours.reduce((a, b) => (b.ca > a.ca ? b : a), jours[0]);
+  const milieu = jours[Math.floor((jours.length - 1) / 2)];
+  // Trois paliers : le sommet, sa moitie, la ligne de base. Une grille plus
+  // dense rivalise avec les donnees au lieu de les servir.
+  const paliers = [1, 0.5, 0];
+
   return (
-    <Link href={`/bornes/${b.id}`} className="carte" style={{ display: "block" }}>
-      <div className="rangee" style={{ alignItems: "flex-start", marginBottom: 12 }}>
-        <span style={{ width: 22, height: 22, borderRadius: 6, flex: "none",
-                       background: rang === 1 ? "var(--rouge)" : "var(--surface-3)",
-                       color: rang === 1 ? "#fff" : "var(--texte-2)",
-                       display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800 }}>
-          {rang}
-        </span>
-        <div className="pousse" style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-.02em",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {b.nom}
-          </div>
-          <div className="faible" style={{ fontSize: 12 }}>{b.adresse ?? "lieu non renseigné"}</div>
+    <figure className="serie">
+      <div className="cadre">
+        {paliers.map((f) => (
+          <span key={f} className={`grille ${f === 0 ? "base" : ""}`} style={{ bottom: `${f * 100}%` }}>
+            <b>{euros(Math.round(sommet * f))}</b>
+          </span>
+        ))}
+        <div className="barres">
+          {jours.map((d) => {
+            const jour = new Date(`${d.jour}T00:00:00Z`).getUTCDay();
+            const weekend = jour === 0 || jour === 6;
+            return (
+              <div key={d.jour}
+                   className={`b ${weekend ? "weekend" : ""} ${d.ca === sommet ? "haute" : ""}`}
+                   title={`${d.etiquette} · ${d.n} article${d.n > 1 ? "s" : ""} · ${euros(d.ca)}`}>
+                <span style={{ height: `${Math.max(d.ca === 0 ? 0 : 2, (d.ca / sommet) * 100)}%` }} />
+              </div>
+            );
+          })}
         </div>
       </div>
+      <figcaption className="axe">
+        <span>{jours[0]?.etiquette}</span>
+        <span className="milieu">{milieu?.etiquette}</span>
+        <span>{jours.at(-1)?.etiquette}</span>
+      </figcaption>
+      <p className="sous-graphe">
+        Meilleur jour&nbsp;: <b>{meilleur?.etiquette}</b> avec <b className="num">{euros(meilleur?.ca ?? 0)}</b>.
+        Les samedis et dimanches sont teintés.
+      </p>
+    </figure>
+  );
+}
 
-      <div className="num" style={{ fontWeight: 750, fontSize: 22, letterSpacing: "-.035em" }}>
-        {euros(b.ca)}
-      </div>
-      <div className="faible" style={{ fontSize: 12 }}>
-        {b.n} vendus · {euros(Math.round(b.ca / Math.max(1, jours)))} par jour
-        {b.n > 0 ? ` · panier ${euros(Math.round(b.ca / b.n))}` : ""}
-      </div>
-      <div className="faible num" style={{ fontSize: 12, marginTop: 2 }}>
-        marge {euros(b.marge)}
-      </div>
+/**
+ * LE CLASSEMENT DES BORNES.
+ *
+ * C'etait une estrade olympique : trois marches, la premiere au milieu, un socle
+ * dont la hauteur disait le rang. Jolie, et fausse comme outil — elle ne montrait
+ * que trois machines, poussait les suivantes dans une rangee qui defilait de
+ * cote, prenait la moitie d'un ecran de telephone pour trois montants, et ne
+ * disait jamais la seule chose qui compte apres le classement : quelle part du
+ * chiffre chaque borne represente, et dans quel sens elle va.
+ *
+ * Une liste ordonnee dit tout cela, tient de une a cinquante machines sans
+ * changer de forme, et se lit de haut en bas comme un classement se lit.
+ */
+function Classement({ bornes }: { bornes: ParBorne[] }) {
+  const total = Math.max(1, bornes.reduce((s, b) => s + b.ca, 0));
+  const sommet = Math.max(1, ...bornes.map((b) => b.ca));
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-        <span className={`pilule ${vivante ? "ok" : "mal"}`}>
-          <i />{vivante ? "en ligne" : `vue ${depuis(b.vue_le)}`}</span>
-        {b.vides > 0 ? <span className="pilule attente"><i />{b.vides} vides</span> : null}
-      </div>
-    </Link>
+  return (
+    <ol className="classement">
+      {bornes.map((b, i) => {
+        const vivante = enLigne(b.vue_le);
+        const part = Math.round((b.ca / total) * 100);
+        return (
+          <li key={b.id} className={i === 0 ? "tete" : ""}>
+            <Link href={`/bornes/${b.id}`}>
+              <span className="rang num">{i + 1}</span>
+
+              <span className="qui">
+                <span className="nom">{b.nom}</span>
+                <span className="ou">{b.adresse ?? "lieu non renseigné"}</span>
+                <span className="etats">
+                  <span className={`pilule ${vivante ? "ok" : "mal"}`}>
+                    <i />{vivante ? "en ligne" : `vue ${depuis(b.vue_le)}`}</span>
+                  {b.vides > 0 ? <span className="pilule attente"><i />{b.vides} vides</span> : null}
+                </span>
+              </span>
+
+              <span className="argent">
+                <span className="ca num">{euros(b.ca)}</span>
+                <span className="dessous">
+                  <Delta ici={b.ca} avant={b.ca_avant} />
+                  <span className="detail">{b.n} vendus · marge {euros(b.marge)}</span>
+                </span>
+              </span>
+
+              <span className="part">
+                <span className="piste">
+                  <span style={{ width: `${Math.max(1, (b.ca / sommet) * 100)}%` }} />
+                </span>
+                <span className="pct num">{part} % du chiffre</span>
+              </span>
+
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

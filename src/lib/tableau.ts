@@ -81,6 +81,38 @@ export async function entete(compte_id: number, jours: number,
   `, [compte_id, String(jours), bornes]))!;
 }
 
+/**
+ * LA MEME FENETRE, UN CRAN PLUS TOT.
+ *
+ * « 3 240 € » ne dit rien tout seul. C'est beaucoup ou c'est peu selon le mois
+ * dernier, et c'est la seule question qu'on se pose en ouvrant cet ecran : est-ce
+ * que ca monte. Un tableau de bord qui donne un niveau sans sa pente laisse son
+ * lecteur faire la soustraction de tete, avec un chiffre qu'il n'a pas.
+ *
+ * ELLE S'ARRETE A LA MEME HEURE. La fenetre en cours contient un jour partiel —
+ * aujourd'hui, jusqu'a maintenant. Comparee a trente jours PLEINS, elle serait en
+ * baisse tous les matins et rattraperait le soir : la comparaison mesurerait
+ * l'heure qu'il est, pas les ventes. La borne haute est donc `now()` recule
+ * d'autant, ce qui laisse exactement la meme duree ecoulee des deux cotes.
+ */
+export type Comparaison = { ventes: number; ca: number; marge: number };
+
+export async function comparaison(compte_id: number, jours: number,
+                                  bornes: number[] | null = null): Promise<Comparaison> {
+  return (await q1<Comparaison>(`
+    SELECT COUNT(*)::int                                              AS ventes,
+           COALESCE(SUM(v.prix_c),0)::int                             AS ca,
+           COALESCE(SUM(v.prix_c - COALESCE(a.prix_achat_c,0)),0)::int AS marge
+      FROM vente v
+      JOIN borne b ON b.id = v.borne_id
+      LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
+     WHERE b.compte_id = $1 ${PORTEE}
+       AND v.statut = 'distribue'
+       AND v.faite_le >= ${DEPUIS} - ($2::text || ' days')::interval
+       AND v.faite_le <  now()     - ($2::text || ' days')::interval
+  `, [compte_id, String(jours), bornes]))!;
+}
+
 export type Jour = { jour: string; etiquette: string; n: number; ca: number };
 
 export async function parJour(compte_id: number, jours: number,
@@ -107,6 +139,8 @@ export async function parJour(compte_id: number, jours: number,
 export type ParBorne = {
   id: number; nom: string; adresse: string | null; vue_le: Date | null;
   n: number; ca: number; marge: number; canaux: number; vides: number;
+  /** Le chiffre de la meme borne sur la fenetre precedente — voir `comparaison`. */
+  ca_avant: number;
 };
 
 export async function parBorne(compte_id: number, jours: number,
@@ -118,7 +152,8 @@ export async function parBorne(compte_id: number, jours: number,
            COALESCE(x.marge, 0) AS marge,
            (SELECT COUNT(*)::int FROM canal c WHERE c.borne_id = b.id AND c.produit_id IS NOT NULL) AS canaux,
            (SELECT COUNT(*)::int FROM canal c WHERE c.borne_id = b.id AND c.produit_id IS NOT NULL
-              AND c.quantite = 0) AS vides
+              AND c.quantite = 0) AS vides,
+           COALESCE(y.ca, 0)    AS ca_avant
       FROM borne b
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int n, SUM(v.prix_c)::int ca,
@@ -126,6 +161,15 @@ export async function parBorne(compte_id: number, jours: number,
           FROM vente v LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
          WHERE v.borne_id = b.id AND v.statut = 'distribue' AND v.faite_le >= ${DEPUIS}
       ) x ON true
+      -- Une machine peut faire le plus gros chiffre du parc en s'effondrant :
+      -- le classement seul ne le dit pas, la pente si.
+      LEFT JOIN LATERAL (
+        SELECT SUM(v.prix_c)::int ca
+          FROM vente v
+         WHERE v.borne_id = b.id AND v.statut = 'distribue'
+           AND v.faite_le >= ${DEPUIS} - ($2::text || ' days')::interval
+           AND v.faite_le <  now()     - ($2::text || ' days')::interval
+      ) y ON true
      WHERE b.compte_id = $1 ${PORTEE}
      ORDER BY COALESCE(x.ca, 0) DESC, b.nom`, [compte_id, String(jours), bornes]);
 }

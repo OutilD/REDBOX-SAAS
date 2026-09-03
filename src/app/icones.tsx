@@ -189,3 +189,18 @@ export const IcoHorloge = ({ size = 14 }: P) => (
 export const IcoFleche = ({ size = 14 }: P) => (
   <svg {...base(size)}><path d="M3.5 10h12M11 5.5l4.5 4.5-4.5 4.5" /></svg>
 );
+
+/**
+ * La pente d'un chiffre.
+ *
+ * Elle accompagne toujours un pourcentage colore : le vert et le rouge ne
+ * portent jamais seuls le sens, sans quoi une hausse et une baisse se lisent
+ * pareil pour huit pour cent des hommes.
+ */
+export const IcoPente = ({ size = 11, bas = false }: P & { bas?: boolean }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor"
+       strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+       style={bas ? { transform: "scaleY(-1)" } : undefined}>
+    <path d="M10 16.5v-13M10 3.5 4.5 9M10 3.5 15.5 9" />
+  </svg>
+);

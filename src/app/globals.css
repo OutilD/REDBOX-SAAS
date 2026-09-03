@@ -522,6 +522,172 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .stat.alerte .valeur { color: var(--rouge-vif); }
 .stat.attention .valeur { color: var(--ambre); }
 
+/* ======================================================================
+   LE TABLEAU DE BORD
+   ======================================================================
+
+   UNE SEULE CHOSE EST EN GRAND. Six tuiles de meme taille — chiffre d'affaires,
+   marge, canaux vides, litiges — laissent chercher par ou commencer, et l'oeil
+   tombe sur la premiere de la rangee plutot que sur la plus importante. Le
+   chiffre d'affaires est le phare, en trente-huit pixels ; le reste l'entoure,
+   moitie moins gros.
+
+   ET CHAQUE CHIFFRE PORTE SA PENTE. Un niveau sans variation laisse son lecteur
+   faire une soustraction avec un chiffre qu'il n'a pas.
+   ====================================================================== */
+
+/* --------------------------------------------------------------- la tete */
+.tete-tableau {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px 20px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.tete-tableau .quoi { min-width: 0; }
+.tete-tableau .sous { margin: 0; }
+
+/*
+  LE CHOIX DE LA FENETRE APPARTIENT AU TITRE.
+
+  C'etait une rangee de boutons detaches, posee sous le sous-titre a la meme
+  hauteur que les autres liens de la page. Or c'est la commande qui change TOUS
+  les chiffres en dessous : quatre boutons separes se lisent comme quatre
+  actions differentes, un segment se lit comme les quatre etats d'un reglage.
+*/
+.periodes {
+  display: inline-flex; flex: none; padding: 3px; gap: 2px;
+  background: var(--surface-2); border: 1px solid var(--bord); border-radius: 10px;
+}
+.periodes a {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 34px; padding: 0 13px; border-radius: 7px; white-space: nowrap;
+  font-size: 13.5px; font-weight: 600; color: var(--texte-2);
+  transition: color .15s ease, background .15s ease;
+}
+.periodes a:hover { color: var(--texte); background: var(--surface-3); }
+.periodes a[aria-current] { background: var(--rouge); color: #fff; font-weight: 700; }
+.periodes a[aria-current]:hover { background: var(--rouge-vif); }
+.periodes a:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.periodes.petites a { min-height: 30px; padding: 0 11px; font-size: 13px; }
+
+/* ------------------------------------------------------- les chiffres cles */
+.chiffres-cle {
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); overflow: hidden; margin-bottom: 20px;
+}
+.chiffres-cle .phare { display: flex; align-items: flex-end; gap: 24px; padding: 18px 18px 17px; }
+.chiffres-cle .phare .txt { flex: 1; min-width: 0; }
+.chiffres-cle .etiquette {
+  display: block; margin: 0 0 7px;
+  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--texte-3); font-weight: 700;
+}
+.chiffres-cle .ligne-chiffre { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.chiffres-cle .phare .chiffre {
+  font-size: 38px; font-weight: 800; letter-spacing: -.04em; line-height: 1.05;
+}
+.chiffres-cle .contre { margin: 8px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45; }
+.chiffres-cle .contre b { color: var(--texte-2); font-weight: 650; }
+
+.chiffres-cle .mesures {
+  display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--bord);
+}
+.chiffres-cle .mesure {
+  display: flex; flex-direction: column; gap: 3px; padding: 13px 18px; min-width: 0;
+}
+.chiffres-cle .mesure + .mesure { border-left: 1px solid var(--bord); }
+.chiffres-cle .mesure .chiffre { font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
+.chiffres-cle .mesure .dessous { font-size: 11.5px; color: var(--texte-3); line-height: 1.35; }
+
+@media (max-width: 700px) {
+  .chiffres-cle .phare { flex-direction: column; align-items: stretch; gap: 14px; }
+  .chiffres-cle .phare .chiffre { font-size: 32px; }
+  .chiffres-cle .mesures { grid-template-columns: 1fr; }
+  .chiffres-cle .mesure + .mesure { border-left: none; border-top: 1px solid var(--bord); }
+  .chiffres-cle .mesure {
+    flex-direction: row; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  }
+  .chiffres-cle .mesure .etiquette { flex: 1; margin: 0; }
+  .chiffres-cle .mesure .dessous { flex-basis: 100%; }
+}
+
+/*
+  LA VARIATION CONTRE LA FENETRE PRECEDENTE.
+
+  En pourcentage, pas en euros : « + 480 € » demande de connaitre le niveau de
+  depart pour signifier quelque chose, « + 18 % » se lit seul.
+
+  La couleur ne porte jamais le sens toute seule — une hausse et une baisse se
+  liraient pareil pour huit pour cent des hommes. La fleche pointe dans le sens
+  du mouvement, et le signe est ecrit.
+*/
+.delta {
+  display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+  padding: 2px 8px; border-radius: 999px; line-height: 1.4;
+  font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums;
+}
+.delta svg { flex: none; }
+.delta.hausse, .delta.neuf { color: var(--vert);      background: var(--vert-fond); }
+.delta.baisse             { color: var(--rouge-vif); background: var(--rouge-fond); }
+.delta.stable             { color: var(--texte-3);   background: var(--surface-2); }
+
+/*
+  L'ETINCELLE : la forme de la periode, en quarante-six pixels de haut.
+
+  Elle ne remplace pas le graphe plus bas et ne porte aucun chiffre — elle repond
+  a « ca monte ou ca redescend » a cote du montant, sans faire descendre l'oeil.
+  C'est pour ca qu'elle n'a ni axe, ni grille, ni etiquette : tout ce qu'on lui
+  ajouterait la ferait rivaliser avec le vrai graphe.
+*/
+.etincelle { flex: none; width: 172px; height: 46px; display: block; color: var(--rouge); }
+.etincelle .aire { fill: currentColor; opacity: .14; stroke: none; }
+.etincelle .trait {
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+@media (max-width: 700px) { .etincelle { width: 100%; height: 40px; } }
+
+/*
+  CE QUI DEMANDE UNE MAIN, RASSEMBLE ET CLASSE PAR GRAVITE.
+
+  C'etait dissemine : les litiges dans une tuile de la rangee du haut, les canaux
+  vides dans une autre, les ruptures tout en bas de l'ecran. Trois endroits pour
+  une seule question — qu'est-ce que je fais maintenant — et aucun ne disait ce
+  qu'il fallait faire.
+
+  La bande n'apparait que s'il y a quelque chose dedans. Un bandeau permanent qui
+  affiche « 0 probleme » cesse d'etre lu au bout d'une semaine, et il ne se voit
+  plus le jour ou il compte.
+*/
+.a-traiter {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); overflow: hidden;
+}
+.a-traiter li + li { border-top: 1px solid var(--bord); }
+.a-traiter a {
+  display: flex; align-items: center; gap: 13px; padding: 12px 15px; min-height: 60px;
+  transition: background .15s ease;
+}
+.a-traiter a:hover { background: var(--surface-2); }
+.a-traiter a:focus-visible { outline: 2px solid var(--rouge); outline-offset: -2px; }
+/* La pastille double la couleur du chiffre : la gravite se voit avant d'etre lue,
+   et elle est ecrite juste a cote pour qui ne la voit pas. */
+.a-traiter .pastille {
+  width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--texte-3);
+}
+.a-traiter li.grave .pastille { background: var(--rouge-vif); box-shadow: 0 0 0 4px var(--rouge-fond); }
+.a-traiter li.moyen .pastille { background: var(--ambre);     box-shadow: 0 0 0 4px var(--ambre-fond); }
+.a-traiter .dit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.a-traiter .dit .tete { font-size: 14.5px; font-weight: 600; }
+.a-traiter .dit .tete b { font-weight: 800; }
+.a-traiter li.grave .dit .tete b { color: var(--rouge-vif); }
+.a-traiter li.moyen .dit .tete b { color: var(--ambre); }
+.a-traiter .pourquoi { font-size: 12.5px; color: var(--texte-3); line-height: 1.35; }
+.a-traiter .faire {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 650; color: var(--texte-2);
+}
+.a-traiter a:hover .faire { color: var(--rouge-vif); }
+
 /* --------------------------------------------------- repartition d'un stock */
 /*
    Une seule barre porte les trois etats : ce que j'ai chez moi, ce qui est dans
@@ -771,15 +937,60 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
    Pas de bibliotheque : quelques div suffisent, et une page qui ne charge rien
    s'ouvre instantanement sur un telephone au fond d'un bar.
 */
-.graphe { display: flex; align-items: flex-end; gap: 2px; height: 148px; }
-.graphe .barre { flex: 1; display: flex; flex-direction: column;
-                 justify-content: flex-end; height: 100%; min-width: 0; }
-.graphe .barre span { display: block; background: var(--rouge);
-                      border-radius: 4px 4px 0 0; transition: none; }
-.graphe .barre.creux span { background: var(--surface-3); }
-.graphe .barre.pointe span { background: var(--rouge-vif); }
 .axe { display: flex; justify-content: space-between; margin-top: 9px;
        font-size: 11.5px; color: var(--texte-3); }
+
+/*
+  JOUR PAR JOUR : DES BARRES QUI PORTENT UNE ECHELLE.
+
+  Elles n'en avaient aucune. On voyait qu'un jour depassait les autres, jamais de
+  combien, et la seule facon de lire un montant etait de survoler la barre — ce
+  qui n'existe pas sur un telephone, la ou cet ecran se consulte. Trois reperes
+  horizontaux et leur montant a gauche rendent chaque barre lisible sans la
+  toucher, et une ligne de base franche dit ou est le zero.
+
+  LES FINS DE SEMAINE SONT TEINTEES. Un creux du mardi et un creux du dimanche
+  n'appellent pas la meme reponse ; sans repere, on lit une baisse la ou il n'y a
+  qu'une semaine qui tourne.
+*/
+.serie { margin: 0; }
+.serie .cadre { position: relative; height: 196px; padding-left: 58px; }
+.serie .grille {
+  position: absolute; left: 58px; right: 0; height: 0;
+  border-top: 1px dashed var(--bord);
+}
+.serie .grille.base { border-top: 1px solid var(--bord-fort); }
+.serie .grille b {
+  position: absolute; right: calc(100% + 9px); transform: translateY(-50%);
+  font-size: 10.5px; font-weight: 600; color: var(--texte-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.serie .barres { position: relative; height: 100%; display: flex; align-items: flex-end; gap: 2px; }
+.serie .b {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end;
+  border-radius: 3px 3px 0 0;
+}
+.serie .b.weekend { background: var(--surface-2); }
+/* UN ROUGE RETENU POUR LA MASSE, LE ROUGE VIF POUR LE SOMMET.
+
+   Trente barres au rouge de marque font un mur : tout crie egalement, et le jour
+   qui sort du lot ne sort plus de rien. La serie prend donc un rouge assourdi, et
+   la seule barre en pleine couleur est celle qu'on cherchait. */
+.serie .b > span {
+  display: block; width: 100%; border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--rouge) 66%, var(--surface-2));
+}
+.serie .b.haute > span { background: var(--rouge-vif); }
+.serie .axe { padding-left: 58px; }
+.serie .axe .milieu { color: var(--texte-3); }
+.serie .sous-graphe { margin: 11px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45; }
+.serie .sous-graphe b { color: var(--texte); font-weight: 650; }
+@media (max-width: 620px) {
+  .serie .cadre { height: 158px; padding-left: 46px; }
+  .serie .grille { left: 46px; }
+  .serie .axe { padding-left: 46px; }
+  .serie .barres { gap: 1px; }
+}
 
 /* Barre empilee : chaque segment est une borne, la legende dit laquelle. */
 .empile { display: flex; height: 12px; border-radius: 6px; overflow: hidden;
@@ -792,31 +1003,99 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 .teinte-4 { background: #4a9ede; }
 .teinte-5 { background: #9b6cd8; }
 
-.classement { counter-reset: rang; }
-.classement .ligne::before {
-  counter-increment: rang; content: counter(rang);
-  width: 26px; height: 26px; flex: none; border-radius: 8px;
-  background: var(--surface-3); color: var(--texte-2);
-  display: grid; place-items: center; font-size: 12.5px; font-weight: 800;
-}
-.classement .ligne:first-child::before { background: var(--rouge); color: #fff; }
-
-/* --------------------------------------------------------- rangee de cartes */
 /*
-   Trois bornes cote a cote, le reste au defilement. Le calage magnetique evite
-   de s'arreter au milieu d'une carte — c'est ce qui separe un carrousel d'un
-   debordement.
+  LE CLASSEMENT DES BORNES.
+
+  C'etait une estrade olympique : trois marches, la premiere au milieu, un socle
+  dont la hauteur disait le rang. Jolie, et fausse comme outil — elle ne montrait
+  que TROIS machines, poussait les suivantes dans une rangee qui defilait de
+  cote, prenait la moitie d'un ecran de telephone pour trois montants, et ne
+  disait jamais la seule chose qui compte apres le rang : quelle part du chiffre
+  chaque borne represente, et dans quel sens elle va.
+
+  Une liste ordonnee dit tout cela, tient de une a cinquante machines sans
+  changer de forme, et se lit de haut en bas — comme un classement se lit.
 */
-.rangee-cartes {
-  display: grid; grid-auto-flow: column;
-  grid-auto-columns: minmax(258px, 1fr);
-  gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
-  padding-bottom: 6px; margin: 0 -16px; padding-left: 16px; padding-right: 16px;
-  scrollbar-width: thin;
+.classement { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.classement > li { min-width: 0; }
+.classement a {
+  display: grid; align-items: center; gap: 10px 14px; padding: 12px 15px;
+  grid-template-columns: 24px minmax(0, 1fr) 168px minmax(152px, auto);
+  grid-template-areas: "rang qui part argent";
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
 }
-@media (min-width: 980px) { .rangee-cartes { margin: 0; padding-left: 0; padding-right: 0; } }
-.rangee-cartes > * { scroll-snap-align: start; }
-@media (min-width: 1240px) { .rangee-cartes { grid-auto-columns: minmax(300px, 1fr); } }
+/* Sous 900 px, la part passe sous le nom : quatre colonnes dans un telephone
+   donnent quatre colonnes de trois caracteres. */
+@media (max-width: 899px) {
+  .classement a {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas: "rang qui argent" "rang part part";
+  }
+}
+.classement a:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.classement a:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.classement li.tete a { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+
+.classement .rang {
+  grid-area: rang; width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center; align-self: center;
+  background: var(--surface-3); color: var(--texte-2);
+  font-size: 12px; font-weight: 800;
+}
+.classement li.tete .rang { background: var(--rouge); color: #fff; }
+
+.classement .qui { grid-area: qui; min-width: 0; display: flex; flex-direction: column; }
+.classement .nom {
+  font-weight: 700; font-size: 15px; letter-spacing: -.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.classement .ou {
+  font-size: 12px; color: var(--texte-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.classement .qui { gap: 3px; }
+
+.classement .argent { grid-area: argent; text-align: right; }
+.classement .ca {
+  display: block; font-size: 20px; font-weight: 780; letter-spacing: -.035em;
+  line-height: 1.2;
+}
+.classement .argent .dessous {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 8px; flex-wrap: wrap; margin-top: 3px;
+}
+.classement .argent .detail { font-size: 11.5px; color: var(--texte-3); }
+
+/* La part du chiffre, sur une echelle COMMUNE a tout le classement : deux
+   barres ne se comparent que si elles partagent leur regle. */
+.classement .part { grid-area: part; display: grid; gap: 5px; min-width: 0; }
+.classement .part .piste { height: 6px; border-radius: 3px; background: var(--surface-2); }
+.classement .part .piste > span {
+  display: block; height: 100%; border-radius: 3px; min-width: 3px;
+  background: color-mix(in srgb, var(--rouge) 50%, var(--surface-3));
+}
+.classement li.tete .part .piste > span { background: var(--rouge); }
+.classement .pct { font-size: 11.5px; color: var(--texte-3); }
+
+/* Les etats rejoignent la ligne du lieu : « ou elle est, comment elle va » est
+   une seule phrase, et leur donner une bande a eux ajoutait une quatrieme
+   hauteur a chaque ligne du classement. */
+.classement .etats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.classement .etats .pilule { padding: 3px 8px; font-size: 11.5px; }
+
+@media (max-width: 520px) {
+  .classement a {
+    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-areas: "rang qui" "rang argent" "part part";
+  }
+  /* Empile sur trois bandes, le numero centre se retrouve au milieu de nulle
+     part : il appartient au nom, il se cale dessus. */
+  .classement .rang { align-self: start; margin-top: 2px; }
+  .classement .argent { text-align: left; }
+  .classement .argent .ca { font-size: 18px; }
+  .classement .argent .dessous { justify-content: flex-start; }
+}
 
 .titre-section {
   display: flex; align-items: baseline; gap: 12px; margin: 28px 0 11px;
@@ -1040,81 +1319,6 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 .pas-a-pas .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; }
 .pas-a-pas .fin { flex: none; align-self: center; }
 
-/* ------------------------------------------------------------------ podium */
-/*
-   Le classement des bornes en estrade : deuxieme a gauche, PREMIER AU MILIEU,
-   troisieme a droite — la disposition olympique, que tout le monde lit sans
-   legende.
-   L'ordre du DOM reste 1, 2, 3 : c'est le classement reel, et c'est celui qu'un
-   lecteur d'ecran annonce. Seules les colonnes de grille sont permutees.
-*/
-.podium { display: grid; gap: 10px; align-items: end; margin-bottom: 12px; }
-.podium.trois { grid-template-columns: repeat(3, 1fr); }
-.podium.deux  { grid-template-columns: repeat(2, 1fr); }
-.podium.une   { grid-template-columns: minmax(0, 360px); justify-content: center; }
-.podium.trois .place.r1 { grid-column: 2; }
-.podium.trois .place.r2 { grid-column: 1; grid-row: 1; }
-.podium.trois .place.r3 { grid-column: 3; grid-row: 1; }
-.podium.deux  .place.r1 { grid-column: 2; }
-.podium.deux  .place.r2 { grid-column: 1; grid-row: 1; }
-
-.podium .place { display: flex; flex-direction: column; min-width: 0; }
-.podium .fiche {
-  border: 1px solid var(--bord); border-bottom: none;
-  border-radius: var(--r-l) var(--r-l) 0 0;
-  background: var(--surface); padding: 14px 14px 12px; text-align: center;
-}
-.podium .r1 .fiche { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
-.podium .nom { font-weight: 700; font-size: 14.5px; letter-spacing: -.015em;
-               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.podium .lieu { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
-.podium .ca { font-size: 21px; font-weight: 750; letter-spacing: -.035em;
-              font-variant-numeric: tabular-nums; margin-top: 9px; }
-.podium .r1 .ca { font-size: 25px; }
-.podium .detail { font-size: 11.5px; color: var(--texte-3); margin-top: 2px; }
-.podium .etats { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-
-/* Le socle. Sa hauteur porte le rang autant que le chiffre inscrit dessus. */
-.podium .socle {
-  border: 1px solid var(--bord); border-radius: 0;
-  display: grid; place-items: center;
-  font-size: 26px; font-weight: 800; letter-spacing: -.03em;
-  color: var(--texte-3); background: var(--surface-2);
-}
-.podium .r1 .socle { height: 76px; background: var(--rouge); border-color: var(--rouge);
-                     color: #fff; font-size: 32px; }
-.podium .r2 .socle { height: 54px; }
-.podium .r3 .socle { height: 38px; font-size: 22px; }
-
-/* Sous 720 px, trois colonnes deviennent trois colonnes illisibles : l'estrade
-   redevient un classement vertical. */
-@media (max-width: 719px) {
-  .podium, .podium.trois, .podium.deux { grid-template-columns: 1fr; }
-  .podium .place { grid-column: 1 !important; grid-row: auto !important; }
-  .podium .fiche { border-bottom: 1px solid var(--bord); border-radius: var(--r-l);
-                   text-align: left; display: flex; align-items: center; gap: 12px; }
-  .podium .fiche .txt { flex: 1; min-width: 0; }
-  .podium .ca, .podium .r1 .ca { font-size: 19px; margin-top: 0; }
-  .podium .etats { justify-content: flex-start; }
-  .podium .socle { display: none; }
-  .podium .rang-mobile {
-    display: grid; place-items: center; width: 28px; height: 28px; flex: none;
-    border-radius: 50%; font-size: 13px; font-weight: 800;
-    background: var(--surface-3); color: var(--texte-2);
-  }
-  .podium .r1 .rang-mobile { background: var(--rouge); color: #fff; }
-}
-@media (min-width: 720px) { .podium .rang-mobile { display: none; } }
-
-/* Une marche inoccupee : presente, mais en retrait. Elle tient la forme de
-   l'estrade et signale qu'il reste de la place. */
-.podium .place.libre .fiche { border-style: dashed; background: none; }
-.podium .place.libre .nom,
-.podium .place.libre .ca { color: var(--texte-3); }
-.podium .place.libre .socle { background: none; border-style: dashed; color: var(--texte-3); }
-.podium .place.libre .detail { color: var(--rouge-vif); font-weight: 650; }
-.podium .place.libre sup { font-size: .7em; }
-
 /* ---------------------------------------------------------------- reception */
 .entete-cat {
   padding: 11px 16px; border-bottom: 1px solid var(--bord);
@@ -1175,8 +1379,11 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
   display: grid; place-items: center; background: var(--surface-2); color: var(--texte-2);
 }
 .actions-cle a.forte .rond { background: rgba(255,255,255,.18); color: #fff; }
-.actions-cle .titre { font-weight: 700; font-size: 14.5px; }
-.actions-cle .quoi { font-size: 12.5px; opacity: .78; margin-top: 1px; }
+/* Les deux lignes sont des blocs. Inline, elles se collaient bout a bout —
+   « Réception de stock3 références à racheter » — sur les trois pages qui
+   posent ce bouton. */
+.actions-cle .titre { display: block; font-weight: 700; font-size: 14.5px; }
+.actions-cle .quoi { display: block; font-size: 12.5px; opacity: .78; margin-top: 1px; }
 .actions-cle .fleche { margin-left: auto; opacity: .55; }
 
 /* Le conseil « commander ~20 » est cliquable : il ouvre la reception avec le
