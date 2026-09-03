@@ -33,6 +33,9 @@ export type Utilisateur = {
   bornes: number[] | null;
   /** Les comptes auxquels il appartient. Un seul, pour presque tout le monde. */
   comptes: Appartenance[];
+  /** Son nom, s'il l'a donne, et sa photo. Ni l'un ni l'autre n'est obligatoire. */
+  nom: string | null;
+  image_id: number | null;
 };
 
 const DUREE = 30 * 24 * 3600 * 1000;
@@ -82,8 +85,9 @@ export function enTeteBiscuit(jeton: string | null): string {
 async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
   if (!jeton) return null;
   const l = await q1<{ id: number; email: string; origine: number; expire_le: Date;
-                       actif: number | null }>(`
-    SELECT u.id, u.email, u.compte_id AS origine, s.expire_le, s.compte_id AS actif
+                       actif: number | null; nom: string | null; image_id: number | null }>(`
+    SELECT u.id, u.email, u.compte_id AS origine, u.nom, u.image_id,
+           s.expire_le, s.compte_id AS actif
       FROM session s
       JOIN utilisateur u ON u.id = s.utilisateur_id
      WHERE s.jeton = $1`, [jeton]);
@@ -114,6 +118,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     compte_id: choisi.compte_id, compte: choisi.compte, role: choisi.role,
     bornes: restreint.length > 0 ? restreint.map((r) => r.borne_id) : null,
     comptes,
+    nom: l.nom, image_id: l.image_id,
   };
 }
 

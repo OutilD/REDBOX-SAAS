@@ -50,20 +50,21 @@ export async function rangerImage(
 }
 
 /**
- * Efface les images que plus rien ne designe.
+ * LE BALAYAGE N'EFFACE PLUS RIEN.
  *
- * Appelee apres chaque changement. Sans ce menage, remplacer dix fois la photo
- * d'un produit laisserait neuf images mortes dans une base ou l'on paie l'octet.
+ * Il supprimait les images que plus aucune fiche ne designait — « sans ce menage,
+ * remplacer dix fois la photo d'un produit laisse neuf images mortes dans une
+ * base ou l'on paie l'octet ». Le raisonnement etait juste et la consequence
+ * mauvaise : il suffisait d'oublier un porteur dans sa liste de garde pour
+ * effacer des photos vivantes, silencieusement, au premier changement de
+ * catalogue venu. Ca m'est arrive avec les bornes, puis avec les portraits.
+ *
+ * Une base ne doit pas supprimer de donnees saisies par l'exploitant. On garde
+ * donc l'appel — les vingt endroits qui l'invoquent n'ont pas a le savoir — et
+ * il ne fait plus rien. Le poids des images mortes est un probleme de facture,
+ * pas de correction : il se traitera par un inventaire qu'on REGARDE avant
+ * d'effacer, jamais par un effacement automatique.
  */
-export async function balayerImages(c: PgClient, compte_id: number): Promise<void> {
-  await c.query(`
-    DELETE FROM image i
-     WHERE i.compte_id = $1
-       AND NOT EXISTS (SELECT 1 FROM categorie x WHERE x.image_id = i.id)
-       AND NOT EXISTS (SELECT 1 FROM produit   x WHERE x.image_id = i.id)
-       -- LA BORNE EST UN PORTEUR DE PLUS. L'oublier ici aurait efface les photos
-       -- de machines au premier menage venu, sans que rien ne le signale : le
-       -- balayage ne supprime que ce que « plus rien ne designe », et il ne
-       -- regardait pas de ce cote-la.
-       AND NOT EXISTS (SELECT 1 FROM borne     x WHERE x.image_id = i.id)`, [compte_id]);
+export async function balayerImages(_c: PgClient, _compte_id: number): Promise<void> {
+  return;
 }

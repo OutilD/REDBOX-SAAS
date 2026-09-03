@@ -7,7 +7,7 @@ import Vignette from "../../vignette";
 export type Cat = {
   id: number; nom: string; ordre: number; produits: number; unites: number;
   image: number | null; icone: string | null;
-};
+ actif: boolean;};
 
 /**
  * Ranger les categories par glisser-deposer.
@@ -90,14 +90,23 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
                       disabled={i === cats.length - 1}>↓</button>
             </div>
 
-            {/* Supprimer, sur la meme ligne. Vide : on y va. Pleine : on
-                explique d'abord ce qui arrive aux produits. */}
-            {c.produits === 0 ? (
+            {/*
+              RETIRER, PAS SUPPRIMER — et donc pouvoir rendre.
+
+              Le geste n'efface plus rien : la categorie sort des listes et de
+              l'ecran de la machine, ses produits gardent leur rangement, et les
+              ventes passees restent lisibles. Une categorie retiree affiche donc
+              « Rendre » a la place de la croix : sans ce retour, « retirer »
+              serait une suppression sous un autre nom.
+            */}
+            {!c.actif ? (
+              <button className="bouton petit" name="reactiver" value={c.id}>Rendre</button>
+            ) : c.produits === 0 ? (
               <button className="bouton petit discret oter" name="supprimer" value={c.id}
-                      aria-label={`Supprimer ${c.nom}`}>✕</button>
+                      aria-label={`Retirer ${c.nom}`}>✕</button>
             ) : (
               <button type="button" className="bouton petit discret oter"
-                      aria-label={`Supprimer ${c.nom}`}
+                      aria-label={`Retirer ${c.nom}`}
                       onClick={() => confirmer(aConfirmer === c.id ? null : c.id)}>✕</button>
             )}
 
@@ -108,16 +117,17 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
             {aConfirmer === c.id ? (
               <div className="confirme-oter">
                 <div>
-                  <b>Supprimer « {c.nom} » ?</b> Ses {c.produits} produit
-                  {c.produits > 1 ? "s" : ""} ne sont pas effacés : ils passent
-                  « sans catégorie », et la borne les regroupe sous « Divers ».
-                  Vous pourrez les reclasser depuis le catalogue.
+                  <b>Retirer « {c.nom} » ?</b> Rien n’est effacé : elle disparaît
+                  des listes et de l’écran de la machine, ses {c.produits} produit
+                  {c.produits > 1 ? "s" : ""} gardent leur rangement, et les ventes
+                  déjà remontées restent lisibles sous son nom. Vous pourrez la
+                  rendre d’ici.
                 </div>
                 <div className="actions">
                   <button type="button" className="bouton petit"
                           onClick={() => confirmer(null)}>Annuler</button>
                   <button className="bouton petit danger" name="supprimer" value={c.id}>
-                    Supprimer quand même
+                    Retirer quand même
                   </button>
                 </div>
               </div>

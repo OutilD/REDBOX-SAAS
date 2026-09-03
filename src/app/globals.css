@@ -301,40 +301,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--bord); background: var(--surface-2);
 }
 
-/*
-  LE VOLET DE LA FICHE.
-
-  Il ressemblait a une etiquette grise : un triangle, trois mots, et rien qui
-  dise qu'on peut appuyer dessus. On le cherchait. Il a donc la forme de ce qu'il
-  est — une ligne pleine largeur qui reagit au survol, avec ce qu'elle contient
-  ecrit dessous et un chevron a droite.
-*/
-.fiche-borne { margin-top: 14px; padding: 0; overflow: hidden; }
-.fiche-borne > summary {
-  cursor: pointer; list-style: none;
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; color: var(--texte);
-  transition: background .12s;
-}
-.fiche-borne > summary::-webkit-details-marker { display: none; }
-.fiche-borne > summary:hover { background: var(--surface-2); }
-.fiche-borne > summary .quoi { flex: 1; min-width: 0; line-height: 1.25; }
-.fiche-borne > summary .quoi strong { display: block; font-size: 14.5px; font-weight: 650; }
-.fiche-borne > summary .detail { display: block; font-size: 12.5px; color: var(--texte-3); }
-.fiche-borne > summary .marque {
-  display: grid; place-items: center; color: var(--texte-3); flex: none;
-  transition: transform .14s;
-}
-.fiche-borne[open] > summary .marque { transform: rotate(180deg); }
-.fiche-borne[open] > summary { border-bottom: 1px solid var(--bord); }
-.fiche-borne > form, .fiche-borne > p { padding: 16px; margin: 0; }
-.fiche-borne > form { padding-top: 14px; }
-.fiche-borne textarea {
-  width: 100%; resize: vertical; font: inherit; font-size: 14px;
-  color: var(--texte); background: var(--surface-2);
-  border: 1px solid var(--bord); border-radius: var(--r-m); padding: 9px 11px;
-}
-.fiche-borne input[type="file"] { font-size: 13px; color: var(--texte-2); }
 .avis-ok {
   margin: 0 0 12px; padding: 9px 12px; border-radius: var(--r-m);
   background: var(--vert-fond); color: var(--vert, #35b46a); font-size: 13px;
@@ -382,6 +348,71 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .vues { display: flex; gap: 6px; }
 
 @media (max-width: 620px) { .tableau .masque-etroit { display: none; } }
+
+/*
+  LES DEUX ENTETES DE FICHE : celle d'une borne, celle d'une personne.
+
+  Meme forme, meme intention — l'image d'abord, en grand, parce que c'est elle
+  qu'on reconnait avant de lire. Le champ de fichier natif est laid et illisible
+  dans les deux themes ; on le cache derriere un label qui a l'air d'un bouton,
+  ce qui reste du HTML et marche sans JavaScript.
+*/
+.fiche-tete, .profil-tete {
+  display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+}
+.fiche-tete .apercu {
+  width: 148px; height: 148px; flex: none;
+  border-radius: var(--r-l); border: 1px solid var(--bord);
+  background: var(--surface-2); overflow: hidden;
+  display: grid; place-items: center;
+}
+.fiche-tete .apercu img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fiche-tete .apercu .vide { font-size: 12.5px; color: var(--texte-3); }
+.fiche-tete .quoi, .profil-tete .qui { flex: 1; min-width: 220px; }
+.fiche-tete .titre { font-size: 15px; font-weight: 650; }
+
+.profil-tete .portrait {
+  width: 96px; height: 96px; flex: none; border-radius: 50%;
+  border: 1px solid var(--bord); background: var(--surface-2); overflow: hidden;
+  display: grid; place-items: center;
+}
+.profil-tete .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profil-tete .portrait .jeton {
+  font-size: 30px; font-weight: 800; color: var(--texte-3); letter-spacing: .02em;
+}
+.profil-tete .qui .nom { font-size: 19px; font-weight: 750; letter-spacing: -.02em; }
+.profil-tete .qui .meta { font-size: 13px; color: var(--texte-3); margin-bottom: 12px; }
+
+/* Le champ de fichier, deguise en bouton. */
+.fichier { display: inline-block; }
+.fichier input[type="file"] {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+.fichier span {
+  display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px;
+  border-radius: var(--r-m); border: 1px solid var(--bord); background: var(--surface-2);
+  font-size: 13.5px; font-weight: 600; color: var(--texte); cursor: pointer;
+}
+.fichier:hover span { border-color: var(--bord-fort); }
+.fichier input[type="file"]:focus-visible + span { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.oter {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  font-size: 13px; color: var(--texte-3); cursor: pointer;
+}
+
+.deux-colonnes { display: grid; gap: 0 14px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 560px) { .deux-colonnes { grid-template-columns: 1fr; } }
+
+.rangee-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* La pastille du compte est un lien : elle doit le montrer, sans se deguiser
+   en bouton — c'est une identite, pas une action. */
+.compte-chip .moi {
+  display: flex; align-items: center; gap: 9px; text-decoration: none; color: inherit;
+}
+.compte-chip .moi:hover .qui b { text-decoration: underline; }
+.compte-chip .jeton.photo { object-fit: cover; padding: 0; }
 
 .bouton.icone {
   min-height: 36px; width: 36px; padding: 0; border-radius: var(--r-m);

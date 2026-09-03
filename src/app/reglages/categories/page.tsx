@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 type Cat = {
   id: number; nom: string; ordre: number; produits: number; unites: number;
-  image: number | null; icone: string | null;
+  image: number | null; icone: string | null; actif: boolean;
 };
 
 /**
@@ -32,11 +32,14 @@ export default async function Categories({
   const cats = await q<Cat>(`
     SELECT c.id, c.nom, c.ordre, c.image_id AS image, c.icone,
            (SELECT COUNT(*)::int FROM produit p WHERE p.categorie_id = c.id AND p.actif) AS produits,
+           c.actif,
            COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s
                        JOIN produit p ON p.id = s.produit_id
                       WHERE p.categorie_id = c.id), 0) AS unites
       FROM categorie c WHERE c.compte_id = $1
-     ORDER BY c.ordre, c.nom`, [u.compte_id]);
+     -- Les retirees restent ici, et nulle part ailleurs : c'est le seul endroit
+     -- d'ou l'on peut les rendre.
+     ORDER BY c.actif DESC, c.ordre, c.nom`, [u.compte_id]);
 
   const messages: Record<string, string> = {
     nom: "Donnez un nom, et un nom qui n’existe pas déjà.",

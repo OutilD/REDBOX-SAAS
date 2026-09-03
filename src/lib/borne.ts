@@ -140,7 +140,10 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
     // donc le nom, donc le fichier — jamais d'ancienne image sous un nom neuf.
     q(`SELECT c.id, c.nom, c.ordre, c.icone, c.image_id AS image, i.empreinte AS image_e
          FROM categorie c LEFT JOIN image i ON i.id = c.image_id
-        WHERE c.compte_id = $1
+        -- UNE CATEGORIE RETIREE NE PART PLUS A LA MACHINE. Elle est desactivee
+        -- et non supprimee, pour que l'historique des ventes reste lisible ;
+        -- sans ce filtre, la borne continuerait a l'afficher a l'ecran.
+        WHERE c.compte_id = $1 AND c.actif
           AND c.id NOT IN (SELECT categorie_id FROM borne_masque
                             WHERE borne_id = $2 AND categorie_id IS NOT NULL)
         ORDER BY c.ordre, c.nom`, [compte_id, borne_id]),

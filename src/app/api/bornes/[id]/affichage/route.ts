@@ -39,7 +39,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await c.query(`
       INSERT INTO borne_masque (borne_id, categorie_id)
       SELECT $1, id FROM categorie
-       WHERE compte_id = $2 AND NOT (id = ANY($3::bigint[]))`,
+       WHERE compte_id = $2 AND actif AND NOT (id = ANY($3::bigint[]))`,
       [id, u.compte_id, vues("categorie")]);
 
     await c.query(`

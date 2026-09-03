@@ -50,7 +50,9 @@ export default async function Affichage({
                       WHERE m.borne_id = $2 AND m.categorie_id = c.id) AS masquee,
              (SELECT COUNT(*)::int FROM produit p
                WHERE p.categorie_id = c.id AND p.actif) AS produits
-        FROM categorie c WHERE c.compte_id = $1
+        -- Une categorie retiree n'a plus a etre montree ni masquee : elle
+        -- n'existe deja plus sur l'ecran de la machine.
+        FROM categorie c WHERE c.compte_id = $1 AND c.actif
        ORDER BY c.ordre, c.nom`, [u.compte_id, id]),
 
     q<Prod>(`

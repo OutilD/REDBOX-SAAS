@@ -12,7 +12,8 @@ import { SelecteurBorne } from "./selecteur-borne";
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes"
-  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav";
+  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav"
+  | "profil";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -96,9 +97,13 @@ const FIL: Record<Page, [string, string?]> = {
   equipe:     ["Équipe", "Configuration"],
   pub:        ["Écran d’accueil", "Configuration"],
   sav:        ["Assistance", "Configuration"],
+  profil:     ["Mon compte"],
 };
 
-/** Deux lettres tirees de l'adresse : « ali.b@… » donne AB, « marc@… » donne MA. */
+/**
+ * Deux lettres, tirees du nom s'il existe, de l'adresse sinon : « ali.b@… »
+ * donne AB, « Marie Dupont » donne MD.
+ */
 function initiales(email: string): string {
   const local = email.split("@")[0] ?? "";
   const bouts = local.split(/[.\-_+]/).filter(Boolean);
@@ -221,11 +226,20 @@ export async function Entete({ page, borne, fenetre }:
             <BasculeTheme depart={theme} retour={ici} />
 
             <div className="compte-chip">
-              <span className="jeton">{u ? initiales(u.email) : "—"}</span>
-              <span className="qui">
-                <b>{u?.email.split("@")[0]}</b>
-                <span>{u ? nomDuRole(u.role) : ""}</span>
-              </span>
+              {/* La pastille mene au profil : c'est la qu'on cherche son compte,
+                  et elle etait jusqu'ici un cul-de-sac. */}
+              <Link href="/profil" className="moi" title="Mon compte">
+                {u?.image_id ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/image/${u.image_id}`} alt="" className="jeton photo" />
+                ) : (
+                  <span className="jeton">{u ? initiales(u.nom || u.email) : "—"}</span>
+                )}
+                <span className="qui">
+                  <b>{u?.nom || u?.email.split("@")[0]}</b>
+                  <span>{u ? nomDuRole(u.role) : ""}</span>
+                </span>
+              </Link>
               <form method="post" action="/api/session/fin">
                 <button className="bouton icone" title="Se déconnecter" aria-label="Se déconnecter"
                         style={{ width: 30, minHeight: 30, border: "none", background: "none" }}>

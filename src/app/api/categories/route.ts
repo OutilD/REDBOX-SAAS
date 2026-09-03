@@ -1,4 +1,4 @@
-import { transaction } from "@/db";
+import { q, transaction } from "@/db";
 import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
 import { reveillerLeCompte } from "@/lib/borne";
 import { balayerImages, rangerImage } from "@/lib/image";
@@ -17,12 +17,22 @@ export async function POST(req: Request) {
   // Le bouton « Supprimer » porte son identifiant : un seul formulaire, pas un
   // par ligne, et rien ne se supprime par accident en validant l'ensemble.
   //
-  // UNE CATEGORIE PLEINE SE SUPPRIME AUSSI. On refusait jusqu'ici tant qu'elle
+  // ON REACTIVE AUSSI. Retirer n'efface plus rien : il faut donc pouvoir revenir
+  // dessus, sans quoi « retirer » resterait une porte a sens unique — c'est-a-dire
+  // une suppression avec un autre nom.
+  const aRendre = Number(f.get("reactiver"));
+  if (Number.isInteger(aRendre) && aRendre > 0) {
+    await q("UPDATE categorie SET actif = true WHERE id = $1 AND compte_id = $2",
+            [aRendre, u.compte_id]);
+    await reveillerLeCompte(u.compte_id, "catégories modifiées");
+    return versPage(req, `${RETOUR}?fait=rendue`);
+  }
+
+  // UNE CATEGORIE PLEINE SE RETIRE AUSSI. On refusait jusqu'ici tant qu'elle
   // portait des produits — ce qui obligeait a les reclasser un par un avant de
-  // pouvoir se debarrasser d'un rangement qu'on avait cesse d'utiliser. On
-  // detache donc les produits d'abord : ils passent « sans categorie » ici, et
-  // la borne les regroupe sous « Divers ». Aucun produit n'est perdu, aucun
-  // canal n'est touche, aucune vente n'est affectee — seul le rangement change.
+  // pouvoir se debarrasser d'un rangement qu'on avait cesse d'utiliser. Les
+  // produits gardent maintenant leur categorie : elle disparait des listes ou
+  // l'on choisit et de l'ecran de la machine, et l'historique reste lisible.
   const aSupprimer = Number(f.get("supprimer"));
   if (Number.isInteger(aSupprimer) && aSupprimer > 0) {
     const detaches = await transaction(async (c) => {
@@ -33,12 +43,18 @@ export async function POST(req: Request) {
         "SELECT 1 FROM categorie WHERE id = $1 AND compte_id = $2", [aSupprimer, u.compte_id]);
       if ((mienne.rowCount ?? 0) === 0) return -1;
 
-      const d = await c.query(
-        "UPDATE produit SET categorie_id = NULL WHERE categorie_id = $1 AND compte_id = $2",
-        [aSupprimer, u.compte_id]);
-      await c.query("DELETE FROM categorie WHERE id = $1 AND compte_id = $2",
+      // ON LA RETIRE, ET ON NE DETACHE RIEN.
+      //
+      // Elle etait supprimee et ses produits detaches : deux mois de ventes
+      // basculaient dans « sans categorie » pour un menage d'aujourd'hui. Les
+      // produits gardent donc leur categorie — c'est ce qui rend l'historique
+      // lisible — et elle disparait seulement des listes ou l'on choisit.
+      await c.query("UPDATE categorie SET actif = false WHERE id = $1 AND compte_id = $2",
                     [aSupprimer, u.compte_id]);
-      return d.rowCount ?? 0;
+      const d = await c.query(
+        "SELECT COUNT(*)::int n FROM produit WHERE categorie_id = $1 AND compte_id = $2",
+        [aSupprimer, u.compte_id]);
+      return d.rows[0].n as number;
     });
 
     if (detaches < 0) return versPage(req, RETOUR);

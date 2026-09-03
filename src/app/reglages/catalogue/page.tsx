@@ -67,7 +67,7 @@ export default async function Catalogue({
        WHERE compte_id = $1 AND sku ~ '^[A-Z0-9]+-[0-9]+$'
        GROUP BY 1`, [u.compte_id]),
     q<Cat>(
-      "SELECT id, nom, ordre FROM categorie WHERE compte_id = $1 ORDER BY ordre, nom", [u.compte_id]),
+      "SELECT id, nom, ordre FROM categorie WHERE compte_id = $1 AND actif ORDER BY ordre, nom", [u.compte_id]),
   ]);
 
   const suites: Record<string, number> = {};

@@ -46,11 +46,16 @@ export async function POST(req: Request) {
         "SELECT 1 FROM produit WHERE id = $1 AND compte_id = $2", [aSupprimer, u.compte_id]);
       if ((mien.rowCount ?? 0) === 0) return null;
 
-      const bouge = (await c.query<{ n: number }>(
-        "SELECT COUNT(*)::int n FROM mouvement WHERE produit_id = $1", [aSupprimer])).rows[0].n;
-      if (bouge > 0) return "vecu";
-
-      await c.query("DELETE FROM produit WHERE id = $1 AND compte_id = $2",
+      // ON RETIRE, ON N'EFFACE PAS.
+      //
+      // `vente.produit_id` est en ON DELETE SET NULL : supprimer un produit
+      // orphelinait toutes ses ventes passees, qui devenaient « produit retire »
+      // dans les statistiques. Un exploitant qui retire un article veut le sortir
+      // de l'etal, pas reecrire son historique.
+      //
+      // Le refus « vecu » n'a donc plus lieu d'etre : un produit qui a bouge se
+      // retire aussi bien qu'un autre, et il garde son passe.
+      await c.query("UPDATE produit SET actif = false WHERE id = $1 AND compte_id = $2",
                     [aSupprimer, u.compte_id]);
       return null;
     });

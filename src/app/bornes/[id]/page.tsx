@@ -247,6 +247,9 @@ export default async function Detail({
             <Link href={`/reassort/fiche?b=${id}`} className="bouton">Fiche de réassort</Link>
             <Link href={`/bornes/${id}/planogramme`} className="bouton">Planogramme</Link>
             <Link href={`/bornes/${id}/affichage`} className="bouton">Affichage</Link>
+            {peutConfigurer(u)
+              ? <Link href={`/bornes/${id}/fiche`} className="bouton">Modifier la fiche</Link>
+              : null}
             {b.jeton ? (
               <>
                 <form method="post" action="/api/bornes/reveiller">
@@ -272,68 +275,19 @@ export default async function Detail({
           etre a moitie sauve.
         */}
         {/*
-          OUVERTE TANT QU'ELLE EST VIDE.
+          LA FICHE A SA PROPRE PAGE.
 
-          Une borne qu'on vient d'adopter n'a ni description ni photo : lui
-          presenter un volet ferme, c'est lui demander de deviner qu'il y a
-          quelque chose dessous. Des qu'elle est remplie, le volet se referme —
-          la page sert d'abord a charger la machine et a la surveiller.
+          Elle etait ici, dans un volet replie entre les boutons et la mise hors
+          service. On ne la trouvait pas, et une fois ouverte elle poussait tout
+          le reste vers le bas — on modifiait un nom en ayant perdu de vue l'etat
+          de la machine qu'on etait venu regarder.
         */}
-        {peutConfigurer(u) ? (
-          <details className="carte fiche-borne"
-                   open={!b.description && !b.image_id ? true : undefined}>
-            <summary>
-              <span className="quoi">
-                <strong>Modifier la fiche</strong>
-                <span className="detail">nom, adresse, description, photo</span>
-              </span>
-              <span className="marque" aria-hidden="true"><IcoChevron size={16} /></span>
-            </summary>
-
-            {fiche === "ok" ? <p className="avis-ok">Fiche enregistrée.</p> : null}
-            {fiche === "refus" ? (
-              <p className="erreur">
-                Photo refusée : formats acceptés JPEG, PNG ou WebP, 2 Mo au plus.
-                Le reste de la fiche a bien été enregistré.
-              </p>
-            ) : null}
-            {e === "nom" ? <p className="erreur">Le nom ne peut pas être vide.</p> : null}
-
-            <form method="post" action={`/api/bornes/${id}/fiche`} encType="multipart/form-data">
-              <div className="champ">
-                <label htmlFor="nom">Nom</label>
-                <input id="nom" name="nom" required defaultValue={b.nom} maxLength={80} />
-              </div>
-              <div className="champ">
-                <label htmlFor="adresse">Adresse</label>
-                <input id="adresse" name="adresse" defaultValue={b.adresse ?? ""}
-                       placeholder="12 rue des Lilas, Paris 11ᵉ" maxLength={160} />
-              </div>
-              <div className="champ">
-                <label htmlFor="description">Description</label>
-                <textarea id="description" name="description" rows={3} maxLength={400}
-                          defaultValue={b.description ?? ""}
-                          placeholder="Au fond à gauche, derrière le flipper. Le patron ouvre à 17 h." />
-                <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
-                  Ce qu’aucun champ ne dira : où elle est dans le bar, à qui parler, ce qui
-                  coince. C’est ce que lit le réassortisseur avant de partir.
-                </p>
-              </div>
-              <div className="champ">
-                <label htmlFor="photo">Photo</label>
-                <input id="photo" name="photo" type="file"
-                       accept="image/jpeg,image/png,image/webp" />
-                {b.image_id ? (
-                  <label className="faible" style={{ display: "flex", gap: 8, alignItems: "center",
-                                                     fontSize: 13, marginTop: 8 }}>
-                    <input type="checkbox" name="oter" /> Retirer la photo actuelle
-                  </label>
-                ) : null}
-              </div>
-              <div style={{ height: 8 }} />
-              <button className="bouton primaire">Enregistrer la fiche</button>
-            </form>
-          </details>
+        {fiche === "ok" ? <p className="avis-ok">Fiche enregistrée.</p> : null}
+        {fiche === "refus" ? (
+          <p className="erreur">
+            Photo refusée : JPEG, PNG ou WebP, 2 Mo au plus. Le reste de la fiche a
+            bien été enregistré.
+          </p>
         ) : null}
 
         {b.jeton && peutCharger(u) && !b.hors_service ? (

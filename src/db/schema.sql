@@ -554,3 +554,27 @@ ALTER TABLE invitation ADD COLUMN IF NOT EXISTS borne_id BIGINT REFERENCES borne
 -- comptoir ». La photo, elle, se reconnait avant d'etre lue.
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS image_id BIGINT REFERENCES image(id) ON DELETE SET NULL;
+
+-- ------------------------------------------------------------ le profil
+
+-- QUI EST DERRIERE UNE ADRESSE.
+--
+-- Un utilisateur n'avait qu'un e-mail. Dans une equipe de six, la liste des
+-- membres et les traces d'action — « charge par », « traite par » — ne disaient
+-- que « j.dupont@… », qu'il faut lire pour reconnaitre. Un nom et une photo se
+-- reconnaissent avant d'etre lus.
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS nom TEXT;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS image_id BIGINT REFERENCES image(id) ON DELETE SET NULL;
+
+-- --------------------------------------------------- on retire, on n'efface pas
+
+-- UNE CATEGORIE SE DESACTIVE.
+--
+-- Elle etait SUPPRIMEE, et ses produits detaches au passage. Deux mois de ventes
+-- deja remontees basculaient alors dans « sans categorie » : l'historique se
+-- reecrivait pour un menage d'aujourd'hui.
+--
+-- Le produit avait deja son drapeau `actif` ; la categorie n'en avait pas. Elle
+-- l'a maintenant, et le meme geste — « retirer » — la sort des listes sans
+-- toucher a ce qui s'est vendu sous son nom.
+ALTER TABLE categorie ADD COLUMN IF NOT EXISTS actif BOOLEAN NOT NULL DEFAULT true;
