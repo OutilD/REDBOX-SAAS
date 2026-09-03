@@ -207,35 +207,85 @@ button, input, select, textarea { font: inherit; color: inherit; }
   disent OU l'on se trouve — chez qui, et sur quelle machine. Les mettre cote a
   cote et de la meme forme, c'est dire qu'elles vont ensemble.
 
-  Le champ est nu a l'interieur : une bordure de plus dans une pastille qui en a
-  deja une donnerait un bouton dans un bouton. Il s'etend jusqu'a une limite, et
-  tronque au-dela — un nom de bar peut etre long, l'entete non.
-
-  La fleche ne s'allume qu'au survol : au repos elle doit se faire oublier, et
-  se trouver quand on la cherche.
+  Le menu s'ouvre EN DESSOUS et ALIGNE A DROITE : l'entete est en haut, la
+  pastille a droite, et un panneau qui deborderait a gauche passerait sous le
+  fil d'Ariane.
 */
-.borne-chip {
+.borne-chip { position: relative; }
+
+.borne-chip .declencheur {
+  display: flex; align-items: center; gap: 8px; max-width: 260px;
+  padding: 4px 10px 4px 11px; border-radius: 999px;
+  border: 1px solid var(--bord); background: var(--surface);
+  color: var(--texte); font: inherit; font-size: 12.5px; font-weight: 600;
+  min-height: 37px; cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.borne-chip .declencheur:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.borne-chip .declencheur:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.borne-chip .declencheur .glyphe { display: grid; place-items: center; color: var(--texte-3); flex: none; }
+.borne-chip .declencheur .nom {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.borne-chip .declencheur .chevron {
+  display: grid; place-items: center; color: var(--texte-3); flex: none;
+  transition: transform .14s;
+}
+.borne-chip[data-ouvert] .declencheur .chevron { transform: rotate(180deg); }
+
+.borne-chip .menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  width: 290px; max-width: min(290px, calc(100vw - 24px));
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0,0,0,.34), 0 2px 8px rgba(0,0,0,.22);
+}
+
+.borne-chip .chercher {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--bord);
+  color: var(--texte-3);
+}
+.borne-chip .chercher input {
+  flex: 1; min-width: 0; border: none; background: none; padding: 0;
+  font: inherit; font-size: 13px; color: var(--texte);
+}
+.borne-chip .chercher input::placeholder { color: var(--texte-3); }
+.borne-chip .chercher input:focus { outline: none; }
+
+/* La liste defile a partir d'une dizaine de machines : au-dela, le menu
+   descendrait sous le pli et on ne verrait plus ou l'on clique. */
+.borne-chip .choix { max-height: 320px; overflow-y: auto; padding: 6px; }
+.borne-chip .choix a {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: var(--r-m);
+  font-size: 13px; color: var(--texte); text-decoration: none;
+}
+.borne-chip .choix a .etiquette {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.borne-chip .choix a:hover { background: var(--surface-2); }
+.borne-chip .choix a.actif { color: var(--rouge); font-weight: 650; }
+.borne-chip .choix a svg { flex: none; }
+.borne-chip .choix .rien {
+  margin: 0; padding: 14px 10px; font-size: 12.5px; color: var(--texte-3); text-align: center;
+}
+
+/* La reserve sans JavaScript : le vieux menu deroulant, dans la meme pastille. */
+.borne-chip.nu {
   display: flex; align-items: center; gap: 6px;
   padding: 3px 4px 3px 10px; border-radius: 999px;
-  border: 1px solid var(--bord); background: var(--surface);
-  max-width: 260px;
+  border: 1px solid var(--bord); background: var(--surface); max-width: 260px;
 }
-.borne-chip .glyphe { display: grid; place-items: center; color: var(--texte-3); flex: none; }
-.borne-chip select {
-  border: none; background: none; padding: 0; margin: 0;
-  min-height: 28px; max-width: 170px;
-  font-size: 12.5px; font-weight: 600; color: var(--texte);
-  appearance: none; -webkit-appearance: none;
-  text-overflow: ellipsis; cursor: pointer;
+.borne-chip.nu select {
+  border: none; background: none; padding: 0; min-height: 28px; max-width: 170px;
+  font-size: 12.5px; font-weight: 600; color: var(--texte); cursor: pointer;
 }
-.borne-chip select:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; border-radius: 4px; }
-.borne-chip button {
-  display: grid; place-items: center; flex: none;
-  width: 28px; height: 28px; border-radius: 50%;
-  border: none; background: var(--surface-2); color: var(--texte-3);
-  cursor: pointer; transition: background .12s, color .12s;
+.borne-chip.nu button {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--surface-2); color: var(--texte-3); cursor: pointer;
 }
-.borne-chip button:hover { background: var(--rouge); color: #fff; }
+
 @media (max-width: 700px) { .borne-chip { display: none; } }
 
 .bouton.icone {

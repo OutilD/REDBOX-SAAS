@@ -7,6 +7,7 @@ import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
 import { IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
+import { SelecteurBorne } from "./selecteur-borne";
 
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
@@ -194,23 +195,27 @@ export async function Entete({ page, borne, fenetre }:
 
           <div className="droite">
             {machines.length > 0 ? (
-              // Formulaire GET : la console marche sans JavaScript. Le bouton
-              // est une fleche plutot qu'un mot — dans une pastille de la taille
-              // d'un jeton de compte, « Filtrer » prendrait toute la place.
-              <form method="get" action={page === "ventes" ? "/ventes" : "/"}
-                    className="borne-chip" role="search">
-                {fenetre ? <input type="hidden" name="f" value={fenetre} /> : null}
-                <span className="glyphe" aria-hidden="true"><IcoBorne size={15} /></span>
-                <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par borne">
-                  <option value="">Toutes les bornes</option>
-                  {machines.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nom}</option>
-                  ))}
-                </select>
-                <button type="submit" aria-label="Appliquer le filtre" title="Appliquer">
-                  <IcoFleche size={13} />
-                </button>
-              </form>
+              <>
+                <SelecteurBorne machines={machines} borne={borne} fenetre={fenetre}
+                                base={page === "ventes" ? "/ventes" : "/"} />
+                {/* Sans JavaScript, le vieux formulaire. Il recharge la page,
+                    mais il choisit — et c'est tout ce qu'on lui demande. */}
+                <noscript>
+                  <form method="get" action={page === "ventes" ? "/ventes" : "/"}
+                        className="borne-chip nu">
+                    {fenetre ? <input type="hidden" name="f" value={fenetre} /> : null}
+                    <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par borne">
+                      <option value="">Toutes les bornes</option>
+                      {machines.map((m) => (
+                        <option key={m.id} value={m.id}>{m.nom}</option>
+                      ))}
+                    </select>
+                    <button type="submit" aria-label="Appliquer le filtre">
+                      <IcoFleche size={13} />
+                    </button>
+                  </form>
+                </noscript>
+              </>
             ) : null}
 
             <BasculeTheme depart={theme} retour={ici} />

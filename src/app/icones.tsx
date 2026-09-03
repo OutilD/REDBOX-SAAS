@@ -18,6 +18,19 @@ const base = (size: number) => ({
   "aria-hidden": true,
 });
 
+/** Recherche : un cercle et sa queue. */
+export const IcoLoupe = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="9" cy="9" r="5.4" />
+    <path d="M13.3 13.3 17 17" />
+  </svg>
+);
+
+/** Coche : ce qui est deja choisi. */
+export const IcoCoche = ({ size = 20 }: P) => (
+  <svg {...base(size)}><path d="M4.5 10.4 8 14l7.5-8" /></svg>
+);
+
 /** Tableau de bord : trois colonnes de hauteurs differentes. */
 export const IcoTableau = ({ size = 20 }: P) => (
   <svg {...base(size)}>
