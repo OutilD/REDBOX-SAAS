@@ -20,11 +20,11 @@ export const dynamic = "force-dynamic";
  * quelle borne marche le mieux, et qu'est-ce qui va me manquer.
  */
 export default async function Tableau(
-  { searchParams }: { searchParams: Promise<{ f?: string; b?: string }> }) {
+  { searchParams }: { searchParams: Promise<{ f?: string; b?: string; vue?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
 
-  const { f, b } = await searchParams;
+  const { f, b, vue } = await searchParams;
   const fen = FENETRES.find((x) => x.cle === f) ?? DEFAUT;
   const j = fen.jours;
 
@@ -46,6 +46,17 @@ export default async function Tableau(
   // Le depot et la mise en route sont l'affaire de l'exploitant : ni l'un ni
   // l'autre ne veut dire quoi que ce soit pour qui n'a qu'une machine.
   const sienDuCompte = u.bornes === null;
+
+  const graphe = vue === "graphe";
+  const lien = (chg: { vue?: string }) => {
+    const p = new URLSearchParams();
+    if (fen.cle !== DEFAUT.cle) p.set("f", fen.cle);
+    if (choisie) p.set("b", String(choisie.id));
+    const v = chg.vue ?? (graphe ? "graphe" : "");
+    if (v) p.set("vue", v);
+    const q = p.toString();
+    return q ? `/?${q}` : "/";
+  };
 
   const [avance, tete, jours, bornes, categories, stocks, produits] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id) : null,
@@ -265,30 +276,86 @@ export default async function Tableau(
         */}
         <div className="titre-section">
           <h2>Ce qui se vend</h2>
-          <Link href="/ventes" className="lien">Voir les ventes <IcoFleche size={13} /></Link>
+          {/*
+            LE MEME CHIFFRE, DEUX LECTURES.
+
+            Un tableau se lit ligne par ligne : on y cherche un produit, on
+            compare deux marges, on retrouve une reference. Un graphe se lit d'un
+            coup : on y voit lequel ecrase les autres. Ce ne sont pas deux gouts,
+            ce sont deux questions — et on ne sait pas laquelle on se pose avant
+            d'avoir les chiffres sous les yeux.
+
+            Deux liens plutot qu'un bouton a JavaScript : la vue choisie tient
+            dans l'adresse, donc elle se partage et se met en favori.
+          */}
+          <div className="vues">
+            <Link href={lien({ vue: "" })}
+                  className={`bouton petit ${!graphe ? "primaire" : ""}`}>Tableau</Link>
+            <Link href={lien({ vue: "graphe" })}
+                  className={`bouton petit ${graphe ? "primaire" : ""}`}>Graphique</Link>
+          </div>
         </div>
         {produits.length === 0 ? (
           <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
                  texte="Rien ne s’est vendu sur la fenêtre choisie." dedans />
+        ) : graphe ? (
+          <BarresClassees series={produits.slice(0, 10).map((pr, i) => ({
+            cle: String(pr.id ?? `x${i}`), nom: pr.nom, rang: i,
+            total: pr.ca, unites: pr.n,
+            // `valeurs` sert aux courbes, pas aux barres classees : un produit
+            // n'a pas de serie dans le temps ici, et lui en inventer une serait
+            // dessiner une evolution qu'on n'a pas calculee.
+            valeurs: [],
+          }))} />
         ) : (
-          <div className="carte plate"><div className="lignes">
-            {produits.slice(0, 12).map((pr, i) => (
-              <div className="ligne" key={`${pr.id ?? "x"}-${i}`}>
-                <div className="corps">
-                  <div className="nom">{pr.nom}</div>
-                  <div className="meta">
-                    {pr.categorie}{pr.sku ? ` · ${pr.sku}` : ""} · {pr.n} vendu{pr.n > 1 ? "s" : ""}
-                  </div>
-                </div>
-                <div className="fin" style={{ textAlign: "right" }}>
-                  <div className="num">{euros(pr.ca)}</div>
-                  <div className="meta">
-                    {pr.marge === null ? "marge —" : `marge ${euros(pr.marge)}`}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div></div>
+          <div className="carte plate tableau-enveloppe">
+            <table className="tableau">
+              <thead>
+                <tr>
+                  <th scope="col">Produit</th>
+                  <th scope="col" className="masque-etroit">Catégorie</th>
+                  <th scope="col" className="num">Vendus</th>
+                  <th scope="col" className="num">Chiffre</th>
+                  <th scope="col" className="num">Marge</th>
+                </tr>
+              </thead>
+              <tbody>
+                {produits.slice(0, 15).map((pr, i) => (
+                  <tr key={`${pr.id ?? "x"}-${i}`}>
+                    <th scope="row">
+                      {pr.nom}
+                      {pr.sku ? <span className="sku">{pr.sku}</span> : null}
+                    </th>
+                    <td className="masque-etroit">{pr.categorie}</td>
+                    <td className="num">{pr.n}</td>
+                    <td className="num">{euros(pr.ca)}</td>
+                    {/* Un tiret, pas un zero : une marge inconnue n'est pas une
+                        marge nulle, et les confondre fait arreter un produit qui
+                        rapportait. */}
+                    <td className={`num ${pr.marge !== null && pr.marge < 0 ? "perte" : ""}`}>
+                      {pr.marge === null ? "—" : euros(pr.marge)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Total</th>
+                  <td className="masque-etroit" />
+                  <td className="num">{produits.reduce((t, x) => t + x.n, 0)}</td>
+                  <td className="num">{euros(produits.reduce((t, x) => t + x.ca, 0))}</td>
+                  <td className="num">
+                    {euros(produits.reduce((t, x) => t + (x.marge ?? 0), 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+            {produits.length > 15 ? (
+              <p className="faible" style={{ fontSize: 12.5, margin: "10px 0 0" }}>
+                Les quinze premiers sur {produits.length}. Le total porte sur tous.
+              </p>
+            ) : null}
+          </div>
         )}
 
         {/* ------------------------------------------------- ce qui va manquer */}

@@ -301,15 +301,34 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--bord); background: var(--surface-2);
 }
 
-.fiche-borne { margin-top: 14px; }
+/*
+  LE VOLET DE LA FICHE.
+
+  Il ressemblait a une etiquette grise : un triangle, trois mots, et rien qui
+  dise qu'on peut appuyer dessus. On le cherchait. Il a donc la forme de ce qu'il
+  est — une ligne pleine largeur qui reagit au survol, avec ce qu'elle contient
+  ecrit dessous et un chevron a droite.
+*/
+.fiche-borne { margin-top: 14px; padding: 0; overflow: hidden; }
 .fiche-borne > summary {
-  cursor: pointer; font-size: 13.5px; font-weight: 650; color: var(--texte-2);
-  list-style: none; padding: 2px 0;
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; color: var(--texte);
+  transition: background .12s;
 }
 .fiche-borne > summary::-webkit-details-marker { display: none; }
-.fiche-borne > summary::before { content: "▸ "; color: var(--texte-3); }
-.fiche-borne[open] > summary::before { content: "▾ "; }
-.fiche-borne[open] > summary { margin-bottom: 12px; }
+.fiche-borne > summary:hover { background: var(--surface-2); }
+.fiche-borne > summary .quoi { flex: 1; min-width: 0; line-height: 1.25; }
+.fiche-borne > summary .quoi strong { display: block; font-size: 14.5px; font-weight: 650; }
+.fiche-borne > summary .detail { display: block; font-size: 12.5px; color: var(--texte-3); }
+.fiche-borne > summary .marque {
+  display: grid; place-items: center; color: var(--texte-3); flex: none;
+  transition: transform .14s;
+}
+.fiche-borne[open] > summary .marque { transform: rotate(180deg); }
+.fiche-borne[open] > summary { border-bottom: 1px solid var(--bord); }
+.fiche-borne > form, .fiche-borne > p { padding: 16px; margin: 0; }
+.fiche-borne > form { padding-top: 14px; }
 .fiche-borne textarea {
   width: 100%; resize: vertical; font: inherit; font-size: 14px;
   color: var(--texte); background: var(--surface-2);
@@ -320,6 +339,49 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin: 0 0 12px; padding: 9px 12px; border-radius: var(--r-m);
   background: var(--vert-fond); color: var(--vert, #35b46a); font-size: 13px;
 }
+
+/*
+  LE TABLEAU DE « CE QUI SE VEND ».
+
+  Un vrai `<table>`, pas des `<div>` alignes : les entetes sont des `<th>` avec
+  leur `scope`, et un lecteur d'ecran annonce donc « Marge, 12,40 € » au lieu de
+  lire une suite de nombres sans nom.
+
+  LES CHIFFRES SONT A DROITE ET EN CHASSE FIXE. C'est ce qui permet de comparer
+  deux montants en les survolant du regard : alignes a gauche, il faut les lire
+  pour savoir lequel est le plus grand.
+
+  La colonne des categories disparait sous 620 px. C'est la seule qu'on peut
+  perdre sans perdre le sens — le nom, les quantites et l'argent, non.
+*/
+.tableau-enveloppe { overflow-x: auto; }
+.tableau { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tableau th, .tableau td { padding: 10px 12px; text-align: left; }
+.tableau thead th {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--texte-3); border-bottom: 1px solid var(--bord); white-space: nowrap;
+}
+.tableau tbody tr + tr th, .tableau tbody tr + tr td { border-top: 1px solid var(--bord); }
+.tableau tbody th { font-weight: 600; color: var(--texte); }
+.tableau tbody th .sku {
+  display: block; font-size: 11.5px; font-weight: 500; color: var(--texte-3);
+  font-variant-numeric: tabular-nums;
+}
+.tableau td { color: var(--texte-2); }
+.tableau .num {
+  text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: var(--texte);
+}
+.tableau tbody tr:hover th, .tableau tbody tr:hover td { background: var(--surface-2); }
+.tableau .perte { color: var(--rouge); }
+.tableau tfoot th, .tableau tfoot td {
+  border-top: 2px solid var(--bord-fort); font-weight: 700; color: var(--texte);
+}
+
+/* Les deux lectures d'une meme section, dans son titre. */
+.vues { display: flex; gap: 6px; }
+
+@media (max-width: 620px) { .tableau .masque-etroit { display: none; } }
 
 .bouton.icone {
   min-height: 36px; width: 36px; padding: 0; border-radius: var(--r-m);

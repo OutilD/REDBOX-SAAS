@@ -7,7 +7,7 @@ import { canauxDe } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
 import { Repli } from "../../repli";
-import { IcoAlerte } from "../../icones";
+import { IcoAlerte, IcoChevron } from "../../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -271,9 +271,24 @@ export default async function Detail({
           envoi — un seul formulaire, un seul enregistrement, et rien qui puisse
           etre a moitie sauve.
         */}
+        {/*
+          OUVERTE TANT QU'ELLE EST VIDE.
+
+          Une borne qu'on vient d'adopter n'a ni description ni photo : lui
+          presenter un volet ferme, c'est lui demander de deviner qu'il y a
+          quelque chose dessous. Des qu'elle est remplie, le volet se referme —
+          la page sert d'abord a charger la machine et a la surveiller.
+        */}
         {peutConfigurer(u) ? (
-          <details className="carte fiche-borne">
-            <summary>Modifier la fiche</summary>
+          <details className="carte fiche-borne"
+                   open={!b.description && !b.image_id ? true : undefined}>
+            <summary>
+              <span className="quoi">
+                <strong>Modifier la fiche</strong>
+                <span className="detail">nom, adresse, description, photo</span>
+              </span>
+              <span className="marque" aria-hidden="true"><IcoChevron size={16} /></span>
+            </summary>
 
             {fiche === "ok" ? <p className="avis-ok">Fiche enregistrée.</p> : null}
             {fiche === "refus" ? (
