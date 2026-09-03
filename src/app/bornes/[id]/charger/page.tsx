@@ -160,7 +160,8 @@ function Canal({ c }: { c: LigneCanal }) {
 
       <div className="rangee" style={{ marginTop: 14 }}>
         {/* Le plancher est ce que la machine porte : on ne retire pas ce qui n'y est pas. */}
-        <Pas nom={`q_${c.lane}`} max={max} ras={place} min={-c.quantite} />
+        <Pas nom={`q_${c.lane}`} max={max} ras={place} min={-c.quantite}
+             etiquette={c.nom} canal={codeCanal(c.rangee, c.colonne)} />
         <div className="pousse" />
         <div style={{ textAlign: "right" }}>
           <div className="num" style={{ fontWeight: 700,

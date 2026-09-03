@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { MOTIFS_SORTIE } from "@/lib/sortie";
 
+/** Une ligne du formulaire dont le compteur est passe sous zero. */
+type Retrait = { quoi: string; ou: string; combien: number };
+
+/** Au-dela, la liste se replie sur un compte : quinze lignes ne se relisent pas
+ *  debout devant une machine, et la question posee reste la meme. */
+const A_VOIR = 5;
+
 /**
  * LA RAISON D'UN RETRAIT, DEMANDEE AU MOMENT DE VALIDER.
  *
@@ -16,6 +23,17 @@ import { MOTIFS_SORTIE } from "@/lib/sortie";
  * du formulaire au moment de l'envoi, et on n'ouvre la boite que si l'un d'eux
  * est negatif.
  *
+ * ELLE MONTRE DE QUOI ELLE PARLE. Elle posait la question sans jamais dire sur
+ * quoi : on avait rempli quinze canaux, trois partaient en retrait, et il
+ * fallait fermer la boite pour aller voir lesquels — puis la rouvrir, et
+ * recommencer le choix. Les lignes concernees se relisent maintenant dedans,
+ * reprises des champs eux-memes.
+ *
+ * C'EST UN VRAI `<dialog>`, comme le reste de l'application. Le piege a focus,
+ * la touche Echap, le voile et le retour du curseur la ou on l'avait laisse
+ * viennent du navigateur, corrects du premier coup ; le div maison qui tenait
+ * ce role laissait la tabulation courir derriere le voile.
+ *
  * SANS JAVASCRIPT, LES MEMES CHAMPS SONT VISIBLES. Un `<noscript>` les rend en
  * clair sous le bouton : plus laid, mais on peut valider un retrait. Leurs
  * contenus ne partent jamais en double — un navigateur qui execute le script
@@ -23,9 +41,17 @@ import { MOTIFS_SORTIE } from "@/lib/sortie";
  */
 export default function RaisonSortie() {
   const [ouvert, setOuvert] = useState(false);
+  const [retraits, setRetraits] = useState<Retrait[]>([]);
   const [motif, setMotif] = useState("");
   const [note, setNote] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+
   const cadre = useRef<HTMLDivElement>(null);
+  const boite = useRef<HTMLDialogElement>(null);
+  const premier = useRef<HTMLInputElement>(null);
+  const champNote = useRef<HTMLInputElement>(null);
+
+  const formulaire = () => cadre.current?.closest("form");
 
   /**
    * LE BOUTON EST A NOUS, ON N'INTERCEPTE PLUS RIEN.
@@ -43,29 +69,61 @@ export default function RaisonSortie() {
    * vrai bouton d'envoi ne subsiste que dans le `<noscript>`.
    */
   const surClic = () => {
-    const form = cadre.current?.closest("form");
-    if (!form) return;
-    const negatif = [...form.querySelectorAll<HTMLInputElement>('input[type="number"]')]
-      .some((i) => Number(i.value) < 0);
-    if (negatif) { setMotif(""); setNote(""); setOuvert(true); return; }
-    form.requestSubmit();
+    const f = formulaire();
+    if (!f) return;
+    const sortants: Retrait[] = [...f.querySelectorAll<HTMLInputElement>('input[type="number"]')]
+      .filter((i) => Number(i.value) < 0)
+      .map((i) => ({
+        quoi: i.dataset.etiquette || "Canal",
+        ou: i.dataset.canal || "",
+        combien: -Number(i.value),
+      }));
+    if (sortants.length === 0) { f.requestSubmit(); return; }
+
+    setRetraits(sortants); setMotif(""); setNote(""); setEnvoi(false);
+    setOuvert(true);
+    boite.current?.showModal();
+    // `showModal` pose le curseur sur la croix de fermeture, c'est-a-dire sur la
+    // sortie. On le pose sur le premier motif : les fleches du clavier parcourent
+    // alors le choix, qui est ce qu'on est venu faire. Sans deplacer la vue pour
+    // autant — sur un petit ecran, le corps defilerait et la liste de ce qu'on
+    // retire, que la boite vient d'afficher, sortirait aussitot par le haut.
+    premier.current?.focus({ preventScroll: true });
   };
+
+  const fermer = () => { boite.current?.close(); };
 
   const valider = () => {
-    const form = cadre.current?.closest("form");
-    if (!form) return;
-    if (!motif) return;
-    if (motif === "autre" && !note.trim()) return;
-    form.requestSubmit();
+    const f = formulaire();
+    if (!f || manque || envoi) return;
+    // Un double clic partirait deux fois : le premier envoi ne repeint rien
+    // avant que le serveur reponde, et le bouton reste sous le doigt.
+    setEnvoi(true);
+    f.requestSubmit();
   };
 
-  // La touche Echap ferme, comme partout ailleurs.
+  /**
+   * LA PAGE NE DOIT PAS DEFILER DERRIERE LE VOILE. `showModal` pose le voile et
+   * piege le focus, mais laisse le corps rouler sous le doigt : on ferme la
+   * boite et on se retrouve trente canaux plus bas, sans savoir comment.
+   */
   useEffect(() => {
     if (!ouvert) return;
-    const touche = (e: KeyboardEvent) => { if (e.key === "Escape") setOuvert(false); };
-    document.addEventListener("keydown", touche);
-    return () => document.removeEventListener("keydown", touche);
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = avant; };
   }, [ouvert]);
+
+  const total = retraits.reduce((s, r) => s + r.combien, 0);
+  const pluriel = total > 1 ? "s" : "";
+  const caches = Math.max(0, retraits.length - A_VOIR);
+
+  // Ce qui manque encore, en toutes lettres. Un bouton gris qui ne repond pas et
+  // n'explique rien laisse chercher tout seul ce qu'on a oublie.
+  const manque =
+    !motif ? "Choisissez un motif pour continuer."
+    : motif === "autre" && !note.trim() ? "Le motif « Autre » demande une note."
+    : "";
 
   return (
     <div ref={cadre}>
@@ -76,48 +134,105 @@ export default function RaisonSortie() {
         Valider le chargement
       </button>
 
-      {ouvert ? (
-        <div className="voile-modale" role="dialog" aria-modal="true"
-             aria-label="Raison de la sortie">
-          <div className="modale">
-            <div className="titre-modale">Pourquoi cette sortie&nbsp;?</div>
-            <p className="faible" style={{ fontSize: 13, margin: "0 0 14px" }}>
-              Vous retirez de la marchandise de la machine. La cause est le sujet :
-              « douze cassées sur ce produit » se pilote, « douze unités perdues »
-              non.
-            </p>
+      <dialog ref={boite} className="modale etroite" aria-labelledby="titre-raison"
+              onClose={() => setOuvert(false)}
+              onClick={(e) => { if (e.target === boite.current) fermer(); }}>
+        <div className="modale-tete">
+          <h2 id="titre-raison">Pourquoi cette sortie&nbsp;?</h2>
+          <button type="button" className="bouton petit discret fermeture"
+                  aria-label="Fermer" onClick={fermer}>✕</button>
+        </div>
 
-            <div className="motifs">
-              {Object.entries(MOTIFS_SORTIE).map(([cle, m]) => (
-                <label key={cle} className={motif === cle ? "actif" : ""}>
+        <div className="modale-corps">
+          <p className="sous" style={{ margin: "0 0 12px" }}>
+            Vous retirez <b className="num">{total}</b> unité{pluriel} de la machine,
+            sur {retraits.length} {retraits.length > 1 ? "canaux" : "canal"}.
+          </p>
+
+          <ul className="retraits">
+            {retraits.slice(0, A_VOIR).map((r, i) => (
+              <li key={i}>
+                <span className="combien num">−{r.combien}</span>
+                <span className="quoi">{r.quoi}</span>
+                {r.ou ? <span className="ou">canal <b className="mono">{r.ou}</b></span> : null}
+              </li>
+            ))}
+            {caches > 0 ? (
+              <li className="reste">et {caches} autre{caches > 1 ? "s" : ""} ligne{caches > 1 ? "s" : ""}</li>
+            ) : null}
+          </ul>
+
+          {/* Un `fieldset` de vrais boutons radio : ce sont les fleches du
+              clavier d'un motif a l'autre, gratuitement et correctement. */}
+          <fieldset className="groupe-motifs">
+            <legend>Motif</legend>
+            {/* La justification se tient contre le choix qu'elle motive, pas en
+                tete de boite ou personne ne la relie a rien. */}
+            <p className="dit-faible" style={{ margin: "0 2px 9px" }}>
+              La cause est le sujet&nbsp;: « {total} cassé{pluriel} sur ce produit »
+              se pilote, « {total} unité{pluriel} perdue{pluriel} » non.
+            </p>
+            <div className="choix-motifs">
+              {Object.entries(MOTIFS_SORTIE).map(([cle, m], i) => (
+                <label key={cle} className="choix">
                   <input type="radio" name="motif_choix" value={cle}
-                         checked={motif === cle} onChange={() => setMotif(cle)} />
-                  <span className="nom">{m.nom}</span>
-                  <span className="quoi">{m.quoi}</span>
+                         ref={i === 0 ? premier : undefined}
+                         checked={motif === cle}
+                         onChange={() => {
+                           setMotif(cle);
+                           // « Autre » ne veut rien dire seul : la note devient
+                           // obligatoire, autant y poser le curseur tout de suite.
+                           if (cle === "autre") champNote.current?.focus({ preventScroll: true });
+                         }} />
+                  <span>
+                    <span className="titre">{m.nom}</span>
+                    <span className="quoi">{m.quoi}</span>
+                  </span>
                 </label>
               ))}
             </div>
+          </fieldset>
 
-            <div className="champ" style={{ marginTop: 12 }}>
+          <div className="champ" style={{ marginTop: 15 }}>
+            <div className="tete-champ">
               <label htmlFor="note-sortie">
-                Note {motif === "autre" ? "" : <span className="faible">(facultative)</span>}
+                Note{" "}
+                {motif === "autre"
+                  ? <b style={{ color: "var(--rouge-vif)" }}>obligatoire</b>
+                  : <span className="faible">(facultative)</span>}
               </label>
-              <input id="note-sortie" value={note} maxLength={200}
-                     onChange={(e) => setNote(e.target.value)}
-                     placeholder={motif === "autre" ? "Obligatoire pour « Autre »" : ""} />
+              {note.length > 0 ? (
+                <span className={`compte num ${note.length > 170 ? "plein" : ""}`}>
+                  {note.length}/200
+                </span>
+              ) : null}
             </div>
-
-            <div className="rangee-actions" style={{ marginTop: 16 }}>
-              <button type="button" className="bouton primaire" onClick={valider}
-                      disabled={!motif || (motif === "autre" && !note.trim())}>
-                Enregistrer la sortie
-              </button>
-              <button type="button" className="bouton discret"
-                      onClick={() => setOuvert(false)}>Annuler</button>
-            </div>
+            <input id="note-sortie" ref={champNote} value={note} maxLength={200}
+                   aria-describedby="aide-note"
+                   aria-invalid={motif === "autre" && !note.trim() ? true : undefined}
+                   onChange={(e) => setNote(e.target.value)}
+                   // Entree dans un champ texte envoie le formulaire qui l'entoure.
+                   // Ici il l'enverrait par-dessus la boite, sans le controle.
+                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); valider(); } }}
+                   placeholder={motif === "autre" ? "Ce qui s’est passé" : "Numéro de lot, rappel fournisseur…"} />
+            <p id="aide-note" className="dit-faible">
+              Elle se relit dans le grand livre, à côté de la ligne.
+            </p>
           </div>
         </div>
-      ) : null}
+
+        <div className="modale-pied">
+          <div className="rangee-actions">
+            <button type="button" className="bouton primaire" onClick={valider}
+                    disabled={!!manque || envoi}>
+              {envoi ? "Enregistrement…" : "Enregistrer la sortie"}
+            </button>
+            <button type="button" className="bouton discret" onClick={fermer}
+                    disabled={envoi}>Annuler</button>
+          </div>
+          {manque ? <p className="manque" role="status">{manque}</p> : null}
+        </div>
+      </dialog>
 
       <noscript>
         <button className="bouton primaire large">Valider le chargement</button>

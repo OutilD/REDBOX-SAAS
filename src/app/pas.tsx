@@ -10,8 +10,9 @@ import { useState } from "react";
  * deux grosses cibles et un bouton « à ras ». C'est le geste le plus repete de
  * l'application ; il vaut ces vingt lignes.
  */
-export default function Pas({ nom, max, defaut = 0, ras, min = 0 }:
-  { nom: string; max: number; defaut?: number; ras?: number; min?: number }) {
+export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, canal }:
+  { nom: string; max: number; defaut?: number; ras?: number; min?: number;
+    etiquette?: string | null; canal?: string | null }) {
   const [n, poser] = useState(defaut);
   /**
    * LE PLANCHER PEUT ETRE NEGATIF.
@@ -31,10 +32,15 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0 }:
     <div className="pas">
       <button type="button" aria-label="Retirer un" onClick={() => poser(borne(n - 1))}
               disabled={n <= min}>−</button>
+      {/* Le champ porte ce qu'il compte. La boite qui demande la raison d'un
+          retrait relit les nombres negatifs du formulaire : sans ces deux
+          attributs il lui faudrait remonter le DOM a la recherche d'un titre,
+          ce qui casse au premier changement de mise en page. */}
       <input name={nom} type="number" inputMode="numeric" min={min} max={max}
              value={n} onChange={(e) => poser(borne(Number(e.target.value)))}
              className={`valeur num ${n < 0 ? "retrait" : ""}`}
-             style={{ width: 76, minHeight: 48 }} />
+             style={{ width: 76, minHeight: 48 }}
+             data-etiquette={etiquette} data-canal={canal} />
       <button type="button" aria-label="Ajouter un" className={n > 0 ? "plein" : ""}
               onClick={() => poser(borne(n + 1))} disabled={n >= max}>+</button>
       {plafond > 0 ? (

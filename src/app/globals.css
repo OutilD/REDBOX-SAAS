@@ -414,67 +414,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .compte-chip .moi:hover .qui b { text-decoration: underline; }
 .compte-chip .jeton.photo { object-fit: cover; padding: 0; }
 
-/*
-  LA BOITE QUI DEMANDE POURQUOI.
-
-  Elle n'apparait qu'au moment de valider, et seulement si un canal est en
-  retrait : poser la question a chaque chargement ferait un ecran de plus a
-  fermer vingt fois par jour.
-
-  ELLE DOIT SE DETACHER DU VOILE. Son fond etait `--surface`, presque noir comme
-  le voile pose devant la page : la boite n'avait plus de bord, et le titre
-  flottait au milieu d'un ecran assombri sans qu'on voie ou elle commencait. Elle
-  prend donc la surface haute, un liseret franc et une ombre portee.
-
-  Le voile assombrit ce qu'il y a derriere sans le cacher — on doit pouvoir
-  verifier d'un coup d'oeil les nombres qu'on vient de saisir.
-*/
-.voile-modale {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,.72);
-  display: grid; place-items: center; padding: 18px;
-  overscroll-behavior: contain;
-}
-.modale {
-  width: min(430px, 100%); max-height: calc(100dvh - 36px);
-  display: flex; flex-direction: column;
-  background: var(--surface-raised);
-  border: 1px solid var(--bord-fort); border-radius: 14px;
-  box-shadow: 0 30px 70px rgba(0,0,0,.6);
-  padding: 20px;
-}
-/* Le titre ne passe pas par `h2` : la feuille de style le met en petites
-   capitales espacees, ce qui va pour un titre de section et pas pour une
-   question qu'on pose. */
-.titre-modale {
-  font-size: 17px; font-weight: 700; letter-spacing: -.01em;
-  color: var(--texte); margin: 0 0 6px;
-}
-
-/* Un motif se CHOISIT, il ne se deroule pas : les cinq tiennent a l'ecran, et
-   chacun porte sa definition — « casse » et « perte » ne se devinent pas.
-   Le point rouge remplace le bouton radio du systeme, qui est enorme et gris. */
-.motifs { display: grid; gap: 6px; overflow-y: auto; }
-.motifs label {
-  display: grid; grid-template-columns: 16px 1fr; gap: 1px 10px;
-  align-items: center; cursor: pointer;
-  padding: 9px 11px; border-radius: var(--r-m);
-  border: 1px solid var(--bord); background: var(--surface-2);
-}
-.motifs label:hover { border-color: var(--bord-fort); }
-.motifs label.actif { border-color: var(--rouge); background: var(--rouge-fond); }
-.motifs label input { appearance: none; -webkit-appearance: none; margin: 0;
-  width: 15px; height: 15px; border-radius: 50%; grid-row: 1 / span 2;
-  border: 1.6px solid var(--bord-fort); background: none; cursor: pointer; }
-.motifs label.actif input { border-color: var(--rouge); box-shadow: inset 0 0 0 3.5px var(--rouge); }
-.motifs label input:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
-.motifs .nom { font-size: 13.5px; font-weight: 650; line-height: 1.2; }
-.motifs .quoi { grid-column: 2; font-size: 12px; color: var(--texte-3); line-height: 1.25; }
-
-.modale .champ { margin-top: 10px; }
-.modale .champ label { font-size: 12.5px; }
-.modale .rangee-actions { margin-top: 14px; }
-
 /* Un nombre negatif se voit : c'est le seul champ de la page qui sort de la
    marchandise au lieu d'en mettre. */
 .pas input.retrait { color: var(--rouge); font-weight: 800; }
@@ -671,6 +610,9 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 }
 .bouton.discret:hover { color: var(--texte-2); background: var(--surface-2); }
 .bouton:disabled { opacity: .4; cursor: default; transform: none; }
+/* Le cadre de focus etait celui du navigateur : bleu, epais, etranger a tout le
+   reste. Meme anneau rouge que les champs et les motifs. */
+.bouton:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .bouton.petit { min-height: 38px; padding: 0 14px; font-size: 14px; border-radius: var(--r-s); }
 
 /* Le pas : deux grosses cibles autour d'un nombre. Ce couple est le geste le
@@ -698,6 +640,30 @@ input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond);
 }
 input[type="number"] { text-align: center; }
+
+/*
+  UNE CASE A COCHER N'EST PAS UN CHAMP DE SAISIE.
+
+  La regle du dessus donne a tout `input` une largeur pleine, une hauteur de
+  doigt et quatorze pixels de marge interieure — ce qu'il faut pour taper un
+  nombre. Appliquee a un bouton radio, elle en fait une ellipse de 31 par 44 :
+  le `width: 15px` d'une feuille plus loin ne peut rien contre un `padding` de
+  28 px et un `min-height` de 44, qu'elle n'annule pas. C'etait la grosse
+  gomme rouge de la boite « pourquoi cette sortie ».
+
+  On les sort donc de la regle des champs une fois pour toutes, ici, plutot
+  qu'a chaque endroit qui en pose un.
+*/
+input[type="radio"], input[type="checkbox"] {
+  width: auto; min-height: 0; padding: 0; flex: none;
+  border-radius: 0; background: none;
+}
+/* Et l'anneau rouge des champs de saisie ne s'y pose pas non plus : sur une
+   pastille de 17 px il se confond avec « choisi ». Le focus se montre autour de
+   la rangee entiere, la ou porte le clic. */
+input[type="radio"]:focus, input[type="checkbox"]:focus {
+  outline: none; box-shadow: none; border-color: var(--bord-fort);
+}
 .champ + .champ { margin-top: 14px; }
 
 /* ----------------------------------------------------------------- pilules */
@@ -1790,36 +1756,111 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 .modale {
   width: min(660px, calc(100vw - 32px));
   max-height: min(86vh, 900px);
-  padding: 0; border: none; border-radius: 14px;
+  padding: 0; border-radius: 14px;
   background: var(--surface); color: var(--texte);
-  box-shadow: 0 24px 60px rgba(0,0,0,.45);
+  /* ELLE DOIT SE DETACHER DU VOILE. Sans liseret, une surface presque noire
+     posee sur un voile presque noir n'a plus de bord : le titre flotte au
+     milieu d'un ecran assombri sans qu'on voie ou la boite commence. */
+  border: 1px solid var(--bord-fort);
+  box-shadow: 0 24px 60px rgba(0,0,0,.5);
   overflow: hidden;
 }
+/* Une colonne : une tete qui ne bouge pas, un corps qui defile, un pied ou se
+   tient l'action. Le corps prend ce qui reste — pas une hauteur calculee a la
+   main, qui se trompe des que la tete change d'un pixel. */
+.modale[open] { display: flex; flex-direction: column; }
+
+/* Ce qui ne tient sur aucun ecran large : cinq motifs courts dans 660 px
+   laissent une ligne de texte de dix centimetres pour trois mots. */
+.modale.etroite { width: min(468px, calc(100vw - 32px)); }
+
 /* Le fond assombri vient de ::backdrop, pas d'un div : c'est le navigateur qui
    le gere, avec le piege a focus et la fermeture par Echap qui vont avec. */
-.modale::backdrop { background: rgba(0,0,0,.62); }
+.modale::backdrop { background: rgba(0,0,0,.66); }
+
+/* Elle arrive, elle ne clignote pas : 150 ms de montee, la duree d'un geste.
+   Sur telephone elle monte du bas, comme la feuille qu'elle devient. */
+@keyframes modale-entre {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+}
+@keyframes voile-entre { from { opacity: 0; } }
+.modale[open] { animation: modale-entre .15s cubic-bezier(.22,.7,.3,1); }
+.modale[open]::backdrop { animation: voile-entre .15s ease-out; }
 
 .modale-tete {
   display: flex; align-items: center; gap: 12px;
   padding: 15px 18px; border-bottom: 1px solid var(--bord);
   position: sticky; top: 0; background: var(--surface); z-index: 1;
 }
-.modale-tete h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; flex: 1; }
+/*
+  LE TITRE D'UNE BOITE N'EST PAS UN INTERTITRE DE SECTION.
+
+  `h2` porte, dans cette feuille, la forme d'une etiquette de rubrique : petites
+  capitales espacees, gris pale. C'est juste au-dessus d'une liste ; c'est faux
+  pour une question qu'on pose au milieu d'un geste — « POURQUOI CETTE SORTIE ? »
+  se lit comme un panneau, pas comme une phrase. On lui rend sa casse et son
+  contraste ici, sans renoncer au `h2` dont vit la navigation au clavier.
+*/
+.modale-tete h2 {
+  margin: 0; flex: 1; font-size: 18px; font-weight: 700;
+  letter-spacing: -.02em; text-transform: none; color: var(--texte);
+}
 .modale-tete .fermeture { width: 34px; min-height: 34px; padding: 0; font-size: 15px; flex: none; }
 .modale-tete .fermeture:hover { color: var(--rouge-vif); background: var(--rouge-fond); }
 
 /* Le corps defile seul : sur un telephone en paysage, un formulaire de six
    champs depasse l'ecran et l'en-tete doit rester atteignable. */
-.modale-corps { padding: 16px 18px 20px; overflow-y: auto; max-height: calc(86vh - 62px); }
+.modale-corps { padding: 16px 18px 20px; overflow-y: auto; flex: 1; min-height: 0; }
 .modale-corps > form { margin: 0; }
+
+/*
+  LE PIED, LA OU SE TIENT L'ACTION.
+
+  Pose sous le corps qui defile, jamais dedans : sur un telephone, la liste des
+  lignes retirees pousse le bouton hors de l'ecran, et on cherche en aveugle un
+  « Enregistrer » qu'on croyait avoir sous les yeux.
+*/
+.modale-pied {
+  flex: none; padding: 13px 18px; border-top: 1px solid var(--bord);
+  background: var(--surface-2);
+  padding-bottom: max(13px, env(safe-area-inset-bottom));
+}
+.modale-pied .rangee-actions { gap: 8px; }
+.modale-pied .bouton.primaire { flex: 1; }
+/* Ce qui manque encore, dit a l'endroit ou l'on appuie. Un bouton gris qui ne
+   repond pas et n'explique rien laisse chercher tout seul. */
+.modale-pied .manque { font-size: 12.5px; color: var(--texte-3); margin: 9px 2px 0; }
 
 /* Le declencheur ne prend pas toute la largeur : c'est une action ponctuelle,
    pas le sujet de la page. */
 .bouton.declencheur { width: auto; margin-bottom: 4px; }
 
+/*
+  AU TELEPHONE, UNE FEUILLE POSEE EN BAS.
+
+  Le plein ecran d'avant effacait la page : on ne voyait plus les nombres qu'on
+  venait de saisir, et rien ne disait qu'on pouvait revenir en arriere. La
+  feuille s'arrete avant le haut — la page reste visible derriere, assombrie —
+  et elle monte du bas, la ou se trouve le pouce.
+*/
 @media (max-width: 620px) {
-  .modale { width: 100vw; max-width: none; max-height: 100vh; height: 100%; border-radius: 0; }
-  .modale-corps { max-height: calc(100vh - 62px); }
+  /* Pas `100vw` : il compte la barre de defilement de la page derriere, et la
+     feuille debordait a droite de la largeur de cette barre — le bouton
+     « Annuler » sortait de l'ecran. Deux bords colles, et le navigateur
+     mesure. */
+  .modale, .modale.etroite {
+    left: 0; right: 0; width: auto; max-width: none;
+    margin: auto 0 0; max-height: 92dvh;
+    border-radius: 16px 16px 0 0; border-bottom: none;
+  }
+  .modale-tete { padding: 14px 16px; }
+  .modale-corps { padding: 14px 16px 18px; }
+  .modale-pied { padding-left: 16px; padding-right: 16px; }
+  @keyframes modale-entre { from { transform: translateY(100%); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modale[open], .modale[open]::backdrop { animation: none; }
 }
 
 /* Les messages d'un formulaire : sous le champ concerne, pas en haut de page.
@@ -1985,18 +2026,93 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 */
 .choix-motifs { display: grid; gap: 8px; }
 @media (min-width: 620px) { .choix-motifs { grid-template-columns: repeat(2, 1fr); } }
+/* Dans une boite de 468 px, deux colonnes coupent chaque definition en trois
+   lignes et laissent un orphelin au bout de cinq motifs. */
+.modale .choix-motifs { grid-template-columns: 1fr; }
+
 .choix-motifs .choix {
-  display: flex; align-items: center; gap: 11px; padding: 11px 13px; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; padding: 10px 13px; cursor: pointer;
+  min-height: 52px;   /* on la vise du pouce, devant la machine ouverte */
   border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
 }
 .choix-motifs .choix:hover { border-color: var(--bord-fort); }
 .choix-motifs .choix:has(input:checked) {
   border-color: var(--rouge); background: var(--rouge-fond);
 }
-.choix-motifs .choix input { width: 19px; height: 19px; accent-color: var(--rouge); flex: none; }
+/* Le cadre de focus tient la RANGEE, pas la pastille : c'est la rangee qu'on
+   choisit, et un anneau de dix-sept pixels au milieu du texte ne se voit pas. */
+.choix-motifs .choix:has(input:focus-visible) {
+  outline: 2px solid var(--rouge); outline-offset: 2px;
+}
+/* La pastille du systeme est grosse, grise, et differente sur chaque
+   navigateur ; on la redessine — un anneau qui se remplit de rouge. */
+.choix-motifs .choix input {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; border-radius: 50%;
+  border: 1.6px solid var(--bord-fort); cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.choix-motifs .choix input:checked {
+  border-color: var(--rouge); box-shadow: inset 0 0 0 4px var(--rouge);
+}
 .choix-motifs .choix > span { display: flex; flex-direction: column; min-width: 0; }
-.choix-motifs .titre { font-weight: 650; font-size: 14px; }
-.choix-motifs .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 1px; }
+.choix-motifs .titre { font-weight: 650; font-size: 14.5px; line-height: 1.25; }
+.choix-motifs .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; line-height: 1.3; }
+
+/* Le groupe de motifs est un `fieldset` : c'est ce qui donne les fleches du
+   clavier d'un choix a l'autre. Il ne doit pas en avoir l'air pour autant. */
+.groupe-motifs { border: none; margin: 0; padding: 0; min-width: 0; }
+.groupe-motifs > legend {
+  padding: 0; margin-bottom: 8px;
+  font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--texte-3);
+}
+
+/*
+  CE QU'ON SORT, RELU AVANT DE DEMANDER POURQUOI.
+
+  La boite posait la question sans jamais montrer de quoi elle parlait : on
+  avait saisi quinze lignes, trois partaient en retrait, et il fallait fermer la
+  boite pour aller verifier lesquelles — puis la rouvrir. Elles se relisent ici,
+  canal par canal, dans l'ordre de l'ecran.
+*/
+.retraits {
+  margin: 0 0 15px; padding: 0; list-style: none;
+  border: 1px solid var(--bord); border-radius: var(--r-m);
+  background: var(--surface-2);
+  max-height: 172px; overflow-y: auto;
+}
+.retraits li {
+  display: flex; align-items: baseline; gap: 11px; padding: 9px 12px; font-size: 13.5px;
+}
+.retraits li + li { border-top: 1px solid var(--bord); }
+.retraits .combien {
+  flex: none; min-width: 32px; text-align: right;
+  font-weight: 800; color: var(--rouge-vif); font-variant-numeric: tabular-nums;
+}
+.retraits .quoi {
+  flex: 1; min-width: 0; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.retraits .ou { flex: none; color: var(--texte-3); font-size: 12px; }
+.retraits .ou .mono { font-size: 12px; color: var(--texte-2); }
+.retraits .reste { color: var(--texte-3); font-size: 12.5px; justify-content: center; }
+
+/* Le compte de caracteres se lit au coin du champ, pas sous lui : il repond a
+   une question qu'on ne se pose qu'en butant sur la limite. */
+.tete-champ { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tete-champ label { margin-bottom: 7px; }
+.tete-champ .compte {
+  font-size: 12px; color: var(--texte-3); font-variant-numeric: tabular-nums;
+}
+.tete-champ .compte.plein { color: var(--ambre); }
+
+/* Lisible par un lecteur d'ecran, invisible a l'oeil. */
+.hors-vue {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* Les sorties au grand livre. Elles ne se confondent pas avec une vente : une
    vente rapporte, une casse coute, et l'oeil doit faire la difference en
