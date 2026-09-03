@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
-import { euros } from "@/db";
+import { euros, pli } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { grouperParCategorie, stockParProduit, valeurImmobilisee,
          type Groupe, type LigneStock } from "@/lib/stock";
@@ -22,16 +22,6 @@ const VUES = [
   { cle: "epuise", nom: "Épuisés" },
   { cle: "route", nom: "En route" },
 ] as const;
-
-/**
- * ACCENTS ET CASSE MIS DE COTE POUR CHERCHER.
- *
- * On tape « creme » sur un clavier de telephone, une main sur un carton ; le
- * produit s'appelle « Crème ». Une recherche qui ne trouve pas pour un accent
- * est une recherche qu'on cesse d'utiliser au bout du troisieme essai.
- */
-const pli = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /**
  * Mon stock.

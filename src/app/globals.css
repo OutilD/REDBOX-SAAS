@@ -671,6 +671,10 @@ a.produit-ligne .dit-epuise::before { content: " · "; color: var(--texte-3); fo
 .chiffres-cle .mesure .dessous { font-size: 11.5px; color: var(--texte-3); line-height: 1.35; }
 .chiffres-cle .mesure .chiffre.mal { color: var(--rouge-vif); }
 .chiffres-cle .mesure .chiffre.attention { color: var(--ambre); }
+/* Le total a cote du chiffre : « 9 » ne dit rien, « 9 / 12 » dit tout. */
+.chiffres-cle .sur-total {
+  font-size: 19px; font-weight: 650; color: var(--texte-3); letter-spacing: -.02em;
+}
 
 /* « 3 épuisés » sans moyen d'aller voir lesquels oblige a refaire la recherche a
    la main, ce que personne ne fait. La mesure devient un lien quand il y a
@@ -2533,3 +2537,53 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
   .ligne.canal .code { width: 38px; }
   .code-maintenance { font-size: 25px; letter-spacing: .14em; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE PARC
+
+   Vingt cartes identiques rangees par nom ne disent pas laquelle il faut aller
+   voir : il fallait lire chaque pilule, une par une, pour trouver celle qui a
+   huit canaux vides. La jauge donne l'echelle avant qu'on lise le chiffre — deux
+   machines ne se comparent pas sur « 3 canaux vides » sans savoir sur combien.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.carte-borne {
+  display: block; padding: 15px 16px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+.carte-borne:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.carte-borne:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+/* Une machine a sec se signale dans la grille avant d'etre lue. */
+.carte-borne[data-etat="vide"] { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+
+.carte-borne .nom {
+  font-weight: 700; font-size: 16.5px; letter-spacing: -.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.carte-borne .ou {
+  font-size: 12.5px; color: var(--texte-3); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.carte-borne .fleche { flex: none; color: var(--texte-3); font-size: 20px; line-height: 1; }
+.carte-borne:hover .fleche { color: var(--texte-2); }
+
+/* La jauge prend toute la carte ici : elle n'est plus un detail de ligne, c'est
+   ce qu'on vient lire.
+
+   ELLE NE PREND PAS LA COULEUR DE L'ETAT. Sur un canal, le rouge veut dire
+   « celui-ci est vide » et la jauge mesure ce canal-la. Sur une machine, elle
+   mesure un REMPLISSAGE : une borne pleine a soixante-neuf pour cent qui a un
+   canal vide sur vingt s'affichait en rouge sur toute sa longueur, ce qui disait
+   « presque vide » d'une machine bien garnie. La longueur porte le remplissage,
+   les pilules et le liseret portent l'etat. */
+.carte-borne .remplissage { margin-top: 14px; }
+.carte-borne .jauge { max-width: none; margin-top: 0; height: 7px; }
+.carte-borne .jauge > span,
+.carte-borne .jauge[data-etat] > span {
+  background: color-mix(in srgb, var(--rouge) 66%, var(--surface-2));
+}
+.carte-borne .remplissage .dit { font-size: 12.5px; color: var(--texte-3); margin-top: 7px; }
+.carte-borne .remplissage .dit b { color: var(--texte); font-weight: 750; }
+
+.carte-borne .etats { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 13px; }

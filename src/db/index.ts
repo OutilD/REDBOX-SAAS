@@ -82,6 +82,17 @@ export type PgClient = {
 
 // ------------------------------------------------------------------ formatage
 
+/**
+ * ACCENTS ET CASSE MIS DE COTE POUR CHERCHER.
+ *
+ * On tape « creme » sur un clavier de telephone, une main sur un carton ; le
+ * produit s'appelle « Crème ». Une recherche qui ne trouve pas pour un accent est
+ * une recherche qu'on cesse d'utiliser au bout du troisieme essai.
+ */
+export function pli(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 export function euros(centimes: number | null | undefined): string {
   return ((centimes ?? 0) / 100).toLocaleString("fr-FR",
     { style: "currency", currency: "EUR" });
