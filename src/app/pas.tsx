@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Le compteur a deux boutons.
@@ -27,6 +27,41 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
    */
   const borne = (v: number) => Math.max(min, Math.min(max, v));
   const plafond = ras !== undefined ? Math.min(ras, max) : max;
+  const champ = useRef<HTMLInputElement>(null);
+  const premier = useRef(true);
+
+  /**
+   * LE COMPTEUR ANNONCE QU'IL A BOUGE.
+   *
+   * Taper au clavier fait remonter un evenement `input` jusqu'au formulaire ;
+   * cliquer sur « + » n'en fait rien remonter du tout — React pose la nouvelle
+   * valeur dans le champ par le code, et le navigateur ne previent personne. La
+   * barre d'envoi, qui compte ce qu'on est en train de composer, ne voyait donc
+   * que ce qui etait tape a la main.
+   *
+   * On previent nous-memes, apres le rendu : a ce moment-la le champ porte deja
+   * la bonne valeur, et qui lit le formulaire lit juste.
+   */
+  useEffect(() => {
+    if (premier.current) { premier.current = false; return; }
+    champ.current?.dispatchEvent(new CustomEvent("pas-bouge", { bubbles: true }));
+  }, [n]);
+
+  /**
+   * « TOUT A RAS » COMMANDE DE LOIN.
+   *
+   * Remplir une machine, c'est viser vingt-quatre fois le meme petit bouton. Le
+   * geste se demande donc une fois par categorie, et chaque compteur qui se
+   * trouve dedans se sert lui-meme — chacun avec SON plafond, qui tient compte
+   * de la place restante et de ce qu'il y a en reserve.
+   */
+  useEffect(() => {
+    const cadre = champ.current?.closest("[data-remplissable]");
+    if (!cadre) return;
+    const servir = () => poser(plafond);
+    cadre.addEventListener("remplir-tout", servir);
+    return () => cadre.removeEventListener("remplir-tout", servir);
+  }, [plafond]);
 
   return (
     <div className="pas">
@@ -36,7 +71,7 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
           retrait relit les nombres negatifs du formulaire : sans ces deux
           attributs il lui faudrait remonter le DOM a la recherche d'un titre,
           ce qui casse au premier changement de mise en page. */}
-      <input name={nom} type="number" inputMode="numeric" min={min} max={max}
+      <input ref={champ} name={nom} type="number" inputMode="numeric" min={min} max={max}
              value={n} onChange={(e) => poser(borne(Number(e.target.value)))}
              className={`valeur num ${n < 0 ? "retrait" : ""}`}
              style={{ width: 76, minHeight: 48 }}

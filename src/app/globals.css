@@ -574,17 +574,20 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
   display: inline-flex; flex: none; padding: 3px; gap: 2px;
   background: var(--surface-2); border: 1px solid var(--bord); border-radius: 10px;
 }
-.periodes a {
+/* Des BOUTONS aussi, pas seulement des liens : le filtre des canaux masque au
+   lieu de recharger, sinon on perdrait les quantites deja saisies. */
+.periodes a, .periodes button {
   display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: none; font: inherit; cursor: pointer;
   min-height: 34px; padding: 0 13px; border-radius: 7px; white-space: nowrap;
   font-size: 13.5px; font-weight: 600; color: var(--texte-2);
   transition: color .15s ease, background .15s ease;
 }
-.periodes a:hover { color: var(--texte); background: var(--surface-3); }
-.periodes a[aria-current] { background: var(--rouge); color: #fff; font-weight: 700; }
-.periodes a[aria-current]:hover { background: var(--rouge-vif); }
-.periodes a:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
-.periodes.petites a { min-height: 30px; padding: 0 11px; font-size: 13px; }
+.periodes a:hover, .periodes button:hover { color: var(--texte); background: var(--surface-3); }
+.periodes a[aria-current], .periodes button[aria-current] { background: var(--rouge); color: #fff; font-weight: 700; }
+.periodes a[aria-current]:hover, .periodes button[aria-current]:hover { background: var(--rouge-vif); }
+.periodes a:focus-visible, .periodes button:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.periodes.petites a, .periodes.petites button { min-height: 30px; padding: 0 11px; font-size: 13px; }
 /* Un compteur colle au libelle du filtre : « Épuisés 3 » dit d'un coup s'il vaut
    la peine d'y aller, et evite le clic qui ne montre rien. */
 .periodes .compte {
@@ -2587,3 +2590,148 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .carte-borne .remplissage .dit b { color: var(--texte); font-weight: 750; }
 
 .carte-borne .etats { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 13px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHARGER UNE BORNE
+
+   L'ecran le plus utilise de l'application, et le seul qu'on tienne debout, a
+   une main, dans un bar mal eclaire, devant une machine ouverte. Tout y est
+   dimensionne pour ca : des cibles larges, un chiffre par carte, et la commande
+   sous le pouce.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  LE FILTRE MASQUE, IL NE RECHARGE PAS.
+
+  Un lien aurait recharge la page et efface les quantites deja posees — on aurait
+  perdu son travail en cherchant a le finir. Les compteurs restent donc en place,
+  simplement caches, et ce qu'on y avait mis part quand meme a l'envoi. Une
+  categorie dont plus rien n'est visible s'efface avec ses canaux.
+*/
+.liste-canaux[data-filtre="manque"] .canal-charge:not([data-manque]) { display: none; }
+.liste-canaux[data-filtre="manque"] details.groupe:not(:has(.canal-charge[data-manque])) {
+  display: none;
+}
+
+/* Les canaux ne touchent pas les bords de leur categorie : le creux de la
+   section doit se voir, sinon les deux niveaux se confondent. */
+details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
+
+.rangee-remplir {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 2px; font-size: 12.5px;
+}
+.bouton.remplir-tout .combien {
+  margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  background: var(--surface-3); color: var(--texte-3); font-size: 11.5px; font-weight: 700;
+}
+.bouton.remplir-tout:hover .combien { color: var(--texte-2); }
+
+/* ------------------------------------------------------------ un canal a servir */
+/*
+  UNE CARTE EN GRILLE, PAS EN PILE.
+
+  Empilee, elle laissait sur un ecran large un demi-metre de vide entre les deux
+  boutons du compteur et le nombre « chez moi » pousse a l'autre bout — et il
+  fallait quatre hauteurs de ligne par canal, soit un ecran entier pour six
+  canaux sur une machine qui en a soixante. Les memes zones se rangent en
+  colonnes des qu'il y a la place, et se rempilent quand il n'y en a plus.
+*/
+.canal-charge {
+  display: grid; gap: 4px 13px; align-items: center;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "code  quoi   dedans"
+    "jauge jauge  jauge"
+    "cmd   cmd    reserve"
+    "note  note   note";
+  border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface); padding: 13px 14px; margin-top: 10px;
+}
+@media (min-width: 760px) {
+  .canal-charge {
+    grid-template-columns: 42px minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "code quoi  dedans cmd reserve"
+      "code jauge dedans cmd reserve"
+      "note note  note   note note";
+  }
+}
+.canal-charge[data-etat="vide"] { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+
+.canal-charge .code {
+  grid-area: code; align-self: start;
+  flex: none; width: 42px; text-align: center; padding: 3px 0; margin-top: 2px;
+  border-radius: var(--r-s); background: var(--surface-2); border: 1px solid var(--bord);
+  font-size: 12px; font-weight: 700; color: var(--texte-2);
+}
+.canal-charge[data-etat="vide"] .code {
+  border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord)); color: var(--rouge-vif);
+}
+.canal-charge[data-etat="bas"] .code {
+  border-color: color-mix(in srgb, var(--ambre) 55%, var(--bord)); color: var(--ambre);
+}
+.canal-charge .quoi { grid-area: quoi; min-width: 0; align-self: end; }
+.canal-charge .nom { font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; }
+.canal-charge .meta { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; }
+/* L'etat est ECRIT : une couleur qui porte seule ne dit rien dans un bar mal
+   eclaire, ni a qui ne la voit pas. */
+.canal-charge .mot-etat { margin-left: 8px; font-weight: 700; }
+.canal-charge[data-etat="vide"] .mot-etat { color: var(--rouge-vif); }
+.canal-charge[data-etat="bas"] .mot-etat { color: var(--ambre); }
+
+.canal-charge .dedans-borne { grid-area: dedans; text-align: right; }
+.canal-charge .compteur {
+  display: block; font-size: 19px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15;
+}
+.canal-charge .compteur .sur { font-weight: 500; font-size: 14px; color: var(--texte-3); }
+.canal-charge[data-etat="vide"] .compteur { color: var(--rouge-vif); }
+.canal-charge .q { display: block; font-size: 11px; color: var(--texte-3); margin-top: 1px; }
+
+/* Bridee : etiree sur huit cents pixels, une jauge de sept sur dix ne se lit pas
+   mieux, elle occupe seulement toute la carte. */
+.canal-charge .jauge { grid-area: jauge; max-width: 320px; margin: 9px 0 0; align-self: start; }
+
+.canal-charge .commandes { grid-area: cmd; margin-top: 11px; }
+.canal-charge .reserve { grid-area: reserve; text-align: right; margin-top: 11px; }
+.canal-charge .reserve .num { display: block; font-size: 17px; font-weight: 750; line-height: 1.15; }
+.canal-charge .note-canal {
+  grid-area: note; margin: 11px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45;
+}
+
+/*
+  LA BARRE D'ENVOI RESTE SOUS LE POUCE, ET DIT CE QU'ELLE VA ENVOYER.
+
+  On appuie trente fois sur « + » en descendant la machine, et rien nulle part ne
+  disait ce qu'on s'apprete a envoyer : le compte se relisait dans sa tete, ou
+  pas du tout. Il s'ecrit maintenant au-dessus du bouton, et le bouton reste
+  eteint tant qu'il n'y a rien a envoyer.
+*/
+.pied-collant {
+  position: sticky; z-index: 5;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-top: 14px; margin-top: 6px;
+}
+@media (min-width: 980px) { .pied-collant { bottom: 14px; } }
+
+.barre-envoi {
+  border: 1px solid var(--bord-fort); border-radius: var(--r-l);
+  background: var(--surface); padding: 11px 12px 12px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.4);
+}
+.barre-envoi .bilan {
+  margin: 0 0 9px; font-size: 13px; color: var(--texte-2); text-align: center; line-height: 1.4;
+}
+.barre-envoi .bilan b { color: var(--texte); font-weight: 800; }
+.barre-envoi .bilan b.sort { color: var(--rouge-vif); }
+.barre-envoi .bilan .rien { color: var(--texte-3); }
+
+/* « à ras » ne se coupe pas en deux lignes : c'est un bouton, pas une phrase. */
+.pas .bouton { white-space: nowrap; }
+
+@media (min-width: 760px) {
+  .canal-charge .commandes, .canal-charge .reserve { margin-top: 0; }
+}
+@media (max-width: 620px) {
+  .canal-charge { padding: 12px; gap: 3px 10px; grid-template-columns: 38px minmax(0, 1fr) auto; }
+}

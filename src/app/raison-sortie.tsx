@@ -45,6 +45,7 @@ export default function RaisonSortie() {
   const [motif, setMotif] = useState("");
   const [note, setNote] = useState("");
   const [envoi, setEnvoi] = useState(false);
+  const [bilan, setBilan] = useState({ ajout: 0, retrait: 0, canaux: 0 });
 
   const cadre = useRef<HTMLDivElement>(null);
   const boite = useRef<HTMLDialogElement>(null);
@@ -103,6 +104,41 @@ export default function RaisonSortie() {
   };
 
   /**
+   * CE QU'ON EST EN TRAIN DE COMPOSER, ECRIT AU-DESSUS DU BOUTON.
+   *
+   * On appuie trente fois sur « + » en descendant la machine, et rien nulle part
+   * ne disait ce qu'on s'apprete a envoyer. Le compte se relisait dans sa tete,
+   * ou pas du tout — et l'erreur ne se voyait qu'au recapitulatif de la boite de
+   * sortie, quand il y en avait une.
+   *
+   * On lit les champs du formulaire, comme le bouton d'envoi le fait deja au
+   * moment de partir : une seule facon de compter, donc jamais deux comptes qui
+   * divergent. `pas-bouge` est l'evenement que les compteurs emettent apres
+   * chaque clic — le navigateur, lui, n'en emet que pour ce qui est tape.
+   */
+  useEffect(() => {
+    const f = formulaire();
+    if (!f) return;
+    const compter = () => {
+      let ajout = 0, retrait = 0, canaux = 0;
+      for (const i of f.querySelectorAll<HTMLInputElement>('input[type="number"]')) {
+        const v = Number(i.value) || 0;
+        if (v > 0) ajout += v;
+        else if (v < 0) retrait -= v;
+        if (v !== 0) canaux++;
+      }
+      setBilan({ ajout, retrait, canaux });
+    };
+    compter();
+    f.addEventListener("input", compter);
+    f.addEventListener("pas-bouge", compter);
+    return () => {
+      f.removeEventListener("input", compter);
+      f.removeEventListener("pas-bouge", compter);
+    };
+  }, []);
+
+  /**
    * LA PAGE NE DOIT PAS DEFILER DERRIERE LE VOILE. `showModal` pose le voile et
    * piege le focus, mais laisse le corps rouler sous le doigt : on ferme la
    * boite et on se retrouve trente canaux plus bas, sans savoir comment.
@@ -130,9 +166,23 @@ export default function RaisonSortie() {
       <input type="hidden" name="motif" value={motif} />
       <input type="hidden" name="note" value={note} />
 
-      <button type="button" className="bouton primaire large avec-script" onClick={surClic}>
-        Valider le chargement
-      </button>
+      <div className="barre-envoi avec-script">
+        <p className="bilan" role="status">
+          {bilan.canaux === 0
+            ? <span className="rien">Rien à envoyer pour l’instant — ajustez un canal.</span>
+            : <>
+                <b className="num">{bilan.ajout}</b> unité{bilan.ajout > 1 ? "s" : ""} à charger
+                {bilan.retrait > 0
+                  ? <> · <b className="num sort">{bilan.retrait}</b> à retirer</>
+                  : null}
+                {" "}sur <b className="num">{bilan.canaux}</b> canal{bilan.canaux > 1 ? "aux" : ""}
+              </>}
+        </p>
+        <button type="button" className="bouton primaire large" onClick={surClic}
+                disabled={bilan.canaux === 0}>
+          Valider le chargement
+        </button>
+      </div>
 
       <dialog ref={boite} className="modale etroite" aria-labelledby="titre-raison"
               onClose={() => setOuvert(false)}
