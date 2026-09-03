@@ -31,8 +31,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const biscuits = await cookies();
   const theme = biscuits.get("rbx_theme")?.value;
   const rail = biscuits.get("rbx_rail")?.value;
-  const attr: Record<string, string> = {};
-  if (theme === "dark" || theme === "light") attr["data-theme"] = theme;
+  /**
+   * SOMBRE PAR DEFAUT, ET PAS « SELON LE SYSTEME ».
+   *
+   * La console vit sur le comptoir d'un bar et sur le telephone d'un
+   * reassortisseur, la nuit, a cote d'une machine noire. Suivre le systeme
+   * donnait du blanc a qui n'avait rien demande — et le blanc, a deux heures du
+   * matin devant une borne, on le prend dans les yeux.
+   *
+   * L'attribut est donc TOUJOURS pose : absent, il laissait la feuille de style
+   * suivre `prefers-color-scheme`. Seul un choix explicite de theme clair
+   * l'emporte, et il est retenu.
+   */
+  const attr: Record<string, string> = { "data-theme": theme === "light" ? "light" : "dark" };
   if (rail === "ferme") attr["data-rail"] = "ferme";
   return (
     <html lang="fr" {...attr}>

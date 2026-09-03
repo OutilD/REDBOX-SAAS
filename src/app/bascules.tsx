@@ -29,27 +29,33 @@ function poserBiscuit(nom: string, valeur: string | null) {
     : `${nom}=${valeur}; Path=/; SameSite=Lax; Max-Age=${UN_AN}`;
 }
 
-const SUITE: Record<string, string> = { auto: "dark", dark: "light", light: "auto" };
+/**
+ * DEUX ETATS, PLUS TROIS.
+ *
+ * Le cycle passait par « selon le systeme ». Cet etat n'a plus de sens depuis
+ * que le sombre est le defaut : ne rien poser et choisir « auto » donnaient le
+ * meme resultat, et le bouton avait donc deux positions sur trois qui se
+ * ressemblaient. On garde ce qu'on veut vraiment dire — sombre, ou clair.
+ */
+const SUITE: Record<string, string> = { dark: "light", light: "dark" };
 const NOM: Record<string, string> = {
-  auto: "Thème du système", dark: "Thème sombre", light: "Thème clair",
+  dark: "Thème sombre", light: "Thème clair",
 };
 
 export function BasculeTheme({ depart, retour }: { depart: string; retour: string }) {
   const [theme, poser] = useState(depart);
-  const prochain = SUITE[theme] ?? "dark";
+  const prochain = SUITE[theme] ?? "light";
 
   return (
     <>
       <button type="button" className="bouton icone avec-script"
               title={NOM[theme]} aria-label={`${NOM[theme]} — passer à ${NOM[prochain]}`}
               onClick={() => {
-                const r = document.documentElement;
-                if (prochain === "auto") r.removeAttribute("data-theme");
-                else r.setAttribute("data-theme", prochain);
-                poserBiscuit("rbx_theme", prochain === "auto" ? null : prochain);
+                document.documentElement.setAttribute("data-theme", prochain);
+                poserBiscuit("rbx_theme", prochain);
                 poser(prochain);
               }}>
-        {theme === "dark" ? <IcoLune /> : theme === "light" ? <IcoSoleil /> : <IcoAuto />}
+        {theme === "light" ? <IcoSoleil /> : <IcoLune />}
       </button>
 
       <noscript>
@@ -57,7 +63,7 @@ export function BasculeTheme({ depart, retour }: { depart: string; retour: strin
           <input type="hidden" name="actuel" value={depart} />
           <input type="hidden" name="retour" value={retour} />
           <button className="bouton icone" title={NOM[depart]}>
-            {depart === "dark" ? <IcoLune /> : depart === "light" ? <IcoSoleil /> : <IcoAuto />}
+            {depart === "light" ? <IcoSoleil /> : <IcoLune />}
           </button>
         </form>
       </noscript>

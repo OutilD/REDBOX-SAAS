@@ -77,6 +77,25 @@
   --ombre: none;
 }
 
+/*
+  LE LOGO EN THEME CLAIR.
+
+  Il est dessine en blanc et rouge pour un fond noir. Pose sur du blanc, sa
+  moitie blanche disparait : il ne reste qu'un R rouge ampute, et la marque a
+  l'air cassee. Plutot que de la redessiner, on lui rend le fond pour lequel
+  elle a ete faite — une plaque sombre, arrondie, juste derriere elle.
+
+  Le theme est desormais TOUJOURS pose sur la racine : une seule regle suffit,
+  sans requete media doublee.
+*/
+:root[data-theme="light"] .rail .logo img,
+:root[data-theme="light"] .entete .logo-mobile img,
+:root[data-theme="light"] .logo-entree {
+  background: #0e0e12;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
@@ -180,6 +199,44 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .compte-chip .qui b { display: block; font-size: 12.5px; font-weight: 650; }
 .compte-chip .qui span { display: block; font-size: 10.5px; color: var(--texte-3); }
 @media (max-width: 560px) { .compte-chip .qui { display: none; } }
+
+/*
+  LE SELECTEUR DE BORNE, DANS L'ENTETE.
+
+  Meme pastille que le compte, a deux pas de lui : ce sont les deux choses qui
+  disent OU l'on se trouve — chez qui, et sur quelle machine. Les mettre cote a
+  cote et de la meme forme, c'est dire qu'elles vont ensemble.
+
+  Le champ est nu a l'interieur : une bordure de plus dans une pastille qui en a
+  deja une donnerait un bouton dans un bouton. Il s'etend jusqu'a une limite, et
+  tronque au-dela — un nom de bar peut etre long, l'entete non.
+
+  La fleche ne s'allume qu'au survol : au repos elle doit se faire oublier, et
+  se trouver quand on la cherche.
+*/
+.borne-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 4px 3px 10px; border-radius: 999px;
+  border: 1px solid var(--bord); background: var(--surface);
+  max-width: 260px;
+}
+.borne-chip .glyphe { display: grid; place-items: center; color: var(--texte-3); flex: none; }
+.borne-chip select {
+  border: none; background: none; padding: 0; margin: 0;
+  min-height: 28px; max-width: 170px;
+  font-size: 12.5px; font-weight: 600; color: var(--texte);
+  appearance: none; -webkit-appearance: none;
+  text-overflow: ellipsis; cursor: pointer;
+}
+.borne-chip select:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; border-radius: 4px; }
+.borne-chip button {
+  display: grid; place-items: center; flex: none;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--surface-2); color: var(--texte-3);
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.borne-chip button:hover { background: var(--rouge); color: #fff; }
+@media (max-width: 700px) { .borne-chip { display: none; } }
 
 .bouton.icone {
   min-height: 36px; width: 36px; padding: 0; border-radius: var(--r-m);

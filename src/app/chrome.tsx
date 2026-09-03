@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 
@@ -105,13 +106,31 @@ function initiales(email: string): string {
 }
 
 
-export async function Entete({ page }: { page: Page }) {
+/**
+ * L'entete, et le selecteur de borne qu'elle porte.
+ *
+ * `borne` et `fenetre` viennent de la PAGE : un composant d'entete ne lit pas
+ * les parametres d'adresse, seule la page les a. Sans eux, choisir une borne
+ * effacerait la fenetre de temps, et l'inverse.
+ */
+export async function Entete({ page, borne, fenetre }:
+  { page: Page; borne?: string; fenetre?: string }) {
   const u = await utilisateur();
   const biscuits = await cookies();
-  const theme = biscuits.get("rbx_theme")?.value ?? "auto";
+  const theme = biscuits.get("rbx_theme")?.value ?? "dark";
   const rail = biscuits.get("rbx_rail")?.value ?? "";
   const ici = cheminDe(page);
   const [titre, parent] = FIL[page] ?? ["RedBox"];
+
+  // Le selecteur n'a de sens que la ou les chiffres se filtrent. Ailleurs il
+  // serait un bouton qui ne fait rien, ce qui est pire qu'un bouton absent.
+  const filtrable = page === "tableau" || page === "ventes";
+  const machines = u && filtrable
+    ? await q<{ id: number; nom: string }>(
+        `SELECT id, nom FROM borne
+          WHERE compte_id = $1 AND ($2::bigint[] IS NULL OR id = ANY($2))
+          ORDER BY nom`, [u.compte_id, u.bornes])
+    : [];
 
   return (
     <>
@@ -174,6 +193,26 @@ export async function Entete({ page }: { page: Page }) {
           </div>
 
           <div className="droite">
+            {machines.length > 0 ? (
+              // Formulaire GET : la console marche sans JavaScript. Le bouton
+              // est une fleche plutot qu'un mot — dans une pastille de la taille
+              // d'un jeton de compte, « Filtrer » prendrait toute la place.
+              <form method="get" action={page === "ventes" ? "/ventes" : "/"}
+                    className="borne-chip" role="search">
+                {fenetre ? <input type="hidden" name="f" value={fenetre} /> : null}
+                <span className="glyphe" aria-hidden="true"><IcoBorne size={15} /></span>
+                <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par borne">
+                  <option value="">Toutes les bornes</option>
+                  {machines.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nom}</option>
+                  ))}
+                </select>
+                <button type="submit" aria-label="Appliquer le filtre" title="Appliquer">
+                  <IcoFleche size={13} />
+                </button>
+              </form>
+            ) : null}
+
             <BasculeTheme depart={theme} retour={ici} />
 
             <div className="compte-chip">

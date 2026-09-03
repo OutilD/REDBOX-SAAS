@@ -22,10 +22,11 @@ type Souci = {
   lane: number | null; nom: string | null; prix_c: number; statut: string; faite_le: Date;
 };
 
-export default async function Ventes({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
+export default async function Ventes(
+  { searchParams }: { searchParams: Promise<{ f?: string; b?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const { f } = await searchParams;
+  const { f, b } = await searchParams;
   // Nommee, pas prise au rang : ajouter « aujourd'hui » en tete aurait fait
   // glisser le defaut de trente jours a sept.
   const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES.find((x) => x.cle === "30")!;
@@ -37,7 +38,21 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
    * autres. Le troisieme parametre est nul pour un associe — tout le parc, comme
    * avant — et porte la liste des bornes ouvertes sinon.
    */
-  const p = [u.compte_id, `${fen.jours} days`, u.bornes];
+  /**
+   * LA BORNE CHOISIE DANS L'ENTETE.
+   *
+   * On ne la croit pas sur parole : le numero vient de l'adresse, et il se tape.
+   * Elle doit etre du compte ET dans ce qui est ouvert a la personne, sinon le
+   * filtre deviendrait une porte vers les ventes d'une machine qu'elle n'a pas
+   * le droit de voir.
+   */
+  const choisie = b ? await q1<{ id: number }>(
+    `SELECT id FROM borne
+      WHERE id = $1 AND compte_id = $2 AND ($3::bigint[] IS NULL OR id = ANY($3))`,
+    [Number(b), u.compte_id, u.bornes]) : null;
+  const portee = choisie ? [choisie.id] : u.bornes;
+
+  const p = [u.compte_id, `${fen.jours} days`, portee];
   const PORTEE = "AND ($3::bigint[] IS NULL OR b.id = ANY($3))";
 
   const total = await q1<{ n: number; total: number }>(`
@@ -76,7 +91,7 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
       LEFT JOIN produit pr ON pr.id = v.produit_id
      WHERE b.compte_id = $1 AND v.statut <> 'distribue' AND v.traite_le IS NULL
        AND ($2::bigint[] IS NULL OR b.id = ANY($2))
-     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, u.bornes]);
+     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, portee]);
 
   const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
   const sommet = Math.max(1, ...jours.map((j) => j.total));
@@ -84,7 +99,7 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
 
   return (
     <>
-      <Entete page="ventes" />
+      <Entete page="ventes" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
       <main className="ecran">
         <h1>Ventes</h1>
         <p className="sous">
@@ -93,7 +108,8 @@ export default async function Ventes({ searchParams }: { searchParams: Promise<{
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           {FENETRES.map((x) => (
-            <Link key={x.cle} href={`/ventes?f=${x.cle}`}
+            <Link key={x.cle}
+                  href={choisie ? `/ventes?f=${x.cle}&b=${choisie.id}` : `/ventes?f=${x.cle}`}
                   className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
           ))}
         </div>

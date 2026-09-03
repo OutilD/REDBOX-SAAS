@@ -81,7 +81,7 @@ export default async function Tableau(
   if (enRoute && avance) {
     return (
       <>
-        <Entete page="tableau" />
+        <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
         <main className="ecran">
           <h1>Bienvenue</h1>
           <p className="sous">
@@ -97,7 +97,7 @@ export default async function Tableau(
 
   return (
     <>
-      <Entete page="tableau" />
+      <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
       <main className="ecran">
         <h1>Tableau de bord</h1>
         <p className="sous">
@@ -120,28 +120,8 @@ export default async function Tableau(
                   className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
           ))}
 
-          {machines.length > 0 ? (
-            // DES LA PREMIERE BORNE, PAS A PARTIR DE LA DEUXIEME. Le seuil etait
-            // a deux — un menu deroulant a une seule option n'aide personne — et
-            // c'etait un raisonnement de developpeur : sur un compte a une borne,
-            // le filtre demande devenait invisible, et on le cherchait. Mieux vaut
-            // un selecteur qui ne sert pas encore qu'un selecteur introuvable.
-            //
-            // Un formulaire GET plutot qu'un envoi au changement : la console
-            // doit marcher sans JavaScript, sur le telephone qu'on a en main
-            // dans un bar mal couvert.
-            <form method="get" action="/" style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
-              <input type="hidden" name="f" value={fen.cle} />
-              <select name="b" defaultValue={choisie ? String(choisie.id) : ""}
-                      aria-label="Borne" style={{ minHeight: 34, fontSize: 13 }}>
-                <option value="">Toutes les bornes</option>
-                {machines.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nom}</option>
-                ))}
-              </select>
-              <button className="bouton petit">Filtrer</button>
-            </form>
-          ) : null}
+          {/* Le selecteur de borne a rejoint l'entete : il y est a cote du
+              compte, et il y reste d'une page a l'autre. */}
         </div>
 
         <div className="bandeau">
