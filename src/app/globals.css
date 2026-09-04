@@ -588,6 +588,58 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .periodes a[aria-current]:hover, .periodes button[aria-current]:hover { background: var(--rouge-vif); }
 .periodes a:focus-visible, .periodes button:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .periodes.petites a, .periodes.petites button { min-height: 30px; padding: 0 11px; font-size: 13px; }
+
+/*
+  LA PERIODE SUR MESURE, REPLIEE SOUS LE SEGMENT.
+
+  Deux champs de date-heure poses en permanence dans le titre pesent plus que les
+  quatre fenetres qu'on utilise vingt fois par jour : ils prennent la largeur
+  d'une ligne pour une commande qu'on ouvre une fois par mois. Replies, ils ne
+  coutent qu'un mot ; le `<details>` s'ouvre tout seul quand une periode sur
+  mesure est en cours, sinon on regarderait des chiffres sans voir d'ou ils
+  viennent.
+*/
+.choix-periode { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+
+.periode-perso { font-size: 13px; }
+.periode-perso > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  color: var(--texte-3); text-align: right; padding: 2px 4px; border-radius: 6px;
+}
+.periode-perso > summary::-webkit-details-marker { display: none; }
+.periode-perso > summary::before { content: "▸ "; }
+.periode-perso[open] > summary::before { content: "▾ "; }
+.periode-perso > summary:hover { color: var(--texte); }
+.periode-perso > summary:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+.periode-perso form {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px;
+  margin-top: 8px; padding: 10px 11px;
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2);
+}
+.periode-perso label { display: flex; flex-direction: column; gap: 4px; }
+.periode-perso label span { font-size: 11.5px; font-weight: 600; color: var(--texte-3); }
+/* `datetime-local` dessine son propre calendrier : on ne touche qu'au cadre, et
+   on le laisse rendre ce que le systeme sait rendre. La largeur minimale evite
+   qu'il se coupe sur les navigateurs qui affichent AM/PM. */
+.periode-perso input[type="datetime-local"] {
+  font: inherit; font-size: 13px; min-width: 178px;
+  padding: 7px 9px; border-radius: var(--r-s);
+  border: 1px solid var(--bord); background: var(--fond); color: var(--texte);
+}
+.periode-perso input[type="datetime-local"]:focus-visible {
+  outline: 2px solid var(--rouge); outline-offset: 1px;
+}
+.periode-perso .faible { margin: 6px 2px 0; font-size: 11.5px; text-align: right; }
+
+/* Sur un telephone, la tete passe en colonne : le bloc se range a gauche comme
+   le titre, et les champs prennent toute la largeur plutot que de deborder. */
+@media (max-width: 700px) {
+  .choix-periode { align-items: stretch; width: 100%; }
+  .periode-perso > summary, .periode-perso .faible { text-align: left; }
+  .periode-perso form { flex-direction: column; align-items: stretch; }
+  .periode-perso input[type="datetime-local"] { min-width: 0; width: 100%; }
+}
 /* Un compteur colle au libelle du filtre : « Épuisés 3 » dit d'un coup s'il vaut
    la peine d'y aller, et evite le clic qui ne montre rien. */
 .periodes .compte {

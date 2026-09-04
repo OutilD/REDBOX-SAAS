@@ -115,12 +115,18 @@ function initiales(email: string): string {
 /**
  * L'entete, et le selecteur de borne qu'elle porte.
  *
- * `borne` et `fenetre` viennent de la PAGE : un composant d'entete ne lit pas
+ * `borne` et la periode viennent de la PAGE : un composant d'entete ne lit pas
  * les parametres d'adresse, seule la page les a. Sans eux, choisir une borne
  * effacerait la fenetre de temps, et l'inverse.
+ *
+ * Deux formes pour la periode, parce que les deux pages qui filtrent n'ont pas
+ * la meme : `fenetre` est la cle d'une fenetre toute faite — c'est tout ce que
+ * connait l'ecran des ventes — et `periode` porte en plus les deux bornes d'une
+ * saisie a la minute, que seul le tableau de bord sait produire.
  */
-export async function Entete({ page, borne, fenetre }:
-  { page: Page; borne?: string; fenetre?: string }) {
+export async function Entete({ page, borne, fenetre, periode }:
+  { page: Page; borne?: string; fenetre?: string;
+    periode?: { cle: string; saisie: { du: string; au: string } } }) {
   const u = await utilisateur();
   const biscuits = await cookies();
   const theme = biscuits.get("rbx_theme")?.value ?? "dark";
@@ -131,6 +137,14 @@ export async function Entete({ page, borne, fenetre }:
   // Le selecteur n'a de sens que la ou les chiffres se filtrent. Ailleurs il
   // serait un bouton qui ne fait rien, ce qui est pire qu'un bouton absent.
   const filtrable = page === "tableau" || page === "ventes";
+
+  // Ce que le selecteur doit remettre dans l'adresse pour ne pas perdre la
+  // periode en cours. Une periode sur mesure gagne sur la fenetre : c'est elle
+  // qui est affichee.
+  const perso = periode?.cle === "perso" ? periode.saisie : null;
+  const garde: Record<string, string> = perso
+    ? { du: perso.du, au: perso.au }
+    : (periode?.cle ?? fenetre) ? { f: (periode?.cle ?? fenetre)! } : {};
   const machines = u && filtrable
     ? await q<{ id: number; nom: string }>(
         `SELECT id, nom FROM borne
@@ -201,14 +215,16 @@ export async function Entete({ page, borne, fenetre }:
           <div className="droite">
             {machines.length > 0 ? (
               <>
-                <SelecteurBorne machines={machines} borne={borne} fenetre={fenetre}
+                <SelecteurBorne machines={machines} borne={borne} garde={garde}
                                 base={page === "ventes" ? "/ventes" : "/"} />
                 {/* Sans JavaScript, le vieux formulaire. Il recharge la page,
                     mais il choisit — et c'est tout ce qu'on lui demande. */}
                 <noscript>
                   <form method="get" action={page === "ventes" ? "/ventes" : "/"}
                         className="borne-chip nu">
-                    {fenetre ? <input type="hidden" name="f" value={fenetre} /> : null}
+                    {Object.entries(garde).map(([cle, v]) => (
+                      <input key={cle} type="hidden" name={cle} value={v} />
+                    ))}
                     <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par borne">
                       <option value="">Toutes les bornes</option>
                       {machines.map((m) => (

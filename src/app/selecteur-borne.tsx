@@ -25,8 +25,8 @@ export type Machine = { id: number; nom: string };
  * tout cela.
  */
 export function SelecteurBorne(
-  { machines, borne, fenetre, base }:
-  { machines: Machine[]; borne?: string; fenetre?: string; base: string }) {
+  { machines, borne, garde, base }:
+  { machines: Machine[]; borne?: string; garde?: Record<string, string>; base: string }) {
 
   const [ouvert, setOuvert] = useState(false);
   const [filtre, setFiltre] = useState("");
@@ -56,8 +56,15 @@ export function SelecteurBorne(
 
   const q = filtre.trim().toLowerCase();
   const vues = q ? machines.filter((m) => m.nom.toLowerCase().includes(q)) : machines;
-  const vers = (id: string) =>
-    `${base}?${fenetre ? `f=${fenetre}&` : ""}${id ? `b=${id}` : ""}`.replace(/[?&]$/, "");
+  // LA PERIODE VOYAGE AVEC LE CHOIX. Elle etait recopiee a la main, un parametre
+  // a la fois ; le jour ou il y en a eu trois, deux ont ete oublies et choisir
+  // une borne ramenait le tableau a trente jours.
+  const vers = (id: string) => {
+    const a = new URLSearchParams(garde ?? {});
+    if (id) a.set("b", id);
+    const q = a.toString();
+    return q ? `${base}?${q}` : base;
+  };
 
   return (
     <div className="borne-chip avec-script" ref={cadre} data-ouvert={ouvert ? "" : undefined}>

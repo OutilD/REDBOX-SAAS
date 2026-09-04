@@ -6,7 +6,8 @@ import { IcoAlerte, IcoFleche, IcoHorloge, IcoPente } from "./icones";
 import { q, euros, depuis, enLigne } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { autonomie, avancement, categoriesDansLeTemps, comparaison, entete, FENETRES,
-         parBorne, parJour, parProduit, type Autonomie, type Avancement, type Jour,
+         parBorne, parProduit, periodeDe, serie, pasDe, pasCategories, NOM_PAS,
+         type Autonomie, type Avancement, type Pas, type Point,
          type ParBorne, DEFAUT } from "@/lib/tableau";
 import { Repli } from "./repli";
 import { IcoBorne, IcoReception, IcoStock, IcoVentes } from "./icones";
@@ -31,13 +32,24 @@ export const dynamic = "force-dynamic";
  * d'affaires est le phare ; le reste l'entoure, plus petit.
  */
 export default async function Tableau(
-  { searchParams }: { searchParams: Promise<{ f?: string; b?: string; vue?: string }> }) {
+  { searchParams }: { searchParams:
+    Promise<{ f?: string; b?: string; vue?: string; du?: string; au?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
 
-  const { f, b, vue } = await searchParams;
-  const fen = FENETRES.find((x) => x.cle === f) ?? DEFAUT;
-  const j = fen.jours;
+  const { f, b, vue, du, au } = await searchParams;
+
+  /**
+   * LA PERIODE, RESOLUE UNE FOIS POUR TOUTE LA PAGE.
+   *
+   * Une fenetre toute faite ou deux dates a la minute donnent le meme objet :
+   * deux instants. Ce qui suit ne sait plus lequel des deux chemins l'a produit,
+   * et c'est ce qui evite qu'une moitie de l'ecran compte en jours pendant que
+   * l'autre compte en heures.
+   */
+  const p = await periodeDe(f, du, au);
+  const perso = p.cle === "perso";
+  const pas = pasDe(p);
 
   /**
    * LA PORTEE DU TABLEAU : LE FILTRE, OU CE QU'ON A LE DROIT DE VOIR.
@@ -59,30 +71,45 @@ export default async function Tableau(
   const sienDuCompte = u.bornes === null;
 
   const graphe = vue === "graphe";
+
+  /**
+   * L'adresse de la meme page, un reglage change.
+   *
+   * `f: ""` efface la periode sur mesure et remet la fenetre par defaut : sans
+   * ce cas, cliquer « 30 jours » aurait garde `du`/`au` dans l'adresse, qui
+   * gagnent toujours — les boutons de periode auraient cesse de repondre.
+   */
   const lien = (chg: { f?: string; vue?: string }) => {
-    const p = new URLSearchParams();
-    const fe = chg.f ?? fen.cle;
-    if (fe !== DEFAUT.cle) p.set("f", fe);
-    if (choisie) p.set("b", String(choisie.id));
+    const a = new URLSearchParams();
+    const fe = chg.f ?? (perso ? "" : p.cle);
+    if (chg.f === undefined && perso) {
+      a.set("du", p.saisie.du); a.set("au", p.saisie.au);
+    } else if (fe && fe !== DEFAUT.cle) {
+      a.set("f", fe);
+    }
+    if (choisie) a.set("b", String(choisie.id));
     const v = chg.vue ?? (graphe ? "graphe" : "");
-    if (v) p.set("vue", v);
-    const q = p.toString();
+    if (v) a.set("vue", v);
+    const q = a.toString();
     return q ? `/?${q}` : "/";
   };
 
-  const [avance, tete, avant, jours, bornes, categories, stocks, produits] = await Promise.all([
+  const [avance, tete, avant, points, bornes, categories, stocks, produits] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id) : null,
-    entete(u.compte_id, j, portee),
-    comparaison(u.compte_id, j, portee),
-    parJour(u.compte_id, j, portee),
-    parBorne(u.compte_id, j, portee),
-    categoriesDansLeTemps(u.compte_id, j, portee),
-    sienDuCompte ? autonomie(u.compte_id, j) : [],
-    parProduit(u.compte_id, j, portee),
+    entete(u.compte_id, p, portee),
+    comparaison(u.compte_id, p, portee),
+    serie(u.compte_id, p, portee),
+    parBorne(u.compte_id, p, portee),
+    categoriesDansLeTemps(u.compte_id, p, portee),
+    sienDuCompte ? autonomie(u.compte_id, p) : [],
+    parProduit(u.compte_id, p, portee),
   ]);
 
   const classees = [...categories.series].sort((a, b) => b.total - a.total);
-  const parJourMoyen = jours.length ? Math.round(tete.ca / jours.length) : 0;
+  // PAR JOUR, PAS PAR BARRE. C'etait `ca / nombre de barres` : juste tant qu'une
+  // barre valait un jour, faux des qu'elle vaut une heure — quatre heures de
+  // vente auraient annonce un « par jour » quatre fois trop petit.
+  const parJourMoyen = Math.round(tete.ca / p.jours);
   const panier = tete.ventes ? Math.round(tete.ca / tete.ventes) : 0;
   const panierAvant = avant.ventes ? Math.round(avant.ca / avant.ventes) : 0;
   // Le taux de marge se lit mieux que la marge seule : quinze pour cent sur un
@@ -158,7 +185,8 @@ export default async function Tableau(
   if (enRoute && avance) {
     return (
       <>
-        <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
+        <Entete page="tableau" borne={choisie ? String(choisie.id) : ""}
+                periode={p} />
         <main className="ecran">
           <h1>Bienvenue</h1>
           <p className="sous">
@@ -174,7 +202,8 @@ export default async function Tableau(
 
   return (
     <>
-      <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
+      <Entete page="tableau" borne={choisie ? String(choisie.id) : ""}
+                periode={p} />
       <main className="ecran">
         {/*
           LA TETE : QUI, QUOI, QUAND — ET LE CHOIX DE LA FENETRE A COTE.
@@ -188,20 +217,60 @@ export default async function Tableau(
           <div className="quoi">
             <h1>Tableau de bord</h1>
             <p className="sous">
-              {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"},
-              sur {fen.cle === "1" ? "la journée" : `les ${fen.nom}`}.
+              {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"}
+              {perso ? <> — <strong>{p.nom}</strong></>
+                     : <>, sur {p.cle === "1" ? "la journée" : `les ${p.nom}`}</>}.
             </p>
           </div>
           {/* Un segment, pas cinq boutons detaches : les quatre fenetres sont les
               quatre etats d'un meme reglage, et le dessin doit le dire. */}
-          <nav className="periodes" aria-label="Période observée">
-            {FENETRES.map((x) => (
-              <Link key={x.cle} href={lien({ f: x.cle })}
-                    aria-current={x.cle === fen.cle ? "true" : undefined}>
-                {x.nom}
-              </Link>
-            ))}
-          </nav>
+          <div className="choix-periode">
+            <nav className="periodes" aria-label="Période observée">
+              {FENETRES.map((x) => (
+                <Link key={x.cle} href={lien({ f: x.cle })}
+                      aria-current={!perso && x.cle === p.cle ? "true" : undefined}>
+                  {x.nom}
+                </Link>
+              ))}
+            </nav>
+
+            {/*
+              LES DATES PRECISES SONT REPLIEES, ET S'OUVRENT SEULES QUAND ELLES
+              SERVENT.
+
+              Deux champs de date-heure en permanence dans le titre pesent plus
+              que les quatre fenetres qu'on utilise vingt fois par jour. Repliees,
+              elles ne coutent qu'un mot ; ouvertes des qu'une periode sur mesure
+              est en cours, on voit ce qu'on regarde sans avoir a le rouvrir.
+
+              UN FORMULAIRE GET, PAS DE JAVASCRIPT : la page se recharge, l'adresse
+              porte la periode, et elle se met en favori ou s'envoie a quelqu'un.
+            */}
+            <details className="periode-perso" open={perso}>
+              <summary>Dates précises</summary>
+              <form method="get" action="/">
+                <label>
+                  <span>Du</span>
+                  <input type="datetime-local" name="du" defaultValue={p.saisie.du} required />
+                </label>
+                <label>
+                  <span>Au</span>
+                  <input type="datetime-local" name="au" defaultValue={p.saisie.au} required />
+                </label>
+                {choisie ? <input type="hidden" name="b" value={String(choisie.id)} /> : null}
+                {graphe ? <input type="hidden" name="vue" value="graphe" /> : null}
+                <button className="bouton petit primaire">Afficher</button>
+                {perso ? (
+                  <Link href={lien({ f: DEFAUT.cle })} className="bouton petit discret">
+                    Revenir aux {DEFAUT.nom}
+                  </Link>
+                ) : null}
+              </form>
+              <p className="faible">
+                Heure de Paris, celle du bar où se trouve la machine.
+              </p>
+            </details>
+          </div>
         </div>
 
         {/* ------------------------------------------------------- les chiffres */}
@@ -220,7 +289,7 @@ export default async function Tableau(
                 {" · "}<b className="num">{euros(parJourMoyen)}</b> par jour
               </p>
             </div>
-            <Etincelle jours={jours} />
+            <Etincelle points={points} />
           </div>
 
           <div className="mesures">
@@ -291,17 +360,19 @@ export default async function Tableau(
           </Link>
         </div>
 
-        {/* ------------------------------------------------------- jour par jour */}
-        <h2>Jour par jour</h2>
+        {/* --------------------------------------------------- le decoupage du temps */}
+        {/* Le titre suit le pas : sur quatre heures de vente, « Jour par jour »
+            annoncait une barre unique et donnait tort au graphe qui suivait. */}
+        <h2>{NOM_PAS[pas]}</h2>
         <div className="carte">
           {tete.ventes === 0 ? (
             <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période" dedans />
-          ) : jours.length < 2 ? (
-            <Repli icone={<IcoVentes />} titre="Une seule journée à l’écran"
-                   texte="Une courbe demande au moins deux jours. Élargissez la fenêtre pour voir la tendance."
+          ) : points.length < 2 ? (
+            <Repli icone={<IcoVentes />} titre="Une seule barre à l’écran"
+                   texte="Une tendance demande au moins deux points. Élargissez la période pour la voir."
                    dedans />
           ) : (
-            <SerieJours jours={jours} />
+            <SerieTemps points={points} pas={pas} />
           )}
         </div>
 
@@ -429,7 +500,7 @@ export default async function Tableau(
               <BarresClassees series={classees} />
             </section>
             <section>
-              <h3>Évolution {j <= 7 ? "jour par jour" : "semaine par semaine"}</h3>
+              <h3>Évolution {NOM_PAS[pasCategories(p)].toLowerCase()}</h3>
               {categories.seaux.length >= 2
                 ? <Courbes seaux={categories.seaux} series={categories.series} />
                 : <Repli titre="Pas encore d’évolution"
@@ -542,16 +613,16 @@ function Mesure({ titre, valeur, dessous, delta }:
  * l'oeil. C'est pour ca qu'elle n'a ni axe, ni grille, ni etiquette : tout ce
  * qu'on lui ajouterait la ferait rivaliser avec le vrai graphe.
  */
-function Etincelle({ jours }: { jours: Jour[] }) {
-  if (jours.length < 3) return null;
-  const sommet = Math.max(1, ...jours.map((x) => x.ca));
-  const x = (i: number) => (i / (jours.length - 1)) * 100;
+function Etincelle({ points }: { points: Point[] }) {
+  if (points.length < 3) return null;
+  const sommet = Math.max(1, ...points.map((x) => x.ca));
+  const x = (i: number) => (i / (points.length - 1)) * 100;
   const y = (v: number) => 30 - (v / sommet) * 28;
-  const trait = jours.map((d, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(d.ca)}`).join(" ");
+  const trait = points.map((d, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(d.ca)}`).join(" ");
 
   return (
     <svg className="etincelle" viewBox="0 0 100 30" preserveAspectRatio="none"
-         role="img" aria-label={`Allure du chiffre d’affaires sur ${jours.length} jours`}>
+         role="img" aria-label="Allure du chiffre d’affaires sur la période">
       <path className="aire" d={`${trait} L100,30 L0,30 Z`} />
       <path className="trait" d={trait} />
     </svg>
@@ -610,17 +681,25 @@ function plafond(max: number): number {
  * meilleur jour est ECRIT au-dessus de lui — survoler n'existe pas sur un
  * telephone, et c'est la que cet ecran se consulte.
  */
-function SerieJours({ jours }: { jours: Jour[] }) {
-  const sommet = plafond(Math.max(...jours.map((x) => x.ca)));
-  const moyenne = Math.round(jours.reduce((s, d) => s + d.ca, 0) / jours.length);
-  const meilleur = jours.reduce((a, b) => (b.ca > a.ca ? b : a), jours[0]);
-  const creux = jours.filter((d) => d.ca === 0).length;
-  const rangMeilleur = jours.findIndex((d) => d.ca === meilleur.ca);
+const MOT: Record<Pas, { un: string; des: string; du: string }> = {
+  hour:  { un: "heure",   des: "heures",   du: "de l’heure" },
+  day:   { un: "jour",    des: "jours",    du: "du jour" },
+  week:  { un: "semaine", des: "semaines", du: "de la semaine" },
+  month: { un: "mois",    des: "mois",     du: "du mois" },
+};
 
-  // Une date tous les N jours, COMPTEES DEPUIS LA FIN : trente etiquettes cote a
-  // cote se chevauchent, trois ne situent plus rien — et c'est aujourd'hui, au
-  // bout, qu'on veut voir marque.
-  const pas = Math.max(1, Math.ceil(jours.length / 6));
+function SerieTemps({ points, pas }: { points: Point[]; pas: Pas }) {
+  const mot = MOT[pas];
+  const sommet = plafond(Math.max(...points.map((x) => x.ca)));
+  const moyenne = Math.round(points.reduce((s, d) => s + d.ca, 0) / points.length);
+  const meilleur = points.reduce((a, b) => (b.ca > a.ca ? b : a), points[0]);
+  const creux = points.filter((d) => d.ca === 0).length;
+  const rangMeilleur = points.findIndex((d) => d.ca === meilleur.ca);
+
+  // Une etiquette toutes les N colonnes, COMPTEES DEPUIS LA FIN : trente cote a
+  // cote se chevauchent, trois ne situent plus rien — et c'est le bout, le plus
+  // recent, qu'on veut voir marque.
+  const saut = Math.max(1, Math.ceil(points.length / 6));
 
   // Trois paliers : le sommet, sa moitie, la ligne de base. Une grille plus
   // dense rivalise avec les donnees au lieu de les servir.
@@ -640,13 +719,14 @@ function SerieJours({ jours }: { jours: Jour[] }) {
           </span>
         ) : null}
         <div className="barres">
-          {jours.map((d, i) => {
-            const jour = new Date(`${d.jour}T00:00:00Z`).getUTCDay();
-            const weekend = jour === 0 || jour === 6;
+          {points.map((d, i) => {
+            // Le samedi et le dimanche sont marques par la base, dans le fuseau
+            // des chiffres : les relire ici depuis la date du seau les faisait
+            // basculer d'un jour selon l'heure.
             const record = d.ca > 0 && i === rangMeilleur;
             return (
-              <div key={d.jour}
-                   className={`jour${weekend ? " weekend" : ""}${d.ca === 0 ? " nulle" : ""}`}
+              <div key={d.cle}
+                   className={`jour${d.weekend ? " weekend" : ""}${d.ca === 0 ? " nulle" : ""}`}
                    title={`${d.etiquette} · ${d.n} article${d.n > 1 ? "s" : ""} · ${euros(d.ca)}`}>
                 <span className={`barre${record ? " haute" : ""}`}
                       style={{ height: d.ca === 0 ? 3 : `${Math.max(2, (d.ca / sommet) * 100)}%` }}>
@@ -654,7 +734,7 @@ function SerieJours({ jours }: { jours: Jour[] }) {
                       s'aligne alors sur le cote de sa barre au lieu d'etre
                       centree dessus. */}
                   {record ? (
-                    <b className={`valeur num${i > jours.length - 4 ? " fin"
+                    <b className={`valeur num${i > points.length - 4 ? " fin"
                                               : i < 3 ? " debut" : ""}`}>
                       {euros(d.ca)}
                     </b>
@@ -669,23 +749,27 @@ function SerieJours({ jours }: { jours: Jour[] }) {
       {/* Les dates partagent exactement le decoupage des barres : chaque case
           d'axe est sous sa colonne, remplie une fois sur `pas`. */}
       <div className="dates" aria-hidden="true">
-        {jours.map((d, i) => (
-          <span key={d.jour}>{(jours.length - 1 - i) % pas === 0 ? d.etiquette : ""}</span>
+        {points.map((d, i) => (
+          <span key={d.cle}>{(points.length - 1 - i) % saut === 0 ? d.etiquette : ""}</span>
         ))}
       </div>
 
       <figcaption className="pied">
         <p className="cles">
-          <span><i className="c-barre" /> chiffre d’affaires du jour</span>
-          <span><i className="c-moyenne" /> moyenne : <b className="num">{euros(moyenne)}</b> par jour</span>
-          <span><i className="c-weekend" /> samedi et dimanche</span>
+          <span><i className="c-barre" /> chiffre d’affaires {mot.du}</span>
+          <span><i className="c-moyenne" /> moyenne : <b className="num">{euros(moyenne)}</b> par {mot.un}</span>
+          {/* Le liseret des fins de semaine ne veut rien dire sur des barres
+              hebdomadaires : chacune en contient une. */}
+          {pas === "week" || pas === "month"
+            ? null : <span><i className="c-weekend" /> samedi et dimanche</span>}
         </p>
         <p className="note">
-          Meilleur jour&nbsp;: <b>{meilleur.etiquette}</b> à <b className="num">{euros(meilleur.ca)}</b>
+          Meilleur{pas === "week" ? "e" : ""} {mot.un}&nbsp;: <b>{meilleur.etiquette}</b> à{" "}
+          <b className="num">{euros(meilleur.ca)}</b>
           {creux > 0 ? (
-            <> · <b className="num">{creux}</b> jour{creux > 1 ? "s" : ""} sans aucune vente</>
+            <> · <b className="num">{creux}</b> {creux > 1 ? mot.des : mot.un} sans aucune vente</>
           ) : null}
-          {" "}sur les {jours.length} derniers jours.
+          {" "}sur {points.length} {mot.des}.
         </p>
       </figcaption>
     </figure>
