@@ -578,3 +578,18 @@ ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS image_id BIGINT REFERENCES imag
 -- l'a maintenant, et le meme geste — « retirer » — la sort des listes sans
 -- toucher a ce qui s'est vendu sous son nom.
 ALTER TABLE categorie ADD COLUMN IF NOT EXISTS actif BOOLEAN NOT NULL DEFAULT true;
+
+-- ------------------------------------------------------- le « i » d'un produit
+
+-- LA FICHE PEUT NE PAS ETRE PROPOSEE.
+--
+-- Le « i » est pose sur CHAQUE carte de l'etal, et sur un article dont il n'y a
+-- rien a dire — un briquet, une pile — il ouvre une fiche qui repond « aucune
+-- description n'a ete renseignee ». C'est un bouton qui promet et ne tient pas :
+-- le client le touche, lit qu'il n'y a rien, et revient. Un geste perdu a
+-- l'instant precis ou il choisissait.
+--
+-- L'exploitant tranche donc produit par produit, la ou il ecrit deja la fiche.
+-- VRAI PAR DEFAUT : une description ecrite doit se lire sans qu'on ait rien a
+-- cocher, et le parc en service ne change pas de comportement au deploiement.
+ALTER TABLE produit ADD COLUMN IF NOT EXISTS fiche_visible BOOLEAN NOT NULL DEFAULT true;

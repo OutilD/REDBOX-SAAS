@@ -16,7 +16,7 @@ type P = {
   id: number; sku: string; nom: string;
   categorie_id: number | null; categorie: string;
   prix_vente_c: number; age_min: number; prix_achat_c: number | null;
-  description: string | null; mention: string | null;
+  description: string | null; mention: string | null; fiche_visible: boolean;
   canaux: number; actif: boolean; ordre: number; bouge: number; image: number | null; icone: string | null;
 };
 type Cat = { id: number; nom: string; ordre: number };
@@ -39,7 +39,7 @@ export default async function Catalogue({
     q<P>(`
       SELECT p.id, p.sku, p.nom, p.prix_vente_c, p.age_min, p.categorie_id,
              p.actif, p.ordre, p.image_id AS image, p.icone,
-             p.description, p.mention,
+             p.description, p.mention, p.fiche_visible,
              COALESCE(cat.nom, 'sans catégorie') AS categorie,
              (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c,
              (SELECT COUNT(*)::int FROM canal c WHERE c.produit_id = p.id)         AS canaux,
@@ -190,6 +190,7 @@ export default async function Catalogue({
                 actif: p.actif, ordre: p.ordre, canaux: p.canaux, bouge: p.bouge,
                 image: p.image === null ? null : Number(p.image), icone: p.icone,
                 age_min: Number(p.age_min ?? 0), description: p.description, mention: p.mention,
+                fiche_visible: p.fiche_visible,
               }))} cats={catsVues.map((c) => ({
                 id: Number(c.id), nom: c.nom, ordre: Number(c.ordre),
               }))} />

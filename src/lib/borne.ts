@@ -152,7 +152,11 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
     // la machine la parcourt telle quelle. Ce qu'on veut vendre passe devant.
     q(`SELECT p.sku, p.nom, p.categorie_id, p.prix_vente_c AS prix_centimes,
               p.age_min, p.capteur_fiable, p.icone,
-              p.description, p.mention,
+              -- LE « I » DE LA CARTE VOYAGE AVEC LE PRODUIT, pas dans un reglage
+              -- a part : c'est une propriete de l'article — a-t-il quelque chose
+              -- a dire — et non un mode de la machine. Une borne d'une version
+              -- anterieure ignore simplement le champ et garde son bouton.
+              p.description, p.mention, p.fiche_visible,
               p.image_id AS image, i.empreinte AS image_e
          FROM produit p LEFT JOIN image i ON i.id = p.image_id
         WHERE p.compte_id = $1 AND p.actif

@@ -190,6 +190,12 @@ async function enregistrer(f: FormData, compte_id: number): Promise<void> {
         const t = String(valeur).trim().slice(0, MENTION_MAX);
         await c.query("UPDATE produit SET mention = $1 WHERE id = $2 AND compte_id = $3",
                       [t || null, Number(cle.slice(5)), compte_id]);
+      } else if (cle.startsWith("pfiche_")) {
+        // LE « I » DE LA CARTE. Comme `pactif_`, il arrive en champ cache et non
+        // en case a cocher : une case decochee n'envoie rien, et cette boucle ne
+        // touche que ce qu'elle recoit — le bouton n'aurait jamais pu s'eteindre.
+        await c.query("UPDATE produit SET fiche_visible = $1 WHERE id = $2 AND compte_id = $3",
+                      [String(valeur) === "1", Number(cle.slice(7)), compte_id]);
       } else if (cle.startsWith("pord_")) {
         const n = Number(valeur);
         if (!Number.isInteger(n)) continue;

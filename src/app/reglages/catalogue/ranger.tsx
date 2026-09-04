@@ -11,6 +11,7 @@ export type Prod = {
   canaux: number; bouge: number;      // bouge = mouvements de stock enregistres
   image: number | null; icone: string | null;
   age_min: number; description: string | null; mention: string | null;
+  fiche_visible: boolean;
 };
 export type Cat = { id: number; nom: string; ordre: number };
 
@@ -143,12 +144,18 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
 
       {/* La fiche : ce que la borne montrera quand le client touchera le « i ».
           Repliee par defaut — deux textes longs sur chaque ligne rendraient la
-          liste illisible, et on ne les ecrit qu'une fois. */}
+          liste illisible, et on ne les ecrit qu'une fois.
+
+          LE BOUTON DIT CE QUE FAIT LA BORNE, pas ce qu'on a ecrit. Une fiche
+          retiree se lit depuis la liste : sans ca, on relit dix lignes et on
+          ouvre dix panneaux pour retrouver le produit qu'on avait ferme. */}
       <button type="button" className="bouton petit discret"
               onClick={() => ouvrirFiche(fiche === p.id ? null : p.id)}
               aria-expanded={fiche === p.id}
-              title={`Fiche de ${p.nom} — description et mention légale`}>
-        Fiche{p.description || p.mention ? " ·" : ""}
+              title={p.fiche_visible
+                ? `Fiche de ${p.nom} — description et mention légale`
+                : `Fiche de ${p.nom} — le « i » ne s’affiche pas sur les bornes`}>
+        Fiche{p.fiche_visible ? (p.description || p.mention ? " ·" : "") : " · i masqué"}
       </button>
 
       <button type="button" className="bouton petit"
@@ -176,6 +183,29 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         efface ce qu'on venait d'y ecrire.
       */}
       <div className="fiche-produit" hidden={fiche !== p.id}>
+        {/*
+          LE « I » SE RETIRE ICI, au-dessus des deux textes qu'il ouvre — c'est
+          la seule place ou la question se pose vraiment : on vient d'ecrire la
+          fiche, ou de constater qu'il n'y a rien a ecrire.
+
+          La case ne porte pas de `name` : decochee, elle n'enverrait rien, et
+          « rien » est indiscernable d'un produit absent du formulaire — la route
+          ne met a jour que les champs qu'elle recoit, et le « i » ne pourrait
+          alors plus jamais s'eteindre. C'est le champ cache qui porte la valeur,
+          comme pour « Suspendre ».
+        */}
+        <label className="coche coche-fiche">
+          <input type="checkbox" checked={p.fiche_visible}
+                 onChange={(ev) => modifier(p.id, { fiche_visible: ev.target.checked })} />
+          <span>Bouton « i » sur la borne</span>
+        </label>
+        <input type="hidden" name={`pfiche_${p.id}`} value={p.fiche_visible ? "1" : "0"} />
+        <p className="faible" style={{ fontSize: 12.5, margin: "0 0 12px" }}>
+          {p.fiche_visible
+            ? "Le client peut ouvrir cette fiche depuis l’étal."
+            : "Le « i » disparaît de la carte : ce produit ne s’ouvre plus. Les textes ci-dessous sont conservés."}
+        </p>
+
         <label htmlFor={`desc_${p.id}`}>Description — ce qui aide à choisir</label>
         <textarea id={`desc_${p.id}`} name={`desc_${p.id}`} rows={2} maxLength={DESC_MAX}
                   draggable={false} placeholder="600 bouffées · 2 % de nicotine · goût menthe glaciale"
@@ -301,7 +331,13 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
               {montres.map((p) => (
                 <div className="carte-produit" key={p.id}>
                   <span className="cp-nom">{p.nom}</span>
-                  <span className="cp-prix">{euros(p.prix_vente_c)}</span>
+                  <span className="cp-pied">
+                    <span className="cp-prix">{euros(p.prix_vente_c)}</span>
+                    {/* Le « i » de la vraie carte. Il n'est pas decoratif : c'est
+                        ici qu'on verifie d'un coup d'oeil quelles cartes du rayon
+                        l'ont encore, sans rouvrir sept panneaux. */}
+                    {p.fiche_visible ? <i className="cp-info" aria-hidden>i</i> : null}
+                  </span>
                 </div>
               ))}
             </div>

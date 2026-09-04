@@ -2123,9 +2123,23 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Le pied de la carte : le prix a gauche, le « i » a droite — la disposition
+   de la vraie borne. Le prix garde son `margin-top: auto`, qui le plaque en bas
+   quel que soit le nombre de lignes du nom ; c'est la rangee qui descend, pas
+   seulement lui. */
+.ecran-borne.catalogue .cp-pied {
+  display: flex; align-items: center; gap: 6px; margin-top: auto;
+}
 .ecran-borne.catalogue .cp-prix {
   font-size: 12px; font-weight: 800; color: #fff; margin-top: auto;
   font-variant-numeric: tabular-nums;
+}
+.ecran-borne.catalogue .cp-pied .cp-prix { margin-top: 0; }
+.ecran-borne.catalogue .cp-info {
+  margin-left: auto; flex: none; width: 14px; height: 14px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #26262b; color: #c9c9d1;
+  font-size: 9px; font-weight: 700; line-height: 1; font-style: normal;
 }
 .ecran-borne.catalogue .pied-cat {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -2405,6 +2419,11 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 }
 .fiche-produit textarea:focus-visible { outline: 2px solid var(--rouge); outline-offset: 1px; }
 .fiche-produit textarea:last-of-type { margin-bottom: 0; }
+/* La case du « i ». Son libelle est un interrupteur, pas l'etiquette d'un champ :
+   il reprend donc la couleur du texte plein, sinon il se lit comme le titre du
+   textarea qui le suit. */
+.fiche-produit .coche-fiche { margin-bottom: 2px; }
+.fiche-produit .coche-fiche span { font-size: 13.5px; font-weight: 600; color: var(--texte); }
 
 /* ------------------------------------------------------- sortie de stock */
 /*
