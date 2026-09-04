@@ -593,3 +593,35 @@ ALTER TABLE categorie ADD COLUMN IF NOT EXISTS actif BOOLEAN NOT NULL DEFAULT tr
 -- VRAI PAR DEFAUT : une description ecrite doit se lire sans qu'on ait rien a
 -- cocher, et le parc en service ne change pas de comportement au deploiement.
 ALTER TABLE produit ADD COLUMN IF NOT EXISTS fiche_visible BOOLEAN NOT NULL DEFAULT true;
+
+-- --------------------------------------------- l'ecran d'accueil et l'attente
+
+-- L'ECRAN D'ACCUEIL PEUT ETRE COUPE.
+--
+-- La veille — le grand logo, « Touchez l'ecran pour commencer », la publicite —
+-- fait gagner la dalle et la marque dans un bar ou la machine est vue de loin.
+-- Elle coute une porte : le client doit toucher une fois pour voir ce qui est en
+-- vente, et devant une machine posee en libre-service au milieu d'un passage,
+-- cette porte est ce qui separe quelqu'un de l'etal.
+--
+-- Coupee, la borne reste EN PERMANENCE sur son catalogue. On n'annonce plus, on
+-- montre. C'est une decision d'implantation, pas de gout : elle se prend par
+-- machine, ici, sans monter au mur avec un cable.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS veille_active BOOLEAN NOT NULL DEFAULT true;
+
+-- LE DELAI D'INACTIVITE, EN SECONDES.
+--
+-- Il etait fige a soixante dans l'APK. Soixante secondes, c'est court pour qui
+-- lit une fiche produit, cherche sa carte, ou hesite a deux devant l'etal : le
+-- panier se vidait sous les yeux du client. Il passe a QUATRE-VINGT-DIX par
+-- defaut, et l'exploitant l'ajuste selon le lieu — un bar bruyant n'a pas le
+-- meme tempo qu'une salle d'attente.
+--
+-- Ce qu'on mesure est le temps SANS AUCUN GESTE, pas le temps passe sur une
+-- page : quelqu'un qui prend son temps ne perd rien tant qu'il touche l'ecran.
+-- A l'echeance, la borne repart au repos — la veille, ou l'etal quand la veille
+-- est coupee — panier vide et filtre efface, prete pour le suivant.
+--
+-- Les bornes: 20 s au moins (en dessous, on coupe quelqu'un en pleine lecture),
+-- 600 s au plus (au-dela, le panier d'un client parti serait paye par le suivant).
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS inactivite_s INT NOT NULL DEFAULT 90;

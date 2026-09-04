@@ -9,7 +9,31 @@ export type Borne = {
   appairee_le: Date | null; vue_le: Date | null;
   version: string | null; catalogue_version: string | null; sante: unknown;
   hors_service: boolean; hors_service_texte: string | null;
+  veille_active: boolean; inactivite_s: number;
 };
+
+/**
+ * LE DELAI D'INACTIVITE, ET SES BORNES.
+ *
+ * Une seule definition : la route qui l'enregistre et la page qui le propose
+ * doivent refuser exactement les memes valeurs, sinon le formulaire accepte un
+ * chiffre que la base ramene a autre chose et l'exploitant ne sait plus ce que
+ * sa machine fait.
+ *
+ * En dessous de vingt secondes, on coupe quelqu'un en pleine lecture de fiche.
+ * Au-dela de dix minutes, le panier d'un client parti attend le suivant, qui
+ * paierait ce qu'il n'a pas choisi.
+ */
+export const INACTIVITE_MIN = 20;
+export const INACTIVITE_MAX = 600;
+export const INACTIVITE_DEFAUT = 90;
+
+/** Ramene une saisie dans les bornes. Tout ce qui n'est pas un nombre vaut defaut. */
+export function inactiviteValide(v: unknown): number {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return INACTIVITE_DEFAUT;
+  return Math.min(INACTIVITE_MAX, Math.max(INACTIVITE_MIN, n));
+}
 
 /**
  * Authentification MACHINE — sans rapport avec les sessions humaines.

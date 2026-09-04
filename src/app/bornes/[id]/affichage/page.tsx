@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q, q1, euros, codeCanal } from "@/db";
 import { peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
+import { INACTIVITE_MAX, INACTIVITE_MIN } from "@/lib/borne";
 import { IcoAlerte } from "../../../icones";
 
 export const dynamic = "force-dynamic";
@@ -28,19 +29,36 @@ type Prod = {
   lanes: string | null;
 };
 
+/**
+ * Un nombre de secondes, dit comme on le dirait a voix haute.
+ *
+ * « 90 » se lit vite et se comprend mal : personne ne pense son delai en
+ * secondes au-dela de la minute. Le champ reste en secondes — c'est l'unite
+ * qu'on regle — mais la phrase a cote dit ce que ca fait.
+ */
+function duree(s: number): string {
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60), r = s % 60;
+  return r === 0 ? `${m} min` : `${m} min ${r} s`;
+}
+
 export default async function Affichage({
   params, searchParams,
-}: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
+}: { params: Promise<{ id: string }>;
+     searchParams: Promise<{ ok?: string; veille?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();
-  const { ok } = await searchParams;
+  const { ok, veille } = await searchParams;
 
-  const b = await q1<{ id: number; nom: string; adresse: string | null }>(
-    "SELECT id, nom, adresse FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
+  const b = await q1<{
+    id: number; nom: string; adresse: string | null;
+    veille_active: boolean; inactivite_s: number;
+  }>(`SELECT id, nom, adresse, veille_active, inactivite_s
+        FROM borne WHERE id = $1 AND compte_id = $2`, [id, u.compte_id]);
   if (!b) notFound();
 
   const [cats, prods] = await Promise.all([
@@ -99,6 +117,75 @@ export default async function Affichage({
         {ok ? <p className="faible" style={{ fontSize: 13.5 }}>
           Enregistré. La borne l’appliquera à sa prochaine synchronisation.
         </p> : null}
+
+        {veille ? <p className="avis-ok">
+          Écran d’accueil enregistré. La borne l’applique dès qu’elle répond —
+          quelques secondes.
+        </p> : null}
+
+        {/*
+          L'ECRAN D'ACCUEIL EN PREMIER, PARCE QU'IL DECIDE DU RESTE.
+
+          Ce qu'on coche plus bas remplit l'etal ; ce reglage-ci dit si l'etal est
+          ce qu'on voit, ou ce qu'on voit APRES avoir touche une fois. Le poser
+          apres la liste des produits aurait demande de relire la page a l'envers.
+        */}
+        {!modifiable ? null : (
+          <form method="post" action={`/api/bornes/${id}/veille`}
+                className="carte" style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+              <strong>Écran d’accueil</strong>
+              <span className="faible" style={{ fontSize: 13.5 }}>
+                Ce que la machine montre quand personne n’est devant.
+              </span>
+            </div>
+
+            <label className="coche" style={{ marginTop: 10 }}>
+              <input type="checkbox" name="veille" defaultChecked={b.veille_active} />
+              <span>Afficher l’écran d’accueil au repos</span>
+            </label>
+
+            <p className="faible" style={{ margin: "2px 0 0", fontSize: 13 }}>
+              Coché : le logo, l’invite « Touchez l’écran pour commencer » et les
+              visuels publicitaires. Décoché : la machine reste <b>en permanence sur
+              le catalogue</b>. Le client voit ce qui est en vente sans avoir à
+              toucher une première fois — c’est ce qu’on veut sur une borne posée
+              dans un passage. La publicité, elle, ne passe que sur l’écran
+              d’accueil : la couper la coupe aussi.
+            </p>
+
+            <p className="faible" style={{ margin: "6px 0 0", fontSize: 13 }}>
+              Un catalogue laissé en place jour et nuit marque la dalle à la
+              longue — c’est ce que l’écran d’accueil, qui bouge lentement, évite.
+              Sur une machine allumée en continu et peu fréquentée, gardez-le.
+            </p>
+
+            <label htmlFor="veille-delai" style={{ marginTop: 14 }}>
+              Retour au repos après
+            </label>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <input id="veille-delai" name="inactivite_s" type="number"
+                     min={INACTIVITE_MIN} max={INACTIVITE_MAX} step={5}
+                     defaultValue={b.inactivite_s} style={{ width: 110 }} />
+              <span className="faible" style={{ fontSize: 13.5 }}>
+                secondes sans aucun geste — actuellement {duree(b.inactivite_s)}.
+                Entre {duree(INACTIVITE_MIN)} et {duree(INACTIVITE_MAX)}.
+              </span>
+            </div>
+
+            <p className="faible" style={{ margin: "10px 0 0", fontSize: 13 }}>
+              À l’échéance, le panier est vidé et le filtre effacé : le client
+              suivant arrive devant l’étal complet. On mesure le temps sans
+              <b> aucun</b> geste, pas le temps passé sur une page — quelqu’un qui
+              prend son temps à choisir ne perd rien tant qu’il touche l’écran.
+              Une distribution en cours n’est jamais interrompue.
+            </p>
+
+            <div className="rangee-actions" style={{ marginTop: 12 }}>
+              <button className="bouton">Enregistrer l’écran d’accueil</button>
+            </div>
+          </form>
+        )}
 
         <div className="bandeau deux" style={{ marginTop: 4 }}>
           <div><div className="valeur">{visibles.length}</div>

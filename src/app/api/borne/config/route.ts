@@ -1,5 +1,7 @@
 import { q } from "@/db";
-import { catalogueDe, empreinte, parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
+import {
+  catalogueDe, empreinte, inactiviteValide, parJeton, RYTHME_CALME, RYTHME_VIF,
+} from "@/lib/borne";
 import { empreintePub, pubVide, visuelsPour } from "@/lib/pub";
 import { illustrationsDe } from "@/lib/illustration";
 import { savDe } from "@/lib/sav";
@@ -92,6 +94,21 @@ export async function GET(req: Request) {
     hors_service: borne.hors_service
       ? { actif: true, texte: borne.hors_service_texte ?? null }
       : { actif: false, texte: null },
+
+    // CE QUE LA BORNE MONTRE QUAND PERSONNE N'EST DEVANT, ET COMBIEN DE TEMPS
+    // ELLE ATTEND AVANT D'Y REVENIR.
+    //
+    // Comme la mise hors service : un etat, pas un catalogue. Il voyage a chaque
+    // appel, sans empreinte — il ne pese rien, et une machine qui garderait une
+    // veille qu'on vient de couper resterait une porte fermee devant l'etal.
+    //
+    // Les deux valeurs partent ensemble parce qu'elles se lisent ensemble : sans
+    // veille, le delai ne ramene plus a un ecran d'accueil mais au catalogue
+    // propre, panier vide et filtre efface.
+    veille: {
+      active: borne.veille_active,
+      inactivite_s: inactiviteValide(borne.inactivite_s),
+    },
     catalogue: { version, vide, ...catalogue },
     pub: { version: empreintePub(visuels), vide: pubDeserte, visuels },
     ecrans: illustrations,

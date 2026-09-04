@@ -36,7 +36,8 @@ function jour(d: Date | null): string {
   return d ? new Date(d).toISOString().slice(0, 10) : "";
 }
 
-type Borne = { id: number; nom: string; adresse: string | null; vue_le: Date | null };
+type Borne = { id: number; nom: string; adresse: string | null; vue_le: Date | null;
+                veille_active: boolean };
 
 /**
  * Le choix des bornes.
@@ -101,8 +102,8 @@ export default async function Pub({
 
   const [listes, bornes, illus] = await Promise.all([
     playlistsDe(u.compte_id),
-    q<Borne>("SELECT id, nom, adresse, vue_le FROM borne WHERE compte_id = $1 ORDER BY nom",
-             [u.compte_id]),
+    q<Borne>(`SELECT id, nom, adresse, vue_le, veille_active
+                FROM borne WHERE compte_id = $1 ORDER BY nom`, [u.compte_id]),
     illustrationsDe(u.compte_id),
   ]);
 
@@ -114,6 +115,13 @@ export default async function Pub({
   const enLair = listes.filter((l) => l.diffuse && l.medias.length > 0).length;
   const modifiable = peutConfigurer(u);
   const cible = listes.find((l) => Number(l.id) === aGarnir);
+  // UNE PLAYLIST N'ATTEINT PAS UNE BORNE SANS ECRAN D'ACCUEIL.
+  //
+  // Les visuels ne passent QUE sur cet ecran. Une machine ou l'exploitant l'a
+  // coupe — pour rester en permanence sur son catalogue — ne diffusera donc
+  // rien, quoi qu'on programme ici. C'est invisible depuis cette page, et c'est
+  // exactement le genre de silence qu'on met une semaine a comprendre.
+  const muettes = bornes.filter((b) => !b.veille_active);
 
   return (
     <>
@@ -130,6 +138,27 @@ export default async function Pub({
             ? ` ${enLair} à l’antenne sur ${listes.length} · ${poids(total)}.`
             : ""}
         </p>
+
+        {muettes.length > 0 ? (
+          <div className="avis">
+            <IcoAlerte size={17} />
+            <div className="dit">
+              <div className="titre">
+                {muettes.length === 1
+                  ? "Une borne ne diffusera rien"
+                  : `${muettes.length} bornes ne diffuseront rien`}
+              </div>
+              <div className="texte">
+                {muettes.map((b) => b.nom).join(", ")} — leur écran d’accueil est
+                coupé : elles restent en permanence sur le catalogue, et les
+                visuels ne passent que sur cet écran. Cela se rétablit depuis
+                {muettes.length === 1
+                  ? <> <Link href={`/bornes/${muettes[0].id}/affichage`}>l’affichage de la borne</Link>.</>
+                  : " l’affichage de chaque borne."}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {e && ERREURS[e] ? <p className="erreur">{ERREURS[e]}</p> : null}
         {ignores ? (
