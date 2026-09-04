@@ -1034,59 +1034,150 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
    Pas de bibliotheque : quelques div suffisent, et une page qui ne charge rien
    s'ouvre instantanement sur un telephone au fond d'un bar.
 */
-.axe { display: flex; justify-content: space-between; margin-top: 9px;
-       font-size: 11.5px; color: var(--texte-3); }
+/* `.axe` — un mot d'une syllabe, en classe nue, pour un seul graphe — a ete
+   retire : c'est exactement la forme de nom que la note en tete de cette feuille
+   interdit. L'axe de la serie s'appelle desormais `.serie .dates`. */
 
 /*
-  JOUR PAR JOUR : DES BARRES QUI PORTENT UNE ECHELLE.
+  JOUR PAR JOUR : QUATRE CORRECTIONS, ET AUCUNE N'ETAIT COSMETIQUE.
 
-  Elles n'en avaient aucune. On voyait qu'un jour depassait les autres, jamais de
-  combien, et la seule facon de lire un montant etait de survoler la barre — ce
-  qui n'existe pas sur un telephone, la ou cet ecran se consulte. Trois reperes
-  horizontaux et leur montant a gauche rendent chaque barre lisible sans la
-  toucher, et une ligne de base franche dit ou est le zero.
+  1. LE GRAPHE NE S'AFFICHAIT PAS. Les reperes horizontaux portaient, cote JSX,
+     la classe `grille` alors que cette feuille stylait `.serie .repere` — et
+     `.grille`, plus haut, est une grille CSS generique. Les trois montants se
+     sont donc empiles en haut a gauche, les barres ont ete poussees hors du
+     cadre, et il ne restait a l'ecran que les bandes de fin de semaine, qu'on
+     lisait comme des barres. Cinquieme occurrence du meme accident.
 
-  LES FINS DE SEMAINE SONT TEINTEES. Un creux du mardi et un creux du dimanche
-  n'appellent pas la meme reponse ; sans repere, on lit une baisse la ou il n'y a
-  qu'une semaine qui tourne.
+  2. RIEN NE DISAIT CE QU'ON MESURAIT. Des barres rouges, aucun mot : au lecteur
+     de deviner « chiffre d'affaires ». Une legende nomme les trois marques.
+
+  3. IL N'Y AVAIT PAS DE REFERENCE. Une barre ne se comparait qu'aux autres
+     barres — il fallait parcourir le graphe entier pour juger une journee. La
+     MOYENNE QUOTIDIENNE traverse maintenant le cadre : au-dessus c'est un bon
+     jour, en dessous non. Et l'echelle monte au cran rond au-dessus du sommet,
+     parce que « 37,00 € » a mi-hauteur ne se retient pas.
+
+  4. ON NE SITUAIT AUCUNE BARRE. Trois dates aux extremites pour trente
+     colonnes ; il y en a une tous les cinq jours, sous sa propre colonne.
+
+  LES FINS DE SEMAINE RESTENT TEINTEES — un creux du mardi et un creux du
+  dimanche n'appellent pas la meme reponse — mais la teinte a ete affaiblie : a
+  la valeur de `--surface-2` elle pesait autant qu'une donnee.
 */
-.serie { margin: 0; }
-.serie .cadre { position: relative; height: 196px; padding-left: 58px; }
+.serie { margin: 0; padding-top: 20px; }
+
+/* Le creux de gauche porte les montants de l'echelle ; sans lui ils se
+   poseraient sur la premiere colonne. */
+.serie .cadre { position: relative; height: 208px; padding-left: 62px; }
+
 .serie .repere {
-  position: absolute; left: 58px; right: 0; height: 0;
+  position: absolute; left: 62px; right: 0; height: 0;
   border-top: 1px dashed var(--bord);
 }
 .serie .repere.base { border-top: 1px solid var(--bord-fort); }
 .serie .repere b {
-  position: absolute; right: calc(100% + 9px); transform: translateY(-50%);
-  font-size: 10.5px; font-weight: 600; color: var(--texte-3);
+  position: absolute; right: calc(100% + 10px); transform: translateY(-50%);
+  font-size: 11px; font-weight: 650; color: var(--texte-3);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.serie .barres { position: relative; height: 100%; display: flex; align-items: flex-end; gap: 2px; }
-.serie .b {
-  flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end;
-  border-radius: 3px 3px 0 0;
+
+/* LA MOYENNE : LE SEUL REPERE QUI RENDE UNE BARRE LISIBLE TOUTE SEULE.
+   Elle passe DEVANT les barres — c'est une regle posee sur le dessin, pas une
+   donnee de plus — et son montant porte un fond pour rester lisible par-dessus
+   la colonne qu'il croise. */
+.serie .moyenne {
+  position: absolute; left: 62px; right: 0; height: 0; z-index: 2;
+  border-top: 1px dashed color-mix(in srgb, var(--rouge-vif) 70%, transparent);
 }
-.serie .b.weekend { background: var(--surface-2); }
+.serie .moyenne b {
+  position: absolute; right: 0; bottom: 3px;
+  padding: 1px 6px; border-radius: 4px;
+  background: var(--surface); color: var(--rouge-vif);
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pas d'ecart entre les colonnes : le vide est PRIS DANS la colonne, autour de
+   sa barre. Deux samedis et dimanches voisins forment ainsi une bande continue
+   au lieu de deux bandes separees par un trait de fond. */
+.serie .barres { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.serie .jour {
+  flex: 1 1 0; min-width: 0; height: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.serie .jour.weekend { background: color-mix(in srgb, var(--texte) 5%, transparent); }
+
 /* UN ROUGE RETENU POUR LA MASSE, LE ROUGE VIF POUR LE SOMMET.
 
    Trente barres au rouge de marque font un mur : tout crie egalement, et le jour
    qui sort du lot ne sort plus de rien. La serie prend donc un rouge assourdi, et
-   la seule barre en pleine couleur est celle qu'on cherchait. */
-.serie .b > span {
-  display: block; width: 100%; border-radius: 3px 3px 0 0;
-  background: color-mix(in srgb, var(--rouge) 66%, var(--surface-2));
+   la seule barre en pleine couleur est celle qu'on cherchait.
+
+   La largeur est un POURCENTAGE PLAFONNE : sur sept jours, une barre qui prend
+   sa colonne entiere fait un pave de cent soixante pixels ; sur quatre-vingt-dix,
+   une largeur fixe les ferait se chevaucher. */
+.serie .barre {
+  position: relative; display: block;
+  width: 76%; max-width: 34px; min-width: 2px;
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--rouge) 62%, var(--surface-2));
 }
-.serie .b.haute > span { background: var(--rouge-vif); }
-.serie .axe { padding-left: 58px; }
-.serie .axe .milieu { color: var(--texte-3); }
-.serie .sous-graphe { margin: 11px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45; }
-.serie .sous-graphe b { color: var(--texte); font-weight: 650; }
+.serie .barre.haute { background: var(--rouge-vif); }
+/* Un jour sans vente garde un trait sur la ligne de base. Sans lui, la colonne
+   disparait du dessin et le trou se lit comme une donnee manquante — alors qu'un
+   zero est une information, et souvent la plus mauvaise. */
+.serie .jour.nulle .barre { background: var(--bord-fort); border-radius: 2px; }
+
+/* Le montant du meilleur jour est ECRIT. Survoler n'existe pas sur un telephone,
+   et un graphe dont pas un seul chiffre ne se lit ne se lit pas. */
+.serie .valeur {
+  position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%);
+  font-size: 11.5px; font-weight: 750; color: var(--texte);
+  white-space: nowrap; pointer-events: none;
+}
+.serie .valeur.debut { left: 0; transform: none; }
+.serie .valeur.fin   { left: auto; right: 0; transform: none; }
+
+/* L'axe reprend EXACTEMENT le decoupage des barres — memes cases, meme ordre —
+   pour qu'une date tombe sous sa colonne. Les cases vides laissent deborder
+   leurs voisines : c'est ce qui permet d'ecrire « 06/08 » dans une colonne de
+   douze pixels. */
+.serie .dates {
+  display: flex; margin-top: 8px; padding-left: 62px;
+  font-size: 11px; color: var(--texte-3); font-variant-numeric: tabular-nums;
+}
+.serie .dates span {
+  flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap;
+}
+
+.serie .pied { margin: 0; }
+.serie .cles {
+  display: flex; flex-wrap: wrap; gap: 5px 16px; margin: 14px 0 0;
+  font-size: 12px; color: var(--texte-2);
+}
+.serie .cles span { display: inline-flex; align-items: center; gap: 7px; }
+.serie .cles i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.serie .cles i.c-barre   { background: color-mix(in srgb, var(--rouge) 62%, var(--surface-2)); }
+.serie .cles i.c-moyenne {
+  width: 16px; height: 0; border-radius: 0;
+  border-top: 2px dashed color-mix(in srgb, var(--rouge-vif) 70%, transparent);
+}
+.serie .cles i.c-weekend {
+  background: color-mix(in srgb, var(--texte) 9%, transparent);
+  border: 1px solid var(--bord);
+}
+.serie .cles b { color: var(--texte); font-weight: 700; }
+
+.serie .note { margin: 8px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45; }
+.serie .note b { color: var(--texte); font-weight: 650; }
+
 @media (max-width: 620px) {
-  .serie .cadre { height: 158px; padding-left: 46px; }
-  .serie .repere { left: 46px; }
-  .serie .axe { padding-left: 46px; }
-  .serie .barres { gap: 1px; }
+  .serie .cadre { height: 168px; padding-left: 50px; }
+  .serie .repere, .serie .moyenne { left: 50px; }
+  .serie .repere b { right: calc(100% + 6px); font-size: 10px; }
+  .serie .dates { padding-left: 50px; font-size: 10px; }
+  .serie .barre { width: 82%; }
+  .serie .cles { gap: 4px 13px; font-size: 11.5px; }
 }
 
 /* `.empile` et ses six teintes ont ete retirees : plus aucune page ne les
@@ -2734,4 +2825,76 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 }
 @media (max-width: 620px) {
   .canal-charge { padding: 12px; gap: 3px 10px; grid-template-columns: 38px minmax(0, 1fr) auto; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE SOMMAIRE DES REGLAGES
+
+   MOBILE D'ABORD, et ce n'est pas une formule : la barre du pouce mene ici, et
+   d'ici on rejoint tout le reste de la configuration. La regle de base est donc
+   celle du telephone — une colonne, des rangees hautes, toute la rangee
+   cliquable. Les deux colonnes de l'ecran large arrivent APRES, dans une requete
+   media, quand il y a la place.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rubriques { display: grid; gap: 8px; }
+
+.rubrique {
+  display: grid; align-items: center; gap: 2px 13px;
+  grid-template-columns: 40px minmax(0, 1fr) auto 10px;
+  grid-template-areas: "rond dit etat fleche";
+  min-height: 68px;   /* on la vise du pouce, une main sur un carton */
+  padding: 12px 14px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+.rubrique:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.rubrique:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+/* L'icone sert a reperer sans lire : on descend la liste a l'oeil, on s'arrete
+   sur la forme, on lit ensuite. */
+.rubrique .rond {
+  grid-area: rond; width: 40px; height: 40px; border-radius: var(--r-m);
+  display: grid; place-items: center; flex: none;
+  background: var(--surface-2); color: var(--texte-2);
+}
+.rubrique:hover .rond { color: var(--texte); }
+
+.rubrique .dit { grid-area: dit; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rubrique .nom { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; }
+.rubrique .quoi { font-size: 12.5px; color: var(--texte-3); line-height: 1.35; }
+
+/*
+  L'ETAT A COTE DU NOM.
+
+  « Assistance › » ne dit pas s'il y a un numero dedans : il fallait ouvrir pour
+  savoir, et refermer pour rien neuf fois sur dix. Le chiffre tombe la ou le
+  regard descend, et quand il vaut zero LA OU CA COMPTE il passe en ambre — un
+  zero tranquille se lit comme un renseignement, pas comme un manque.
+*/
+.rubrique .etat {
+  grid-area: etat; font-size: 17px; font-weight: 780; letter-spacing: -.02em;
+  white-space: nowrap; text-align: right;
+}
+.rubrique[data-alerte] { border-color: color-mix(in srgb, var(--ambre) 45%, var(--bord)); }
+.rubrique[data-alerte] .etat { color: var(--ambre); font-size: 13px; font-weight: 700; }
+.rubrique[data-alerte] .rond { background: var(--ambre-fond); color: var(--ambre); }
+
+.rubrique .fleche { grid-area: fleche; color: var(--texte-3); font-size: 19px; line-height: 1; }
+.rubrique:hover .fleche { color: var(--texte-2); }
+
+/* Sous 380 px, la definition passe sous le nom plutot que de serrer l'etat
+   contre lui : deux mots par ligne ne se lisent plus. */
+@media (max-width: 379px) {
+  .rubrique {
+    grid-template-columns: 40px minmax(0, 1fr) 10px;
+    grid-template-areas: "rond dit fleche" "rond etat fleche";
+  }
+  .rubrique .etat { text-align: left; font-size: 15px; }
+}
+
+/* La place venue, deux colonnes : six rangees empilees sur un ecran de 1600 px
+   font une colonne de vide a droite. */
+@media (min-width: 860px) {
+  .rubriques { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

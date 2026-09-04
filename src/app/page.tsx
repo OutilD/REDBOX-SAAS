@@ -559,22 +559,69 @@ function Etincelle({ jours }: { jours: Jour[] }) {
 }
 
 /**
+ * UN PLAFOND ROND POUR L'ECHELLE.
+ *
+ * Elle se calait sur le meilleur jour : les reperes annonçaient « 74,00 € » puis
+ * « 37,00 € », deux montants qu'on ne retient pas, qui changent a chaque
+ * chargement et auxquels on ne compare rien. On monte donc au cran rond
+ * au-dessus — 80 €, 150 €, 250 € — et la moitie tombe juste elle aussi.
+ *
+ * LES CRANS SONT SERRES, et c'est le point delicat. Avec l'echelle scolaire
+ * 1-2-5-10, un meilleur jour a 210 € montait a 400 : la plus haute barre du
+ * graphe occupait la moitie de la hauteur, et les trente autres s'ecrasaient au
+ * ras de la ligne de base. Aucun cran de cette suite-ci ne laisse plus d'un
+ * cinquieme de ciel au-dessus de la plus haute barre, et tous se divisent en
+ * deux proprement — c'est le montant du repere du milieu.
+ */
+const CRANS = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+
+function plafond(max: number): number {
+  if (max <= 0) return 100;
+  const rang = 10 ** Math.floor(Math.log10(max));
+  const tete = max / rang;
+  return Math.round((CRANS.find((c) => c >= tete - 1e-9) ?? 10) * rang);
+}
+
+/**
  * JOUR PAR JOUR.
  *
- * Les barres n'avaient ni echelle ni ligne de base : on voyait bien qu'un jour
- * depassait les autres, jamais de combien, et la seule facon de lire un montant
- * etait de survoler — ce qui n'existe pas sur un telephone. Trois reperes
- * horizontaux et leur montant a gauche suffisent a rendre chaque barre lisible
- * sans la toucher.
+ * ON NE COMPRENAIT RIEN, ET IL Y AVAIT QUATRE RAISONS A CELA.
  *
- * LES SAMEDIS ET DIMANCHES SONT TEINTES. Un creux du mardi et un creux du
- * dimanche n'appellent pas la meme reponse ; sans reperes, on lit une baisse la
- * ou il n'y a qu'une semaine qui tourne.
+ * D'ABORD LE DESSIN NE S'AFFICHAIT PAS. Les reperes horizontaux portaient la
+ * classe `grille` ; or `.grille` est, dans la feuille de style, une grille CSS
+ * generique. Les trois montants se sont donc empiles en haut a gauche au lieu de
+ * se poser sur leur ligne, et il ne restait a l'ecran que les bandes de
+ * fin de semaine — qu'on lisait comme des barres. C'est l'accident decrit en
+ * tete de `globals.css`, une cinquieme fois.
+ *
+ * ENSUITE RIEN NE DISAIT CE QU'ON MESURAIT. Ni le titre, ni l'axe : des barres
+ * rouges, et au lecteur de deviner que c'etait du chiffre d'affaires. Une legende
+ * nomme maintenant chacune des trois marques du graphe.
+ *
+ * PUIS L'ECHELLE ETAIT ILLISIBLE — « 37,00 € » a mi-hauteur — et surtout SANS
+ * REFERENCE. Une barre ne se compare qu'aux autres barres, ce qui oblige a
+ * parcourir tout le graphe pour juger une seule journee. La moyenne quotidienne
+ * est desormais tracee en travers : au-dessus, la journee est bonne ; en dessous,
+ * elle ne l'est pas. C'est la lecture qu'on vient chercher.
+ *
+ * ENFIN ON NE SITUAIT AUCUNE BARRE. Trois dates aux extremites pour trente
+ * colonnes : impossible de dire de quel jour parle celle qui depasse. Il y en a
+ * maintenant une tous les cinq jours, sous sa propre colonne, et le montant du
+ * meilleur jour est ECRIT au-dessus de lui — survoler n'existe pas sur un
+ * telephone, et c'est la que cet ecran se consulte.
  */
 function SerieJours({ jours }: { jours: Jour[] }) {
-  const sommet = Math.max(1, ...jours.map((x) => x.ca));
+  const sommet = plafond(Math.max(...jours.map((x) => x.ca)));
+  const moyenne = Math.round(jours.reduce((s, d) => s + d.ca, 0) / jours.length);
   const meilleur = jours.reduce((a, b) => (b.ca > a.ca ? b : a), jours[0]);
-  const milieu = jours[Math.floor((jours.length - 1) / 2)];
+  const creux = jours.filter((d) => d.ca === 0).length;
+  const rangMeilleur = jours.findIndex((d) => d.ca === meilleur.ca);
+
+  // Une date tous les N jours, COMPTEES DEPUIS LA FIN : trente etiquettes cote a
+  // cote se chevauchent, trois ne situent plus rien — et c'est aujourd'hui, au
+  // bout, qu'on veut voir marque.
+  const pas = Math.max(1, Math.ceil(jours.length / 6));
+
   // Trois paliers : le sommet, sa moitie, la ligne de base. Une grille plus
   // dense rivalise avec les donnees au lieu de les servir.
   const paliers = [1, 0.5, 0];
@@ -583,33 +630,64 @@ function SerieJours({ jours }: { jours: Jour[] }) {
     <figure className="serie">
       <div className="cadre">
         {paliers.map((f) => (
-          <span key={f} className={`grille ${f === 0 ? "base" : ""}`} style={{ bottom: `${f * 100}%` }}>
+          <span key={f} className={`repere ${f === 0 ? "base" : ""}`} style={{ bottom: `${f * 100}%` }}>
             <b>{euros(Math.round(sommet * f))}</b>
           </span>
         ))}
+        {moyenne > 0 ? (
+          <span className="moyenne" style={{ bottom: `${(moyenne / sommet) * 100}%` }}>
+            <b>moyenne {euros(moyenne)}</b>
+          </span>
+        ) : null}
         <div className="barres">
-          {jours.map((d) => {
+          {jours.map((d, i) => {
             const jour = new Date(`${d.jour}T00:00:00Z`).getUTCDay();
             const weekend = jour === 0 || jour === 6;
+            const record = d.ca > 0 && i === rangMeilleur;
             return (
               <div key={d.jour}
-                   className={`b ${weekend ? "weekend" : ""} ${d.ca === sommet ? "haute" : ""}`}
+                   className={`jour${weekend ? " weekend" : ""}${d.ca === 0 ? " nulle" : ""}`}
                    title={`${d.etiquette} · ${d.n} article${d.n > 1 ? "s" : ""} · ${euros(d.ca)}`}>
-                <span style={{ height: `${Math.max(d.ca === 0 ? 0 : 2, (d.ca / sommet) * 100)}%` }} />
+                <span className={`barre${record ? " haute" : ""}`}
+                      style={{ height: d.ca === 0 ? 3 : `${Math.max(2, (d.ca / sommet) * 100)}%` }}>
+                  {/* Colle au bord, l'etiquette sortirait de la carte : elle
+                      s'aligne alors sur le cote de sa barre au lieu d'etre
+                      centree dessus. */}
+                  {record ? (
+                    <b className={`valeur num${i > jours.length - 4 ? " fin"
+                                              : i < 3 ? " debut" : ""}`}>
+                      {euros(d.ca)}
+                    </b>
+                  ) : null}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
-      <figcaption className="axe">
-        <span>{jours[0]?.etiquette}</span>
-        <span className="milieu">{milieu?.etiquette}</span>
-        <span>{jours.at(-1)?.etiquette}</span>
+
+      {/* Les dates partagent exactement le decoupage des barres : chaque case
+          d'axe est sous sa colonne, remplie une fois sur `pas`. */}
+      <div className="dates" aria-hidden="true">
+        {jours.map((d, i) => (
+          <span key={d.jour}>{(jours.length - 1 - i) % pas === 0 ? d.etiquette : ""}</span>
+        ))}
+      </div>
+
+      <figcaption className="pied">
+        <p className="cles">
+          <span><i className="c-barre" /> chiffre d’affaires du jour</span>
+          <span><i className="c-moyenne" /> moyenne : <b className="num">{euros(moyenne)}</b> par jour</span>
+          <span><i className="c-weekend" /> samedi et dimanche</span>
+        </p>
+        <p className="note">
+          Meilleur jour&nbsp;: <b>{meilleur.etiquette}</b> à <b className="num">{euros(meilleur.ca)}</b>
+          {creux > 0 ? (
+            <> · <b className="num">{creux}</b> jour{creux > 1 ? "s" : ""} sans aucune vente</>
+          ) : null}
+          {" "}sur les {jours.length} derniers jours.
+        </p>
       </figcaption>
-      <p className="sous-graphe">
-        Meilleur jour&nbsp;: <b>{meilleur?.etiquette}</b> avec <b className="num">{euros(meilleur?.ca ?? 0)}</b>.
-        Les samedis et dimanches sont teintés.
-      </p>
     </figure>
   );
 }
