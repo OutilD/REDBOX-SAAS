@@ -3100,3 +3100,143 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 @media (min-width: 860px) {
   .rubriques { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES PRIX D'UNE BORNE
+
+   Une ligne par produit, et TROIS montants qui doivent se distinguer d'un coup
+   d'oeil : ce que vend le catalogue, ce que vend cette machine, et l'ecart
+   entre les deux. Les mettre au meme poids typographique — c'etait la premiere
+   version — donnait trois nombres alignes qu'il fallait lire un par un pour
+   savoir lequel etait lequel.
+
+   Le catalogue est donc en retrait et surmonte de son mot ; le champ porte le
+   poids ; l'ecart est un jeton colore, et il porte son signe ECRIT. Une couleur
+   qui porte seule ne dit rien a qui ne la voit pas, ni sur une capture en noir
+   et blanc emportee devant la machine.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.prix-liste { display: flex; flex-direction: column; gap: 8px; }
+
+.prix-ligne {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface);
+  /* Sur telephone, la ligne se replie plutot que de comprimer le champ de
+     saisie : un prix se tape avec le pouce, il ne se tasse pas. */
+  flex-wrap: wrap;
+}
+
+/* Un produit que cette borne ne vend pas — masque, ou sur aucun canal — reste
+   reglable : on prepare souvent une machine avant de la remplir. Mais il ne se
+   fait pas passer pour un article en vente. */
+.prix-ligne.dort { opacity: .55; }
+
+.prix-vign {
+  flex: none; width: 40px; height: 40px; border-radius: var(--r-s);
+  border: 1px solid var(--bord); background: var(--surface-2);
+  display: grid; place-items: center; overflow: hidden; color: var(--texte-2);
+}
+.prix-vign img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.prix-vign .rien { color: var(--texte-3); font-size: 18px; line-height: 1; }
+
+.prix-ligne .quoi { flex: 1; min-width: 140px; }
+.prix-ligne .nom { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; }
+.prix-ligne .meta { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
+
+/* LE PRIX GENERAL, EN REFERENCE. Il est aligne a droite et en chiffres
+   tabulaires : c'est une colonne qu'on parcourt du regard, pas une phrase. */
+.prix-ligne .general { flex: none; text-align: right; min-width: 74px; }
+.prix-ligne .general .etiq {
+  display: block; font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--texte-3); font-weight: 700;
+}
+.prix-ligne .general .montant {
+  display: block; font-size: 13.5px; color: var(--texte-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.prix-ligne .prix-champ input {
+  width: 96px; min-height: var(--touche); font-size: 16px;
+}
+/* Une saisie qu'on n'a pas su lire. Elle n'est PAS effacee a l'enregistrement —
+   la route laisse le prix en place — et le cadre rouge dit pourquoi rien n'a
+   bouge sur cette ligne. */
+.prix-champ.faux input { border-color: var(--rouge); }
+
+.prix-ligne .verdict {
+  flex: none; display: flex; align-items: center; gap: 8px; min-width: 132px;
+  justify-content: flex-end;
+}
+
+.prix-ecart {
+  display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Plus cher que le catalogue : c'est une marge, pas une alerte — l'ambre, comme
+   partout ailleurs pour « regarde ca ». Moins cher : le vert de la remise. Et
+   « suit le catalogue » reste gris, parce que c'est le cas ordinaire et qu'il
+   ne doit rien attirer. */
+.prix-ecart.haut { background: var(--ambre-fond); color: var(--ambre); }
+.prix-ecart.bas  { background: var(--vert-fond);  color: var(--vert); }
+.prix-ecart.suit { color: var(--texte-3); font-weight: 600; }
+.prix-ecart.faux { background: var(--rouge-fond); color: var(--rouge-vif); }
+
+.prix-aligner {
+  flex: none; min-height: 32px; padding: 0 10px; border-radius: var(--r-s);
+  border: 1px solid var(--bord); background: transparent; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--texte-2);
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.prix-aligner:hover { color: var(--texte); background: var(--surface-2); border-color: var(--bord-fort); }
+.prix-aligner:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+/* DANS L'APERCU, un prix decide ici se reconnait sans legende : il porte la
+   couleur de la marque, la ou tous les autres sont blancs. C'est le seul
+   endroit ou l'on voit le rayon comme le client le verra, et c'est la qu'un
+   prix isole saute aux yeux. */
+.ecran-borne.catalogue .cp-prix.a-part { color: #ff5257; }
+
+@media (max-width: 620px) {
+  /* Le champ et son verdict passent sous le nom : a 375 px, les garder sur la
+     meme ligne reduisait le nom du produit a trois lettres et une ellipse. */
+  .prix-ligne .quoi { flex: 1 1 100%; }
+  .prix-ligne .general { min-width: 0; margin-left: auto; }
+  .prix-ligne .verdict { min-width: 0; }
+}
+
+/* L'ASTERISQUE DU PRIX PROPRE.
+
+   Elle marque, sur un plateau ou une liste d'affichage, les lignes dont le prix
+   ne vient pas du catalogue. Un mot entier aurait double la hauteur de chaque
+   `meta` pour une information qui ne concerne, sur la plupart des parcs, que
+   deux ou trois produits ; le signe suffit a faire lever les yeux, le survol
+   donne le prix general, et le texte hors-vue le dit aux lecteurs d'ecran —
+   parce qu'un `title` seul ne se lit ni au clavier ni a la voix. */
+.prix-a-part {
+  margin-left: 4px; color: var(--ambre); font-weight: 800; cursor: help;
+  font-style: normal;
+}
+
+/* La meme alerte, mais ecrite en toutes lettres : dans le catalogue general,
+   ce n'est plus « ce prix vient d'ailleurs » mais « ce prix n'ira pas partout »,
+   et le nombre de bornes concernees fait toute l'information. */
+.prix-a-part.sur-mesure { margin-left: 0; font-weight: 700; }
+
+/* L'ECART, EN THEME CLAIR.
+
+   L'ambre et le vert de la marque sont regles pour du texte pose sur du noir.
+   Sur du blanc, ils tombent sous les 4,5:1 — c'est admis pour une pilule
+   d'etat comme `.pilule.attente`, dont on lit le mot et pas la couleur ; ce
+   n'est pas admis ici, ou le jeton PORTE le chiffre. On les assombrit donc,
+   pour ce jeton seulement, plutot que de deplacer les couleurs du systeme.
+
+   Le signe reste ecrit dans tous les cas : la couleur ne fait que confirmer. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .prix-ecart.haut { color: #8a6400; }
+  :root:not([data-theme="dark"]) .prix-ecart.bas  { color: #1d7a45; }
+  :root:not([data-theme="dark"]) .prix-a-part     { color: #8a6400; }
+}
+:root[data-theme="light"] .prix-ecart.haut { color: #8a6400; }
+:root[data-theme="light"] .prix-ecart.bas  { color: #1d7a45; }
+:root[data-theme="light"] .prix-a-part     { color: #8a6400; }

@@ -197,7 +197,10 @@ function Canal({ c }: { c: LigneCanal }) {
       <div className="quoi">
         <div className="nom">{c.nom}</div>
         <div className="meta">
-          {euros(c.prix_vente_c)}
+          {/* Ce que CETTE borne encaisse. Le catalogue peut dire autre chose
+              depuis que le tarif se regle machine par machine — et devant une
+              machine ouverte, c'est son prix a elle qu'on veut lire. */}
+          {euros(c.prix_c)}
           {etat !== "plein"
             ? <b className="mot-etat">{etat === "vide" ? "vide" : "bas"}</b> : null}
         </div>

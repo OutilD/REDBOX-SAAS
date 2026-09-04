@@ -23,7 +23,8 @@ export const dynamic = "force-dynamic";
 
 type Cat = { id: number; nom: string; ordre: number; masquee: boolean; produits: number };
 type Prod = {
-  id: number; sku: string; nom: string; prix_vente_c: number;
+  id: number; sku: string; nom: string; prix_vente_c: number; prix_c: number;
+  prix_propre: boolean;
   categorie_id: number | null; categorie: string; ordre: number;
   masque: boolean; cat_masquee: boolean;
   lanes: string | null;
@@ -75,6 +76,10 @@ export default async function Affichage({
 
     q<Prod>(`
       SELECT p.id, p.sku, p.nom, p.prix_vente_c, p.categorie_id,
+             -- Ce que cette borne fait payer. La liste sert a decider ce qu'elle
+             -- montre : y lire le prix d'une autre machine n'aiderait personne.
+             COALESCE(pb.prix_c, p.prix_vente_c) AS prix_c,
+             (pb.prix_c IS NOT NULL) AS prix_propre,
              COALESCE(cat.nom, 'sans catégorie') AS categorie,
              COALESCE(cat.ordre, 999) AS ordre,
              EXISTS (SELECT 1 FROM borne_masque m
@@ -83,7 +88,9 @@ export default async function Affichage({
                       WHERE m.borne_id = $2 AND m.categorie_id = p.categorie_id) AS cat_masquee,
              (SELECT string_agg(k.rangee || lpad(k.colonne::text,2,'0'), ' · ' ORDER BY k.lane)
                 FROM canal k WHERE k.borne_id = $2 AND k.produit_id = p.id) AS lanes
-        FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
+        FROM produit p
+        LEFT JOIN categorie cat ON cat.id = p.categorie_id
+        LEFT JOIN prix_borne pb ON pb.produit_id = p.id AND pb.borne_id = $2
        WHERE p.compte_id = $1 AND p.actif
        ORDER BY COALESCE(cat.ordre, 999), COALESCE(cat.nom, 'zzz'), p.nom`,
       [u.compte_id, id]),
@@ -111,7 +118,9 @@ export default async function Affichage({
           Décochez ce que <b>cette borne</b> ne doit pas montrer. Le stock et le
           planogramme ne bougent pas : le canal garde son produit et son compteur,
           la machine l’annonce simplement comme libre. On peut rendre un rayon le
-          lendemain sans rien avoir perdu.
+          lendemain sans rien avoir perdu. Pour ce qu’elle fait payer,{" "}
+          <Link href={`/bornes/${id}/prix`} style={{ textDecoration: "underline" }}>
+          les prix de cette borne</Link>.
         </p>
 
         {ok ? <p className="faible" style={{ fontSize: 13.5 }}>
@@ -246,7 +255,16 @@ export default async function Affichage({
                       <div className="corps">
                         <div className="nom">{p.nom}</div>
                         <div className="meta">
-                          <span className="mono">{p.sku}</span> · {euros(p.prix_vente_c)}
+                          <span className="mono">{p.sku}</span> · {euros(p.prix_c)}
+                          {p.prix_propre ? (
+                            <b className="prix-a-part"
+                               title={`Prix propre à cette borne — le catalogue dit ${euros(p.prix_vente_c)}`}>
+                              <span aria-hidden>∗</span>
+                              <span className="hors-vue">
+                                {` prix propre à cette borne, le catalogue dit ${euros(p.prix_vente_c)}`}
+                              </span>
+                            </b>
+                          ) : null}
                           {p.lanes ? <> · canal <b className="mono">{p.lanes}</b></>
                                    : " · sur aucun canal ici"}
                         </div>

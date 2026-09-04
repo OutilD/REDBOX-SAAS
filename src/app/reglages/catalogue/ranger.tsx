@@ -12,6 +12,8 @@ export type Prod = {
   image: number | null; icone: string | null;
   age_min: number; description: string | null; mention: string | null;
   fiche_visible: boolean;
+  /** Le nombre de bornes qui ont pose leur propre prix sur ce produit. */
+  prix_ailleurs: number;
 };
 export type Cat = { id: number; nom: string; ordre: number };
 
@@ -113,6 +115,19 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
           <span className="mono">{p.sku}</span>
           {p.canaux > 0 ? ` · ${p.canaux} ${p.canaux > 1 ? "canaux" : "canal"}` : " · sur aucun canal"}
           {p.actif ? "" : " · suspendu"}
+          {/* CE PRIX N'EST PAS SUIVI PARTOUT. Sans cette mention, on corrige un
+              montant ici, on repart satisfait, et deux machines continuent de
+              vendre a l'ancien tarif sans que rien ne l'ait dit. */}
+          {p.prix_ailleurs > 0 ? (
+            <b className="prix-a-part sur-mesure"
+               title={p.prix_ailleurs > 1
+                 ? `${p.prix_ailleurs} bornes appliquent leur propre prix : ce montant ne les concerne pas.`
+                 : "Une borne applique son propre prix : ce montant ne la concerne pas."}>
+              {p.prix_ailleurs > 1
+                ? ` · ${p.prix_ailleurs} bornes ont leur prix`
+                : " · 1 borne a son prix"}
+            </b>
+          ) : null}
         </div>
       </div>
 

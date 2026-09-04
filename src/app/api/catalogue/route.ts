@@ -6,15 +6,12 @@ import { laneDe, spireValide } from "@/lib/machine";
 import { balayerImages, rangerImage } from "@/lib/image";
 import { CLES_PICTO } from "@/lib/pictos";
 import { DESC_MAX, MENTION_MAX } from "@/lib/fiche";
+// Le meme lecteur de montant que les prix par borne : « 4,50 », « 4.50 » ou
+// « 4,50 € » doivent donner le meme nombre de centimes des deux cotes, sinon
+// un prix general et un prix de borne s'arrondiraient differemment.
+import { centimes } from "@/lib/prix";
 
 export const dynamic = "force-dynamic";
-
-function centimes(brut: string): number | null {
-  const t = brut.trim().replace(/[^\d,.-]/g, "").replace(",", ".");
-  if (!t) return null;
-  const n = Math.round(parseFloat(t) * 100);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-}
 
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);

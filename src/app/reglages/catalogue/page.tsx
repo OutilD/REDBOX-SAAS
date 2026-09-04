@@ -18,6 +18,8 @@ type P = {
   prix_vente_c: number; age_min: number; prix_achat_c: number | null;
   description: string | null; mention: string | null; fiche_visible: boolean;
   canaux: number; actif: boolean; ordre: number; bouge: number; image: number | null; icone: string | null;
+  /** Sur combien de bornes ce prix est-il remplace par un tarif local. */
+  prix_ailleurs: number;
 };
 type Cat = { id: number; nom: string; ordre: number };
 
@@ -43,6 +45,11 @@ export default async function Catalogue({
              COALESCE(cat.nom, 'sans catégorie') AS categorie,
              (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c,
              (SELECT COUNT(*)::int FROM canal c WHERE c.produit_id = p.id)         AS canaux,
+             -- CE PRIX EST-IL SUIVI PARTOUT ? Depuis qu'une borne peut poser le
+             -- sien, changer un montant ici ne suffit plus a changer ce que
+             -- toutes les machines encaissent. Le taire serait le pire des
+             -- silences : on croirait avoir augmente un produit sur tout le parc.
+             (SELECT COUNT(*)::int FROM prix_borne pb WHERE pb.produit_id = p.id) AS prix_ailleurs,
              (SELECT COUNT(*)::int FROM mouvement m WHERE m.produit_id = p.id)     AS bouge
         FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
        WHERE p.compte_id = $1
@@ -100,8 +107,10 @@ export default async function Catalogue({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Catalogue</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Les prix valent pour toutes vos bornes. Les machines les relisent à chaque
-          synchronisation. <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>
+          Les prix posés ici valent pour toutes vos bornes, sauf celles qui ont fixé
+          le leur — le réglage se prend sur la fiche de chaque machine, onglet
+          <b> Prix</b>. Les bornes relisent le catalogue à chaque synchronisation.{" "}
+          <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>
           Organiser les catégories</Link>.
         </p>
         {orphelins.length > 0 ? (
@@ -188,6 +197,7 @@ export default async function Catalogue({
                 id: Number(p.id), sku: p.sku, nom: p.nom, prix_vente_c: p.prix_vente_c,
                 categorie_id: p.categorie_id === null ? null : Number(p.categorie_id),
                 actif: p.actif, ordre: p.ordre, canaux: p.canaux, bouge: p.bouge,
+                prix_ailleurs: Number(p.prix_ailleurs ?? 0),
                 image: p.image === null ? null : Number(p.image), icone: p.icone,
                 age_min: Number(p.age_min ?? 0), description: p.description, mention: p.mention,
                 fiche_visible: p.fiche_visible,

@@ -625,3 +625,47 @@ ALTER TABLE borne ADD COLUMN IF NOT EXISTS veille_active BOOLEAN NOT NULL DEFAUL
 -- Les bornes: 20 s au moins (en dessous, on coupe quelqu'un en pleine lecture),
 -- 600 s au plus (au-dela, le panier d'un client parti serait paye par le suivant).
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS inactivite_s INT NOT NULL DEFAULT 90;
+
+-- ------------------------------------------------------- le prix par borne
+
+-- LE MEME CATALOGUE, PAS LE MEME PRIX.
+--
+-- `produit.prix_vente_c` valait pour tout le parc. C'est juste tant que les
+-- machines se ressemblent, et faux des la deuxieme implantation : une borne
+-- dans un bar de nuit, une autre dans le hall d'une salle de sport et une
+-- troisieme sur une aire d'autoroute ne se vendent pas au meme prix. Le loyer
+-- n'est pas le meme, la clientele non plus, et la concurrence d'a cote encore
+-- moins. Sans ce reglage, l'exploitant n'avait que deux issues : aligner tout
+-- le parc sur le moins cher, ou tenir un catalogue par machine — c'est-a-dire
+-- ressaisir onze produits autant de fois qu'il a de bornes, et les voir
+-- diverger au premier changement de nom.
+--
+-- CE SONT DES EXCEPTIONS, PAS UN SECOND CATALOGUE. Meme forme que
+-- `borne_masque` : aucune ligne ici veut dire « cette borne suit le catalogue ».
+-- Le produit reste unique — un nom, une photo, une fiche, un SKU, un stock —
+-- et seule la ligne du prix se dedouble, la ou elle doit l'etre. Rien a
+-- reprendre pour le parc en service : sans exception, il vend exactement ce
+-- qu'il vendait hier.
+--
+-- ET UNE EXCEPTION QUI VAUT LE PRIX GENERAL N'EN EST PAS UNE. La route qui
+-- enregistre efface la ligne dans ce cas plutot que de la poser : sinon le parc
+-- se remplit de prix propres invisibles, identiques au catalogue le jour ou on
+-- les pose, et qui cessent de le suivre sans que personne l'ait voulu.
+--
+-- LE PRIX PAYE, LUI, NE SE DEDUIT JAMAIS D'ICI. `vente.prix_c` est ce que la
+-- machine a REELLEMENT encaisse et qu'elle remonte avec la vente. Recalculer un
+-- chiffre d'affaires a partir du prix d'aujourd'hui reecrirait l'histoire a
+-- chaque changement de tarif.
+CREATE TABLE IF NOT EXISTS prix_borne (
+  borne_id   BIGINT NOT NULL REFERENCES borne(id)   ON DELETE CASCADE,
+  produit_id BIGINT NOT NULL REFERENCES produit(id) ON DELETE CASCADE,
+  prix_c     INTEGER NOT NULL CHECK (prix_c >= 0),
+  par        TEXT,
+  pose_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (borne_id, produit_id)
+);
+
+-- « Ce produit a-t-il un prix propre quelque part ? » est la question que pose
+-- le catalogue general, sur chacune de ses lignes : elle se lit par produit et
+-- non par borne, ce que la cle primaire ne sait pas servir.
+CREATE INDEX IF NOT EXISTS i_prix_borne_produit ON prix_borne (produit_id);

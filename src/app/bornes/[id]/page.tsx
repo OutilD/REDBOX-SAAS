@@ -371,6 +371,12 @@ export default async function Detail({
             <Link href={`/reassort/fiche?b=${id}`} className="bouton">Fiche de réassort</Link>
             <Link href={`/bornes/${id}/planogramme`} className="bouton">Planogramme</Link>
             <Link href={`/bornes/${id}/affichage`} className="bouton">Affichage</Link>
+            {/* LE PRIX EST UNE DECISION DE MACHINE, pas de catalogue : il se
+                prend en regardant celle-ci, et il vit donc a cote de ce qu'elle
+                montre. */}
+            {peutConfigurer(u)
+              ? <Link href={`/bornes/${id}/prix`} className="bouton">Prix</Link>
+              : null}
             {peutConfigurer(u)
               ? <Link href={`/bornes/${id}/fiche`} className="bouton">Modifier la fiche</Link>
               : null}
@@ -653,7 +659,22 @@ function Canal({ c, borne, peut }: { c: LigneCanal; borne: number; peut: boolean
       <div className="corps">
         <div className="nom">{c.nom ?? <span className="faible">canal libre</span>}</div>
         <div className="meta">
-          {c.prix_vente_c !== null ? euros(c.prix_vente_c) : "—"}
+          {/* LE PRIX DE CETTE BORNE, pas celui du catalogue. Elles peuvent
+              differer depuis que le tarif se regle machine par machine, et
+              c'est ici — devant le plateau — qu'on veut lire ce qui est
+              vraiment encaisse. L'asterisque le signale sans prendre la place
+              d'un mot : le titre l'explique au survol, et la page des prix le
+              detaille. */}
+          {c.prix_c !== null ? euros(c.prix_c) : "—"}
+          {c.prix_propre ? (
+            <b className="prix-a-part"
+               title={`Prix propre à cette borne — le catalogue dit ${euros(c.prix_vente_c)}`}>
+              <span aria-hidden>∗</span>
+              <span className="hors-vue">
+                {` prix propre à cette borne, le catalogue dit ${euros(c.prix_vente_c)}`}
+              </span>
+            </b>
+          ) : null}
           {c.releve_le ? ` · relevé ${depuis(c.releve_le)}` : ""}
           {mot ? <b className="mot-etat">{mot}</b> : null}
         </div>

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { q, q1 } from "@/db";
 import { COLONNES, RANGEES } from "./machine";
+import { jointurePrix } from "./prix";
 
 export type Borne = {
   id: number; compte_id: number | null; lieu_id: number | null;
@@ -174,7 +175,16 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
 
     // L'ordre de cette liste EST celui que le client voit dans chaque rayon :
     // la machine la parcourt telle quelle. Ce qu'on veut vendre passe devant.
-    q(`SELECT p.sku, p.nom, p.categorie_id, p.prix_vente_c AS prix_centimes,
+    //
+    // LE PRIX EST CELUI DE CETTE BORNE. Le catalogue est commun, le tarif ne
+    // l'est plus : une exception posee dans `prix_borne` passe devant le prix
+    // general. La machine ne s'en apercoit pas — elle recoit un `prix_centimes`
+    // par produit comme elle l'a toujours fait, et n'a rien de neuf a
+    // apprendre. Cote SaaS, l'empreinte du catalogue est calculee sur cette
+    // reponse : changer un prix ici la fait bouger, donc la borne resynchronise
+    // d'elle-meme au lieu de vendre une journee au tarif de la veille.
+    q(`SELECT p.sku, p.nom, p.categorie_id,
+              COALESCE(pb.prix_c, p.prix_vente_c) AS prix_centimes,
               p.age_min, p.capteur_fiable, p.icone,
               -- LE « I » DE LA CARTE VOYAGE AVEC LE PRODUIT, pas dans un reglage
               -- a part : c'est une propriete de l'article — a-t-il quelque chose
@@ -182,9 +192,11 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
               -- anterieure ignore simplement le champ et garde son bouton.
               p.description, p.mention, p.fiche_visible,
               p.image_id AS image, i.empreinte AS image_e
-         FROM produit p LEFT JOIN image i ON i.id = p.image_id
+         FROM produit p
+         LEFT JOIN image i ON i.id = p.image_id
+         ${jointurePrix("$2")}
         WHERE p.compte_id = $1 AND p.actif
-        ORDER BY p.ordre, p.nom`, [compte_id]),
+        ORDER BY p.ordre, p.nom`, [compte_id, borne_id]),
 
     // Un canal masque part avec sku = NULL : la machine le traite alors comme
     // un canal libre, chemin qu'elle connait deja par coeur. Rien de neuf a

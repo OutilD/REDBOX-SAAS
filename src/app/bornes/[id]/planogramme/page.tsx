@@ -27,13 +27,19 @@ export default async function Planogramme({
   if (!b) notFound();
 
   const canaux = await canauxDe(id, u.compte_id);
+  // Le prix montre dans les listes est CELUI DE CETTE BORNE : on choisit ce
+  // qu'une machine distribue, et lui rappeler un tarif qu'elle ne pratique pas
+  // ferait poser le produit sur une idee fausse de ce qu'il rapporte.
   const produits = await q<{ id: number; sku: string; nom: string;
-                            prix_vente_c: number; categorie: string }>(`
-    SELECT p.id, p.sku, p.nom, p.prix_vente_c,
+                            prix_c: number; categorie: string }>(`
+    SELECT p.id, p.sku, p.nom,
+           COALESCE(pb.prix_c, p.prix_vente_c) AS prix_c,
            COALESCE(cat.nom, 'sans catégorie') AS categorie
-      FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
+      FROM produit p
+      LEFT JOIN categorie cat ON cat.id = p.categorie_id
+      LEFT JOIN prix_borne pb ON pb.produit_id = p.id AND pb.borne_id = $2
      WHERE p.compte_id = $1 AND p.actif
-     ORDER BY COALESCE(cat.ordre, 999), COALESCE(cat.nom, 'zzz'), p.nom`, [u.compte_id]);
+     ORDER BY COALESCE(cat.ordre, 999), COALESCE(cat.nom, 'zzz'), p.nom`, [u.compte_id, id]);
 
   const parCategorie = [...produits.reduce((m, p) => {
     (m.get(p.categorie) ?? m.set(p.categorie, []).get(p.categorie)!).push(p);
@@ -90,7 +96,7 @@ export default async function Planogramme({
                 {parCategorie.map(([cat, liste]) => (
                   <optgroup key={cat} label={cat}>
                     {liste.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nom} · {euros(p.prix_vente_c)}</option>
+                      <option key={p.id} value={p.id}>{p.nom} · {euros(p.prix_c)}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -126,7 +132,7 @@ export default async function Planogramme({
                       {parCategorie.map(([cat, liste]) => (
                         <optgroup key={cat} label={cat}>
                           {liste.map((p) => (
-                            <option key={p.id} value={p.id}>{p.nom} · {euros(p.prix_vente_c)}</option>
+                            <option key={p.id} value={p.id}>{p.nom} · {euros(p.prix_c)}</option>
                           ))}
                         </optgroup>
                       ))}
