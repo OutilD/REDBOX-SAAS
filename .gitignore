@@ -15,3 +15,7 @@
 .DS_Store
 *.log
 /.claude
+
+# Cache de compilation incrementale de TypeScript : regenere a chaque build,
+# il polluait tous les diffs.
+tsconfig.tsbuildinfo
