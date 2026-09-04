@@ -1940,6 +1940,34 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 .vignette.petite .genre { display: none; }
 
 /* Les medias d'une playlist, dans l'ordre ou ils passent. */
+/*
+  LA TETE D'UNE PLAYLIST, ET LE TELEPHONE.
+
+  Trois blocs se disputaient la largeur : la vignette (132 px), le texte, et la
+  colonne de commandes (110 px). A trois cent soixante pixels il restait
+  quatre-vingts pixels au milieu, et « 1 média · 7 s par tour · 415 Ko · toutes
+  les bornes » tombait un mot par ligne — une colonne de vingt lignes pour une
+  phrase.
+
+  Les commandes descendent donc SOUS le bloc des qu'on est a l'etroit, en ligne
+  et a pleine largeur. Elles y sont plus faciles a viser qu'empilees a droite, et
+  le texte retrouve la largeur de la carte.
+*/
+.tete-playlist { display: flex; align-items: flex-start; gap: 14px; }
+.tete-playlist .quoi { flex: 1 1 170px; min-width: 0; }
+.tete-playlist .commandes { display: flex; flex-direction: column; gap: 7px; flex: none; }
+
+@media (max-width: 620px) {
+  .tete-playlist { flex-wrap: wrap; gap: 12px; }
+  /* La vignette rend la moitie de sa largeur : elle sert a reconnaitre, pas a
+     regarder — l'apercu en grand est sur la borne. */
+  .tete-playlist .vignette, .tete-playlist .vignette.defile { width: 104px; height: 60px; }
+  /* A leur largeur, tassees a gauche. Etirees a parts egales, « Retirer… » —
+     la seule irreversible — devenait la plus large des trois et se lisait comme
+     l'action principale. */
+  .tete-playlist .commandes { flex-direction: row; width: 100%; flex-wrap: wrap; }
+}
+
 .medias { margin-top: 14px; border-top: 1px solid var(--bord); }
 .media {
   display: flex; align-items: center; gap: 11px;
@@ -1956,6 +1984,22 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .media .meta { font-size: 12px; color: var(--texte-3); }
+.media .duree-media { width: 84px; flex: none; }
+
+/*
+  UNE LIGNE DE MEDIA A L'ETROIT.
+
+  Le rang, la vignette, le nom, la duree et la croix tenaient sur une seule
+  ligne : a trois cent soixante pixels il restait quarante pixels au nom, et
+  « Chargement TAP IT » s'affichait « Ch… ». La duree et la croix passent a la
+  ligne, calees sous la vignette — le nom reprend toute la largeur.
+*/
+@media (max-width: 620px) {
+  .media { flex-wrap: wrap; row-gap: 9px; }
+  .media .pousse { flex: 1 1 150px; }
+  .media .duree-media { margin-left: 31px; }
+  .media .duree-media + .bouton { margin-left: auto; }
+}
 
 /* Le choix des bornes : on coche un LIEU, pas une case. */
 .bornes-choix {

@@ -19,7 +19,16 @@ import { useEffect, useState } from "react";
 
 export type Vu = { id: number; genre: "image" | "video"; duree_s: number; nom: string };
 
-export default function Apercu({ medias, hauteur = 76 }: { medias: Vu[]; hauteur?: number }) {
+/**
+ * LA HAUTEUR EST AU CSS, PLUS AU STYLE EN LIGNE.
+ *
+ * Elle etait posee ici, en dur, sur l'element : `style` bat toujours une feuille
+ * de style, et la vignette refusait donc de se reduire sur un telephone — la
+ * requete media changeait sa largeur, jamais sa hauteur, et le cadre sortait de
+ * ses proportions. `.vignette` porte deja 76 px par defaut ; personne ne
+ * demandait autre chose.
+ */
+export default function Apercu({ medias }: { medias: Vu[] }) {
   const [i, poser] = useState(0);
 
   useEffect(() => {
@@ -35,7 +44,7 @@ export default function Apercu({ medias, hauteur = 76 }: { medias: Vu[]; hauteur
 
   if (medias.length === 0) {
     return (
-      <div className="vignette" style={{ height: hauteur }}>
+      <div className="vignette">
         <span className="genre">vide</span>
       </div>
     );
@@ -44,7 +53,7 @@ export default function Apercu({ medias, hauteur = 76 }: { medias: Vu[]; hauteur
   const actuel = medias[Math.min(i, medias.length - 1)];
 
   return (
-    <div className="vignette defile" style={{ height: hauteur }}>
+    <div className="vignette defile">
       {medias.map((m, n) => (
         m.genre === "image"
           // eslint-disable-next-line @next/next/no-img-element

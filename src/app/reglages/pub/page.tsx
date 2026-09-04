@@ -282,9 +282,9 @@ export default async function Pub({
             <h2>{listes.length} playlist{listes.length > 1 ? "s" : ""}</h2>
             {listes.map((l) => (
               <div className={`carte visuel${l.diffuse ? "" : " dormant"}`} key={l.id}>
-                <div className="rangee" style={{ alignItems: "flex-start", gap: 14 }}>
+                <div className="tete-playlist">
                   <Apercu medias={l.medias} />
-                  <div className="pousse" style={{ minWidth: 0 }}>
+                  <div className="quoi">
                     {modifiable
                       ? <input name={`nom_${l.id}`} defaultValue={l.nom} aria-label="Nom de la playlist" />
                       : <div className="nom">{l.nom}</div>}
@@ -309,7 +309,7 @@ export default async function Pub({
                     </div>
                   </div>
                   {modifiable ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: "none" }}>
+                    <div className="commandes">
                       {/* L'action réversible d'abord, et en premier sous le pouce.
                           Supprimer est irréversible : elle passe par une question. */}
                       <button name="basculer" value={l.id} className="bouton petit">
@@ -366,7 +366,7 @@ export default async function Pub({
                                 {poids(m.taille)}{m.genre === "video" ? " · vidéo" : ""}
                               </div>
                             </div>
-                            <div style={{ width: 84, flex: "none" }}>
+                            <div className="duree-media">
                               <input name={`mduree_${m.id}`} type="number" min={2} max={60}
                                      defaultValue={m.duree_s} inputMode="numeric"
                                      disabled={m.genre === "video"}
