@@ -2736,6 +2736,23 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 
 .code-maintenance { font-size: 30px; font-weight: 700; letter-spacing: .18em; }
 
+/* LE CODE QU'ON N'A PAS ENCORE.
+
+   Six points a la place des six chiffres : la carte garde sa hauteur, et l'oeil
+   sait deja ou le code se posera. Le trait dessous est celui de l'ecran
+   d'attente — la meme promesse, au meme rythme, parce que c'est la meme chose
+   qu'on attend : que ca s'en aille. */
+.code-attente { display: inline-flex; flex-direction: column; gap: 7px; }
+.code-attente .code-maintenance { color: var(--texte-3); }
+.code-attente .fil-chargement { width: 100%; }
+
+/* LE DERNIER CODE D'UNE BORNE MUETTE.
+
+   Il ouvre encore la console — une machine hors ligne porte ce qu'elle a
+   annonce, et c'est justement le jour ou l'on vient la voir. Mais ce n'est pas
+   une nouvelle fraiche : on le donne en retrait, la pilule a cote dit pourquoi. */
+.code-maintenance.dormant { color: var(--texte-2); }
+
 @media (max-width: 620px) {
   .tete-borne { gap: 11px; }
   .tete-borne .photo-borne { width: 52px; height: 52px; }

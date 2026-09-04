@@ -98,18 +98,67 @@ export default async function Detail({
   const attendue = await empreinteDe(u.compte_id, id);
   const aJour = b.catalogue_version === attendue;
 
+  const vivante = enLigne(b.vue_le);
+
+  // ─────────────────────────────────────────────── LE CODE DE LA CONSOLE
+  //
+  // ON N'AFFICHE QUE CE QUE LA MACHINE A CONFIRME PORTER.
+  //
+  // Le code part dans la reponse de `/api/borne/config`, et ne revient qu'au
+  // releve suivant — plus loin dans le meme echange, apres le catalogue et les
+  // images. Entre les deux, le SaaS SAIT qu'il ne sait pas. Il affichait quand
+  // meme, et envoyait le technicien devant une porte qui refusait : un code faux
+  // coute plus cher qu'un code absent, parce qu'on ne cherche pas la panne au
+  // meme endroit.
+  //
+  // `maintenance_vu` est ce que la borne a annonce porter, `maintenance_pin` le
+  // dernier delivre. Egaux, la boucle est bouclee. Un code jamais delivre
+  // (`maintenance_pin` nul) laisse la machine sur ce qu'elle a annonce, et c'est
+  // deja confirme.
+  const codeGere = b.maintenance_vu !== null;
+  const confirme = codeGere && (b.maintenance_pin === null
+                                || b.maintenance_vu === b.maintenance_pin);
+
+  // COMBIEN DE TEMPS ON ATTEND AVANT DE RENONCER.
+  //
+  // La confirmation arrive quelques secondes apres la livraison : c'est le meme
+  // echange. Et `vue_le` est justement pose par cette livraison — s'il vieillit
+  // sans que la confirmation vienne, c'est que la remontee n'aboutit pas, et
+  // attendre davantage ne ferait que tourner devant quelqu'un qui a besoin d'un
+  // code maintenant.
+  const REPONSE_S = 120;
+  const silence = b.vue_le ? (Date.now() - new Date(b.vue_le).getTime()) / 1000 : Infinity;
+  const attend = codeGere && !confirme && silence < REPONSE_S;
+
+  // ELLE NE REPOND PLUS. Le dernier code confirme reste le bon : une machine
+  // hors ligne porte encore ce qu'elle a annonce, et la console s'ouvre sans
+  // reseau — c'est meme le cas ou l'on en a le plus besoin. On le montre, mais
+  // autrement, pour qu'on ne le prenne pas pour une nouvelle fraiche.
+  const codeDormant = codeGere && !confirme && !attend;
+
   // Un renouvellement demande se reconnait au code encore present dont la date
   // a ete effacee : le SaaS attend que la machine vienne prendre le suivant.
   const renouvellementDemande = Boolean(b.maintenance_pin) && !b.maintenance_pin_le;
-  // Une borne qui n'annonce pas son code tourne sur une version anterieure :
-  // elle reste au code d'usine et rien ne sert de lui en delivrer un.
-  const codeGere = b.maintenance_vu !== null;
-  // Delivre mais pas encore repris : le technicien doit savoir lequel emporter.
-  const enRetard = codeGere && Boolean(b.maintenance_pin)
-                   && b.maintenance_vu !== b.maintenance_pin;
   const peutRenouveler = peutCharger(u) && codeGere;
 
-  const vivante = enLigne(b.vue_le);
+  // LA PAGE SE REFAIT SEULE, MAIS SEULEMENT AU RETOUR DU BOUTON.
+  //
+  // C'est la, et seulement la, qu'on fixe l'ecran en attendant un code. Ailleurs
+  // — sur une rotation spontanee, qui tombe toutes les demi-heures — reprendre
+  // l'ecran a quelqu'un qui lisait ses canaux serait un vol.
+  //
+  // ELLE COMPTE SES TOURS, dans l'adresse. Une machine qu'on croyait la peut ne
+  // jamais repondre : sans ce compteur, l'onglet se rechargerait jusqu'a ce
+  // qu'on le ferme. Une minute d'attente, puis la page se tait et montre ce
+  // qu'elle sait — la borne repond en une seconde ou deux quand elle est
+  // reveillee, le reste est du silence qu'on ne rattrapera pas en insistant.
+  const tour = Number(pin) || 1;
+  const TOURS_MAX = 15;
+  // Le renouvellement demande compte aussi : le code n'a pas encore tourne, mais
+  // c'est exactement l'instant ou l'on regarde la page en attendant qu'il tourne.
+  const rafraichit = pin !== undefined && tour < TOURS_MAX
+                     && (attend || (renouvellementDemande && vivante));
+
   const unites = canaux.reduce((s, c) => s + c.quantite, 0);
   const affectes = canaux.filter((c) => c.produit_id !== null);
   const vides = affectes.filter((c) => c.quantite === 0).length;
@@ -190,7 +239,8 @@ export default async function Detail({
         {pin ? (
           <Avis titre="Renouvellement demandé">
             La borne a été réveillée : elle prend son nouveau code dans la seconde si
-            elle est en ligne, à son retour sinon. D’ici là, l’ancien code fonctionne.
+            elle est en ligne, à son retour sinon. Le code ne s’affiche qu’une fois
+            qu’elle l’a confirmé — d’ici là, c’est un chargement que vous voyez.
           </Avis>
         ) : null}
         {reconcilie ? (
@@ -409,16 +459,21 @@ export default async function Detail({
           canaux, et poussaient hors de l'ecran la seule chose qu'on vient lire
           tous les jours. `<details>` est du HTML : ca s'ouvre sans JavaScript,
           au clavier comme au doigt.
+
+          IL S'OUVRE DE LUI-MEME AU RETOUR DU BOUTON. La redirection ramenait
+          sinon sur une page ou le code qu'on venait de demander etait replie
+          hors de vue — et c'etait la seule raison d'avoir clique.
         */}
         {b.jeton && peutCharger(u) ? (
-          <details className="groupe" style={{ marginTop: 22 }}>
+          <details className="groupe" style={{ marginTop: 22 }} open={pin !== undefined}>
             <summary>
               <span className="chevron">▶</span>
               <div className="pousse" style={{ minWidth: 0 }}>
                 <div className="titre">Maintenance et réglages</div>
                 <div className="resume">
                   Code de la console, mise hors service, désappairage
-                  {enRetard ? " · un code attend d’être repris" : ""}
+                  {attend ? " · la machine prend son code"
+                          : codeDormant ? " · code non confirmé" : ""}
                 </div>
               </div>
             </summary>
@@ -433,30 +488,60 @@ export default async function Detail({
 
                 <div style={{ display: "flex", gap: 14, alignItems: "center",
                               marginTop: 10, flexWrap: "wrap" }}>
-                  <span className="num code-maintenance">
-                    {!codeGere ? "123450" : (b.maintenance_vu || b.maintenance_pin || "······")}
-                  </span>
+                  {attend ? (
+                    <span className="code-attente" role="status" aria-live="polite">
+                      <span className="num code-maintenance">······</span>
+                      <span className="fil-chargement"><span /></span>
+                      <span className="sr">La machine prend son code.</span>
+                    </span>
+                  ) : (
+                    <span className={`num code-maintenance${codeDormant ? " dormant" : ""}`}>
+                      {codeGere ? b.maintenance_vu : "123450"}
+                    </span>
+                  )}
+                  {/* Elle parle du CODE, pas de la borne. L'entete porte deja
+                      « en ligne » ou « silencieuse » ; dire « hors ligne » ici
+                      la contredirait dans le cas — rare, mais reel — d'une
+                      machine qui repond alors que sa remontee echoue. Ambre et
+                      non rouge : ce code ouvre, il est seulement plus vieux que
+                      ce que le SaaS a delivre. */}
+                  {codeDormant ? (
+                    <span className="pilule attente"><i />non confirmé</span>
+                  ) : null}
                   {peutRenouveler ? (
                     <form method="post" action={`/api/bornes/${id}/maintenance`}>
-                      <button className="bouton petit">Renouveler</button>
+                      {/* Rien a gagner a redemander pendant qu'elle repond : le
+                          bouton porte l'attente au lieu de la relancer. */}
+                      <button className={`bouton petit${attend ? " occupe" : ""}`}
+                              disabled={attend}>Renouveler</button>
                     </form>
+                  ) : null}
+                  {rafraichit ? (
+                    <meta httpEquiv="refresh" content={`4; url=/bornes/${id}?pin=${tour + 1}`} />
                   ) : null}
                 </div>
 
                 {/*
+                  UNE PHRASE PAR ETAT, ET ELLE DIT CE QU'ON PEUT FAIRE.
+
                   Ce qui compte n'est pas la date du code, c'est de savoir si la
-                  machine le porte. Un renouvellement demande laisse l'ancien code
-                  actif jusqu'a la synchronisation : le dire evite le deplacement
-                  d'un technicien avec un code que la borne refuse.
+                  machine le porte. Un chiffre affiche sans cette reponse a deja
+                  coute une intervention : le technicien note le code, descend,
+                  la porte refuse, et il cherche une panne dans la machine alors
+                  qu'elle est dans la page.
                 */}
                 <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
                   {!codeGere
                     ? "Cette borne tourne encore sur une version qui ne reçoit pas de code : elle ouvre avec le code d’usine. Mettez son application à jour pour qu’elle prenne un code propre."
-                    : enRetard
-                      ? "Un nouveau code est prêt mais la machine ne l’a pas encore repris. Emportez celui affiché — c’est celui qu’elle accepte."
-                      : renouvellementDemande
-                        ? "Renouvellement demandé. La machine ouvre encore avec le code ci-dessus jusqu’à sa prochaine synchronisation."
-                        : `Délivré ${depuis(b.maintenance_pin_le)}. Il est renouvelé toutes les ${ROTATION_MIN} min, au moment où la machine vient le chercher.`}
+                    : attend
+                      ? "La machine est en train de prendre son nouveau code. Rien ne s’affiche tant qu’elle ne l’a pas confirmé : un code montré ici est un code qui ouvre."
+                      : codeDormant
+                        ? (vivante
+                            ? `Dernier code confirmé par la machine. Elle répond, mais sa remontée n’aboutit pas — dernier échange ${depuis(b.vue_le)}. C’est bien celui-ci qu’elle porte ; un code neuf attend qu’elle le confirme.`
+                            : `Dernier code confirmé par la machine — dernière nouvelle ${depuis(b.vue_le)}. C’est celui qu’elle porte encore : la console s’ouvre sans réseau. Un code neuf l’attend à son retour.`)
+                        : renouvellementDemande
+                          ? "Renouvellement demandé. Ce code reste le bon jusqu’à ce qu’elle prenne le suivant, à son prochain échange."
+                          : `Confirmé par la machine ${depuis(b.maintenance_pin_le)}. Il est renouvelé toutes les ${ROTATION_MIN} min, au moment où elle vient le chercher, et le précédent reste accepté jusque-là.`}
                 </p>
               </div>
 

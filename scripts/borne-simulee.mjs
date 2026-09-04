@@ -17,7 +17,15 @@ const etat = {
   appliques: new Set(),     // transferts deja appliques
   aAcquitter: new Set(),    // appliques mais pas encore accuses
   file: [],                 // ventes non remontees
+  // Le code de la console, comme l'APK le tient : le courant, et celui qu'il
+  // vient de remplacer — que la porte accepte encore. `123450` est le code
+  // d'usine d'une machine jamais appairee.
+  pin: "123450",
+  pinAvant: "",
 };
+
+/** La porte de la console, telle que `Saas.codeMaintenanceAccepte` la tient. */
+const accepte = (saisi) => saisi === etat.pin || (saisi !== "" && saisi === etat.pinAvant);
 
 // Le catalogue d'usine de la machine, celui qu'elle proposera a un compte vierge.
 const usine = {
@@ -55,7 +63,15 @@ async function config() {
   const r = await fetch(base + "/api/borne/config", {
     headers: { authorization: "Bearer " + etat.jeton },
   });
-  return { code: r.status, corps: await r.json() };
+  const corps = await r.json();
+  // Le code de la console est PRIS ICI, comme dans `Saas.recevoirMaintenance` :
+  // le sortant devient celui d'avant, et un code redelivre a l'identique ne
+  // decale rien. C'est ce decalage d'un cran qui fait que la fiche du SaaS —
+  // qui n'apprend le changement qu'au releve suivant — ne montre jamais un code
+  // que la porte refuse.
+  const pin = String(corps?.maintenance?.pin ?? "").trim();
+  if (pin && pin !== etat.pin) { etat.pinAvant = etat.pin; etat.pin = pin; }
+  return { code: r.status, corps };
 }
 
 async function releve(extra = {}) {
@@ -66,6 +82,9 @@ async function releve(extra = {}) {
     version: "5.1",
     sante: { paiement: "pret", dispenser: "pret" },
     catalogue_version: etat.catalogue?.version ?? "",
+    // Le code porte. C'est la seule preuve dont dispose le SaaS que cette borne
+    // sait en recevoir un — sans lui, il s'abstient d'en faire tourner.
+    maintenance_pin: etat.pin,
     canaux,
     ventes: etat.file,
     transferts_appliques: [...etat.aAcquitter],
@@ -201,5 +220,36 @@ etat.file = [
 const b2 = await releve();
 dit(`premier envoi : ${a.corps.ventes_retenues} retenue(s) · rejeu : ${b2.corps.ventes_retenues} retenue(s)`);
 
-console.log("\n9. UN TRANSFERT SAISI DANS LE SAAS");
-console.log(JSON.stringify({ jeton: etat.jeton, borne: vers.split("/").pop(), biscuit, lane }));
+console.log("\n9. LE CODE DE LA CONSOLE — LA ROTATION NE DOIT PAS FERMER LA PORTE");
+// CE QUE VOIT LE TECHNICIEN, C'EST LE CODE ACCUSE.
+//
+// La fiche de la borne affiche `maintenance_vu`, c'est-a-dire le code que la
+// machine a annonce a son dernier releve — jamais celui qui vient de partir
+// dans la reponse de configuration. Le renouvellement reveille la borne dans la
+// foulee : elle prend le nouveau code pendant qu'on lit encore l'ancien.
+//
+// C'est la panne qu'on reproduit ici, et c'est le decalage d'un cran qui la
+// rattrape : le code releve a l'ecran doit ouvrir la console meme apres que la
+// machine en a pris un autre.
+const borneId = vers.split("/").pop();
+await releve();                       // le SaaS sait maintenant ce qu'elle porte
+const releveAvant = etat.pin;         // ... et c'est ce que la fiche affiche
+dit(`code affiché par la fiche : ${releveAvant}`);
+
+const renouv = await fetch(`${base}/api/bornes/${borneId}/maintenance`, {
+  method: "POST", headers: { cookie: biscuit }, redirect: "manual",
+});
+dit(`« Renouveler » : ${renouv.status}`);
+
+await config();                       // le reveil : la borne prend le suivant
+dit(`code porté par la machine : ${etat.pin} (avant : ${etat.pinAvant || "aucun"})`);
+
+const ouvre = accepte(releveAvant);
+dit(`le code lu sur la fiche ouvre encore la console : ${ouvre ? "OUI" : "NON"}`);
+if (!ouvre) { console.error("  ÉCHEC — la page affiche un code que la porte refuse"); process.exit(1); }
+
+await releve();                       // la fiche rattrape
+dit(`code affiché après synchronisation : ${etat.pin} · accepté : ${accepte(etat.pin) ? "OUI" : "NON"}`);
+
+console.log("\n10. UN TRANSFERT SAISI DANS LE SAAS");
+console.log(JSON.stringify({ jeton: etat.jeton, borne: borneId, biscuit, lane }));
