@@ -23,13 +23,21 @@ import { useRef } from "react";
  * focus et la fermeture par Echap, gratuitement et correctement.
  */
 export default function Modale({
-  titre, ouvrir, children,
-}: { titre: string; ouvrir: string; children: React.ReactNode }) {
+  titre, ouvrir, children, classeBouton = "bouton primaire large",
+}: {
+  titre: string; ouvrir: string; children: React.ReactNode;
+  /**
+   * L'allure du declencheur. Pleine largeur au bas d'une page, mais un bouton
+   * pleine largeur pose dans un en-tete de section pousse le titre a la ligne :
+   * l'appelant tranche, la boite ne suppose plus.
+   */
+  classeBouton?: string;
+}) {
   const boite = useRef<HTMLDialogElement>(null);
 
   return (
     <>
-      <button type="button" className="bouton primaire large declencheur"
+      <button type="button" className={`${classeBouton} declencheur`}
               onClick={() => boite.current?.showModal()}>
         {ouvrir}
       </button>
@@ -48,7 +56,11 @@ export default function Modale({
         <style>{`
           .declencheur, .modale .fermeture { display: none; }
           .modale { display: block; position: static; border: 1px solid var(--bord);
-                    max-width: none; width: auto; }
+                    max-width: none; width: auto;
+                    /* Posee dans un en-tete de section, la boite redevenue bloc
+                       serait un element de rangee, comprime a cote du titre.
+                       Elle prend donc sa propre ligne. */
+                    flex: 1 1 100%; margin-top: 12px; }
         `}</style>
       </noscript>
     </>

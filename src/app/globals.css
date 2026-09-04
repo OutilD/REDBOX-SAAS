@@ -419,6 +419,38 @@ button, input, select, textarea { font: inherit; color: inherit; }
   font-size: 13px; color: var(--texte-3); cursor: pointer;
 }
 
+/* ------------------------------------------------- champ de fichier qui parle
+
+   Le bouton garde l'allure de `.fichier`, mais le champ reste POSE PAR-DESSUS
+   en transparence au lieu d'etre escamote : c'est ce qui laisse au navigateur
+   un champ focalisable, donc une validation `required` qui sait se montrer.
+   Voir le commentaire d'en-tete de choix-fichier.tsx. */
+.choix-fichier { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.choix-fichier .declencheur-fichier { position: relative; display: inline-block; flex: none; }
+.choix-fichier .declencheur-fichier input[type="file"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  min-height: 0; padding: 0; margin: 0; border: none; background: none;
+  opacity: 0; cursor: pointer;
+}
+.choix-fichier .faux-bouton {
+  display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px;
+  border-radius: var(--r-m); border: 1px solid var(--bord); background: var(--surface-2);
+  font-size: 13.5px; font-weight: 600; color: var(--texte);
+}
+.choix-fichier .declencheur-fichier:hover .faux-bouton { border-color: var(--bord-fort); }
+/* Le focus se dessine autour du decor, puisque le vrai champ est invisible. */
+.choix-fichier input[type="file"]:focus-visible + .faux-bouton {
+  outline: 2px solid var(--rouge); outline-offset: 2px;
+}
+
+.choix-fichier .dit {
+  font-size: 13px; color: var(--texte-2); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.choix-fichier .dit .rien { color: var(--texte-3); }
+.choix-fichier .dit .nom-fichier { color: var(--texte); font-weight: 600; }
+
 .deux-colonnes { display: grid; gap: 0 14px; grid-template-columns: 1fr 1fr; }
 @media (max-width: 560px) { .deux-colonnes { grid-template-columns: 1fr; } }
 
@@ -2088,6 +2120,44 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
    on la met en retrait plutot que de la cacher — disparaitre ferait croire a
    un bug, et on doit pouvoir lire ses bornes avant de decider. */
 .cadre-choix:has(.maitresse input:checked) .bornes-choix { opacity: .42; }
+
+/* ------------------------------------------------ ecran d'accueil des bornes
+
+   Une ligne par borne : qui elle est, dans quel etat elle est, et le geste qui
+   la change. L'etat et le geste se lisent au meme endroit — separer les deux
+   obligeait a sortir de la page pour agir, puis a revenir pour verifier. */
+.veille-liste { display: flex; flex-direction: column; margin-top: 12px; }
+.veille-ligne {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 11px 0; border-top: 1px solid var(--bord);
+}
+.veille-ligne:first-child { border-top: none; padding-top: 4px; }
+.veille-ligne:last-child { padding-bottom: 2px; }
+.veille-ligne .qui { flex: 1 1 190px; min-width: 0; }
+.veille-ligne .nom {
+  display: block; font-size: 13.5px; font-weight: 650; letter-spacing: -.01em;
+  color: var(--texte); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.veille-ligne .nom:hover { text-decoration: underline; }
+/* Adresse, liaison et delai sur une seule ligne grise : trois faits courts qui
+   se lisent d'un coup, plutot qu'empiles en trois hauteurs de texte. */
+.veille-ligne .meta {
+  display: block; font-size: 12px; color: var(--texte-2); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Le seul mot colore de la ligne, et il ne parait que si quelque chose cloche.
+   « en ligne » etait en vert : peindre en couleur ce qui va de soi finit par
+   rendre illisible ce qui ne va pas. */
+.veille-ligne .eteint {
+  font-size: 13px; font-weight: 600; color: var(--rouge-vif);
+}
+
+/* Sous 520 px la pilule et le bouton passent sous le nom plutot que de le
+   rogner : savoir SUR QUELLE machine on agit prime sur la compacite. */
+@media (max-width: 520px) {
+  .veille-ligne .qui { flex-basis: 100%; }
+}
 
 /* Le nom d'une categorie s'edite la ou on le lit — pas dans un second
    formulaire plus bas qui obligeait a retrouver la meme ligne deux fois.

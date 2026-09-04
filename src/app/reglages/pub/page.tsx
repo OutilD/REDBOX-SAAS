@@ -8,6 +8,8 @@ import { illustrationsDe } from "@/lib/illustration";
 import { Repli } from "../../repli";
 import { IcoAlerte, IcoPub } from "../../icones";
 import Apercu from "./apercu";
+import Modale from "../../modale";
+import ChoixFichier from "../../choix-fichier";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,7 @@ function jour(d: Date | null): string {
 }
 
 type Borne = { id: number; nom: string; adresse: string | null; vue_le: Date | null;
-                veille_active: boolean };
+                veille_active: boolean; inactivite_s: number };
 
 /**
  * Le choix des bornes.
@@ -102,7 +104,7 @@ export default async function Pub({
 
   const [listes, bornes, illus] = await Promise.all([
     playlistsDe(u.compte_id),
-    q<Borne>(`SELECT id, nom, adresse, vue_le, veille_active
+    q<Borne>(`SELECT id, nom, adresse, vue_le, veille_active, inactivite_s
                 FROM borne WHERE compte_id = $1 ORDER BY nom`, [u.compte_id]),
     illustrationsDe(u.compte_id),
   ]);
@@ -132,90 +134,84 @@ export default async function Pub({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Écran d’accueil</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Une playlist par campagne. Les visuels défilent en plein écran quand la borne
-          est au repos ; le premier toucher les efface et lance l’achat.
-          {listes.length > 0
-            ? ` ${enLair} à l’antenne sur ${listes.length} · ${poids(total)}.`
-            : ""}
+          Ce que la borne montre quand personne n’est devant : le logo, l’invite, et
+          les visuels que vous y déposez. Le premier toucher les efface et lance l’achat —
+          la publicité ne s’interpose jamais entre un client et son produit.
         </p>
 
-        {muettes.length > 0 ? (
-          <div className="avis">
-            <IcoAlerte size={17} />
-            <div className="dit">
-              <div className="titre">
-                {muettes.length === 1
-                  ? "Une borne ne diffusera rien"
-                  : `${muettes.length} bornes ne diffuseront rien`}
-              </div>
-              <div className="texte">
-                {muettes.map((b) => b.nom).join(", ")} — leur écran d’accueil est
-                coupé : elles restent en permanence sur le catalogue, et les
-                visuels ne passent que sur cet écran. Cela se rétablit depuis
-                {muettes.length === 1
-                  ? <> <Link href={`/bornes/${muettes[0].id}/affichage`}>l’affichage de la borne</Link>.</>
-                  : " l’affichage de chaque borne."}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {e && ERREURS[e] ? <p className="erreur">{ERREURS[e]}</p> : null}
-        {ignores ? (
-          <p className="erreur">
-            {ignores} fichier{Number(ignores) > 1 ? "s ont" : " a"} été ignoré
-            {Number(ignores) > 1 ? "s" : ""} : mauvais format ou trop lourd. Le reste est en ligne.
-          </p>
-        ) : null}
-
-        <div className="avis">
-          <IcoAlerte size={17} />
-          <div className="dit">
-            <div className="titre">La publicité pour le vapotage est interdite en France</div>
-            <div className="texte">
-              L’article L3513-4 du code de la santé publique interdit la propagande et
-              la publicité en faveur des produits du vapotage, affichage sur le lieu de
-              vente compris, hors exceptions étroites. Cet écran diffuse ce que vous y
-              mettez, sans rien vérifier. Faites valider vos visuels avant de les mettre
-              en ligne.
-            </div>
-          </div>
-        </div>
-
-        {/* Ajouter des medias a une playlist existante */}
-        {modifiable && cible ? (
-          <form method="post" action="/api/pub" encType="multipart/form-data" className="carte chaude">
-            <input type="hidden" name="action" value="ajouter" />
-            <input type="hidden" name="dans" value={cible.id} />
-            <h2 style={{ marginTop: 0 }}>Ajouter à « {cible.nom} »</h2>
-            <p className="faible" style={{ fontSize: 13, marginTop: 0 }}>
-              Les fichiers rejoignent cette playlist à la suite. Ses bornes et ses dates
-              ne changent pas.
+        {bornes.length > 0 ? (
+          <>
+          {/* LA COULEUR MARQUE L'EXCEPTION, PAS L'ETAT NORMAL.
+              Il y avait ici trois pastilles pour deux lignes de contenu : le
+              compte en rouge a cote du titre, « coupe » en rouge sur la ligne,
+              « en ligne » en vert. Trois signaux dont deux disaient une
+              situation ordinaire. Ne reste que ce qui cloche, dit une fois. */}
+          <h2 style={{ marginTop: 28 }}>Où l’écran d’accueil est allumé</h2>
+          <section className="carte">
+            <p className="faible" style={{ margin: 0, fontSize: 13 }}>
+              Les visuels ne passent que sur cet écran : une borne coupée reste sur
+              son catalogue et ne diffuse rien.
             </p>
-            <input name="fichier" type="file" required multiple
-                   accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
-            <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 14 }}>
-              <div style={{ width: 160 }}>
-                <label htmlFor="duree_ajout">Durée par image (s)</label>
-                <input id="duree_ajout" name="duree_s" type="number" min={2} max={60}
-                       defaultValue={7} inputMode="numeric" />
-              </div>
-              <div className="pousse" />
-              <Link href="/reglages/pub" className="bouton">Annuler</Link>
-              <button className="bouton primaire">Ajouter</button>
+
+            <div className="veille-liste">
+              {bornes.map((b) => (
+                <form key={b.id} method="post" action={`/api/bornes/${b.id}/veille`}
+                      className="veille-ligne">
+                  <input type="hidden" name="retour" value="/reglages/pub" />
+                  {/* Une case absente vaut « non » cote route : pour rallumer on
+                      envoie le champ, pour couper on ne l'envoie pas. */}
+                  {b.veille_active ? null : <input type="hidden" name="veille" value="1" />}
+
+                  <span className="qui">
+                    <Link href={`/bornes/${b.id}/affichage`} className="nom">{b.nom}</Link>
+                    <span className="meta">
+                      {b.adresse && b.adresse !== b.nom ? `${b.adresse} · ` : ""}
+                      {enLigne(b.vue_le) ? "en ligne" : `vue ${depuis(b.vue_le)}`}
+                      {" · repos après "}{duree(b.inactivite_s)}
+                    </span>
+                  </span>
+
+                  {/* Rien a dire d'une borne qui fait ce qu'on attend : le bouton
+                      « Couper » suffit a dire qu'elle est allumee. On ne signale
+                      que celle qui ne diffuse pas. */}
+                  {b.veille_active ? null : <span className="eteint">coupé</span>}
+
+                  {modifiable ? (
+                    <button className="bouton petit">
+                      {b.veille_active ? "Couper" : "Rétablir"}
+                    </button>
+                  ) : null}
+                </form>
+              ))}
             </div>
-          </form>
+          </section>
+          </>
         ) : null}
 
-        {/* Creer une playlist */}
-        {modifiable && !cible ? (
-          <form method="post" action="/api/pub" encType="multipart/form-data" className="carte">
+        {/* ── LES PLAYLISTS ─────────────────────────────────────────────────
+            Tout ce qui suit concerne les visuels : les erreurs de televersement,
+            l'avertissement legal, l'ajout a une campagne en cours, et la liste
+            elle-meme. La creation, elle, passe derriere un bouton — elle occupe
+            un demi-ecran et ne sert qu'une fois de temps en temps, alors que la
+            liste se consulte tout le temps. */}
+        <div className="rangee" style={{ gap: 10, flexWrap: "wrap", marginTop: 28 }}>
+          <h2 style={{ margin: 0 }}>Playlists</h2>
+          {listes.length > 0 ? (
+            <span className="pilule">
+              <i />{enLair} à l’antenne sur {listes.length} · {poids(total)}
+            </span>
+          ) : null}
+          <div className="pousse" />
+          {modifiable ? (
+            <Modale titre="Nouvelle playlist" ouvrir="＋ Nouvelle playlist"
+                    classeBouton="bouton primaire">
+            <form method="post" action="/api/pub" encType="multipart/form-data">
             <input type="hidden" name="action" value="ajouter" />
-            <h2 style={{ marginTop: 0 }}>Nouvelle playlist</h2>
             <div>
               <label htmlFor="fichier">Images ou vidéos</label>
-              <input id="fichier" name="fichier" type="file" required multiple
-                     accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
+              <ChoixFichier id="fichier" name="fichier" required multiple
+                            libelle="Choisir des visuels"
+                            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
               <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
                 Sélectionnez-en <b>plusieurs à la fois</b> : elles formeront <b>une seule
                 playlist</b> qui défile, pas une fiche par photo. JPEG, PNG, WebP, MP4 ou
@@ -249,58 +245,56 @@ export default async function Pub({
             <div style={{ height: 16 }} />
             <button className="bouton primaire large">Créer la playlist</button>
           </form>
+            </Modale>
+          ) : null}
+        </div>
+
+        {e && ERREURS[e] ? <p className="erreur">{ERREURS[e]}</p> : null}
+        {ignores ? (
+          <p className="erreur">
+            {ignores} fichier{Number(ignores) > 1 ? "s ont" : " a"} été ignoré
+            {Number(ignores) > 1 ? "s" : ""} : mauvais format ou trop lourd. Le reste est en ligne.
+          </p>
         ) : null}
 
-        {/* ── L'illustration de la verification d'age ─────────────────────────
-            L'animation dessinee marche partout et ne pese rien, mais elle ne
-            montre pas VOTRE lecteur sur VOTRE machine. D'ou le remplacement
-            possible — et le retour a l'origine en un clic. */}
-        <h2>Écran de vérification d’âge</h2>
-        <div className="carte">
-          <div className="rangee" style={{ gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <div className="vignette" style={{ width: 148, height: 100, flex: "none" }}>
-              {illuAge
-                ? (illuAge.type_mime.startsWith("video/")
-                    ? <video src="/api/illustration/age" muted playsInline loop autoPlay />
-                    // eslint-disable-next-line @next/next/no-img-element
-                    : <img src="/api/illustration/age" alt="" />)
-                : <span className="genre">animation</span>}
-            </div>
-            <div className="pousse" style={{ minWidth: 250 }}>
-              <div className="nom">{illuAge ? "Votre vidéo" : "Animation d’origine"}</div>
-              <p className="faible" style={{ fontSize: 13, margin: "6px 0 0", lineHeight: 1.55 }}>
-                La borne montre une carte qui descend vers la fente — un geste dessiné,
-                qui marche partout mais ne montre pas <b>votre</b> lecteur sur <b>votre</b>
-                {" "}machine. Vous pouvez y mettre une vidéo tournée devant la vraie borne.
-                {" "}{illuAge ? `Actuellement : ${poids(illuAge.taille)}.`
-                              : "Sans fichier, l’animation d’origine reste."}
-              </p>
-              {modifiable ? (
-                <div className="rangee" style={{ gap: 10, marginTop: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                  <form method="post" action="/api/pub" encType="multipart/form-data"
-                        className="rangee" style={{ gap: 10, alignItems: "flex-end" }}>
-                    <input type="hidden" name="ecran" value="age" />
-                    <div>
-                      <label htmlFor="illu_age">Vidéo ou image</label>
-                      <input id="illu_age" name="illustration" type="file" required
-                             accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" />
-                    </div>
-                    <button className="bouton primaire">Remplacer</button>
-                  </form>
-                  {illuAge ? (
-                    <form method="post" action="/api/pub">
-                      <input type="hidden" name="ecran" value="age" />
-                      <button name="oter" value="1" className="bouton discret">
-                        Revenir à l’animation
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              ) : null}
+        <div className="avis">
+          <IcoAlerte size={17} />
+          <div className="dit">
+            <div className="titre">La publicité pour le vapotage est interdite en France</div>
+            <div className="texte">
+              L’article L3513-4 du code de la santé publique interdit la propagande et
+              la publicité en faveur des produits du vapotage, affichage sur le lieu de
+              vente compris, hors exceptions étroites. Cet écran diffuse ce que vous y
+              mettez, sans rien vérifier. Faites valider vos visuels avant de les mettre
+              en ligne.
             </div>
           </div>
         </div>
 
+        {/* Ajouter des medias a une playlist existante */}
+        {modifiable && cible ? (
+          <form method="post" action="/api/pub" encType="multipart/form-data" className="carte chaude">
+            <input type="hidden" name="action" value="ajouter" />
+            <input type="hidden" name="dans" value={cible.id} />
+            <h2 style={{ marginTop: 0 }}>Ajouter à « {cible.nom} »</h2>
+            <p className="faible" style={{ fontSize: 13, marginTop: 0 }}>
+              Les fichiers rejoignent cette playlist à la suite. Ses bornes et ses dates
+              ne changent pas.
+            </p>
+            <ChoixFichier name="fichier" required multiple libelle="Choisir des visuels"
+                          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
+            <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 14 }}>
+              <div style={{ width: 160 }}>
+                <label htmlFor="duree_ajout">Durée par image (s)</label>
+                <input id="duree_ajout" name="duree_s" type="number" min={2} max={60}
+                       defaultValue={7} inputMode="numeric" />
+              </div>
+              <div className="pousse" />
+              <Link href="/reglages/pub" className="bouton">Annuler</Link>
+              <button className="bouton primaire">Ajouter</button>
+            </div>
+          </form>
+        ) : null}
 
         {/* Les playlists */}
         {listes.length === 0 ? (
@@ -308,7 +302,6 @@ export default async function Pub({
                  texte="Déposez des images ou une vidéo : elles passeront en plein écran sur vos bornes au repos." />
         ) : (
           <form method="post" action="/api/pub">
-            <h2>{listes.length} playlist{listes.length > 1 ? "s" : ""}</h2>
             {listes.map((l) => (
               <div className={`carte visuel${l.diffuse ? "" : " dormant"}`} key={l.id}>
                 <div className="tete-playlist">
@@ -446,6 +439,58 @@ export default async function Pub({
             ) : null}
           </form>
         )}
+
+        {/* ── L'illustration de la verification d'age ─────────────────────────
+            L'animation dessinee marche partout et ne pese rien, mais elle ne
+            montre pas VOTRE lecteur sur VOTRE machine. D'ou le remplacement
+            possible — et le retour a l'origine en un clic. */}
+        <h2>Écran de vérification d’âge</h2>
+        <div className="carte">
+          <div className="rangee" style={{ gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div className="vignette" style={{ width: 148, height: 100, flex: "none" }}>
+              {illuAge
+                ? (illuAge.type_mime.startsWith("video/")
+                    ? <video src="/api/illustration/age" muted playsInline loop autoPlay />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    : <img src="/api/illustration/age" alt="" />)
+                : <span className="genre">animation</span>}
+            </div>
+            <div className="pousse" style={{ minWidth: 250 }}>
+              <div className="nom">{illuAge ? "Votre vidéo" : "Animation d’origine"}</div>
+              <p className="faible" style={{ fontSize: 13, margin: "6px 0 0", lineHeight: 1.55 }}>
+                La borne montre une carte qui descend vers la fente — un geste dessiné,
+                qui marche partout mais ne montre pas <b>votre</b> lecteur sur <b>votre</b>
+                {" "}machine. Vous pouvez y mettre une vidéo tournée devant la vraie borne.
+                {" "}{illuAge ? `Actuellement : ${poids(illuAge.taille)}.`
+                              : "Sans fichier, l’animation d’origine reste."}
+              </p>
+              {modifiable ? (
+                <div className="rangee" style={{ gap: 10, marginTop: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                  <form method="post" action="/api/pub" encType="multipart/form-data"
+                        className="rangee" style={{ gap: 10, alignItems: "flex-end" }}>
+                    <input type="hidden" name="ecran" value="age" />
+                    <div>
+                      <label htmlFor="illu_age">Vidéo ou image</label>
+                      <ChoixFichier id="illu_age" name="illustration" required
+                                    libelle="Choisir une vidéo"
+                                    accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" />
+                    </div>
+                    <button className="bouton primaire">Remplacer</button>
+                  </form>
+                  {illuAge ? (
+                    <form method="post" action="/api/pub">
+                      <input type="hidden" name="ecran" value="age" />
+                      <button name="oter" value="1" className="bouton discret">
+                        Revenir à l’animation
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
       </main>
       <NavBasse page="pub" />
     </>
