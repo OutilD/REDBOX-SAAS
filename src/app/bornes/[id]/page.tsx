@@ -381,6 +381,8 @@ export default async function Detail({
             {peutConfigurer(u)
               ? <Link href={`/bornes/${id}/fiche`} className="bouton">Modifier la fiche</Link>
               : null}
+            {/* Ce que la machine a ecrit, sans ouvrir la porte. */}
+            <Link href={`/bornes/${id}/journal`} className="bouton">Journal</Link>
             {b.jeton ? (
               <form method="post" action="/api/bornes/reveiller">
                 <input type="hidden" name="id" value={id} />

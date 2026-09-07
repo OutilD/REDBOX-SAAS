@@ -211,7 +211,8 @@ export default async function Ventes(
                   <div className="meta">
                     <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
                     {s.lane ? ` · canal ${s.lane}` : ""} · {depuis(s.faite_le)}
-                    {" · "}<span className="num">{s.commande_id}</span>
+                    {" · "}<Link href={`/bornes/${s.borne_id}/journal?c=${s.commande_id}`}
+                                 className="num" title="Le journal de la borne pour cette commande">{s.commande_id}</Link>
                   </div>
                   <div style={{ marginTop: 7 }}>
                     <span className={`pilule ${s.statut === "litige" ? "mal" : ""}`}>
@@ -277,7 +278,9 @@ export default async function Ventes(
                     <div className="nom">{s.nom ?? "produit inconnu"}</div>
                     <div className="meta">
                       <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
-                      {" · "}{depuis(s.faite_le)}{" · "}<span className="num">{s.commande_id}</span>
+                      {" · "}{depuis(s.faite_le)}{" · "}
+                      <Link href={`/bornes/${s.borne_id}/journal?c=${s.commande_id}`}
+                            className="num" title="Le journal de la borne pour cette commande">{s.commande_id}</Link>
                     </div>
                     <div style={{ marginTop: 7 }}>
                       <span className="pilule">{LIBELLES[s.statut] ?? s.statut}</span>

@@ -3240,3 +3240,22 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 :root[data-theme="light"] .prix-ecart.haut { color: #8a6400; }
 :root[data-theme="light"] .prix-ecart.bas  { color: #1d7a45; }
 :root[data-theme="light"] .prix-a-part     { color: #8a6400; }
+
+/*
+  LE JOURNAL D'UNE BORNE.
+
+  Une ligne par ligne du fichier, en chasse fixe : ce sont des trames et des
+  champs, on les compare a l'oeil colonne par colonne. L'heure a gauche, tabulaire,
+  pour que les millisecondes s'alignent ; le texte se coupe plutot que de faire
+  defiler la page, une trame hexadecimale pouvant depasser l'ecran.
+*/
+.journal { width: 100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+.journal td { padding: 6px 10px; border-bottom: 1px solid var(--bord); vertical-align: top; line-height: 1.45; }
+.journal tr:last-child td { border-bottom: none; }
+.journal td.quand { white-space: nowrap; color: var(--texte-2); width: 1%; }
+.journal td.src { width: 1%; padding-left: 0; padding-right: 0; }
+.journal td.src .pilule { font-size: 10.5px; min-height: 20px; padding: 0 7px; }
+.journal td.texte { white-space: pre-wrap; word-break: break-word; color: var(--texte); }
+.journal tr.commandes td.texte { font-weight: 600; }
+.journal td.texte a { color: var(--rouge-vif); text-decoration: none; }
+.journal td.texte a:hover { text-decoration: underline; }

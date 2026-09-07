@@ -716,3 +716,37 @@ BEGIN
       UNIQUE NULLS NOT DISTINCT (borne_id, commande_id, lane, article);
   END IF;
 END $$;
+
+-- ---------------------------------------------------------------- journaux
+-- Ce que la borne ecrit sur son disque, recopie ligne a ligne.
+--
+-- La machine tient deux fichiers : `commandes` (le journal d'ecriture anticipee
+-- de chaque vente : ouverture, paiement, spirale, resultat, cloture) et
+-- `diagnostic` (la trace technique : trames de la carte et du terminal, reprise
+-- de liaison, synchronisations). Sur place, ils ne se lisent qu'en exportant un
+-- fichier depuis l'ecran d'administration ; et le second ne garde qu'une ou deux
+-- heures, parce qu'il est plafonne a 512 Ko. Ici on garde tout ce qui a du sens.
+--
+-- `position` est l'adresse de la ligne dans le fichier de la borne (en octets,
+-- cumulee au travers des troncatures) et `lot` change quand la borne repart de
+-- zero (reinstallation). A eux deux ils rendent l'envoi rejouable : une borne
+-- qui n'a pas recu notre accuse renvoie le meme paquet, et rien n'est compte deux
+-- fois. La borne n'envoie PAS les battements de supervision (POLL du terminal,
+-- heartbeat de la carte), qui font l'essentiel du volume et ne disent rien.
+CREATE TABLE IF NOT EXISTS journal_borne (
+  id          BIGSERIAL PRIMARY KEY,
+  borne_id    BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
+  source      TEXT NOT NULL CHECK (source IN ('commandes', 'diagnostic')),
+  lot         TEXT NOT NULL,
+  position    BIGINT NOT NULL,
+  horodatage  TIMESTAMPTZ,            -- lu dans la ligne ; NULL si elle n'en porte pas
+  commande_id TEXT,                   -- ORD-XXXXXXXX si la ligne en parle
+  ligne       TEXT NOT NULL,
+  recu_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (borne_id, source, lot, position)
+);
+CREATE INDEX IF NOT EXISTS i_journal_borne ON journal_borne (borne_id, id DESC);
+CREATE INDEX IF NOT EXISTS i_journal_borne_commande
+  ON journal_borne (borne_id, commande_id) WHERE commande_id IS NOT NULL;
+-- La purge du diagnostic (60 jours) passe par la.
+CREATE INDEX IF NOT EXISTS i_journal_borne_purge ON journal_borne (recu_le) WHERE source = 'diagnostic';
