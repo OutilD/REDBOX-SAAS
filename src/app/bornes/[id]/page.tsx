@@ -6,6 +6,7 @@ import { peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/a
 import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
+import { SQL_A_REGARDER } from "@/lib/ventes";
 import { Repli } from "../../repli";
 import { IcoAlerte } from "../../icones";
 
@@ -82,8 +83,8 @@ export default async function Detail({
     SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
      WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= date_trunc('day', now())`, [id]);
   const soucis = await q1<{ n: number }>(`
-    SELECT COUNT(*)::int n FROM vente
-     WHERE borne_id = $1 AND statut <> 'distribue' AND traite_le IS NULL`, [id]);
+    SELECT COUNT(*)::int n FROM vente v
+     WHERE v.borne_id = $1 AND ${SQL_A_REGARDER}`, [id]);
 
   const enRoute = await q<{ lane: number; nom: string; quantite: number; fait_le: Date; par: string | null }>(`
     SELECT m.lane, p.nom, m.quantite, m.fait_le, m.par

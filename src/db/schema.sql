@@ -154,15 +154,22 @@ CREATE TABLE IF NOT EXISTS vente (
   id          BIGSERIAL PRIMARY KEY,
   borne_id    BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
   commande_id TEXT NOT NULL,
+  -- Rang de l'article dans la commande, envoye par la borne 5.13. Null avant.
+  article     SMALLINT,
   lane        INTEGER,
   produit_id  BIGINT REFERENCES produit(id) ON DELETE SET NULL,
   prix_c      INTEGER NOT NULL,
-  statut      TEXT NOT NULL CHECK (statut IN ('distribue','non_distribue','litige')),
+  -- Les valeurs sont enumerees plus bas, avec la contrainte qui les porte.
+  statut      TEXT NOT NULL,
   faite_le    TIMESTAMPTZ NOT NULL,
   traite_le   TIMESTAMPTZ,
   traite_par  TEXT,
   note        TEXT,
-  UNIQUE (borne_id, commande_id, lane)   -- la remontee est rejouable sans doublon
+  -- La remontee est rejouable sans doublon. Le rang distingue deux articles
+  -- d'une meme commande servis par la meme spirale — ou sans spirale du tout.
+  -- NULLS NOT DISTINCT : une ligne sans canal doit se dedoublonner comme les
+  -- autres, et pour Postgres deux NULL ne sont pas egaux par defaut.
+  CONSTRAINT vente_unicite UNIQUE NULLS NOT DISTINCT (borne_id, commande_id, lane, article)
 );
 
 CREATE INDEX IF NOT EXISTS i_vente_borne ON vente(borne_id, faite_le DESC);
@@ -669,3 +676,43 @@ CREATE TABLE IF NOT EXISTS prix_borne (
 -- le catalogue general, sur chacune de ses lignes : elle se lit par produit et
 -- non par borne, ce que la cle primaire ne sait pas servir.
 CREATE INDEX IF NOT EXISTS i_prix_borne_produit ON prix_borne (produit_id);
+
+-- ------------------------------------------------------------------ statuts de vente
+--
+-- La borne 5.13 dit ou une vente s'est arretee. Avant, tout ce qui n'aboutissait
+-- pas avant la spirale (carte absente, carte refusee, age refuse) arrivait en
+-- `non_distribue` sans canal, et la page Ventes le mettait avec les incidents.
+-- Les mots sont ceux de `StatutVente` cote borne et de `src/lib/ventes.ts` ici.
+
+ALTER TABLE vente DROP CONSTRAINT IF EXISTS vente_statut_check;
+ALTER TABLE vente ADD CONSTRAINT vente_statut_check CHECK (statut IN (
+  'distribue',
+  'chute_non_detectee',    -- paye, la spirale a tourne, la cellule n'a rien vu ; VEND FAILURE envoye
+  'non_distribue',         -- paye, la spirale n'a pas tourne (carte, delai, plus de rack) ; VEND FAILURE envoye
+  'litige',                -- paye, rien n'est tombe, et de l'argent est reste chez le lecteur
+  'age_refuse',            -- article retire avant paiement : age non verifie
+  'carte_absente',         -- aucune carte presentee, ou client parti
+  'carte_refusee',         -- refusee par le terminal
+  'terminal_indisponible', -- pas de terminal joignable
+  'avortee'                -- interrompue avant la spirale, motif non remonte (bornes <= 5.12)
+));
+
+-- Reprise : ce que les bornes <= 5.12 ont remonte sans canal n'a jamais fait
+-- tourner de spirale. C'etait une tentative de paiement, pas un incident. Borne
+-- dans le temps pour ne pas reprendre ce que la 5.13 enverra ensuite.
+UPDATE vente SET statut = 'avortee'
+ WHERE statut = 'non_distribue' AND lane IS NULL AND faite_le < '2026-09-08';
+
+-- Le rang de l'article et la contrainte d'unicite du CREATE, pour les bases qui
+-- ont recu la table sous sa premiere forme `UNIQUE (borne_id, commande_id, lane)`.
+-- Celle-ci perdait le second article d'une commande servi par la meme spirale, et
+-- ne dedoublonnait pas les lignes sans canal.
+ALTER TABLE vente ADD COLUMN IF NOT EXISTS article SMALLINT;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vente_unicite') THEN
+    ALTER TABLE vente DROP CONSTRAINT IF EXISTS vente_borne_id_commande_id_lane_key;
+    ALTER TABLE vente ADD CONSTRAINT vente_unicite
+      UNIQUE NULLS NOT DISTINCT (borne_id, commande_id, lane, article);
+  END IF;
+END $$;

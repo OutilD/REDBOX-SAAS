@@ -1,4 +1,5 @@
 import { q, q1 } from "@/db";
+import { SQL_A_REGARDER } from "@/lib/ventes";
 
 /**
  * Les chiffres du tableau de bord.
@@ -224,7 +225,7 @@ export async function entete(compte_id: number, p: Periode,
           AND v.statut = 'distribue' AND ${DANS})                   AS marge,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
-          AND v.statut <> 'distribue' AND v.traite_le IS NULL)                      AS litiges,
+          AND ${SQL_A_REGARDER})                                                    AS litiges,
       (SELECT COUNT(*)::int FROM canal c JOIN borne b ON b.id = c.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND c.produit_id IS NOT NULL AND c.quantite = 0)                          AS canaux_vides

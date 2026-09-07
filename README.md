@@ -137,9 +137,33 @@ Les deux dernières renvoient `prochain_appel_s` : **30 s** tant qu’il reste
 quelque chose à prendre, **300 s** sinon. La borne s’accélère toute seule quand il
 se passe quelque chose.
 
-Le relevé est rejouable de bout en bout : la clé `(borne, commande, canal)`
-absorbe les ventes en double, et le mouvement de vente est rattaché à la vente
-elle-même — donc jamais compté deux fois, même après dix rejeux.
+Le relevé est rejouable de bout en bout : la clé `(borne, commande, canal, rang
+de l'article)` absorbe les ventes en double, et le mouvement de vente est rattaché
+à la vente elle-même — donc jamais compté deux fois, même après dix rejeux. Le rang
+arrive avec la borne 5.13 : sans lui, deux articles d'une même commande servis par
+la même spirale n'en faisaient qu'un.
+
+### Ce qu'une vente peut être
+
+Chaque article remonté porte un statut, qui dit **où** la vente s'est arrêtée
+(borne 5.13 et plus ; la liste fait foi dans `src/lib/ventes.ts`) :
+
+| statut | où ça s'arrête | ce qu'on en fait |
+|---|---|---|
+| `distribue` | la cellule a vu tomber l'article | chiffre d'affaires |
+| `chute_non_detectee` | payé, la spirale a tourné, rien vu | **à regarder** — remboursement demandé au terminal |
+| `non_distribue` | payé, la spirale n'a pas tourné | **à regarder** — remboursement demandé au terminal |
+| `litige` | payé, rien n'est tombé, argent conservé | **à regarder** — rembourser chez Nayax |
+| `age_refuse` | article retiré avant paiement | vente avortée |
+| `carte_absente` | aucune carte présentée, ou annulé | vente avortée |
+| `carte_refusee` | le terminal a dit non | vente avortée |
+| `terminal_indisponible` | pas de terminal joignable | vente avortée |
+| `avortee` | avant la spirale, sans motif (bornes ≤ 5.12) | vente avortée |
+
+Seuls les trois « à regarder » demandent une action et portent un bouton
+« Traité ». Les ventes avortées sont un compteur sur la fenêtre choisie : elles ne
+coûtent rien à la caisse, mais dix par soir disent que le terminal ou le lecteur
+d'identité font fuir des clients.
 
 ## Sans JavaScript
 

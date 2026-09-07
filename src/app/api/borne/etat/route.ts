@@ -1,6 +1,7 @@
 import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
+import { STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,13 @@ type Releve = {
   sante?: unknown;
   catalogue_local?: CatalogueLocal;
   canaux?: { lane: number; sku?: string | null; quantite: number; capacite?: number }[];
-  ventes?: { commande_id: string; lane?: number | null; sku?: string | null;
-             prix_centimes: number; statut: string; faite_le: string }[];
+  ventes?: { commande_id: string; article?: number | null; lane?: number | null;
+             sku?: string | null; prix_centimes: number; statut: string; faite_le: string }[];
   transferts_appliques?: number[];
   corrections_appliquees?: number[];
 };
 
-const STATUTS = new Set(["distribue", "non_distribue", "litige"]);
+const CONNUS = new Set(STATUTS);
 
 /**
  * POST /api/borne/etat   (Bearer jeton)
@@ -37,7 +38,7 @@ const STATUTS = new Set(["distribue", "non_distribue", "litige"]);
  *  1. LA BORNE A RAISON sur les quantites. On recopie ses compteurs, on n'ecrase
  *     jamais les siens avec les notres.
  *  2. LA REMONTEE EST REJOUABLE. Une machine qui a perdu le reseau renvoie son
- *     lot entier ; la cle (borne, commande, canal) absorbe les doublons, et le
+ *     lot entier ; la cle (borne, commande, canal, rang) absorbe les doublons, et le
  *     mouvement de vente est rattache a la vente pour ne jamais compter deux fois.
  *  3. UN TRANSFERT N'EST CONFIRME QUE PAR LA MACHINE. Tant qu'elle ne l'a pas
  *     acquitte, la marchandise est « en route » et reste visible.
@@ -189,26 +190,44 @@ export async function POST(req: Request) {
     // 3. Les ventes. Le mouvement n'est cree que si la vente etait nouvelle :
     //    `RETURNING` ne rend rien quand le conflit a joue.
     let retenues = 0;
+    const neufs = (r.ventes ?? []).length > 0 && await baseMigree((sql) => c.query(sql));
     for (const v of r.ventes ?? []) {
-      if (!v.commande_id || !STATUTS.has(v.statut)) continue;
+      if (!v.commande_id || !CONNUS.has(v.statut)) continue;
+      const voulu = statutRecu(r.version, v.statut, v.lane);
+      const statut = neufs ? voulu : rabattu(voulu);
       const produit = v.sku
         ? (await c.query<{ id: number }>(
             "SELECT id FROM produit WHERE compte_id = $1 AND sku = $2",
             [borne.compte_id, v.sku])).rows[0]?.id ?? null
         : null;
-      const ins = await c.query<{ id: number }>(`
-        INSERT INTO vente (borne_id, commande_id, lane, produit_id, prix_c, statut, faite_le)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
-        ON CONFLICT (borne_id, commande_id, lane) DO NOTHING
-        RETURNING id`,
-        [borne.id, v.commande_id, v.lane ?? null, produit,
-         Math.max(0, Math.round(v.prix_centimes)), v.statut, v.faite_le]);
+      // Le rang de l'article dans la commande, depuis la 5.13. Il fait partie de
+      // la cle : sans lui, deux articles servis par la meme spirale n'en font
+      // qu'un, et le stock comme le chiffre en perdent un.
+      //
+      // Tant que la base n'a pas recu la migration, on ecrit comme avant : la
+      // colonne n'existe pas et la cle n'a que trois colonnes. Un INSERT qui
+      // les nommerait ferait echouer tout le releve.
+      const article = Number.isInteger(v.article) ? v.article : null;
+      const prix = Math.max(0, Math.round(v.prix_centimes));
+      const ins = neufs
+        ? await c.query<{ id: number }>(`
+            INSERT INTO vente (borne_id, commande_id, article, lane, produit_id, prix_c, statut, faite_le)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            ON CONFLICT (borne_id, commande_id, lane, article) DO NOTHING
+            RETURNING id`,
+            [borne.id, v.commande_id, article, v.lane ?? null, produit, prix, statut, v.faite_le])
+        : await c.query<{ id: number }>(`
+            INSERT INTO vente (borne_id, commande_id, lane, produit_id, prix_c, statut, faite_le)
+            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            ON CONFLICT (borne_id, commande_id, lane) DO NOTHING
+            RETURNING id`,
+            [borne.id, v.commande_id, v.lane ?? null, produit, prix, statut, v.faite_le]);
       if (ins.rowCount === 0) continue;
       retenues++;
 
       // Seule une distribution confirmee sort du stock. Un litige est un
       // probleme d'argent, pas de marchandise : elle est toujours dans la machine.
-      if (v.statut === "distribue" && produit && borne.lieu_id) {
+      if (statut === "distribue" && produit && borne.lieu_id) {
         await c.query(`
           INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, quantite, motif,
                                  lane, par, fait_le, confirme_le, vente_id)

@@ -5,6 +5,7 @@ import { q, q1, euros, depuis } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { Repli } from "../repli";
 import { IcoBorne, IcoVentes } from "../icones";
+import { AVORTEES, LIBELLES, NOMS, SQL_AVORTEE, SQL_A_REGARDER } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ type Souci = {
   id: number; borne_id: number; borne: string; commande_id: string;
   lane: number | null; nom: string | null; prix_c: number; statut: string; faite_le: Date;
 };
+type Avortee = { statut: string; n: number; total: number };
 
 export default async function Ventes(
   { searchParams }: { searchParams: Promise<{ f?: string; b?: string }> }) {
@@ -89,9 +91,33 @@ export default async function Ventes(
            v.prix_c, v.statut, v.faite_le
       FROM vente v JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
-     WHERE b.compte_id = $1 AND v.statut <> 'distribue' AND v.traite_le IS NULL
+     WHERE b.compte_id = $1 AND ${SQL_A_REGARDER}
        AND ($2::bigint[] IS NULL OR b.id = ANY($2))
      ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, portee]);
+
+  // Les ventes avortees, elles, se lisent sur la fenetre : ce n'est pas une
+  // liste a vider, c'est un compteur. Un client reparti sans payer ne coute
+  // rien a la caisse ; dix par soir disent que le terminal ou le lecteur
+  // d'identite font fuir des clients.
+  const avortees = await q<Avortee>(`
+    SELECT v.statut, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
+       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
+     GROUP BY v.statut`, p);
+  const avorteesDetail = await q<Souci>(`
+    SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
+           v.prix_c, v.statut, v.faite_le
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+      LEFT JOIN produit pr ON pr.id = v.produit_id
+     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
+       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
+     ORDER BY v.faite_le DESC LIMIT 60`, p);
+  const nAvortees = avortees.reduce((s, x) => s + x.n, 0);
+  // Dans l'ordre de la liste, pas dans l'ordre des chiffres : on retrouve un
+  // motif a la meme ligne d'une semaine a l'autre.
+  const parMotif = AVORTEES.map((st) => avortees.find((a) => a.statut === st))
+                           .filter((a): a is Avortee => !!a);
 
   const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
   const sommet = Math.max(1, ...jours.map((j) => j.total));
@@ -185,10 +211,11 @@ export default async function Ventes(
                   <div className="meta">
                     <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
                     {s.lane ? ` · canal ${s.lane}` : ""} · {depuis(s.faite_le)}
+                    {" · "}<span className="num">{s.commande_id}</span>
                   </div>
                   <div style={{ marginTop: 7 }}>
                     <span className={`pilule ${s.statut === "litige" ? "mal" : ""}`}>
-                      {s.statut === "litige" ? "payé, rien n’est tombé" : "non distribué, non payé"}
+                      {LIBELLES[s.statut] ?? s.statut}
                     </span>
                   </div>
                 </div>
@@ -211,11 +238,63 @@ export default async function Ventes(
         </div>
         {soucis.length > 0 ? (
           <p className="faible" style={{ fontSize: 13.5 }}>
-            « Payé, rien n’est tombé » veut dire que la cellule optique n’a rien vu passer alors que
-            le client a été débité. Le remboursement se fait chez Nayax. Marquer « traité » ne change
-            pas ce que la borne a remonté — on note seulement que quelqu’un s’en est occupé.
+            Dans les trois cas le client a été débité par le terminal. « Chute non détectée » : la
+            spirale a tourné et la cellule optique n’a rien vu passer. « La spirale n’a pas tourné » :
+            la carte à ressorts n’a pas répondu, ou plus aucun canal n’avait le produit. Dans ces deux
+            cas la borne a demandé le remboursement au terminal ; « argent conservé » veut dire qu’elle
+            ne l’a pas fait. Le remboursement se vérifie chez Nayax. Marquer « traité » ne change pas
+            ce que la borne a remonté — on note seulement que quelqu’un s’en est occupé.
           </p>
         ) : null}
+
+        <h2>Ventes avortées sur {fen.nom.toLowerCase()}{nAvortees > 0 ? ` — ${nAvortees}` : ""}</h2>
+        <div className="carte plate">
+          <div className="lignes">
+            {parMotif.map((a) => (
+              <div className="ligne" key={a.statut}>
+                <div className="corps">
+                  <div className="nom">{NOMS[a.statut] ?? a.statut}</div>
+                  <div className="meta">{a.n} {a.n > 1 ? "articles" : "article"} · {euros(a.total)} non encaissés</div>
+                </div>
+                <div className="fin num" style={{ fontWeight: 700 }}>{a.n}</div>
+              </div>
+            ))}
+            {parMotif.length === 0 ? (
+              <Repli titre="Aucune vente avortée"
+                     texte="Personne n’est reparti sans payer sur cette période." dedans />
+            ) : null}
+          </div>
+        </div>
+        {avorteesDetail.length > 0 ? (
+          <details className="carte plate" style={{ marginTop: 8 }}>
+            <summary className="faible" style={{ cursor: "pointer", padding: "10px 14px" }}>
+              Voir le détail ({avorteesDetail.length})
+            </summary>
+            <div className="lignes">
+              {avorteesDetail.map((s) => (
+                <div className="ligne" key={s.id}>
+                  <div className="corps">
+                    <div className="nom">{s.nom ?? "produit inconnu"}</div>
+                    <div className="meta">
+                      <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
+                      {" · "}{depuis(s.faite_le)}{" · "}<span className="num">{s.commande_id}</span>
+                    </div>
+                    <div style={{ marginTop: 7 }}>
+                      <span className="pilule">{LIBELLES[s.statut] ?? s.statut}</span>
+                    </div>
+                  </div>
+                  <div className="fin num">{euros(s.prix_c)}</div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
+        <p className="faible" style={{ fontSize: 13.5 }}>
+          Une vente avortée ne coûte rien à la caisse : le client n’a pas été débité. « Âge non
+          vérifié » : l’article a été retiré du panier avant le paiement. « Aucune carte présentée » :
+          le client est parti ou a annulé. « Carte refusée » : le terminal a dit non. « Interrompue
+          avant la spirale » : une borne d’avant la 5.13, qui ne précisait pas le motif.
+        </p>
       </main>
       <NavBasse page="ventes" />
     </>
