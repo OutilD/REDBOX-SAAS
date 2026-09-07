@@ -164,10 +164,18 @@ export async function POST(req: Request) {
               -- borne recevait alors son propre ancien plan comme s'il etait
               -- neuf. Le changement etait detruit avant d'avoir pu s'appliquer.
               --
-              -- La machine ne redefinit plus ce qu'elle vend. Elle ne comble
-              -- qu'un vide : un canal que le SaaS ne sait pas encore affecte
-              -- prend ce que la borne y voit, ce qui reste utile a l'arrivee
-              -- d'une machine deja chargee.
+              -- La machine ne redefinit plus ce qu'elle vend — ET NE COMBLE
+              -- PLUS UN VIDE NON PLUS. Ce qui restait ici prenait, pour un
+              -- canal sans produit, celui que la borne annoncait. Or un canal
+              -- sans produit, c'est presque toujours un canal qu'on vient de
+              -- VIDER dans le planogramme : la machine recoit le nouveau plan
+              -- et, dans le meme echange, releve encore l'inventaire bati sur
+              -- l'ancien. Le produit qu'on venait de retirer revenait donc au
+              -- releve suivant, a zero, « epuise » — et la borne le recevait
+              -- a nouveau comme un plan neuf. L'arrivee d'une machine deja
+              -- chargee passe par l'INSERT ci-dessus, canal par canal inconnu,
+              -- et par l'adoption du catalogue : elle n'a pas besoin de cette
+              -- ligne.
               -- NOTRE COMPTEUR N'EST PLUS TOUCHE ICI.
               --
               -- Il vaut le solde d'ouverture pris a l'appairage, augmente des
@@ -177,7 +185,6 @@ export async function POST(req: Request) {
               -- chargement saisi dans le SaaS disparaissait des que la machine
               -- reparlait, et l'exploitant n'avait aucun moyen de dire « non,
               -- j'en ai remis douze ».
-              produit_id = COALESCE(canal.produit_id, EXCLUDED.produit_id),
               releve_le  = now()`,
         [borne.id,
          propres.map((ca) => ca.lane),
