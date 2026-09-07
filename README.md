@@ -132,8 +132,9 @@ qui est physiquement devant elle.
 | `GET /api/borne/demande?secret=` | borne → | attend le jeton |
 | `GET /api/borne/config` | → borne | planogramme, prix, âges, **transferts à appliquer** |
 | `POST /api/borne/etat` | borne → | canaux, ventes, santé, **transferts appliqués** |
+| `POST /api/borne/journal` | borne → | les lignes nouvelles de `commandes.log` et `diagnostic.log` (5.13) |
 
-Les deux dernières renvoient `prochain_appel_s` : **30 s** tant qu’il reste
+Config et état renvoient `prochain_appel_s` : **30 s** tant qu’il reste
 quelque chose à prendre, **300 s** sinon. La borne s’accélère toute seule quand il
 se passe quelque chose.
 
