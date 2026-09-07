@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q, depuis, enLigne } from "@/db";
+import { q, depuis, enLigne, aujourdhui } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { playlistsDe, poids, duree, TAILLE_MAX } from "@/lib/pub";
 import { illustrationsDe } from "@/lib/illustration";
@@ -33,10 +33,6 @@ const ERREURS: Record<string, string> = {
          "Sans destination, la playlist ne passerait nulle part.",
   introuvable: "Cette playlist n’existe plus.",
 };
-
-function jour(d: Date | null): string {
-  return d ? new Date(d).toISOString().slice(0, 10) : "";
-}
 
 type Borne = { id: number; nom: string; adresse: string | null; vue_le: Date | null;
                 veille_active: boolean; inactivite_s: number };
@@ -102,6 +98,7 @@ export default async function Pub({
   const aConfirmer = Number(retirer) || 0;
   const aGarnir = Number(dans) || 0;
 
+  const ceJour = aujourdhui();
   const [listes, bornes, illus] = await Promise.all([
     playlistsDe(u.compte_id),
     q<Borne>(`SELECT id, nom, adresse, vue_le, veille_active, inactivite_s
@@ -321,7 +318,7 @@ export default async function Pub({
                         ? <span className="pilule ok"><i />à l’antenne</span>
                         : <span className="pilule attente"><i />
                             {!l.actif ? "suspendue"
-                              : l.debut_le && new Date(l.debut_le) > new Date() ? "pas encore commencée"
+                              : l.debut_le && l.debut_le > ceJour ? "pas encore commencée"
                               : "période terminée"}
                           </span>}
                       {!l.partout && l.bornes.length === 0
@@ -413,12 +410,12 @@ export default async function Pub({
                       <div style={{ flex: 1, minWidth: 140 }}>
                         <label htmlFor={`debut_${l.id}`}>Du</label>
                         <input id={`debut_${l.id}`} name={`debut_${l.id}`} type="date"
-                               defaultValue={jour(l.debut_le)} />
+                               defaultValue={l.debut_le ?? ""} />
                       </div>
                       <div style={{ flex: 1, minWidth: 140 }}>
                         <label htmlFor={`fin_${l.id}`}>Au</label>
                         <input id={`fin_${l.id}`} name={`fin_${l.id}`} type="date"
-                               defaultValue={jour(l.fin_le)} />
+                               defaultValue={l.fin_le ?? ""} />
                       </div>
                       <label className="coche">
                         <input type="checkbox" name={`actif_${l.id}`} defaultChecked={l.actif} />

@@ -1,4 +1,4 @@
-import { q, q1 } from "@/db";
+import { q, q1, FUSEAU } from "@/db";
 import { SQL_A_REGARDER } from "@/lib/ventes";
 
 /**
@@ -17,9 +17,10 @@ import { SQL_A_REGARDER } from "@/lib/ventes";
  * comptait en jours pleins, faux des qu'on filtre a l'heure. Tout ce fichier
  * decoupe le temps dans CE fuseau — une heure saisie dans le tableau de bord est
  * l'heure qu'il est devant la machine, et la meme adresse donne les memes
- * chiffres a qui la lit d'ailleurs.
+ * chiffres a qui la lit d'ailleurs. La constante vit dans `@/db` : c'est celle
+ * de toute l'application, pas seulement du tableau de bord.
  */
-export const FUSEAU = "Europe/Paris";
+export { FUSEAU };
 
 /** Les fenetres toutes faites. Elles s'arretent a maintenant, pas a minuit. */
 export const FENETRES = [

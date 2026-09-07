@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
+import { FUSEAU } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { planifier } from "@/lib/reassort";
 import { Repli } from "../../repli";
@@ -48,7 +49,7 @@ export default async function Fiche({
 
   const f = await planifier(u.compte_id, ids);
   const aujourdhui = new Date().toLocaleDateString("fr-FR",
-    { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    { timeZone: FUSEAU, weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const servies = f.bornes.filter((b) => b.total > 0);
 
   return (

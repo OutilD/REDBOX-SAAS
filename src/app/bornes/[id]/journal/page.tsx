@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, depuis } from "@/db";
+import { q, q1, depuis, FUSEAU } from "@/db";
 import { peutVoirBorne, utilisateur } from "@/lib/auth";
 import { NOM_SOURCE, SOURCES, estSource, texteDe, type Source } from "@/lib/journal";
 import { Repli } from "../../../repli";
@@ -83,7 +83,7 @@ export default async function JournalBorne({ params, searchParams }:
          WHERE borne_id = $1
            AND ($2::text IS NULL OR source = $2)
            AND ($3::text IS NULL OR ligne ILIKE '%' || $3 || '%')
-           AND ($4::date IS NULL OR (COALESCE(horodatage, recu_le) AT TIME ZONE 'Europe/Paris')::date = $4)
+           AND ($4::date IS NULL OR (COALESCE(horodatage, recu_le) AT TIME ZONE '${FUSEAU}')::date = $4)
            AND ($5::timestamptz IS NULL OR COALESCE(horodatage, recu_le) < $5)
          ORDER BY quand DESC, id DESC
          LIMIT ${PAGE + 1}`,
@@ -212,7 +212,7 @@ export default async function JournalBorne({ params, searchParams }:
 /** Jour et heure a la milliseconde, en heure de Paris : c'est celle des tickets et des releves. */
 function heure(d: Date): string {
   const s = d.toLocaleString("fr-FR", {
-    timeZone: "Europe/Paris", day: "2-digit", month: "2-digit",
+    timeZone: FUSEAU, day: "2-digit", month: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   });
   const ms = String(d.getMilliseconds()).padStart(3, "0");

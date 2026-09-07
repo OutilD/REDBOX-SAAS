@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
-import { q, q1, euros, depuis } from "@/db";
+import { q, q1, euros, depuis, FUSEAU } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { Repli } from "../repli";
 import { IcoBorne, IcoVentes } from "../icones";
@@ -15,6 +15,16 @@ const FENETRES = [
   { cle: "30", nom: "30 jours",    jours: 30 },
   { cle: "90", nom: "90 jours",    jours: 90 },
 ];
+
+/**
+ * Le debut de la fenetre : minuit a Paris, recule d'autant de jours, ramene en
+ * instant. La soustraction se fait sur l'heure murale, pas sur l'instant : une
+ * fenetre de trente jours qui enjambe le changement d'heure commence quand meme
+ * a minuit pile.
+ */
+const DEBUT = `(date_trunc('day', now() AT TIME ZONE '${FUSEAU}') - $2::interval + interval '1 day') AT TIME ZONE '${FUSEAU}'`;
+/** La journee d'une vente, heure de Paris : une vente a 0 h 30 est de ce jour-la, pas de la veille. */
+const JOUR = `date_trunc('day', v.faite_le AT TIME ZONE '${FUSEAU}')`;
 
 type Jour = { jour: string; n: number; total: number };
 type ParProduit = { nom: string | null; n: number; total: number; marge: number | null };
@@ -61,15 +71,15 @@ export default async function Ventes(
     SELECT COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v JOIN borne b ON b.id = v.borne_id
      WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'`, p);
+       AND v.faite_le >= ${DEBUT}`, p);
 
   const jours = await q<Jour>(`
-    SELECT to_char(date_trunc('day', v.faite_le), 'DD/MM') AS jour,
+    SELECT to_char(${JOUR}, 'DD/MM') AS jour,
            COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v JOIN borne b ON b.id = v.borne_id
      WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
-     GROUP BY date_trunc('day', v.faite_le) ORDER BY date_trunc('day', v.faite_le)`, p);
+       AND v.faite_le >= ${DEBUT}
+     GROUP BY ${JOUR} ORDER BY ${JOUR}`, p);
 
   // La marge se calcule au dernier prix d'achat connu. C'est le chiffre qui dit
   // quoi arreter de vendre.
@@ -81,7 +91,7 @@ export default async function Ventes(
       LEFT JOIN produit pr ON pr.id = v.produit_id
       LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
      WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
+       AND v.faite_le >= ${DEBUT}
      GROUP BY pr.nom ORDER BY total DESC`, p);
 
   // Les soucis ne sont pas bornes a la fenetre : un probleme non traite reste un
@@ -103,7 +113,7 @@ export default async function Ventes(
     SELECT v.statut, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v JOIN borne b ON b.id = v.borne_id
      WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
-       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
+       AND v.faite_le >= ${DEBUT}
      GROUP BY v.statut`, p);
   const avorteesDetail = await q<Souci>(`
     SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
@@ -111,7 +121,7 @@ export default async function Ventes(
       FROM vente v JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
      WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
-       AND v.faite_le >= date_trunc('day', now()) - $2::interval + interval '1 day'
+       AND v.faite_le >= ${DEBUT}
      ORDER BY v.faite_le DESC LIMIT 60`, p);
   const nAvortees = avortees.reduce((s, x) => s + x.n, 0);
   // Dans l'ordre de la liste, pas dans l'ordre des chiffres : on retrouve un

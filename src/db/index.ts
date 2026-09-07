@@ -14,6 +14,16 @@ pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));   // int8
 pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v))); // numeric
 
 /**
+ * Les DATES reviennent en TEXTE « AAAA-MM-JJ », pas en `Date`.
+ *
+ * Une date sans heure n'est pas un instant. Par defaut `pg` en fait un `Date` a
+ * minuit dans le fuseau du serveur ; relue en ISO depuis une machine a l'est de
+ * Greenwich, elle recule d'un jour. Une playlist « du 8 » qui se montrait
+ * « du 7 » dans son formulaire, c'etait ca.
+ */
+pg.types.setTypeParser(1082, (v) => v); // date
+
+/**
  * Acces a la base.
  *
  * Tout le SQL de l'application passe par ici et par les fichiers de ce dossier.
@@ -83,6 +93,33 @@ export type PgClient = {
 // ------------------------------------------------------------------ formatage
 
 /**
+ * LE FUSEAU DE L'APPLICATION.
+ *
+ * La base tourne en GMT, le serveur qui sert les pages est ou il est, et la
+ * personne qui lit peut etre a l'autre bout du monde. Les machines, elles, sont
+ * en France : une heure affichee est l'heure qu'il est devant la machine, et un
+ * « aujourd'hui » commence a minuit a Paris. Tout ce qui ecrit ou decoupe le
+ * temps passe par cette constante — jamais par le fuseau du serveur, qui change
+ * d'un hebergeur a l'autre et d'un poste de developpement a l'autre.
+ *
+ * Cote SQL, la formule est toujours la meme : `now() AT TIME ZONE FUSEAU` donne
+ * l'heure murale de Paris, qu'on tronque ou compare, et `… AT TIME ZONE FUSEAU`
+ * la ramene en instant.
+ */
+export const FUSEAU = "Europe/Paris";
+
+/** Minuit de ce jour a Paris, en instant : « aujourd'hui » vu de la machine. */
+export const SQL_MINUIT = `(date_trunc('day', now() AT TIME ZONE '${FUSEAU}') AT TIME ZONE '${FUSEAU}')`;
+
+/** La date de ce jour a Paris : ce a quoi une colonne DATE se compare. */
+export const SQL_CE_JOUR = `(now() AT TIME ZONE '${FUSEAU}')::date`;
+
+/** La meme, cote JavaScript, « AAAA-MM-JJ ». */
+export function aujourdhui(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: FUSEAU });
+}
+
+/**
  * ACCENTS ET CASSE MIS DE COTE POUR CHERCHER.
  *
  * On tape « creme » sur un clavier de telephone, une main sur un carton ; le
@@ -116,7 +153,7 @@ export function depuis(d: Date | string | null): string {
 export function leJour(d: Date | string | null): string {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("fr-FR",
-    { day: "2-digit", month: "short", year: "numeric" });
+    { timeZone: FUSEAU, day: "2-digit", month: "short", year: "numeric" });
 }
 
 /**

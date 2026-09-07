@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q, q1, euros, depuis, enLigne, codeCanal } from "@/db";
+import { q, q1, euros, depuis, enLigne, codeCanal, SQL_MINUIT } from "@/db";
 import { peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
 import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
@@ -81,7 +81,7 @@ export default async function Detail({
   const canaux = await canauxDe(id, u.compte_id);
   const jour = await q1<{ n: number; total: number }>(`
     SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
-     WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= date_trunc('day', now())`, [id]);
+     WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= ${SQL_MINUIT}`, [id]);
   const soucis = await q1<{ n: number }>(`
     SELECT COUNT(*)::int n FROM vente v
      WHERE v.borne_id = $1 AND ${SQL_A_REGARDER}`, [id]);

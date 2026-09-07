@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { q } from "@/db";
+import { q, SQL_CE_JOUR } from "@/db";
 
 /**
  * LES PLAYLISTS DE L'ECRAN D'ACCUEIL.
@@ -36,7 +36,7 @@ export type Media = {
 export type Playlist = {
   id: number; nom: string; ordre: number;
   actif: boolean; partout: boolean;
-  debut_le: Date | null; fin_le: Date | null; cree_le: Date;
+  debut_le: string | null; fin_le: string | null; cree_le: Date;  // les DATE arrivent en « AAAA-MM-JJ »
   bornes: number[];        // vide si `partout`
   medias: Media[];
   taille: number;          // le poids total, pour dire ce qu'une borne telechargera
@@ -51,8 +51,8 @@ export async function playlistsDe(compte_id: number): Promise<Playlist[]> {
              COALESCE((SELECT array_agg(pb.borne_id ORDER BY pb.borne_id)
                          FROM playlist_borne pb WHERE pb.playlist_id = p.id), '{}')::bigint[] AS bornes,
              (p.actif
-              AND (p.debut_le IS NULL OR p.debut_le <= current_date)
-              AND (p.fin_le   IS NULL OR p.fin_le   >= current_date)) AS diffuse
+              AND (p.debut_le IS NULL OR p.debut_le <= ${SQL_CE_JOUR})
+              AND (p.fin_le   IS NULL OR p.fin_le   >= ${SQL_CE_JOUR})) AS diffuse
         FROM playlist p
        WHERE p.compte_id = $1
        ORDER BY p.ordre, p.id`, [compte_id]),
@@ -89,8 +89,8 @@ export async function visuelsPour(compte_id: number, borne_id: number): Promise<
       FROM visuel v JOIN playlist p ON p.id = v.playlist_id
      WHERE p.compte_id = $1
        AND p.actif
-       AND (p.debut_le IS NULL OR p.debut_le <= current_date)
-       AND (p.fin_le   IS NULL OR p.fin_le   >= current_date)
+       AND (p.debut_le IS NULL OR p.debut_le <= ${SQL_CE_JOUR})
+       AND (p.fin_le   IS NULL OR p.fin_le   >= ${SQL_CE_JOUR})
        AND (p.partout OR EXISTS (SELECT 1 FROM playlist_borne pb
                                   WHERE pb.playlist_id = p.id AND pb.borne_id = $2))
      ORDER BY p.ordre, p.id, v.ordre, v.id`, [compte_id, borne_id]);
