@@ -37,12 +37,12 @@ export default async function Inscription({ searchParams }:
         </p>
 
         <div className="champ">
-          <label htmlFor="compte">Nom de votre activité</label>
+          <label htmlFor="compte">Nom de l’organisation</label>
           <input id="compte" name="compte" required defaultValue={compte ?? ""}
                  placeholder="Outil Digital, Bar du Coin…" autoComplete="organization" />
         </div>
         <div className="champ">
-          <label htmlFor="email">Adresse</label>
+          <label htmlFor="email">Adresse mail</label>
           <input id="email" name="email" type="email" required defaultValue={email ?? ""}
                  autoComplete="username" inputMode="email" autoCapitalize="off" />
         </div>

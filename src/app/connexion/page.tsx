@@ -17,7 +17,7 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
                className="logo-entree" priority />
         <p className="sous" style={{ marginBottom: 22 }}>Console d’exploitation</p>
         <div className="champ">
-          <label htmlFor="email">Adresse</label>
+          <label htmlFor="email">Adresse mail</label>
           <input id="email" name="email" type="email" autoComplete="username" required
                  inputMode="email" autoCapitalize="off" />
         </div>
