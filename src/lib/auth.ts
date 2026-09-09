@@ -106,11 +106,35 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     return null;
   }
 
-  const comptes = await q<Appartenance>(`
+  const lire = () => q<Appartenance>(`
     SELECT m.compte_id, c.nom AS compte, m.role, c.demo
       FROM membre m JOIN compte c ON c.id = m.compte_id
      WHERE m.utilisateur_id = $1
      ORDER BY (m.compte_id = $2) DESC, c.nom`, [l.id, l.origine]);
+  let comptes = await lire();
+
+  // AUCUNE APPARTENANCE, ET POURTANT UN COMPTE QU'ON A FONDE : la ligne manque.
+  //
+  // L'inscription ne l'a pas ecrite pendant des semaines apres la migration
+  // qui a cree `membre` — chaque compte ouvert dans l'intervalle ramenait a la
+  // page de connexion a chaque page, sans un mot. La colonne `compte_id` de
+  // l'utilisateur dit ce que l'appartenance aurait du dire ; on la pose ici,
+  // une fois, plutot que d'exiger qu'on rejoue la migration.
+  //
+  // SEULEMENT POUR UN PROPRIETAIRE. Une personne retiree de son dernier compte
+  // n'a plus de ligne non plus, et ce serait la lui rendre : la refaire depuis
+  // le role d'origine rouvrirait la porte que l'exploitant vient de fermer. Le
+  // proprietaire, lui, ne peut pas etre retire — s'il n'a pas de ligne, c'est
+  // que l'inscription ne l'a pas ecrite, et rien d'autre.
+  if (comptes.length === 0) {
+    await q(`
+      INSERT INTO membre (utilisateur_id, compte_id, role)
+      SELECT u.id, u.compte_id, 'proprietaire' FROM utilisateur u
+       WHERE u.id = $1 AND u.role = 'proprietaire'
+         AND EXISTS (SELECT 1 FROM compte c WHERE c.id = u.compte_id)
+      ON CONFLICT (utilisateur_id, compte_id) DO NOTHING`, [l.id]);
+    comptes = await lire();
+  }
   if (comptes.length === 0) return null;
 
   const choisi = comptes.find((a) => a.compte_id === l.actif) ?? comptes[0];
