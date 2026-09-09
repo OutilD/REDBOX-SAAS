@@ -4,14 +4,15 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoCloche, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoBulle, IcoCloche, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
+import { nonLus } from "@/lib/salons";
 
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
-  | "bornes" | "ventes"
+  | "bornes" | "ventes" | "messages"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo";
 
@@ -38,6 +39,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "Bornes",  icone: <IcoBorne />,  vers: "/bornes" },
+      { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
     ],
   },
   {
@@ -90,6 +92,7 @@ const FIL: Record<Page, [string, string?]> = {
   tableau:    ["Tableau de bord"],
   ventes:     ["Ventes"],
   bornes:     ["Bornes"],
+  messages:   ["Messages"],
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Réassort", "Approvisionnement"],
@@ -149,6 +152,9 @@ export async function Entete({ page, borne, fenetre, periode }:
   const garde: Record<string, string> = perso
     ? { du: perso.du, au: perso.au }
     : (periode?.cle ?? fenetre) ? { f: (periode?.cle ?? fenetre)! } : {};
+  // Ce qu'on n'a pas lu dans les salons : la pastille sur la bulle de l'en-tete
+  // et sur l'entree du rail. Une lecture, comme les autres pastilles.
+  const nonLusN = u ? await nonLus(u).catch(() => 0) : 0;
   const machines = u && filtrable
     ? await q<{ id: number; nom: string }>(
         `SELECT id, nom FROM borne
@@ -174,6 +180,8 @@ export async function Entete({ page, borne, fenetre, periode }:
                         className={`item ${i.cle === page ? "actif" : ""}`}>
                     <span className="glyphe">{i.icone}</span>
                     {i.nom}
+                    {i.cle === "messages" && nonLusN > 0
+                      ? <span className="compte num">{nonLusN > 99 ? "99+" : nonLusN}</span> : null}
                   </Link>
                 ))}
               </div>
@@ -241,6 +249,16 @@ export async function Entete({ page, borne, fenetre, periode }:
                   </form>
                 </noscript>
               </>
+            ) : null}
+
+            {/* La messagerie a sa bulle dans l'en-tete : elle n'a pas de place
+                dans la barre du pouce, et c'est ce qu'on regarde en arrivant. */}
+            {u ? (
+              <Link href="/messages" className="bouton icone bulle" title="Messages" aria-label="Messages"
+                    data-actif={page === "messages" ? "" : undefined}>
+                <IcoBulle size={17} />
+                {nonLusN > 0 ? <span className="pastille-nombre num">{nonLusN > 99 ? "99+" : nonLusN}</span> : null}
+              </Link>
             ) : null}
 
             <BasculeTheme depart={theme} retour={ici} />

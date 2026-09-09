@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { codeCanal, euros, q, q1 } from "@/db";
+import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
 
 /**
@@ -31,7 +32,7 @@ import { LIBELLES } from "./ventes";
  *     C'est `acces_borne` qui tranche, comme pour les pages.
  */
 
-export type Genre = "ventes" | "incidents" | "vides" | "chargements";
+export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages";
 
 /** Ce qu'on peut demander, dans l'ordre ou la page le propose. */
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
@@ -39,6 +40,7 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "incidents",   nom: "Incidents",      quoi: "Payé, rien n’est tombé : litige, chute non détectée, spirale bloquée" },
   { cle: "vides",       nom: "Spires vides",   quoi: "Une spire vient de vendre son dernier article" },
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
+  { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe écrit dans les salons" },
 ];
 
 export type Evenement =
@@ -159,7 +161,7 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
 
 type Abonnement = {
   id: number; endpoint: string; p256dh: string; auth: string; origine: string | null;
-  ventes: boolean; incidents: boolean; vides: boolean; chargements: boolean;
+  ventes: boolean; incidents: boolean; vides: boolean; chargements: boolean; messages: boolean;
 };
 
 /**
@@ -200,10 +202,16 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   const messages = evenements.map((e) => composer(borne, e)).filter((m): m is Message => m !== null);
   if (messages.length === 0) return;
 
+  // La machine l'ecrit aussi dans son salon, ou l'equipe peut repondre. Le
+  // titre porte deja le nom de la borne ; dans son propre salon on le garde,
+  // il fait la premiere ligne.
+  await deposerSysteme(compte_id, borne, messages.map((m) => `${m.titre}\n${m.corps}`))
+    .catch((e) => console.error("salon :", e instanceof Error ? e.message : e));
+
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
   const cibles = await q<Abonnement>(`
     SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
-           a.ventes, a.incidents, a.vides, a.chargements
+           a.ventes, a.incidents, a.vides, a.chargements, a.messages
       FROM abonnement_push a
       JOIN membre m ON m.utilisateur_id = a.utilisateur_id AND m.compte_id = $1
      WHERE NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
@@ -220,10 +228,39 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   await Promise.allSettled(envois);
 }
 
+/**
+ * UN COLLEGUE A ECRIT. Vers les appareils des membres qui voient ce salon —
+ * sauf ceux de l'auteur, qui sait ce qu'il vient de dire. Le tag est celui
+ * du salon : trois messages de suite font une ligne, mise a jour, pas trois.
+ */
+export async function signalerMessage(compte_id: number, salon: Salon, m: MessageSalon): Promise<void> {
+  if (m.utilisateur_id === null) return;
+  const cibles = await q<Abonnement>(`
+    SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
+           a.ventes, a.incidents, a.vides, a.chargements, a.messages
+      FROM abonnement_push a
+      JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id AND mb.compte_id = $1
+     WHERE a.messages AND a.utilisateur_id <> $3
+       AND ($2::bigint IS NULL
+            OR NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
+                            WHERE x.utilisateur_id = a.utilisateur_id AND b.compte_id = $1)
+            OR EXISTS (SELECT 1 FROM acces_borne x
+                        WHERE x.utilisateur_id = a.utilisateur_id AND x.borne_id = $2))`,
+    [compte_id, salon.borne_id, m.utilisateur_id]);
+  if (cibles.length === 0) return;
+  const texte = m.texte.replace(/\s+/g, " ").trim();
+  const message: Message = {
+    genre: "messages", titre: `#${salon.nom} · ${m.auteur ?? "quelqu’un"}`,
+    corps: texte.length > 140 ? texte.slice(0, 137) + "…" : texte,
+    url: `/messages/${salon.id}`, tag: `salon-${salon.id}`,
+  };
+  await Promise.allSettled(cibles.map((a) => pousser(a, message)));
+}
+
 /** Un message d'essai vers tous les appareils d'une personne. Rend le nombre atteint. */
 export async function essayer(utilisateur_id: number): Promise<number> {
   const siens = await q<Abonnement>(`
-    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements
+    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages
       FROM abonnement_push WHERE utilisateur_id = $1`, [utilisateur_id]);
   const r = await Promise.all(siens.map((a) => pousser(a, ESSAI)));
   return r.filter(Boolean).length;

@@ -1,4 +1,5 @@
 import pg, { Pool, type QueryResultRow } from "pg";
+import { FUSEAU } from "@/lib/fuseau";
 
 /**
  * Les BIGINT reviennent en NOMBRES, pas en chaines.
@@ -106,7 +107,7 @@ export type PgClient = {
  * l'heure murale de Paris, qu'on tronque ou compare, et `… AT TIME ZONE FUSEAU`
  * la ramene en instant.
  */
-export const FUSEAU = "Europe/Paris";
+export { FUSEAU };
 
 /** Minuit de ce jour a Paris, en instant : « aujourd'hui » vu de la machine. */
 export const SQL_MINUIT = `(date_trunc('day', now() AT TIME ZONE '${FUSEAU}') AT TIME ZONE '${FUSEAU}')`;

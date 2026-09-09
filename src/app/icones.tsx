@@ -179,6 +179,13 @@ export const IcoSav = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Messages : une bulle qui parle. */
+export const IcoBulle = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 3.5c-3.9 0-7 2.6-7 5.8 0 1.6.8 3.1 2.1 4.1L4.3 16.5l3.6-1.6c.7.2 1.4.3 2.1.3 3.9 0 7-2.6 7-5.9s-3.1-5.8-7-5.8z" />
+  </svg>
+);
+
 /** Notifications : une cloche, et son battant. */
 export const IcoCloche = ({ size = 20 }: P) => (
   <svg {...base(size)}>

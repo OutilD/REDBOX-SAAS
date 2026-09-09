@@ -3,6 +3,7 @@ import { q1, transaction, FUSEAU, type PgClient } from "@/db";
 import { empreinteDe } from "./borne";
 import { IMAGES_DEMO } from "./demo-images";
 import { signaler, type Evenement } from "./notifications";
+import { slug } from "./salons";
 import { laneDe } from "./machine";
 import { reserveDe } from "./stock";
 import { A_REGARDER } from "./ventes";
@@ -673,6 +674,7 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
   await ecrireJournal(c, journal);
   await recompterCanaux(c, compte_id);
   await semerPub(c, compte_id, bornes[0].id);
+  await semerSalons(c, compte_id, par, reassort, bornes.map((b, i) => ({ id: b.id, nom: MACHINES[i].nom })));
 
   // Le numero d'assistance — sans ecraser un vrai — et le drapeau.
   await c.query(`
@@ -744,6 +746,70 @@ async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promi
      visuels.map((v) => v.image.empreinte), visuels.map((v) => v.duree)]);
 }
 
+/**
+ * La messagerie : « general », un salon par borne, et une conversation deja
+ * commencee entre la personne qui s'inscrit et Sami, le reassortisseur
+ * invente. Les machines y ont deja ecrit : c'est ainsi qu'on comprend, sans
+ * qu'on l'explique, que le salon d'une borne est le sien.
+ */
+async function semerSalons(c: PgClient, compte_id: number, par: string, reassort: string,
+                           bornes: { id: number; nom: string }[]): Promise<void> {
+  const qui = (await c.query<{ id: number; email: string }>(
+    "SELECT id, email FROM utilisateur WHERE email = ANY($1::text[])", [[par, reassort]])).rows;
+  const moi = qui.find((x) => x.email === par)?.id ?? null;
+  const sami = qui.find((x) => x.email === reassort)?.id ?? null;
+
+  const salons = (await c.query<{ id: number; borne_id: number | null }>(`
+    INSERT INTO salon (compte_id, nom, sujet, borne_id, ordre)
+    SELECT $1, s.nom, s.sujet, s.borne, s.ordre
+      FROM unnest($2::text[], $3::text[], $4::bigint[], $5::int[]) AS s(nom, sujet, borne, ordre)
+    ON CONFLICT (compte_id, nom) DO NOTHING
+    RETURNING id, borne_id`,
+    [compte_id,
+     ["general", ...bornes.map((b) => slug(b.nom))],
+     ["Toute l’équipe, pour tout le reste", ...bornes.map((b) => `Ce que vit ${b.nom}, et ce qu’on en dit`)],
+     [null, ...bornes.map((b) => b.id)],
+     [0, ...bornes.map(() => 10)]])).rows;
+  const general = salons.find((s) => s.borne_id === null)?.id;
+  const duplex = salons.find((s) => s.borne_id === bornes[0]?.id)?.id;
+  const sousMarin = salons.find((s) => s.borne_id === bornes[1]?.id)?.id;
+  if (!general) return;
+
+  const courtNom = (n: string) => n.replace(/^\s*redbox\s*[—–-]\s*/i, "").trim();
+  const lignes: { salon: number; qui: number | null; texte: string; quand: Date }[] = [
+    { salon: general, qui: moi, quand: instant(6, 9, 12),
+      texte: "Bienvenue dans la messagerie. Ici on se dit ce qui concerne les machines ; chaque borne a son salon, où elle écrit elle-même ses ventes et ses soucis." },
+    { salon: general, qui: sami, quand: instant(6, 9, 15),
+      texte: "Reçu. Je fais la tournée du Duplex et du Sous-Marin jeudi." },
+    { salon: general, qui: sami, quand: instant(3, 18, 40),
+      texte: "Duplex rechargé. Il ne reste presque plus de câbles USB-C en réserve." },
+    { salon: general, qui: moi, quand: instant(3, 18, 52), texte: "Je passe commande demain." },
+    { salon: general, qui: sami, quand: instant(1, 22, 5),
+      texte: "Chez Marcel est fermé pour travaux jusqu’à lundi, j’ai mis la borne hors service depuis la console." },
+  ];
+  if (duplex) {
+    const b = courtNom(bornes[0].nom);
+    lignes.push(
+      { salon: duplex, qui: null, quand: instant(2, 23, 58),
+        texte: `${b} · 11 ventes · 142,90 €\nPuff 600 · Menthe, Puff 600 · Fruits rouges, Poppers 15 ml, Briquet tempête et 7 autres` },
+      { salon: duplex, qui: null, quand: instant(1, 21, 17),
+        texte: `Incident · ${b}\n12,90 € · payé, la spirale a tourné, chute non détectée (spire 201)` },
+      { salon: duplex, qui: sami, quand: instant(1, 21, 30),
+        texte: "La spire 201 accroche un peu, je regarde jeudi." },
+    );
+  }
+  if (sousMarin) {
+    lignes.push({ salon: sousMarin, qui: null, quand: instant(1, 23, 40),
+      texte: `${courtNom(bornes[1].nom)} · 6 ventes · 79,40 €\nPuff 600 · Pastèque, Préservatifs x3, Lingettes x10 et 3 autres` });
+  }
+  lignes.sort((a, z) => a.quand.getTime() - z.quand.getTime());
+  await c.query(`
+    INSERT INTO message (salon_id, utilisateur_id, texte, cree_le)
+    SELECT m.salon, m.qui, m.texte, m.quand
+      FROM unnest($1::bigint[], $2::bigint[], $3::text[], $4::timestamptz[]) AS m(salon, qui, texte, quand)`,
+    [lignes.map((l) => l.salon), lignes.map((l) => l.qui), lignes.map((l) => l.texte), lignes.map((l) => l.quand)]);
+}
+
 // --------------------------------------------------------------- l'effacement
 
 /**
@@ -766,7 +832,8 @@ async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promi
  */
 export async function viderDemo(c: PgClient, compte_id: number): Promise<void> {
   await c.query(`
-    WITH b AS (DELETE FROM borne     WHERE compte_id = $1),
+    WITH sa AS (DELETE FROM salon    WHERE compte_id = $1),
+         b AS (DELETE FROM borne     WHERE compte_id = $1),
          m AS (DELETE FROM mouvement WHERE compte_id = $1),
          l AS (DELETE FROM lieu      WHERE compte_id = $1),
          p AS (DELETE FROM produit   WHERE compte_id = $1),
@@ -828,7 +895,9 @@ export async function animerDemo(compte_id: number): Promise<void> {
        AND (k.demo_vie IS NULL OR k.demo_vie < now() - ($2 || ' seconds')::interval)`,
     [compte_id, String(PAUSE_S)]);
   if (!fictives || fictives.ids.length === 0) return;
-  const nomDe = new Map(fictives.ids.map((id, i) => [id, fictives.noms[i]]));
+  // Un tableau de bigint revient en chaines — le pilote ne convertit que les
+  // colonnes simples. On le dit une fois, ici, ou la cle sert de jointure.
+  const nomDe = new Map(fictives.ids.map((id, i) => [Number(id), fictives.noms[i]]));
   // Ce que chaque borne aura a dire aux telephones, une fois la transaction passee.
   const aSignaler = new Map<number, Evenement[]>();
   const signalerA = (borne_id: number, e: Evenement) =>

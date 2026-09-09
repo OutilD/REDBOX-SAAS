@@ -190,6 +190,26 @@ JavaScript arrive. Sans lui, on tape la quantité et ça marche.
 Le propriétaire ne peut ni se retirer ni se dégrader : un compte sans propriétaire
 est un compte que plus personne ne reprend.
 
+## Messagerie
+
+Des **salons**, comme sur Discord : `#general` pour l’équipe, un salon par borne
+où **la machine écrit elle-même** ce qui lui arrive — ventes du relevé,
+incidents, spires vides, chargements reçus — et où l’on répond dessous. Les
+salons d’une borne ne se montrent qu’à ceux qui voient la borne. Gérant ou
+propriétaire peut en créer d’autres (`POST /api/salons`).
+
+Le fil est rendu par le serveur, puis vivant : toutes les trois secondes, onglet
+visible, le navigateur demande ce qui est arrivé après le dernier message qu’il
+connaît (`GET /api/messages?salon=&depuis=`). Pas de connexion ouverte à tenir,
+ça marche derrière n’importe quel hébergeur. Le composeur est un formulaire :
+sans JavaScript il envoie et revient sur le fil ; avec, Entrée envoie, Maj+Entrée
+passe à la ligne, et le message apparaît aussitôt.
+
+Un message se retire, il ne s’efface pas : « message retiré » garde sa place.
+Ce qu’on n’a pas lu fait une pastille sur la bulle de l’en-tête et sur chaque
+salon (`salon_lecture`). Les messages des collègues sont aussi poussés sur le
+téléphone (sujet « Messages » des notifications).
+
 ## Notifications
 
 La console s’installe comme une application (manifeste, service worker

@@ -821,3 +821,56 @@ CREATE TABLE IF NOT EXISTS cle_vapid (
   privee   TEXT NOT NULL,
   cree_le  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------- messagerie
+
+-- SE PARLER LA OU L'ON TRAVAILLE.
+--
+-- Une equipe de distributeurs se parle deja : par SMS, sur WhatsApp, au
+-- telephone. Ce qui s'y dit — « j'ai recharge le Duplex », « la spire 301
+-- coince », « qui passe a Montreuil samedi ? » — parle des bornes, et se perd
+-- loin d'elles. La console a donc ses SALONS, comme Discord a les siens : un
+-- « general », et un par borne, ou la machine elle-meme ecrit ce qui lui
+-- arrive. On lit ses ventes et on repond a son collegue au meme endroit.
+--
+-- Un salon appartient au compte. Ceux d'une borne ne se montrent qu'a ceux
+-- qui voient la borne — meme regle que les pages. Le nom est celui qu'on
+-- tape apres le diese : minuscules, tirets, unique dans le compte.
+CREATE TABLE IF NOT EXISTS salon (
+  id         BIGSERIAL PRIMARY KEY,
+  compte_id  BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  nom        TEXT NOT NULL,
+  sujet      TEXT,                                       -- la ligne sous le nom
+  borne_id   BIGINT REFERENCES borne(id) ON DELETE CASCADE,  -- le salon d'une machine
+  ordre      INTEGER NOT NULL DEFAULT 100,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  archive_le TIMESTAMPTZ,
+  UNIQUE (compte_id, nom)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS i_salon_borne ON salon (borne_id) WHERE borne_id IS NOT NULL;
+
+-- UN MESSAGE NE S'EFFACE PAS, IL SE RETIRE. Le trou dit qu'il y a eu quelque
+-- chose ; un fil qui se reecrit fait douter de tout le reste. Sans auteur,
+-- c'est la machine qui parle — ou le systeme, pour dire qu'une borne est
+-- arrivee.
+CREATE TABLE IF NOT EXISTS message (
+  id             BIGSERIAL PRIMARY KEY,
+  salon_id       BIGINT NOT NULL REFERENCES salon(id) ON DELETE CASCADE,
+  utilisateur_id BIGINT REFERENCES utilisateur(id) ON DELETE SET NULL,
+  texte          TEXT NOT NULL,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  supprime_le    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS i_message_salon ON message (salon_id, id DESC);
+
+-- OU CHACUN EN EST. Le dernier message lu, par salon : c'est ce qui fait la
+-- pastille, et ce qui distingue « rien de neuf » de « rien du tout ».
+CREATE TABLE IF NOT EXISTS salon_lecture (
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  salon_id       BIGINT NOT NULL REFERENCES salon(id) ON DELETE CASCADE,
+  dernier_id     BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (utilisateur_id, salon_id)
+);
+
+-- Les messages des collegues se poussent aussi sur le telephone.
+ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS messages BOOLEAN NOT NULL DEFAULT true;

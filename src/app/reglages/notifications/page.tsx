@@ -38,7 +38,7 @@ export default async function Notifications({ searchParams }:
     clesVapid(),
     q<Appareil>(`
       SELECT id, endpoint, appareil, origine, cree_le, envoye_le, echecs,
-             ventes, incidents, vides, chargements
+             ${GENRES.map((g) => g.cle).join(", ")}
         FROM abonnement_push WHERE utilisateur_id = $1 ORDER BY cree_le`, [u.id]),
   ]);
 
