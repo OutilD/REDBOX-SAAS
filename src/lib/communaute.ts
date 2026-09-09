@@ -266,6 +266,31 @@ export async function classement(limite = 20): Promise<Classe[]> {
     .slice(0, limite);
 }
 
+/**
+ * LE NIVEAU ET LE GRADE DE PLUSIEURS PERSONNES D'UN COUP — pour les messages
+ * d'un fil, ou l'on veut savoir qui parle sans ouvrir son profil. Une seule
+ * requete pour tous les auteurs, puis les points en code : la valeur d'un
+ * badge n'est pas en base.
+ */
+export async function niveauxDe(ids: number[]): Promise<Map<number, { niveau: number; grade: string }>> {
+  const out = new Map<number, { niveau: number; grade: string }>();
+  const propres = [...new Set(ids)].filter((i) => Number.isInteger(i));
+  if (propres.length === 0) return out;
+  const gens = await q<{ id: number; bornes: number; jours: number; messages: number; badges: string[] }>(`
+    SELECT u.id,
+           ${SQL_BORNES} AS bornes,
+           GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int AS jours,
+           (SELECT COUNT(*)::int FROM message x
+              JOIN salon sx ON sx.id = x.salon_id LEFT JOIN compte kx ON kx.id = sx.compte_id
+             WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false)) AS messages,
+           COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
+      FROM utilisateur u WHERE u.id = ANY($1::bigint[])`, [propres]);
+  for (const g of gens) {
+    out.set(Number(g.id), { niveau: niveauDe(pointsDe(g, g.badges)), grade: gradeDe(g.bornes).nom });
+  }
+  return out;
+}
+
 /** Le groupe de communaute d'un compte : proprietaire d'au moins une vraie borne, ou prospect. */
 export async function groupeDuCompte(compte_id: number): Promise<"proprietaires" | "prospects"> {
   const r = await q1<{ n: number }>(`

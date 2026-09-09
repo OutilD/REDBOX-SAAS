@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../chrome";
 import { estRestreint, peutConfigurer, type Utilisateur } from "@/lib/auth";
-import { assurerSalons, marquerLu, messagesDe, peutEcrire, salonDe, salonsDe, type Salon } from "@/lib/salons";
+import { assurerSalons, lecteursDe, marquerLu, messagesDe, peutEcrire, salonDe, salonsDe,
+         type Lecteurs, type Salon } from "@/lib/salons";
+import { Portrait } from "../communaute/vignette-personne";
 import Fil from "./fil";
 import MesureEntete from "./mesure";
 
@@ -12,6 +14,7 @@ const ERREURS: Record<string, string> = {
   salon:   "Ce salon n’existe pas, ou ne vous est pas ouvert.",
   nom:     "Donnez un nom au salon.",
   pris:    "Un salon porte déjà ce nom.",
+  droit:   "Seul un gérant ou le propriétaire règle qui lit un salon d’équipe.",
 };
 
 /**
@@ -26,12 +29,14 @@ const ERREURS: Record<string, string> = {
  * Les salons se rangent en deux groupes : ceux de l'equipe, et ceux des
  * bornes — ou la machine parle la premiere.
  */
-export default async function Messagerie({ u, salon_id, nouveau, erreur }:
-  { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string }) {
+export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
+  { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string; qui?: boolean }) {
   await assurerSalons(u.compte_id);
   const salons = await salonsDe(u);
   const salon = salon_id !== undefined ? await salonDe(u, salon_id) : null;
-  const messages = salon ? await messagesDe(salon.id, { limite: 80 }) : [];
+  const [messages, lecteurs] = salon
+    ? await Promise.all([messagesDe(salon.id, { limite: 80 }), lecteursDe(u, salon)])
+    : [[], null];
   if (salon && messages.length > 0) await marquerLu(u.id, salon.id, messages[messages.length - 1].id);
 
   const miens = salons.filter((s) => s.portee === "compte");
@@ -98,7 +103,9 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur }:
                           sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
                  initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)} retour="/messages"
                  raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit." : undefined}
-                 erreur={erreur && erreur !== "nom" && erreur !== "pris" ? ERREURS[erreur] : undefined} />
+                 lecteurs={{ total: lecteurs?.total ?? 0, ouvert: Boolean(qui) }}
+                 panneau={lecteurs ? <Qui salon={salon} l={lecteurs} erreur={erreur === "droit" ? ERREURS.droit : undefined} /> : null}
+                 erreur={erreur && erreur !== "nom" && erreur !== "pris" && erreur !== "droit" ? ERREURS[erreur] : undefined} />
           ) : (
             <div className="vide" style={{ paddingTop: 80 }}>
               <span className="grand">#</span>
@@ -109,6 +116,52 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur }:
       </main>
       <NavBasse page="messages" />
     </>
+  );
+}
+
+/**
+ * QUI LIT ICI. La regle en une phrase, le nombre, les visages. Et pour un
+ * salon d'equipe regle par un gerant, la liste du compte a cocher : aucune
+ * case, tout le monde ; des cases, seulement eux.
+ */
+function Qui({ salon, l, erreur }: { salon: Salon; l: Lecteurs; erreur?: string }) {
+  return (
+    <div className="carte plate qui-lit">
+      <div style={{ fontWeight: 700, fontSize: 14 }}>
+        Qui peut lire ici
+        <span className="faible" style={{ fontWeight: 500 }}> · {l.total} personne{l.total > 1 ? "s" : ""}</span>
+      </div>
+      <p className="faible" style={{ margin: "4px 0 10px", fontSize: 13 }}>{l.regle}</p>
+      {erreur ? <p className="erreur">{erreur}</p> : null}
+      {l.reglable ? (
+        <form method="post" action="/api/salons/lecteurs">
+          <input type="hidden" name="salon_id" value={salon.id} />
+          <div className="lecteurs-choix">
+            {l.equipe.map((p) => (
+              <label key={p.id} className="coche">
+                <input type="checkbox" name="membre" value={p.id} defaultChecked={p.choisi} />
+                <Portrait image_id={p.image_id} pseudo={p.pseudo} couleur={p.couleur} taille={26} />
+                <span>{p.pseudo}{p.editeur ? <span className="etiquette editeur">RedBox</span> : null}</span>
+              </label>
+            ))}
+          </div>
+          <p className="faible" style={{ fontSize: 12.5, margin: "8px 0 10px" }}>
+            Aucune case cochée : tout le compte lit. Vous restez toujours dans la liste.
+          </p>
+          <button className="bouton petit">Enregistrer</button>
+        </form>
+      ) : (
+        <div className="lecteurs-liste">
+          {l.gens.map((p) => (
+            <Link key={p.id} href={`/communaute/${p.id}`} className="lecteur" title={p.pseudo}>
+              <Portrait image_id={p.image_id} pseudo={p.pseudo} couleur={p.couleur} taille={30} />
+              <span>{p.pseudo}</span>
+            </Link>
+          ))}
+          {l.total > l.gens.length ? <span className="faible" style={{ fontSize: 12.5 }}>et {l.total - l.gens.length} autres</span> : null}
+        </div>
+      )}
+    </div>
   );
 }
 

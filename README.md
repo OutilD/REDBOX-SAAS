@@ -205,6 +205,16 @@ connaît (`GET /api/messages?salon=&depuis=`). Pas de connexion ouverte à tenir
 sans JavaScript il envoie et revient sur le fil ; avec, Entrée envoie, Maj+Entrée
 passe à la ligne, et le message apparaît aussitôt.
 
+Le fil se lit en bulles, comme sur un téléphone : les siennes à droite en
+rouge, celles des autres à gauche avec leur portrait, la machine à gauche avec
+sa marque et un filet rouge. Chaque auteur porte son niveau (« Niv. 3 ») ; dans
+les salons qui traversent les comptes, son grade et son exploitation aussi.
+
+Le bouton « qui » de chaque salon dit **qui peut le lire** : la règle en une
+phrase, le nombre, les visages. Un gérant peut restreindre un salon d’équipe à
+certaines personnes (`salon_membre` : aucune ligne, tout le compte ; des
+lignes, seulement eux — même idée que `acces_borne`).
+
 Un message se retire, il ne s’efface pas : « message retiré » garde sa place.
 Ce qu’on n’a pas lu fait une pastille sur la bulle de l’en-tête et sur chaque
 salon (`salon_lecture`). Les messages des collègues sont aussi poussés sur le

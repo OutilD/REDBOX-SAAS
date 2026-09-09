@@ -51,10 +51,14 @@ const court = (nom: string) => nom.replace(/^\s*redbox\s*[—–-]\s*/i, "").tri
  * nomme qu'une fois par serie, et le jour ne s'ecrit qu'a son changement.
  * La machine parle dans la meme colonne que les gens — c'est le point.
  */
-export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet }: {
+export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau }: {
   salon: Salon; initial: Message[]; moi: number; peutEcrire: boolean; retour: string; erreur?: string;
   /** Ce qu'on dit a la place du composeur quand on ne peut pas ecrire ici. */
   raisonMuet?: string;
+  /** Combien de personnes lisent ici, et si le panneau « qui » est ouvert. */
+  lecteurs: { total: number; ouvert: boolean };
+  /** Le panneau « qui lit ici », rendu par le serveur, glisse sous la tete. */
+  panneau?: React.ReactNode;
 }) {
   const [messages, poser] = useState<Message[]>(initial);
   const [texte, ecrire] = useState("");
@@ -156,7 +160,20 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
           <h1><span className="diese">#</span>{salon.nom}</h1>
           {salon.sujet ? <div className="sujet">{salon.sujet}</div> : null}
         </div>
+        {/* Qui lit ici. Un lien, pas un bouton : le panneau est une page
+            comme une autre, et se referme en revenant au salon. */}
+        <Link href={lecteurs.ouvert ? `/messages/${salon.id}` : `/messages/${salon.id}?qui=1`}
+              className={`bouton petit qui${lecteurs.ouvert ? " actif" : ""}`}
+              title="Qui peut lire ici" aria-expanded={lecteurs.ouvert}>
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+               strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="7.5" cy="7" r="2.8" /><path d="M2.5 16.5c0-3 2.2-5 5-5s5 2 5 5" />
+            <circle cx="14" cy="7.5" r="2.2" /><path d="M13.2 11.6c2.5.2 4.3 2.1 4.3 4.9" />
+          </svg>
+          <span className="num">{lecteurs.total}</span>
+        </Link>
       </div>
+      {lecteurs.ouvert ? panneau : null}
 
       <div className="messages">
         {messages.length === 0 ? (
@@ -200,15 +217,19 @@ function Bulle({ m, salon, suite, mien, oter }: {
   const [premiere, ...reste] = m.texte.split("\n");
   const teinte = m.couleur ? { background: m.couleur } : undefined;
   return (
-    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}`}>
-      <div className="avatar" aria-hidden style={suite ? undefined : teinte}>
-        {suite ? null
-          : machine ? <img src="/icone-192.png" alt="" />
-          : m.image_id ? <img src={`/api/image/${m.image_id}`} alt="" />
-          : initiales(nom)}
-      </div>
+    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}`}>
+      {/* Les autres ont leur portrait a gauche de la premiere bulle d'une
+          serie ; les miennes n'en ont pas — c'est le cote qui dit qui parle. */}
+      {mien ? null : (
+        <div className="avatar" aria-hidden style={suite ? undefined : teinte}>
+          {suite ? null
+            : machine ? <img src="/icone-192.png" alt="" />
+            : m.image_id ? <img src={`/api/image/${m.image_id}`} alt="" />
+            : initiales(nom)}
+        </div>
+      )}
       <div className="corps">
-        {suite ? null : (
+        {suite || mien ? null : (
           <div className="entete-msg">
             {machine ? <b>{nom}</b> : (
               <Link href={`/communaute/${m.utilisateur_id}`} className="auteur"
@@ -216,21 +237,23 @@ function Bulle({ m, salon, suite, mien, oter }: {
             )}
             {/* D'ou il parle, quand le salon traverse les comptes : la marque
                 de l'editeur, le grade, et le nom de son exploitation. */}
+            {!machine && m.niveau !== null ? <span className="etiquette niveau" title="Niveau dans la communauté">Niv. {m.niveau}</span> : null}
             {!machine && m.editeur ? <span className="etiquette editeur">RedBox</span> : null}
             {!machine && salon.traverse && m.grade && !m.editeur ? <span className="etiquette grade">{m.grade}</span> : null}
             {!machine && salon.traverse && m.compte && !m.editeur ? <span className="dou">{m.compte}</span> : null}
-            <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
           </div>
         )}
-        {m.supprime ? (
-          <div className="texte retire">message retiré</div>
-        ) : machine && reste.length > 0 ? (
-          <div className="texte"><b>{premiere}</b>{"\n" + reste.join("\n")}</div>
-        ) : (
-          <div className="texte">{m.texte}</div>
-        )}
+        <div className="bulle">
+          {m.supprime ? (
+            <div className="texte retire">message retiré</div>
+          ) : machine && reste.length > 0 ? (
+            <div className="texte"><b>{premiere}</b>{"\n" + reste.join("\n")}</div>
+          ) : (
+            <div className="texte">{m.texte}</div>
+          )}
+          <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
+        </div>
       </div>
-      {suite ? <time className="marge" dateTime={m.cree_le}>{heure(m.cree_le)}</time> : null}
       {mien && !m.supprime ? (
         <form method="post" action="/api/messages/retirer" className="oter"
               onSubmit={(e) => { e.preventDefault(); oter(m.id); }}>

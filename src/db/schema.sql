@@ -930,3 +930,15 @@ CREATE TABLE IF NOT EXISTS badge_obtenu (
 
 -- Les annonces de l'editeur se poussent sur le telephone, a part des messages.
 ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS annonces BOOLEAN NOT NULL DEFAULT true;
+
+-- QUI LIT UN SALON D'EQUIPE.
+--
+-- Sans ligne ici, tout le compte — c'est le cas ordinaire, et c'est ce que
+-- font « general » et les salons des bornes. Des lignes, et le salon ne se
+-- montre qu'a ces personnes-la : les associes qui parlent chiffres, la tournee
+-- du samedi. Meme idee que `acces_borne` : aucune ligne veut dire tout le monde.
+CREATE TABLE IF NOT EXISTS salon_membre (
+  salon_id       BIGINT NOT NULL REFERENCES salon(id) ON DELETE CASCADE,
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  PRIMARY KEY (salon_id, utilisateur_id)
+);

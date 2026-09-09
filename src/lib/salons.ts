@@ -1,6 +1,6 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
-import { gradeDe, groupeDuCompte } from "./communaute";
+import { groupeDuCompte, niveauxDe } from "./communaute";
 
 /**
  * LES SALONS, ET CE QU'ON Y DIT.
@@ -46,8 +46,8 @@ export type Message = {
   id: number; salon_id: number; utilisateur_id: number | null;
   /** Le nom a afficher. Nul pour la machine : c'est le salon qui dit laquelle. */
   auteur: string | null; image_id: number | null;
-  /** D'ou parle l'auteur, pour les salons qui traversent les comptes. */
-  compte: string | null; grade: string | null; editeur: boolean; couleur: string | null;
+  /** D'ou parle l'auteur, et ou il en est : son exploitation, son grade, son niveau. */
+  compte: string | null; grade: string | null; niveau: number | null; editeur: boolean; couleur: string | null;
   texte: string; cree_le: string; supprime: boolean;
 };
 
@@ -85,14 +85,16 @@ export function slug(nom: string): string {
  */
 const VISIBLE = `s.archive_le IS NULL AND (
      (s.portee = 'compte' AND s.compte_id = $1
-        AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2)))
+        AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2))
+        AND (NOT EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id)
+             OR EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id AND sm.utilisateur_id = $5::bigint)))
   OR (s.portee = 'support' AND (s.compte_id = $1 OR $3::boolean))
   OR  s.portee = 'annonces'
   OR (s.portee = 'communaute' AND (s.groupe = 'tous' OR s.groupe = $4::text OR $3::boolean)))`;
 
-/** Les quatre parametres de VISIBLE, dans l'ordre. */
+/** Les cinq parametres de VISIBLE, dans l'ordre. $5 est la personne. */
 async function portee(u: Utilisateur): Promise<unknown[]> {
-  return [u.compte_id, u.bornes, u.editeur, await groupeDuCompte(u.compte_id)];
+  return [u.compte_id, u.bornes, u.editeur, await groupeDuCompte(u.compte_id), u.id];
 }
 
 /** Peut-elle ecrire la ? Les annonces sont a l'editeur ; le reste, a qui n'est pas en lecture seule. */
@@ -164,7 +166,7 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
       LEFT JOIN compte k ON k.id = s.compte_id
       LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $5::bigint
      WHERE ${VISIBLE}
-     ORDER BY (s.compte_id IS DISTINCT FROM $1), s.ordre, s.nom`, [...await portee(u), u.id]);
+     ORDER BY (s.compte_id IS DISTINCT FROM $1), s.ordre, s.nom`, await portee(u));
 }
 
 /** Un salon, s'il est a elle. */
@@ -172,7 +174,7 @@ export async function salonDe(u: Utilisateur, id: number): Promise<Salon | null>
   return q1<Salon>(`
     SELECT ${COLONNES_SALON}, 0 AS non_lus, NULL AS dernier_le
       FROM salon s LEFT JOIN borne b ON b.id = s.borne_id LEFT JOIN compte k ON k.id = s.compte_id
-     WHERE ${VISIBLE} AND s.id = $5`, [...await portee(u), id]);
+     WHERE ${VISIBLE} AND s.id = $6`, [...await portee(u), id]);
 }
 
 /** Ce que tout le monde n'a pas lu, tous salons confondus : la pastille de l'en-tete. */
@@ -184,33 +186,37 @@ export async function nonLus(u: Utilisateur): Promise<number> {
       LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $5::bigint
      WHERE ${VISIBLE} AND m.supprime_le IS NULL
        AND m.id > COALESCE(l.dernier_id, 0)
-       AND m.utilisateur_id IS DISTINCT FROM $5::bigint`, [...await portee(u), u.id]);
+       AND m.utilisateur_id IS DISTINCT FROM $5::bigint`, await portee(u));
   return r?.n ?? 0;
 }
 
 /**
  * Les colonnes d'un message. L'auteur est nomme par son pseudo dans la
  * communaute, par son nom dans son equipe ; les deux se resolvent ici, et la
- * page choisit. Le grade se lit sur les vraies bornes de ses comptes.
+ * page choisit. Son grade et son niveau viennent apres, par auteur.
  */
 const COLONNES = `
   m.id, m.salon_id, m.utilisateur_id,
   CASE WHEN m.utilisateur_id IS NULL THEN NULL
        ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS auteur,
   x.image_id, x.couleur, kx.nom AS compte, COALESCE(kx.editeur, false) AS editeur,
-  CASE WHEN m.utilisateur_id IS NULL THEN NULL ELSE
-    (SELECT COUNT(DISTINCT b.id)::int FROM borne b
-       JOIN membre mb ON mb.compte_id = b.compte_id AND mb.utilisateur_id = x.id
-      WHERE b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%') END AS bornes,
   CASE WHEN m.supprime_le IS NULL THEN m.texte ELSE '' END AS texte,
   to_char(m.cree_le AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cree_le,
   (m.supprime_le IS NOT NULL) AS supprime`;
 const JOINTURES = `LEFT JOIN utilisateur x ON x.id = m.utilisateur_id LEFT JOIN compte kx ON kx.id = x.compte_id`;
 
-/** Le grade se calcule ici, pas en base : la table des grades est dans le code. */
-type Brut = Omit<Message, "grade"> & { bornes: number | null };
-function grader(rows: Brut[]): Message[] {
-  return rows.map(({ bornes, ...r }) => ({ ...r, grade: bornes === null ? null : gradeDe(bornes).nom }));
+/**
+ * Le grade et le niveau de chaque auteur, poses sur ses messages. Une requete
+ * pour tous les auteurs du lot, pas une par message : un fil de soixante
+ * messages a rarement plus de cinq voix.
+ */
+type Brut = Omit<Message, "grade" | "niveau">;
+async function grader(rows: Brut[]): Promise<Message[]> {
+  const niveaux = await niveauxDe(rows.map((r) => r.utilisateur_id).filter((i): i is number => i !== null));
+  return rows.map((r) => {
+    const n = r.utilisateur_id === null ? null : niveaux.get(r.utilisateur_id) ?? null;
+    return { ...r, grade: n?.grade ?? null, niveau: n?.niveau ?? null };
+  });
 }
 
 /**
@@ -242,7 +248,7 @@ export async function deposer(salon_id: number, utilisateur_id: number | null, t
     SELECT ${COLONNES} FROM n m ${JOINTURES}`;
   const p = [salon_id, utilisateur_id, texte];
   const r = c ? (await c.query<Brut>(sql, p)).rows[0] : await q1<Brut>(sql, p);
-  return grader([r!])[0];
+  return (await grader([r!]))[0];
 }
 
 /** Retire un de ses messages. Rend faux s'il n'est pas a elle. */
@@ -287,6 +293,107 @@ export async function deposerSysteme(compte_id: number, borne: { id: number; nom
     await c.query(`
       INSERT INTO message (salon_id, utilisateur_id, texte)
       SELECT $1, NULL, t FROM unnest($2::text[]) AS t`, [s.id, lignes]);
+  });
+}
+
+export type Lecteur = { id: number; pseudo: string; image_id: number | null; couleur: string | null; editeur: boolean; choisi: boolean };
+export type Lecteurs = {
+  /** La regle, en une phrase : qui a le droit de lire ici. */
+  regle: string;
+  /** Combien de personnes en tout, et les premieres d'entre elles. */
+  total: number; gens: Lecteur[];
+  /** Vrai si `u` peut choisir qui lit : un salon d'equipe, sans borne, par un gerant. */
+  reglable: boolean;
+  /** Pour un salon reglable : tout le compte, a cocher, avec ceux qui lisent deja. */
+  equipe: Lecteur[];
+};
+
+const COLONNES_LECTEUR = `
+  x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) AS pseudo,
+  x.image_id, x.couleur, k.editeur`;
+
+/**
+ * QUI PEUT LIRE UN SALON. La reponse depend de sa portee, et c'est la meme
+ * logique que VISIBLE, retournee : au lieu de « ce salon est-il a elle », on
+ * demande « qui a ce salon ». Pour la communaute, ce sont des comptes
+ * entiers ; on nomme les premieres personnes et on compte le reste.
+ */
+export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
+  const LIMITE = 40;
+  let regle: string; let gens: Lecteur[]; let total: number;
+  const equipe: Lecteur[] = [];
+  const reglable = s.portee === "compte" && s.borne_id === null && s.nom !== "general"
+                && u.compte_id === s.compte_id && (u.role === "proprietaire" || u.role === "gerant") && u.bornes === null;
+
+  if (s.portee === "compte") {
+    const tous = await q<Lecteur & { restreint_a: number[] | null; choisi: boolean }>(`
+      SELECT ${COLONNES_LECTEUR},
+             (SELECT array_agg(a.borne_id) FROM acces_borne a JOIN borne b ON b.id = a.borne_id
+               WHERE a.utilisateur_id = x.id AND b.compte_id = $1) AS restreint_a,
+             EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = $2 AND sm.utilisateur_id = x.id) AS choisi
+        FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
+       WHERE m.compte_id = $1 ORDER BY pseudo`, [s.compte_id, s.id]);
+    const restreint = tous.some((t) => t.choisi);
+    gens = tous.filter((t) =>
+      (s.borne_id === null || t.restreint_a === null || t.restreint_a.map(Number).includes(s.borne_id))
+      && (!restreint || t.choisi));
+    total = gens.length;
+    regle = s.borne_id !== null ? `L’équipe du compte qui voit ${s.borne ?? "cette borne"}.`
+          : restreint ? "Seulement les personnes choisies ci-dessous."
+          : "Toute l’équipe du compte.";
+    if (reglable) equipe.push(...tous.filter((t) => t.restreint_a === null));
+  } else if (s.portee === "support") {
+    gens = await q<Lecteur>(`
+      SELECT DISTINCT ${COLONNES_LECTEUR}, false AS choisi
+        FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
+       WHERE (m.compte_id = $1 OR k.editeur)
+       ORDER BY k.editeur DESC, pseudo`, [s.compte_id]);
+    total = gens.length;
+    regle = `L’équipe de ${s.compte ?? "ce compte"}, et l’équipe RedBox. Personne d’autre.`;
+  } else if (s.portee === "annonces") {
+    const n = await q1<{ n: number }>("SELECT COUNT(*)::int AS n FROM utilisateur WHERE email NOT LIKE '%@redbox.invalid'");
+    total = n?.n ?? 0;
+    gens = await q<Lecteur>(`
+      SELECT ${COLONNES_LECTEUR}, false AS choisi FROM utilisateur x JOIN compte k ON k.id = x.compte_id
+       WHERE k.editeur AND x.email NOT LIKE '%@redbox.invalid' ORDER BY pseudo`);
+    regle = "Tout le monde lit ; seule l’équipe RedBox écrit.";
+  } else {
+    const groupe = s.groupe ?? "tous";
+    const r = await q<Lecteur & { total: number }>(`
+      WITH lecteurs AS (
+        SELECT DISTINCT x.id, x.pseudo, x.nom, x.email, x.image_id, x.couleur, k.editeur
+          FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
+         WHERE x.email NOT LIKE '%@redbox.invalid'
+           AND ($1 = 'tous' OR k.editeur OR
+                ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
+                                                   AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%')))
+      SELECT x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) AS pseudo,
+             x.image_id, x.couleur, x.editeur, false AS choisi, COUNT(*) OVER ()::int AS total
+        FROM lecteurs x ORDER BY x.editeur DESC, pseudo LIMIT ${LIMITE}`, [groupe]);
+    gens = r; total = r[0]?.total ?? 0;
+    regle = groupe === "tous" ? "Tous les redboxers, et ceux qui y pensent."
+          : groupe === "proprietaires" ? "Les comptes qui ont au moins une vraie borne en service, et l’équipe RedBox."
+          : "Les comptes qui n’ont pas encore de borne, et l’équipe RedBox.";
+  }
+  return { regle, total, gens: gens.slice(0, LIMITE), reglable, equipe };
+}
+
+/**
+ * Choisit qui lit un salon d'equipe. Une liste vide rend le salon a tout le
+ * compte. La personne qui regle s'y garde toujours une place : un gerant qui
+ * s'exclurait ne pourrait plus revenir corriger.
+ */
+export async function reglerLecteurs(salon_id: number, ids: number[], moi: number): Promise<void> {
+  const garde = ids.length > 0 ? [...new Set([...ids, moi])] : [];
+  await transaction(async (c) => {
+    await c.query("DELETE FROM salon_membre WHERE salon_id = $1", [salon_id]);
+    if (garde.length > 0) {
+      await c.query(`
+        INSERT INTO salon_membre (salon_id, utilisateur_id)
+        SELECT $1, m.utilisateur_id FROM membre m
+          JOIN salon s ON s.id = $1 AND s.compte_id = m.compte_id
+         WHERE m.utilisateur_id = ANY($2::bigint[])`, [salon_id, garde]);
+    }
   });
 }
 
