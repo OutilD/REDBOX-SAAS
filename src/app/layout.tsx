@@ -4,11 +4,19 @@ import "./globals.css";
 import Occupe from "./occupe";
 import { Suspense } from "react";
 import Notif from "./notif";
+import Pwa from "./pwa";
 
 export const metadata: Metadata = {
   title: "RedBox",
   description: "Stock, réassort et état des bornes RedBox",
-  icons: { icon: "/favicon.png" },
+  icons: { icon: "/favicon.png", apple: "/apple-touch-icon.png" },
+  // L'application installee : le manifeste pour Android et le bureau, et les
+  // trois lignes qu'iOS lit a la place — plein ecran, barre d'etat fondue,
+  // et le nom sous l'icone.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "RedBox" },
+  // Next ecrit la balise moderne ; les iPhone d'avant iOS 17 ne lisent que celle-ci.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
@@ -69,6 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </noscript>
         {children}
         <Occupe />
+        <Pwa />
       </body>
     </html>
   );
