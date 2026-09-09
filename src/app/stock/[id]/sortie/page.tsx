@@ -48,15 +48,19 @@ export default async function Sortie({
   const lieux = await q<{
     lieu_id: number; lane: number | null; nom: string; genre: string; quantite: number;
   }>(`
-    SELECT s.lieu_id, NULL::int AS lane, l.nom, l.genre, s.quantite::int
-      FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
-     WHERE s.produit_id = $1 AND l.compte_id = $2 AND l.genre = 'reserve' AND s.quantite > 0
-    UNION ALL
-    SELECT b.lieu_id, c.lane, b.nom, 'borne' AS genre, c.quantite::int
-      FROM canal c JOIN borne b ON b.id = c.borne_id
-     WHERE c.produit_id = $1 AND b.compte_id = $2 AND c.quantite > 0
-       AND b.lieu_id IS NOT NULL
-     ORDER BY (genre = 'reserve') DESC, quantite DESC`, [id, u.compte_id]);
+    SELECT * FROM (
+      SELECT s.lieu_id, NULL::int AS lane, l.nom, l.genre, s.quantite::int
+        FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
+       WHERE s.produit_id = $1 AND l.compte_id = $2 AND l.genre = 'reserve' AND s.quantite > 0
+      UNION ALL
+      SELECT b.lieu_id, c.lane, b.nom, 'borne' AS genre, c.quantite::int
+        FROM canal c JOIN borne b ON b.id = c.borne_id
+       WHERE c.produit_id = $1 AND b.compte_id = $2 AND c.quantite > 0
+         AND b.lieu_id IS NOT NULL
+    ) t
+    -- Postgres refuse une expression dans le ORDER BY d'un UNION : on trie
+    -- le resultat enveloppe, pas l'union elle-meme.
+    ORDER BY (t.genre = 'reserve') DESC, t.quantite DESC`, [id, u.compte_id]);
 
   const total = lieux.reduce((n, l) => n + l.quantite, 0);
   const maximum = Math.max(...lieux.map((l) => l.quantite), 0);
