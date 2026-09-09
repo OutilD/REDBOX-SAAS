@@ -1,5 +1,6 @@
 import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
+import { semerDemo } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,12 @@ export const dynamic = "force-dynamic";
  * (REDBOX_CODE_INSCRIPTION). Non renseigne, elle reste ouverte — c'est le
  * reglage qui convient tant qu'on cherche des clients ; le jour ou l'on veut
  * n'ouvrir qu'a ceux qui ont achete une borne, il suffit de poser la variable.
+ *
+ * LE COMPTE NAIT EN MODE DEMO, rempli d'un parc invente — voir `lib/demo.ts`.
+ * C'est dans la meme transaction : un compte a moitie seme montrerait un stock
+ * sans ventes ou des bornes sans catalogue, et la premiere impression serait
+ * celle d'un outil casse. On peut fermer ce mode avec REDBOX_SANS_DEMO=1, pour
+ * un deploiement ou chaque compte ouvert correspond a une vraie machine.
  */
 export async function POST(req: Request) {
   const f = await req.formData();
@@ -45,10 +52,17 @@ export async function POST(req: Request) {
       INSERT INTO utilisateur (compte_id, email, mdp, role)
       VALUES ($1, $2, $3, 'proprietaire') RETURNING id`,
       [k.id, email, chiffrer(mdp)])).rows[0];
+    // L'appartenance est une ligne a part depuis que l'on peut servir plusieurs
+    // exploitants : sans elle, la session ne trouve aucun compte et renvoie a
+    // la connexion. La migration ne la posait que pour les comptes existants.
+    await c.query(
+      "INSERT INTO membre (utilisateur_id, compte_id, role) VALUES ($1, $2, 'proprietaire')",
+      [u.id, k.id]);
     // La reserve nait avec le compte : sans elle, la premiere reception n'aurait
     // nulle part ou entrer.
     await c.query("INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve')",
                   [k.id]);
+    if (!process.env.REDBOX_SANS_DEMO) await semerDemo(c, k.id, email);
     return { souci: null, id: u.id };
   });
 
