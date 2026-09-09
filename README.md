@@ -217,5 +217,11 @@ adressées à de vraies adresses, et une réserve vide. Une vraie machine ne peu
 pas être appairée tant que la démo est active. La même page remet la démo à
 neuf, ou la relance sur un compte resté vide.
 
+Les catégories et les produits ont une image, et les playlists trois affiches :
+dessinées une fois par `node scripts/demo-images.mjs` (sharp, à partir des
+pictogrammes de la machine) et embarquées en base64 dans
+`src/lib/demo-images.ts`, pour que le semis ne dépende ni d’une police, ni d’un
+dossier lisible sur le serveur.
+
 `REDBOX_SANS_DEMO=1` dans l’environnement ouvre les comptes vides, comme avant.
 Tout est dans `src/lib/demo.ts`.

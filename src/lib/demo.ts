@@ -1,8 +1,7 @@
-import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
 import { q1, transaction, FUSEAU, type PgClient } from "@/db";
 import { empreinteDe } from "./borne";
+import { IMAGES_DEMO } from "./demo-images";
 import { laneDe } from "./machine";
 import { reserveDe } from "./stock";
 import { A_REGARDER } from "./ventes";
@@ -164,6 +163,20 @@ function cadenceDe(rang: number): number {
  * en une quinzaine de requetes ; un passage des bornes, en une dizaine. Une
  * boucle d'INSERT aurait fait attendre l'inscription une demi-minute.
  */
+
+// --------------------------------------------------------------- les images
+
+/**
+ * Une image embarquee, prete a entrer dans `image` : ses octets, son type et
+ * son empreinte — la meme que `rangerImage` calcule, pour que la contrainte
+ * (compte, empreinte) joue si on reseme deux fois.
+ */
+function imageDemo(cle: string): { cle: string; type: string; octets: Buffer; empreinte: string } | null {
+  const i = IMAGES_DEMO[cle];
+  if (!i) return null;
+  const octets = Buffer.from(i.b64, "base64");
+  return { cle, type: i.type, octets, empreinte: createHash("sha256").update(octets).digest("hex") };
+}
 
 // --------------------------------------------------------------- le hasard
 
@@ -423,6 +436,32 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
      PRODUITS.map((p) => p.description ?? null), PRODUITS.map((p) => p.mention ?? null)])).rows;
   const pid = new Map(produits.map((p) => [p.sku, p.id]));
   const prix = new Map(PRODUITS.map((p) => [p.sku, p.prix]));
+
+  // Leurs images : une tuile par categorie et par produit, dessinees a partir
+  // des pictogrammes de la machine. La borne les recevra comme des photos.
+  // Une seule requete : les octets entrent, puis chaque cle — nom de categorie
+  // ou SKU, ils ne se ressemblent pas — retrouve son identifiant par l'empreinte.
+  const tuiles = [...CATEGORIES.map((k) => k.nom), ...PRODUITS.map((p) => p.sku)]
+    .map(imageDemo).filter((i): i is NonNullable<typeof i> => i !== null);
+  if (tuiles.length > 0) {
+    await c.query(`
+      WITH i AS (
+        INSERT INTO image (compte_id, type_mime, octets, taille, empreinte)
+        SELECT $1, x.type, x.octets, octet_length(x.octets), x.empreinte
+          FROM unnest($2::text[], $3::bytea[], $4::text[]) AS x(type, octets, empreinte)
+        ON CONFLICT (compte_id, empreinte) DO UPDATE SET type_mime = EXCLUDED.type_mime
+        RETURNING id, empreinte),
+      lien AS (
+        SELECT x.cle, i.id FROM unnest($5::text[], $4::text[]) AS x(cle, empreinte)
+        JOIN i ON i.empreinte = x.empreinte),
+      k AS (
+        UPDATE categorie k SET image_id = lien.id FROM lien
+         WHERE k.compte_id = $1 AND k.nom = lien.cle)
+      UPDATE produit p SET image_id = lien.id FROM lien
+       WHERE p.compte_id = $1 AND p.sku = lien.cle`,
+      [compte_id, tuiles.map((t) => t.type), tuiles.map((t) => t.octets),
+       tuiles.map((t) => t.empreinte), tuiles.map((t) => t.cle)]);
+  }
   const age = new Map(PRODUITS.map((p) => [p.sku, p.age]));
   const achat = new Map(PRODUITS.map((p) => [p.sku, p.achat]));
 
@@ -669,24 +708,21 @@ async function recompterCanaux(c: PgClient, compte_id: number): Promise<void> {
 }
 
 /**
- * Deux playlists, avec les images de la marque en guise d'affiches : ce sont
- * les seuls fichiers dont on dispose sans rien inventer. Si le dossier
- * `public` n'est pas lisible d'ici, les playlists existent sans media — la
- * page le dit, et rien d'autre ne casse.
+ * Deux playlists, et trois affiches dessinees pour elles — portrait, comme
+ * l'ecran de la borne. Rien n'y vante les produits reglementes : la publicite
+ * pour le vapotage est interdite en France, et une demo qui en montrerait une
+ * apprendrait le mauvais geste.
  */
 async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promise<void> {
-  const lire = (nom: string): Buffer | null => {
-    try { return readFileSync(join(process.cwd(), "public", nom)); } catch { return null; }
-  };
-  // rang de playlist, fichier, nom, duree
+  // rang de playlist, image, nom, duree
   const voulus: [number, string, string, number][] = [
-    [0, "logo-redbox.png",   "Affiche RedBox", 7],
-    [0, "marque-redbox.png", "La marque",      5],
-    [1, "marque-rouge.png",  "Marque rouge",   6],
+    [0, "affiche-bienvenue", "Touchez l’écran", 7],
+    [0, "affiche-24h",       "24 h / 24",       6],
+    [1, "affiche-samedi",    "Soirée du samedi", 8],
   ];
   const visuels = voulus
-    .map(([pl, fichier, nom, duree]) => ({ pl, nom, duree, octets: lire(fichier) }))
-    .filter((v): v is typeof v & { octets: Buffer } => v.octets !== null);
+    .map(([pl, cle, nom, duree]) => ({ pl, nom, duree, image: imageDemo(cle) }))
+    .filter((v): v is typeof v & { image: NonNullable<typeof v.image> } => v.image !== null);
 
   const jour = `(now() AT TIME ZONE '${FUSEAU}')::date`;
   await c.query(`
@@ -698,12 +734,13 @@ async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promi
     pb AS (
       INSERT INTO playlist_borne (playlist_id, borne_id) SELECT p.id, $2 FROM p WHERE p.ordre = 1)
     INSERT INTO visuel (compte_id, playlist_id, nom, genre, type_mime, octets, taille, empreinte, duree_s, ordre)
-    SELECT $1, p.id, v.nom, 'image', 'image/png', v.octets, octet_length(v.octets),
-           encode(sha256(v.octets), 'hex'), v.duree, v.o
-      FROM unnest($3::int[], $4::text[], $5::bytea[], $6::int[]) WITH ORDINALITY AS v(pl, nom, octets, duree, o)
+    SELECT $1, p.id, v.nom, 'image', v.type, v.octets, octet_length(v.octets), v.empreinte, v.duree, v.o
+      FROM unnest($3::int[], $4::text[], $5::text[], $6::bytea[], $7::text[], $8::int[]) WITH ORDINALITY
+           AS v(pl, nom, type, octets, empreinte, duree, o)
       JOIN p ON p.ordre = v.pl`,
     [compte_id, borne_id, visuels.map((v) => v.pl), visuels.map((v) => v.nom),
-     visuels.map((v) => v.octets), visuels.map((v) => v.duree)]);
+     visuels.map((v) => v.image.type), visuels.map((v) => v.image.octets),
+     visuels.map((v) => v.image.empreinte), visuels.map((v) => v.duree)]);
 }
 
 // --------------------------------------------------------------- l'effacement
