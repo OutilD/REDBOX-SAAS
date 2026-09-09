@@ -750,3 +750,21 @@ CREATE INDEX IF NOT EXISTS i_journal_borne_commande
   ON journal_borne (borne_id, commande_id) WHERE commande_id IS NOT NULL;
 -- La purge du diagnostic (60 jours) passe par la.
 CREATE INDEX IF NOT EXISTS i_journal_borne_purge ON journal_borne (recu_le) WHERE source = 'diagnostic';
+
+-- ----------------------------------------------------------------- mode demo
+
+-- UN COMPTE NEUF S'OUVRE SUR DES DONNEES INVENTEES.
+--
+-- Une console vide n'apprend rien : pas de borne, pas de vente, un tableau de
+-- bord qui dit zero partout, et rien a toucher pour comprendre ce que l'outil
+-- fait. Le compte nait donc avec un parc fictif — trois bornes, un catalogue,
+-- trois semaines de ventes — que l'on peut manipuler comme s'il etait vrai, et
+-- un bandeau sur chaque page pour qu'on ne l'oublie pas.
+--
+-- `demo` dit que le compte est encore dans ce bac a sable. Le quitter efface
+-- tout ce que le compte contient et le rend vierge ; ce n'est pas reversible,
+-- sauf a repartir de zero. `demo_vie` est la derniere fois que les bornes
+-- fictives ont « parle » : c'est ce qui permet de leur faire vendre quelques
+-- articles entre deux visites, confirmer un chargement, et rester en ligne.
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS demo     BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS demo_vie TIMESTAMPTZ;

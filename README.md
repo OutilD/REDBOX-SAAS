@@ -189,3 +189,33 @@ JavaScript arrive. Sans lui, on tape la quantité et ça marche.
 
 Le propriétaire ne peut ni se retirer ni se dégrader : un compte sans propriétaire
 est un compte que plus personne ne reprend.
+
+## Mode démo
+
+Un compte qui vient de s’inscrire **s’ouvre sur un parc inventé** : trois
+bornes, onze produits en six catégories, trois semaines de ventes, une réserve
+avec deux livraisons, une tournée hebdomadaire, une équipe et une invitation en
+attente, deux playlists, un prix propre sur une machine, une autre hors
+service. Un bandeau ambre reste dans l’en-tête de chaque page tant que le mode
+est actif.
+
+Tout est du vrai dans la base — des lignes de `borne`, `vente`, `mouvement` —
+donc aucune page n’a à savoir qu’elle montre une démonstration. Ce qui
+distingue une borne fictive, c’est son jeton, qui commence par `demo_`.
+
+**Les bornes fictives vivent.** À chaque ouverture de la console (au plus une
+fois par minute, en arrière-plan, depuis `parJeton`), elles confirment les
+chargements saisis depuis plus d’une minute et demie, appliquent les
+corrections de compteur, vendent ce qu’elles auraient vendu depuis le dernier
+passage au rythme d’un bar, l’écrivent dans leur journal, et se déclarent en
+ligne et à jour du catalogue.
+
+**On en sort en effaçant tout** (`/demo`, propriétaire seulement, deux appuis) :
+bornes, catalogue, stock, ventes, écran d’accueil, y compris ce qui a été ajouté
+pendant l’essai. Restent le compte, ses membres et leurs photos, les invitations
+adressées à de vraies adresses, et une réserve vide. Une vraie machine ne peut
+pas être appairée tant que la démo est active. La même page remet la démo à
+neuf, ou la relance sur un compte resté vide.
+
+`REDBOX_SANS_DEMO=1` dans l’environnement ouvre les comptes vides, comme avant.
+Tout est dans `src/lib/demo.ts`.

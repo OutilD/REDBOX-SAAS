@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q1 } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur } from "@/lib/auth";
-import { IcoCatalogue, IcoCategories, IcoEquipe, IcoPub, IcoSav } from "../icones";
+import { IcoAlerte, IcoCatalogue, IcoCategories, IcoEquipe, IcoPub, IcoSav } from "../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +88,13 @@ export default async function Reglages() {
   ].filter(Boolean) as Rubrique[];
 
   const compte = [
+    // La demo passe en tete tant qu'elle est active : c'est la seule rubrique
+    // qui change le sens de toutes les autres.
+    u.demo && {
+      cle: "demo", vers: "/demo", icone: <IcoAlerte size={20} />,
+      nom: "Mode démo", quoi: "Les données affichées sont inventées. Désactiver, ou remettre à neuf",
+      etat: "actif", alerte: true,
+    },
     peutGererEquipe(u) && {
       cle: "equipe", vers: "/reglages/equipe", icone: <IcoEquipe />,
       nom: "Équipe", quoi: "Qui a accès à ce compte, et jusqu’où",

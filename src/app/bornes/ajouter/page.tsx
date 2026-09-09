@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q1 } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
+import { IcoAlerte } from "../../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
     code: "Code inconnu ou expiré. La borne en affiche un nouveau toutes les vingt minutes.",
     nom: "Donnez un nom à la borne.",
     prise: "Cette demande a déjà été adoptée.",
+    demo: "Le mode démo est actif : désactivez-le avant d’appairer une vraie borne.",
     deja: "Cette borne est déjà rattachée à un compte. Une machine ne peut appartenir "
         + "qu’à un seul SaaS à la fois : faites-la désappairer depuis le compte qui la "
         + "détient, puis recommencez. Son catalogue et ses visuels seront repris ici.",
@@ -44,6 +46,20 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
           <div className="pousse"><h1 style={{ margin: 0 }}>Ajouter une borne</h1></div>
         </div>
 
+        {u.demo ? (
+          <div className="avis" style={{ marginTop: 18 }}>
+            <IcoAlerte size={17} />
+            <div className="dit">
+              <div className="titre">Pas de vraie borne pendant la démo</div>
+              <div className="texte">
+                Ce compte est rempli de bornes et de ventes inventées. Une vraie machine y
+                mêlerait ses ventes aux ventes fictives, et quitter la démo l’effacerait avec le
+                reste. Désactivez d’abord le mode démo, puis revenez ici.
+              </div>
+            </div>
+            <Link href="/demo" className="bouton petit">Mode démo</Link>
+          </div>
+        ) : null}
         <div className="carte" style={{ marginTop: 18 }}>
           <div className="faible" style={{ fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700 }}>
             Sur la machine
@@ -78,7 +94,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
           </div>
           {e ? <p className="erreur" style={{ marginTop: 14 }}>{messages[e] ?? "Impossible."}</p> : null}
           <div style={{ height: 18 }} />
-          <button className="bouton primaire large">Adopter cette borne</button>
+          <button className="bouton primaire large" disabled={u.demo}>Adopter cette borne</button>
         </form>
 
         <p className="faible" style={{ fontSize: 13.5, textAlign: "center" }}>

@@ -23,6 +23,9 @@ export const FAIT: Record<string, string> = {
   charge:     "Chargement enregistré",
   invite:     "Invitation envoyée",
   place:      "Produit ajouté et posé sur sa spire",
+  demo_fin:   "Mode démo désactivé — le compte est vide, à vous de jouer",
+  demo_neuf:  "Démo remise à neuf",
+  demo_on:    "Mode démo relancé",
 };
 
 /** Le bandeau rouge. Le detail, lui, reste sur la page. */

@@ -18,6 +18,9 @@ export async function POST(req: Request) {
   // sur le catalogue, le depot ou le parc de l'exploitant.
   if (estRestreint(u)) return versPage(req, "/bornes");
   if (!peutConfigurer(u)) return versPage(req, "/bornes");
+  // Une vraie machine dans un parc invente melerait ses ventes aux ventes
+  // fictives, et sortir de la demo l'effacerait avec le reste.
+  if (u.demo) return versPage(req, "/bornes/ajouter?e=demo");
 
   const f = await req.formData();
   const code = String(f.get("code") ?? "").trim().toUpperCase();

@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -13,7 +13,7 @@ export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav"
-  | "profil";
+  | "profil" | "demo";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -98,6 +98,7 @@ const FIL: Record<Page, [string, string?]> = {
   pub:        ["Écran d’accueil", "Configuration"],
   sav:        ["Assistance", "Configuration"],
   profil:     ["Mon compte"],
+  demo:       ["Mode démo", "Réglages"],
 };
 
 /**
@@ -198,7 +199,7 @@ export async function Entete({ page, borne, fenetre, periode }:
             <button className="bouton petit">Aller</button>
           </form>
         ) : (
-          <div className="pied">{u?.compte}</div>
+          <div className="pied">{u?.compte}{u?.demo ? " · démo" : ""}</div>
         )}
       </aside>
 
@@ -265,6 +266,29 @@ export async function Entete({ page, borne, fenetre, periode }:
             </div>
           </div>
         </div>
+        {/*
+          LE BANDEAU DE LA DEMO.
+
+          Dans l'en-tete, donc sur chaque page et sous les yeux en permanence :
+          un compte neuf est rempli de bornes et de ventes inventees, et rien
+          ne doit laisser croire, meme une seconde, que ce chiffre d'affaires
+          est le sien. Il ne s'efface qu'en quittant le mode — et c'est le lien
+          qu'il porte. Ambre plutot que rouge : c'est un avertissement, pas
+          une panne.
+        */}
+        {u?.demo ? (
+          <div className="demo-bandeau" role="note">
+            <IcoAlerte size={18} />
+            <div className="dit">
+              <b>Mode démo · données fictives.</b>{" "}
+              Les bornes, les ventes, le stock et l’équipe affichés sont inventés pour
+              vous faire découvrir la console. Vous pouvez tout manipuler
+              <span className="long"> — charger une borne, traiter un litige, changer un prix</span> :
+              rien n’est réel, et tout sera effacé quand vous désactiverez ce mode.
+            </div>
+            <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>
+          </div>
+        ) : null}
       </header>
     </>
   );

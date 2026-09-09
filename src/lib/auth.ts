@@ -1,6 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { q, q1 } from "@/db";
+import { animerDemo } from "./demo";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
 export function chiffrer(mdp: string): string {
@@ -16,7 +17,7 @@ export function concorde(mdp: string, stocke: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type Appartenance = { compte_id: number; compte: string; role: string };
+export type Appartenance = { compte_id: number; compte: string; role: string; demo: boolean };
 
 export type Utilisateur = {
   id: number; compte_id: number; email: string; role: string; compte: string;
@@ -36,6 +37,14 @@ export type Utilisateur = {
   /** Son nom, s'il l'a donne, et sa photo. Ni l'un ni l'autre n'est obligatoire. */
   nom: string | null;
   image_id: number | null;
+  /**
+   * LE COMPTE ACTIF EST-IL ENCORE DANS SON BAC A SABLE ?
+   *
+   * Un compte neuf s'ouvre sur des donnees inventees — voir `lib/demo.ts`.
+   * Tant que c'est vrai, chaque page porte le bandeau qui le dit, et on ne
+   * rattache pas de vraie machine a ce parc-la.
+   */
+  demo: boolean;
 };
 
 const DUREE = 30 * 24 * 3600 * 1000;
@@ -98,13 +107,25 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
   }
 
   const comptes = await q<Appartenance>(`
-    SELECT m.compte_id, c.nom AS compte, m.role
+    SELECT m.compte_id, c.nom AS compte, m.role, c.demo
       FROM membre m JOIN compte c ON c.id = m.compte_id
      WHERE m.utilisateur_id = $1
      ORDER BY (m.compte_id = $2) DESC, c.nom`, [l.id, l.origine]);
   if (comptes.length === 0) return null;
 
   const choisi = comptes.find((a) => a.compte_id === l.actif) ?? comptes[0];
+
+  // LES BORNES FICTIVES PASSENT QUAND ON OUVRE LA CONSOLE. C'est ici que
+  // toute page commence, donc c'est ici qu'on les fait parler — mais SANS
+  // ATTENDRE : la page qui a declenche le passage ne doit pas payer les dix
+  // requetes qu'il coute, elle verra le resultat a la suivante, comme avec une
+  // vraie machine qui se synchronise toutes les cinq minutes. Rien ne part si
+  // elles sont passees il y a moins d'une minute, et un passage qui echoue ne
+  // ferme pas la console : on le note.
+  if (choisi.demo) {
+    void animerDemo(choisi.compte_id)
+      .catch((e) => console.error("bornes fictives :", e instanceof Error ? e.message : e));
+  }
 
   // Les bornes autorisees, DANS LE COMPTE ACTIF seulement : une restriction
   // posee chez un exploitant ne dit rien de ce qu'on peut voir chez un autre.
@@ -119,6 +140,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     bornes: restreint.length > 0 ? restreint.map((r) => r.borne_id) : null,
     comptes,
     nom: l.nom, image_id: l.image_id,
+    demo: choisi.demo,
   };
 }
 

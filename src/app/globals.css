@@ -201,6 +201,42 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .entete .fil .parent { color: var(--texte-3); font-weight: 500; }
 .entete .logo-mobile img { height: 26px; width: auto; display: block; }
 
+/*
+  LE BANDEAU DE LA DEMO.
+
+  Il vit dans l'en-tete collant, sous la barre du fil : on ne peut pas le faire
+  defiler hors de l'ecran, et c'est voulu — un chiffre d'affaires invente ne
+  doit jamais se lire sans la phrase qui dit qu'il l'est. Fond ambre plein,
+  texte sombre quel que soit le theme : c'est la seule surface de la console
+  qui ne suit pas les jetons de couleur, parce qu'elle doit trancher sur tout.
+
+  Au telephone, la phrase se raccourcit (`.long` disparait) et le bouton passe
+  a la ligne, en pleine largeur : il reste une cible de pouce.
+*/
+.demo-bandeau {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--ambre); color: #141416;
+  font-size: 13.5px; line-height: 1.4; font-weight: 500;
+  border-top: 1px solid rgba(0,0,0,.18);
+}
+.demo-bandeau > svg { flex: none; width: 18px; height: 18px; color: #141416; }
+.demo-bandeau .dit { flex: 1; min-width: 240px; }
+.demo-bandeau .dit b { font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.demo-bandeau .bouton {
+  flex: none; background: #141416; border-color: #141416; color: #fff; font-weight: 700;
+}
+.demo-bandeau .bouton:hover { background: #26262b; border-color: #26262b; }
+@media (max-width: 560px) {
+  .demo-bandeau { font-size: 13px; padding: 9px 14px; gap: 8px 10px; }
+  .demo-bandeau .long { display: none; }
+  .demo-bandeau .bouton { width: 100%; }
+}
+@media (min-width: 980px) {
+  .demo-bandeau { padding-left: calc(var(--rail) + 26px); padding-right: 26px; }
+}
+@media print { .demo-bandeau { display: none; } }
+
 /* Le compte : initiales, nom, role. Une pastille, pas une carte. */
 .compte-chip {
   display: flex; align-items: center; gap: 9px;
