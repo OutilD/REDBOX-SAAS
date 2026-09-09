@@ -179,6 +179,14 @@ export const IcoSav = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Notifications : une cloche, et son battant. */
+export const IcoCloche = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 3a4.6 4.6 0 0 0-4.6 4.6v2.6L4 13.4h12l-1.4-3.2V7.6A4.6 4.6 0 0 0 10 3z" />
+    <path d="M8.3 15.6a1.8 1.8 0 0 0 3.4 0" />
+  </svg>
+);
+
 export const IcoHorloge = ({ size = 14 }: P) => (
   <svg {...base(size)}>
     <circle cx="10" cy="10" r="7.2" />

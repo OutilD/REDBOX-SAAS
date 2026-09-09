@@ -768,3 +768,56 @@ CREATE INDEX IF NOT EXISTS i_journal_borne_purge ON journal_borne (recu_le) WHER
 -- articles entre deux visites, confirmer un chargement, et rester en ligne.
 ALTER TABLE compte ADD COLUMN IF NOT EXISTS demo     BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE compte ADD COLUMN IF NOT EXISTS demo_vie TIMESTAMPTZ;
+
+-- ------------------------------------------------------------- notifications
+
+-- ETRE PREVENU SANS AVOIR LA CONSOLE OUVERTE.
+--
+-- Une borne vend a deux heures du matin, avale un paiement, se vide : personne
+-- ne le sait avant d'ouvrir la console le lendemain. Le telephone, lui, est
+-- dans la poche. La console s'installe donc comme une application (manifeste
+-- et service worker) et pousse des notifications par le protocole Web Push :
+-- pas de compte chez un tiers, pas d'application a publier, ca marche sur
+-- Android et sur iOS des que la console est posee sur l'ecran d'accueil.
+--
+-- UN ABONNEMENT EST UN APPAREIL. Le navigateur fournit une adresse (endpoint)
+-- et deux cles ; c'est tout ce qu'il faut pour lui parler, et ca ne dit rien
+-- de la personne. On le rattache a l'utilisateur, pas au compte : quelqu'un
+-- qui sert deux exploitants est prevenu pour les deux, et une restriction par
+-- borne (acces_borne) s'applique au moment d'envoyer, pas ici.
+--
+-- Les preferences sont PAR APPAREIL : on veut chaque vente sur le telephone
+-- qu'on a la nuit, et seulement les incidents sur l'ordinateur du bureau.
+CREATE TABLE IF NOT EXISTS abonnement_push (
+  id             BIGSERIAL PRIMARY KEY,
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  endpoint       TEXT NOT NULL UNIQUE,
+  p256dh         TEXT NOT NULL,
+  auth           TEXT NOT NULL,
+  origine        TEXT,                        -- l'adresse de la console vue par l'appareil
+  appareil       TEXT,                        -- ce qu'on sait du navigateur, pour le reconnaitre dans la liste
+  ventes         BOOLEAN NOT NULL DEFAULT true,
+  incidents      BOOLEAN NOT NULL DEFAULT true,
+  vides          BOOLEAN NOT NULL DEFAULT true,
+  chargements    BOOLEAN NOT NULL DEFAULT false,
+  echecs         INTEGER NOT NULL DEFAULT 0,  -- envois rates de suite ; l'abonnement saute au dixieme
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  envoye_le      TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS i_abonnement_push_utilisateur ON abonnement_push (utilisateur_id);
+
+-- LA PAIRE DE CLES QUI SIGNE LES ENVOIS (VAPID).
+--
+-- Le service de push de chaque navigateur exige que l'expediteur se signe.
+-- Une seule paire pour toute la console ; elle est generee au premier
+-- abonnement et rangee ici plutot que dans l'environnement, pour qu'il n'y
+-- ait rien a configurer. REDBOX_VAPID_PUBLIQUE / REDBOX_VAPID_PRIVEE dans
+-- l'environnement passent devant, pour un hebergeur qui prefere les tenir.
+-- Changer de paire invalide tous les abonnements : chaque appareil devra se
+-- reabonner.
+CREATE TABLE IF NOT EXISTS cle_vapid (
+  id       SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  publique TEXT NOT NULL,
+  privee   TEXT NOT NULL,
+  cree_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

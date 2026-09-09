@@ -26,6 +26,9 @@ export const FAIT: Record<string, string> = {
   demo_fin:   "Mode démo désactivé — le compte est vide, à vous de jouer",
   demo_neuf:  "Démo remise à neuf",
   demo_on:    "Mode démo relancé",
+  abonne:     "Notifications activées sur cet appareil",
+  desabonne:  "Notifications retirées",
+  essai:      "Notification d’essai envoyée",
 };
 
 /** Le bandeau rouge. Le detail, lui, reste sur la page. */

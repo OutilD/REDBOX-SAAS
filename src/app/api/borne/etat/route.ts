@@ -1,7 +1,8 @@
 import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
-import { STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
+import { signaler, type Evenement } from "@/lib/notifications";
+import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,13 @@ export async function POST(req: Request) {
   try { r = await req.json(); }
   catch { return Response.json({ erreur: "corps illisible" }, { status: 400 }); }
 
+  // Ce que ce releve apporte de neuf, pour prevenir les telephones une fois
+  // la transaction passee — jamais avant : on ne signale pas ce qui pourrait
+  // etre annule, et on ne fait pas attendre la machine.
+  const evenements: Evenement[] = [];
+  const nouvelles: { nom: string | null; prix_c: number; lane: number | null; statut: string }[] = [];
+  const videes: { lane: number; nom: string | null }[] = [];
+
   const bilan = await transaction(async (c) => {
     await c.query(
       `UPDATE borne SET vue_le = now(), version = COALESCE($1, version),
@@ -99,6 +107,11 @@ export async function POST(req: Request) {
         await c.query(
           "UPDATE canal SET quantite = quantite + $1 WHERE borne_id = $2 AND lane = $3",
           [m.quantite, borne.id, m.lane]);
+      }
+      if (u.rows.length > 0) {
+        evenements.push({ genre: "chargements",
+                          unites: u.rows.reduce((s, m) => s + m.quantite, 0),
+                          spires: new Set(u.rows.map((m) => m.lane)).size });
       }
     }
 
@@ -202,11 +215,12 @@ export async function POST(req: Request) {
       if (!v.commande_id || !CONNUS.has(v.statut)) continue;
       const voulu = statutRecu(r.version, v.statut, v.lane);
       const statut = neufs ? voulu : rabattu(voulu);
-      const produit = v.sku
-        ? (await c.query<{ id: number }>(
-            "SELECT id FROM produit WHERE compte_id = $1 AND sku = $2",
-            [borne.compte_id, v.sku])).rows[0]?.id ?? null
+      const trouve = v.sku
+        ? (await c.query<{ id: number; nom: string }>(
+            "SELECT id, nom FROM produit WHERE compte_id = $1 AND sku = $2",
+            [borne.compte_id, v.sku])).rows[0] ?? null
         : null;
+      const produit = trouve?.id ?? null;
       // Le rang de l'article dans la commande, depuis la 5.13. Il fait partie de
       // la cle : sans lui, deux articles servis par la meme spirale n'en font
       // qu'un, et le stock comme le chiffre en perdent un.
@@ -231,6 +245,7 @@ export async function POST(req: Request) {
             [borne.id, v.commande_id, v.lane ?? null, produit, prix, statut, v.faite_le]);
       if (ins.rowCount === 0) continue;
       retenues++;
+      nouvelles.push({ nom: trouve?.nom ?? v.sku ?? null, prix_c: prix, lane: v.lane ?? null, statut });
 
       // Seule une distribution confirmee sort du stock. Un litige est un
       // probleme d'argent, pas de marchandise : elle est toujours dans la machine.
@@ -246,9 +261,12 @@ export async function POST(req: Request) {
         // pensions qu'elle portait, c'est notre chiffre qui etait faux, et
         // l'ecart avec le sien le dira mieux qu'un nombre en dessous de zero.
         if (v.lane !== null && v.lane !== undefined) {
-          await c.query(`
+          const reste = await c.query<{ quantite: number }>(`
             UPDATE canal SET quantite = GREATEST(0, quantite - 1)
-             WHERE borne_id = $1 AND lane = $2`, [borne.id, v.lane]);
+             WHERE borne_id = $1 AND lane = $2 RETURNING quantite`, [borne.id, v.lane]);
+          // La spire vient de vendre son dernier article : c'est le moment de
+          // le dire, pas au prochain inventaire.
+          if (reste.rows[0]?.quantite === 0) videes.push({ lane: v.lane, nom: trouve?.nom ?? null });
         }
       }
     }
@@ -260,6 +278,18 @@ export async function POST(req: Request) {
 
     return { canaux, refuses, retenues, confirmes, adopte, attente: attente.rows[0].n };
   });
+
+  // Les telephones, apres coup et sans attendre. Une borne sans compte n'a
+  // personne a prevenir.
+  const distribuees = nouvelles.filter((v) => v.statut === "distribue");
+  const incidents = nouvelles.filter((v) => (A_REGARDER as readonly string[]).includes(v.statut));
+  if (distribuees.length > 0) evenements.push({ genre: "ventes", ventes: distribuees });
+  if (incidents.length > 0) evenements.push({ genre: "incidents", incidents });
+  if (videes.length > 0) evenements.push({ genre: "vides", canaux: videes });
+  if (borne.compte_id && evenements.length > 0) {
+    void signaler(borne.compte_id, { id: borne.id, nom: borne.nom }, evenements)
+      .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  }
 
   return Response.json({
     ok: true,

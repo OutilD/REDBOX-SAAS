@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoCloche, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -12,7 +12,7 @@ import { SelecteurBorne } from "./selecteur-borne";
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes"
-  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav"
+  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo";
 
 type Item = {
@@ -64,6 +64,8 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: peutConfigurer },
       { cle: "equipe",     nom: "Équipe",     icone: <IcoEquipe />,     vers: "/reglages/equipe",
         droit: peutGererEquipe },
+      // Personnel, pas propre au compte : chacun regle ses appareils.
+      { cle: "notifications", nom: "Notifications", icone: <IcoCloche />, vers: "/reglages/notifications" },
     ],
   },
 ];
@@ -81,7 +83,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 const FAMILLE: Partial<Record<Page, Page>> = {
   reception: "stock", reassort: "stock",
   catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
-  sav: "reglages",
+  sav: "reglages", notifications: "reglages",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -97,6 +99,7 @@ const FIL: Record<Page, [string, string?]> = {
   equipe:     ["Équipe", "Configuration"],
   pub:        ["Écran d’accueil", "Configuration"],
   sav:        ["Assistance", "Configuration"],
+  notifications: ["Notifications", "Configuration"],
   profil:     ["Mon compte"],
   demo:       ["Mode démo", "Réglages"],
 };

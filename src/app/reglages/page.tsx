@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q1 } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoCatalogue, IcoCategories, IcoEquipe, IcoPub, IcoSav } from "../icones";
+import { IcoAlerte, IcoCatalogue, IcoCategories, IcoCloche, IcoEquipe, IcoPub, IcoSav } from "../icones";
 
 export const dynamic = "force-dynamic";
 
 type Compte = {
   categories: number; produits: number; membres: number;
   visuels: number; playlists: number; sav_tel: string | null;
+  appareils: number;
 };
 
 type Rubrique = {
@@ -48,8 +49,9 @@ export default async function Reglages() {
            (SELECT COUNT(*)::int FROM visuel v JOIN playlist p ON p.id = v.playlist_id
              WHERE p.compte_id = $1)                                              AS visuels,
            (SELECT COUNT(*)::int FROM playlist    WHERE compte_id = $1 AND actif) AS playlists,
-           (SELECT sav_tel FROM compte WHERE id = $1)                             AS sav_tel`,
-    [u.compte_id]);
+           (SELECT sav_tel FROM compte WHERE id = $1)                             AS sav_tel,
+           (SELECT COUNT(*)::int FROM abonnement_push WHERE utilisateur_id = $2)  AS appareils`,
+    [u.compte_id, u.id]);
 
   const categories = n?.categories ?? 0;
   const produits = n?.produits ?? 0;
@@ -57,6 +59,7 @@ export default async function Reglages() {
   const visuels = n?.visuels ?? 0;
   const playlists = n?.playlists ?? 0;
   const tel = (n?.sav_tel ?? "").trim();
+  const appareils = n?.appareils ?? 0;
 
   /**
    * L'ORDRE EST CELUI DU TRAVAIL REEL, comme dans le rail : on cree une
@@ -106,6 +109,14 @@ export default async function Reglages() {
       // Une machine sans numero laisse un client devant un ecran muet : c'est le
       // seul zero de cette page qui coute quelque chose tout de suite.
       etat: tel || "à renseigner", alerte: !tel,
+    },
+    {
+      cle: "notifications", vers: "/reglages/notifications", icone: <IcoCloche />,
+      nom: "Notifications", quoi: "Ventes, incidents et spires vides, sur votre téléphone",
+      // Zero appareil n'est pas une faute, mais c'est ce qu'on vient chercher
+      // ici quand la console dort dans la poche.
+      etat: appareils > 0 ? `${appareils} appareil${appareils > 1 ? "s" : ""}` : "à activer",
+      alerte: false,
     },
   ].filter(Boolean) as Rubrique[];
 

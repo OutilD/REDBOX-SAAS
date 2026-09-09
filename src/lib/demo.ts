@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { q1, transaction, FUSEAU, type PgClient } from "@/db";
 import { empreinteDe } from "./borne";
 import { IMAGES_DEMO } from "./demo-images";
+import { signaler, type Evenement } from "./notifications";
 import { laneDe } from "./machine";
 import { reserveDe } from "./stock";
 import { A_REGARDER } from "./ventes";
@@ -819,13 +820,19 @@ export async function renouvelerDemo(compte_id: number, par: string): Promise<vo
  *     maintenance qu'on lui a delivre.
  */
 export async function animerDemo(compte_id: number): Promise<void> {
-  const fictives = await q1<{ ids: number[] }>(`
-    SELECT COALESCE(array_agg(b.id ORDER BY b.id), '{}') AS ids
+  const fictives = await q1<{ ids: number[]; noms: string[] }>(`
+    SELECT COALESCE(array_agg(b.id ORDER BY b.id), '{}') AS ids,
+           COALESCE(array_agg(b.nom ORDER BY b.id), '{}') AS noms
       FROM borne b JOIN compte k ON k.id = b.compte_id
      WHERE b.compte_id = $1 AND k.demo AND ${SQL_FICTIVE}
        AND (k.demo_vie IS NULL OR k.demo_vie < now() - ($2 || ' seconds')::interval)`,
     [compte_id, String(PAUSE_S)]);
   if (!fictives || fictives.ids.length === 0) return;
+  const nomDe = new Map(fictives.ids.map((id, i) => [id, fictives.noms[i]]));
+  // Ce que chaque borne aura a dire aux telephones, une fois la transaction passee.
+  const aSignaler = new Map<number, Evenement[]>();
+  const signalerA = (borne_id: number, e: Evenement) =>
+    (aSignaler.get(borne_id) ?? aSignaler.set(borne_id, []).get(borne_id)!).push(e);
 
   // Les empreintes se lisent hors transaction, toutes en meme temps : rien de
   // ce qui suit ne change le catalogue, et le pool a des connexions pour ca.
@@ -860,6 +867,11 @@ export async function animerDemo(compte_id: number): Promise<void> {
       [compte_id, String(CONFIRMATION_S)]);
     const arrives = recus.rows.filter((r) => r.genre === "transfert" && r.lane !== null);
     const corriges = recus.rows.filter((r) => r.genre === "correction");
+    for (const borne_id of new Set(arrives.map((a) => a.borne_id))) {
+      const siens = arrives.filter((a) => a.borne_id === borne_id);
+      signalerA(borne_id, { genre: "chargements", unites: siens.reduce((s, a) => s + a.quantite, 0),
+                            spires: new Set(siens.map((a) => a.lane)).size });
+    }
     if (arrives.length > 0) {
       await c.query(`
         UPDATE canal c SET quantite = c.quantite + a.n,
@@ -882,9 +894,9 @@ export async function animerDemo(compte_id: number): Promise<void> {
     // 2. Ce qui s'est vendu depuis le dernier passage.
     const spires = await c.query<{
       borne_id: number; lane: number; produit_id: number; quantite: number;
-      prix_c: number; age_min: number; sku: string; rang: number;
+      prix_c: number; age_min: number; sku: string; nom: string; rang: number;
     }>(`
-      SELECT c.borne_id, c.lane, c.produit_id, c.quantite, p.age_min, p.sku,
+      SELECT c.borne_id, c.lane, c.produit_id, c.quantite, p.age_min, p.sku, p.nom,
              COALESCE(pb.prix_c, p.prix_vente_c) AS prix_c,
              (SELECT COUNT(*) FROM borne b2 WHERE b2.compte_id = $1 AND b2.jeton LIKE 'demo\\_%'
                  AND b2.id < b.id)::int AS rang
@@ -908,6 +920,14 @@ export async function animerDemo(compte_id: number): Promise<void> {
     const ventes: Vente[] = [];
     const journal: LigneJ[] = [];
     const baisses = new Map<string, { borne: number; lane: number; n: number; chutes: number }>();
+    // Ce que chaque borne dira, range par sujet.
+    const parSujet = <T,>() => {
+      const m = new Map<number, T[]>();
+      return (borne_id: number) => m.get(borne_id) ?? m.set(borne_id, []).get(borne_id)!;
+    };
+    const vendus = parSujet<{ nom: string; prix_c: number; lane: number }>();
+    const incidents = parSujet<{ nom: string; prix_c: number; lane: number; statut: string }>();
+    const videes = parSujet<{ lane: number; nom: string }>();
 
     for (let t = debut; t < maintenant; t += 3600e3) {
       const fin = Math.min(t + 3600e3, maintenant);
@@ -925,6 +945,12 @@ export async function animerDemo(compte_id: number): Promise<void> {
           const aRegarder = (A_REGARDER as readonly string[]).includes(statut);
           const avantSpirale = !aRegarder && statut !== "distribue";
           if (statut === "distribue") s.quantite--;
+          if (statut === "distribue") {
+            vendus(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane });
+            if (s.quantite === 0) videes(borne_id).push({ lane: s.lane, nom: s.nom });
+          } else if (aRegarder) {
+            incidents(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane, statut });
+          }
           const cle = `${borne_id}:${s.lane}`;
           const d = baisses.get(cle) ?? baisses.set(cle, { borne: borne_id, lane: s.lane, n: 0, chutes: 0 }).get(cle)!;
           if (statut === "distribue") d.n++;
@@ -951,6 +977,11 @@ export async function animerDemo(compte_id: number): Promise<void> {
          WHERE c.borne_id = d.borne AND c.lane = d.lane`,
         [d.map((x) => x.borne), d.map((x) => x.lane), d.map((x) => x.n), d.map((x) => x.chutes)]);
       await ecrireJournal(c, journal);
+      for (const borne_id of parBorne.keys()) {
+        if (vendus(borne_id).length > 0)    signalerA(borne_id, { genre: "ventes", ventes: vendus(borne_id) });
+        if (incidents(borne_id).length > 0) signalerA(borne_id, { genre: "incidents", incidents: incidents(borne_id) });
+        if (videes(borne_id).length > 0)    signalerA(borne_id, { genre: "vides", canaux: videes(borne_id) });
+      }
     }
 
     // 3. Chaque borne a parle, et le compte s'en souvient — une requete.
@@ -966,6 +997,14 @@ export async function animerDemo(compte_id: number): Promise<void> {
       UPDATE compte SET demo_vie = now() WHERE id = $1`,
       [compte_id, empreintes.map((e) => e.id), empreintes.map((e) => e.empreinte)]);
   });
+
+  // Les telephones, une fois tout ecrit. Les bornes fictives previennent comme
+  // les vraies : c'est ainsi qu'on voit les notifications marcher avant
+  // d'avoir une machine.
+  for (const [borne_id, evenements] of aSignaler) {
+    void signaler(compte_id, { id: borne_id, nom: nomDe.get(borne_id) ?? "Borne" }, evenements)
+      .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  }
 }
 
 // ------------------------------------------------------------------ l'etat

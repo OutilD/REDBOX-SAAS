@@ -190,6 +190,34 @@ JavaScript arrive. Sans lui, on tape la quantité et ça marche.
 Le propriétaire ne peut ni se retirer ni se dégrader : un compte sans propriétaire
 est un compte que plus personne ne reprend.
 
+## Notifications
+
+La console s’installe comme une application (manifeste, service worker
+`public/sw.js`, icônes de `scripts/icones-pwa.mjs`) et pousse des notifications
+par **Web Push** : rien à publier sur un store, pas de compte chez un tiers.
+
+Réglages › Notifications : chaque personne abonne ses appareils, et règle par
+appareil ce qu’il reçoit — **ventes** (un message par relevé, avec le total),
+**incidents** (payé, rien n’est tombé), **spires vides**, **chargements**
+confirmés par la machine. Un abonnement suit la personne, pas le compte ; une
+restriction par borne s’applique à l’envoi.
+
+L’envoi part **après** la transaction du relevé (`/api/borne/etat`) et après le
+passage des bornes fictives, sans être attendu. Un message par borne et par
+sujet, avec un `tag` : trois relevés de suite mettent à jour la même ligne sur
+l’écran de verrouillage. Un appareil disparu (404/410) est effacé ; dix échecs
+de suite aussi.
+
+La paire de clés VAPID est générée au premier abonnement et rangée dans
+`cle_vapid` ; `REDBOX_VAPID_PUBLIQUE` / `REDBOX_VAPID_PRIVEE` (et
+`REDBOX_VAPID_SUJET`) dans l’environnement passent devant. Changer de paire
+oblige chaque appareil à se réabonner.
+
+**Il faut du https.** Les navigateurs n’enregistrent ni service worker ni
+abonnement sur une adresse `http://` autre que `localhost`. Sur iPhone, il faut
+en plus poser la console sur l’écran d’accueil (Partager › Sur l’écran
+d’accueil) et l’ouvrir depuis cette icône — iOS 16.4 ou plus.
+
 ## Mode démo
 
 Un compte qui vient de s’inscrire **s’ouvre sur un parc inventé** : trois
