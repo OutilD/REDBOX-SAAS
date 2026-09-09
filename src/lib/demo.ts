@@ -122,20 +122,23 @@ const RELIVRAISON: Record<string, number> = { "VAPE-MEN": 120, "VAPE-FRU": 120, 
 /**
  * Le planogramme, sur les dix spires que porte une RedBox — cinq rangees de
  * deux. Le meme pour les trois machines : c'est le cas courant, un exploitant
- * deploie la meme selection. La powerbank 10000 reste en reserve, sans spire :
- * il y a toujours un produit qu'on a achete et pas encore place.
+ * deploie la meme selection. La Puff Menthe, qui part le plus vite, occupe
+ * DEUX spires : la machine n'en montre qu'une carte et sert la premiere non
+ * vide — c'est ce qu'on veut faire voir. La powerbank 10000 et le cable
+ * restent en reserve, sans spire : il y a toujours un produit qu'on a achete
+ * et pas encore place.
  */
 const PLAN: { rangee: number; colonne: number; sku: string; capacite: number }[] = [
   { rangee: 1, colonne: 1, sku: "VAPE-MEN", capacite: 10 },
-  { rangee: 1, colonne: 2, sku: "VAPE-FRU", capacite: 10 },
-  { rangee: 2, colonne: 1, sku: "VAPE-PAS", capacite: 10 },
-  { rangee: 2, colonne: 2, sku: "VAPE-MAN", capacite: 10 },
-  { rangee: 3, colonne: 1, sku: "POP-15",   capacite: 10 },
-  { rangee: 3, colonne: 2, sku: "PWR-5000", capacite: 6 },
-  { rangee: 4, colonne: 1, sku: "HYG-PRE",  capacite: 10 },
-  { rangee: 4, colonne: 2, sku: "HYG-LIN",  capacite: 10 },
-  { rangee: 5, colonne: 1, sku: "BRQ-TEMP", capacite: 10 },
-  { rangee: 5, colonne: 2, sku: "ACC-USBC", capacite: 8 },
+  { rangee: 1, colonne: 2, sku: "VAPE-MEN", capacite: 10 },
+  { rangee: 2, colonne: 1, sku: "VAPE-FRU", capacite: 10 },
+  { rangee: 2, colonne: 2, sku: "VAPE-PAS", capacite: 10 },
+  { rangee: 3, colonne: 1, sku: "VAPE-MAN", capacite: 10 },
+  { rangee: 3, colonne: 2, sku: "POP-15",   capacite: 10 },
+  { rangee: 4, colonne: 1, sku: "PWR-5000", capacite: 6 },
+  { rangee: 4, colonne: 2, sku: "HYG-PRE",  capacite: 10 },
+  { rangee: 5, colonne: 1, sku: "HYG-LIN",  capacite: 10 },
+  { rangee: 5, colonne: 2, sku: "BRQ-TEMP", capacite: 10 },
 ];
 
 /**
@@ -997,7 +1000,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
     };
     const vendus = parSujet<{ nom: string; prix_c: number; lane: number }>();
     const incidents = parSujet<{ nom: string; prix_c: number; lane: number; statut: string }>();
-    const videes = parSujet<{ lane: number; nom: string }>();
+    const videes = parSujet<{ lane: number; nom: string; ailleurs: number }>();
 
     for (let t = debut; t < maintenant; t += 3600e3) {
       const fin = Math.min(t + 3600e3, maintenant);
@@ -1017,7 +1020,11 @@ export async function animerDemo(compte_id: number): Promise<void> {
           if (statut === "distribue") s.quantite--;
           if (statut === "distribue") {
             vendus(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane });
-            if (s.quantite === 0) videes(borne_id).push({ lane: s.lane, nom: s.nom });
+            if (s.quantite === 0) {
+              const ailleurs = liste.filter((x) => x.produit_id === s.produit_id && x.lane !== s.lane)
+                                    .reduce((n, x) => n + x.quantite, 0);
+              videes(borne_id).push({ lane: s.lane, nom: s.nom, ailleurs });
+            }
           } else if (aRegarder) {
             incidents(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane, statut });
           }

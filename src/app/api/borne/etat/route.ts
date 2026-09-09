@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   // etre annule, et on ne fait pas attendre la machine.
   const evenements: Evenement[] = [];
   const nouvelles: { nom: string | null; prix_c: number; lane: number | null; statut: string }[] = [];
-  const videes: { lane: number; nom: string | null }[] = [];
+  const videes: { lane: number; nom: string | null; ailleurs: number }[] = [];
 
   const bilan = await transaction(async (c) => {
     await c.query(
@@ -265,8 +265,14 @@ export async function POST(req: Request) {
             UPDATE canal SET quantite = GREATEST(0, quantite - 1)
              WHERE borne_id = $1 AND lane = $2 RETURNING quantite`, [borne.id, v.lane]);
           // La spire vient de vendre son dernier article : c'est le moment de
-          // le dire, pas au prochain inventaire.
-          if (reste.rows[0]?.quantite === 0) videes.push({ lane: v.lane, nom: trouve?.nom ?? null });
+          // le dire, pas au prochain inventaire — en precisant ce qu'il en
+          // reste sur les autres spires de la machine, qui sert la suivante.
+          if (reste.rows[0]?.quantite === 0) {
+            const ailleurs = await c.query<{ n: number }>(`
+              SELECT COALESCE(SUM(quantite), 0)::int AS n FROM canal
+               WHERE borne_id = $1 AND produit_id = $2 AND lane <> $3`, [borne.id, produit, v.lane]);
+            videes.push({ lane: v.lane, nom: trouve?.nom ?? null, ailleurs: ailleurs.rows[0]?.n ?? 0 });
+          }
         }
       }
     }

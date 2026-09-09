@@ -47,7 +47,8 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
 export type Evenement =
   | { genre: "ventes";      ventes: { nom: string | null; prix_c: number; lane: number | null }[] }
   | { genre: "incidents";   incidents: { nom: string | null; prix_c: number; lane: number | null; statut: string }[] }
-  | { genre: "vides";       canaux: { lane: number; nom: string | null }[] }
+  /** `ailleurs` : ce qu'il en reste sur les autres spires de la meme borne. */
+  | { genre: "vides";       canaux: { lane: number; nom: string | null; ailleurs: number }[] }
   | { genre: "chargements"; unites: number; spires: number };
 
 type Message = { genre: Genre; titre: string; corps: string; url: string; tag: string };
@@ -144,9 +145,17 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
     }
     case "vides": {
       if (e.canaux.length === 0) return null;
+      // Une spire vide dont le produit tient encore sur une autre n'est pas
+      // une vente perdue : la machine prend dans l'autre. On le dit, pour
+      // que personne ne parte recharger a deux heures du matin pour rien.
+      const epuises = e.canaux.filter((c) => c.ailleurs <= 0);
       return { genre: "vides",
-               titre: e.canaux.length === 1 ? `Spire vide · ${b}` : `${e.canaux.length} spires vides · ${b}`,
-               corps: liste(e.canaux.map((c) => `${spire(c.lane)} ${c.nom ?? ""}`.trim())),
+               titre: epuises.length > 0
+                 ? (epuises.length === 1 ? `Produit épuisé · ${b}` : `${epuises.length} produits épuisés · ${b}`)
+                 : (e.canaux.length === 1 ? `Spire vide · ${b}` : `${e.canaux.length} spires vides · ${b}`),
+               corps: liste(e.canaux.map((c) =>
+                 `${spire(c.lane)} ${c.nom ?? ""}`.trim()
+                 + (c.ailleurs > 0 ? ` (encore ${c.ailleurs} sur une autre spire)` : ""))),
                url: `/bornes/${borne.id}?c=vides`, tag: `vides-${borne.id}` };
     }
     case "chargements": {

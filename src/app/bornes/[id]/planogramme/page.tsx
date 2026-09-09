@@ -46,6 +46,21 @@ export default async function Planogramme({
     return m;
   }, new Map<string, typeof produits>())];
 
+  // UN PRODUIT PEUT OCCUPER PLUSIEURS SPIRES. Un article qui part vite se met
+  // sur deux ou trois : la machine n'en montre qu'une carte, annonce la somme,
+  // et sert la premiere spire non vide — quand l'une est epuisee, elle prend
+  // dans l'autre sans que personne n'ait rien a faire. On le dit ici, avec la
+  // liste de ceux qui sont deja doubles, parce que c'est dans ce formulaire
+  // qu'on choisit, et qu'un meme nom dans deux menus ressemble a une erreur.
+  const doubles = [...canaux.reduce((m, c) => {
+    if (c.produit_id === null) return m;
+    const d = m.get(c.produit_id) ?? m.set(c.produit_id, { nom: c.nom ?? "", spires: [] as string[], stock: 0, capacite: 0 }).get(c.produit_id)!;
+    d.spires.push(codeCanal(c.rangee, c.colonne));
+    d.stock += c.quantite; d.capacite += c.capacite;
+    return m;
+  }, new Map<number, { nom: string; spires: string[]; stock: number; capacite: number }>()).values()]
+    .filter((d) => d.spires.length > 1);
+
   return (
     <>
       <Entete page="bornes" />
@@ -59,6 +74,25 @@ export default async function Planogramme({
           Le code se lit <b>rangée</b> puis <b>colonne</b> : 101 = première rangée,
           première spire ; 201 = deuxième rangée.
         </p>
+        <div className="carte plate" style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Un même produit sur plusieurs spires</div>
+          <p className="faible" style={{ fontSize: 13, margin: "4px 0 0", lineHeight: 1.5 }}>
+            Mettez l’article qui part vite sur deux spires ou plus. Sur l’écran de la machine
+            il n’y a qu’une carte, avec le stock des deux ; à la vente, elle sert la première
+            spire qui n’est pas vide, et passe à la suivante quand l’une s’épuise ou coince.
+            Vous n’avez rien à décider : elle sait.
+          </p>
+          {doubles.length > 0 ? (
+            <ul style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: 13.5, lineHeight: 1.7 }}>
+              {doubles.map((d) => (
+                <li key={d.nom}>
+                  <b>{d.nom}</b> — spires {d.spires.join(", ")} ·{" "}
+                  <span className="num">{d.stock} / {d.capacite}</span> en tout
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
 
         {e === "place" ? <p className="erreur">Rangée et colonne vont de 1 à 10.</p> : null}
         {e === "deja" ? <p className="erreur">Ce canal existe déjà sur cette borne.</p> : null}

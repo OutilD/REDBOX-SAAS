@@ -62,6 +62,21 @@ en marchant le long des rangées. On fait tous les canaux de Puffs, puis on pren
 le carton suivant. Le numéro de canal reste sur chaque bloc — c’est lui qui dit où
 poser la main.
 
+## Un produit sur plusieurs spires
+
+Le planogramme accepte le même produit sur deux spires ou plus (101 et 102,
+par exemple). `canal.produit_id` n’est pas unique par borne, et c’est voulu :
+l’article qui part vite se met en double. Côté machine (`Inventory`), un
+produit peut occuper plusieurs racks : l’étal n’en montre **qu’une carte**,
+le stock annoncé est la **somme**, et à la vente elle sert la **première spire
+non vide** dans l’ordre du planogramme, en sautant celles qui ont échoué
+dans la même commande. Il n’y a rien à décider dans la console.
+
+La page du planogramme liste les produits doublés avec leurs spires et leur
+total. Une spire qui se vide déclenche l’alerte « spire vide », en précisant
+ce qu’il en reste sur les autres spires ; « produit épuisé » seulement quand
+il n’en reste nulle part sur la machine.
+
 ## Tableau de bord
 
 Il répond à quatre questions, dans cet ordre : est-ce que ça tourne, combien ça
