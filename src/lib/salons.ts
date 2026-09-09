@@ -1,5 +1,6 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
+import { gradeDe, groupeDuCompte } from "./communaute";
 
 /**
  * LES SALONS, ET CE QU'ON Y DIT.
@@ -10,20 +11,34 @@ import type { Utilisateur } from "./auth";
  * repond dessous. C'est la meme idee que le journal d'une borne, en lisible,
  * et avec des gens dedans.
  *
- * Deux regles :
+ * Et au-dela du compte, la communaute : les ANNONCES de l'editeur, que tout
+ * le monde lit ; les salons de COMMUNAUTE, par groupe — tous, proprietaires
+ * d'au moins une vraie borne, prospects ; et le SUPPORT, un salon par compte
+ * entre lui et l'editeur.
+ *
+ * Trois regles :
  *
  *  1. ON VOIT LES SALONS DES BORNES QU'ON VOIT. Quelqu'un restreint a une
  *     machine ne lit ni n'ecrit ailleurs que dans « general » et dans le
  *     salon de sa machine. `Utilisateur.bornes` tranche, comme pour les pages.
  *
- *  2. RIEN NE S'EFFACE. Un message retire laisse sa place, avec « message
+ *  2. L'EDITEUR VOIT TOUT CE QUI LE CONCERNE : chaque salon de support, et
+ *     tous les groupes de la communaute. Lui seul ecrit dans les annonces.
+ *
+ *  3. RIEN NE S'EFFACE. Un message retire laisse sa place, avec « message
  *     retiré » dedans. Un fil ou des messages disparaissent fait douter de
  *     tous les autres.
  */
 
+export type Portee = "compte" | "support" | "annonces" | "communaute";
+export type Groupe = "tous" | "proprietaires" | "prospects";
+
 export type Salon = {
   id: number; nom: string; sujet: string | null; borne_id: number | null;
   borne: string | null; ordre: number;
+  portee: Portee; groupe: Groupe | null; compte_id: number | null;
+  /** Le nom du compte, pour un salon de support vu par l'editeur. */
+  compte: string | null;
   non_lus: number; dernier_le: Date | null;
 };
 
@@ -31,8 +46,24 @@ export type Message = {
   id: number; salon_id: number; utilisateur_id: number | null;
   /** Le nom a afficher. Nul pour la machine : c'est le salon qui dit laquelle. */
   auteur: string | null; image_id: number | null;
+  /** D'ou parle l'auteur, pour les salons qui traversent les comptes. */
+  compte: string | null; grade: string | null; editeur: boolean; couleur: string | null;
   texte: string; cree_le: string; supprime: boolean;
 };
+
+/** Ce que l'editeur dit a tout le monde, et ou les gens se retrouvent. */
+const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe | null; ordre: number }[] = [
+  { nom: "annonces", portee: "annonces", groupe: null, ordre: 0,
+    sujet: "Les nouveautés de la console et des bornes, par l’équipe RedBox" },
+  { nom: "entrepreneurs", portee: "communaute", groupe: "tous", ordre: 1,
+    sujet: "Tous ceux qui font tourner des RedBox — et ceux qui y pensent" },
+  { nom: "proprietaires", portee: "communaute", groupe: "proprietaires", ordre: 2,
+    sujet: "Entre exploitants : ce qui marche, ce qui casse, ce qui se vend" },
+  { nom: "prospects", portee: "communaute", groupe: "prospects", ordre: 3,
+    sujet: "Pas encore de borne ? Posez vos questions ici" },
+];
+
+export const SUPPORT = { nom: "equipe-redbox", sujet: "Votre ligne directe avec l’équipe RedBox" };
 
 export const TEXTE_MAX = 2000;
 export const NOM_MAX = 40;
@@ -46,9 +77,30 @@ export function slug(nom: string): string {
     .slice(0, NOM_MAX) || "borne";
 }
 
-/** Le fragment SQL de ce que `u` a le droit de voir. `s` est l'alias de `salon`. */
-const VISIBLE = `s.compte_id = $1 AND s.archive_le IS NULL
-                 AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2))`;
+/**
+ * Le fragment SQL de ce que `u` a le droit de voir. `s` est l'alias de
+ * `salon` ; $1 le compte, $2 ses bornes (nul = toutes), $3 si elle est de
+ * l'editeur, $4 le groupe de son compte. Chaque parametre est lu au moins
+ * une fois : Postgres refuse un parametre dont il ne peut pas deviner le type.
+ */
+const VISIBLE = `s.archive_le IS NULL AND (
+     (s.portee = 'compte' AND s.compte_id = $1
+        AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2)))
+  OR (s.portee = 'support' AND (s.compte_id = $1 OR $3::boolean))
+  OR  s.portee = 'annonces'
+  OR (s.portee = 'communaute' AND (s.groupe = 'tous' OR s.groupe = $4::text OR $3::boolean)))`;
+
+/** Les quatre parametres de VISIBLE, dans l'ordre. */
+async function portee(u: Utilisateur): Promise<unknown[]> {
+  return [u.compte_id, u.bornes, u.editeur, await groupeDuCompte(u.compte_id)];
+}
+
+/** Peut-elle ecrire la ? Les annonces sont a l'editeur ; le reste, a qui n'est pas en lecture seule. */
+export function peutEcrire(u: Utilisateur, s: Salon): boolean {
+  if (u.role === "lecture") return false;
+  if (s.portee === "annonces") return u.editeur;
+  return true;
+}
 
 /**
  * LE COMPTE A SES SALONS. « general » d'abord ; puis un par borne qui n'en a
@@ -61,6 +113,19 @@ export async function assurerSalons(compte_id: number): Promise<void> {
     INSERT INTO salon (compte_id, nom, sujet, ordre)
     VALUES ($1, 'general', 'Toute l’équipe, pour tout le reste', 0)
     ON CONFLICT (compte_id, nom) DO NOTHING`, [compte_id]);
+  // La ligne directe avec l'editeur, et les salons de la plateforme.
+  await q(`
+    INSERT INTO salon (compte_id, nom, sujet, portee, ordre)
+    SELECT $1, $2, $3, 'support', 90
+     WHERE NOT EXISTS (SELECT 1 FROM salon WHERE compte_id = $1 AND portee = 'support')
+    ON CONFLICT (compte_id, nom) DO NOTHING`, [compte_id, SUPPORT.nom, SUPPORT.sujet]);
+  await q(`
+    INSERT INTO salon (compte_id, nom, sujet, portee, groupe, ordre)
+    SELECT NULL, p.nom, p.sujet, p.portee, p.groupe, p.ordre
+      FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[]) AS p(nom, sujet, portee, groupe, ordre)
+    ON CONFLICT (nom) WHERE compte_id IS NULL DO NOTHING`,
+    [PLATEFORME.map((p) => p.nom), PLATEFORME.map((p) => p.sujet), PLATEFORME.map((p) => p.portee),
+     PLATEFORME.map((p) => p.groupe), PLATEFORME.map((p) => p.ordre)]);
   const sans = await q<{ id: number; nom: string }>(`
     SELECT b.id, b.nom FROM borne b
      WHERE b.compte_id = $1 AND NOT EXISTS (SELECT 1 FROM salon s WHERE s.borne_id = b.id)
@@ -82,27 +147,32 @@ export async function assurerSalons(compte_id: number): Promise<void> {
 }
 
 /** Les salons que cette personne voit, avec ce qu'elle n'y a pas encore lu. */
+const COLONNES_SALON = `
+  s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre,
+  s.portee, s.groupe, s.compte_id, k.nom AS compte`;
+
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
   return q<Salon>(`
-    SELECT s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre,
+    SELECT ${COLONNES_SALON},
            (SELECT COUNT(*)::int FROM message m
              WHERE m.salon_id = s.id AND m.supprime_le IS NULL
                AND m.id > COALESCE(l.dernier_id, 0)
-               AND m.utilisateur_id IS DISTINCT FROM $3) AS non_lus,
+               AND m.utilisateur_id IS DISTINCT FROM $5::bigint) AS non_lus,
            (SELECT MAX(m.cree_le) FROM message m WHERE m.salon_id = s.id) AS dernier_le
       FROM salon s
       LEFT JOIN borne b ON b.id = s.borne_id
-      LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $3
+      LEFT JOIN compte k ON k.id = s.compte_id
+      LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $5::bigint
      WHERE ${VISIBLE}
-     ORDER BY s.ordre, s.nom`, [u.compte_id, u.bornes, u.id]);
+     ORDER BY (s.compte_id IS DISTINCT FROM $1), s.ordre, s.nom`, [...await portee(u), u.id]);
 }
 
 /** Un salon, s'il est a elle. */
 export async function salonDe(u: Utilisateur, id: number): Promise<Salon | null> {
   return q1<Salon>(`
-    SELECT s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre, 0 AS non_lus, NULL AS dernier_le
-      FROM salon s LEFT JOIN borne b ON b.id = s.borne_id
-     WHERE ${VISIBLE} AND s.id = $3`, [u.compte_id, u.bornes, id]);
+    SELECT ${COLONNES_SALON}, 0 AS non_lus, NULL AS dernier_le
+      FROM salon s LEFT JOIN borne b ON b.id = s.borne_id LEFT JOIN compte k ON k.id = s.compte_id
+     WHERE ${VISIBLE} AND s.id = $5`, [...await portee(u), id]);
 }
 
 /** Ce que tout le monde n'a pas lu, tous salons confondus : la pastille de l'en-tete. */
@@ -111,21 +181,37 @@ export async function nonLus(u: Utilisateur): Promise<number> {
     SELECT COUNT(*)::int AS n
       FROM message m
       JOIN salon s ON s.id = m.salon_id
-      LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $3
+      LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $5::bigint
      WHERE ${VISIBLE} AND m.supprime_le IS NULL
        AND m.id > COALESCE(l.dernier_id, 0)
-       AND m.utilisateur_id IS DISTINCT FROM $3`, [u.compte_id, u.bornes, u.id]);
+       AND m.utilisateur_id IS DISTINCT FROM $5::bigint`, [...await portee(u), u.id]);
   return r?.n ?? 0;
 }
 
+/**
+ * Les colonnes d'un message. L'auteur est nomme par son pseudo dans la
+ * communaute, par son nom dans son equipe ; les deux se resolvent ici, et la
+ * page choisit. Le grade se lit sur les vraies bornes de ses comptes.
+ */
 const COLONNES = `
   m.id, m.salon_id, m.utilisateur_id,
   CASE WHEN m.utilisateur_id IS NULL THEN NULL
-       ELSE COALESCE(NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS auteur,
-  x.image_id,
+       ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS auteur,
+  x.image_id, x.couleur, kx.nom AS compte, COALESCE(kx.editeur, false) AS editeur,
+  CASE WHEN m.utilisateur_id IS NULL THEN NULL ELSE
+    (SELECT COUNT(DISTINCT b.id)::int FROM borne b
+       JOIN membre mb ON mb.compte_id = b.compte_id AND mb.utilisateur_id = x.id
+      WHERE b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%') END AS bornes,
   CASE WHEN m.supprime_le IS NULL THEN m.texte ELSE '' END AS texte,
   to_char(m.cree_le AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cree_le,
   (m.supprime_le IS NOT NULL) AS supprime`;
+const JOINTURES = `LEFT JOIN utilisateur x ON x.id = m.utilisateur_id LEFT JOIN compte kx ON kx.id = x.compte_id`;
+
+/** Le grade se calcule ici, pas en base : la table des grades est dans le code. */
+type Brut = Omit<Message, "grade"> & { bornes: number | null };
+function grader(rows: Brut[]): Message[] {
+  return rows.map(({ bornes, ...r }) => ({ ...r, grade: bornes === null ? null : gradeDe(bornes).nom }));
+}
 
 /**
  * Les messages d'un salon. `depuis` rend ce qui est arrive apres un
@@ -137,15 +223,15 @@ export async function messagesDe(salon_id: number, o: { depuis?: number; avant?:
     Promise<Message[]> {
   const limite = Math.min(Math.max(o.limite ?? 60, 1), 200);
   if (o.depuis !== undefined) {
-    return q<Message>(`
-      SELECT ${COLONNES} FROM message m LEFT JOIN utilisateur x ON x.id = m.utilisateur_id
-       WHERE m.salon_id = $1 AND m.id > $2 ORDER BY m.id LIMIT $3`, [salon_id, o.depuis, limite]);
+    return grader(await q<Brut>(`
+      SELECT ${COLONNES} FROM message m ${JOINTURES}
+       WHERE m.salon_id = $1 AND m.id > $2 ORDER BY m.id LIMIT $3`, [salon_id, o.depuis, limite]));
   }
-  const rows = await q<Message>(`
-    SELECT ${COLONNES} FROM message m LEFT JOIN utilisateur x ON x.id = m.utilisateur_id
+  const rows = await q<Brut>(`
+    SELECT ${COLONNES} FROM message m ${JOINTURES}
      WHERE m.salon_id = $1 AND ($2::bigint IS NULL OR m.id < $2)
      ORDER BY m.id DESC LIMIT $3`, [salon_id, o.avant ?? null, limite]);
-  return rows.reverse();
+  return grader(rows.reverse());
 }
 
 /** Un message de plus, rendu tel qu'il s'affiche. */
@@ -153,10 +239,10 @@ export async function deposer(salon_id: number, utilisateur_id: number | null, t
                               c?: PgClient): Promise<Message> {
   const sql = `
     WITH n AS (INSERT INTO message (salon_id, utilisateur_id, texte) VALUES ($1, $2, $3) RETURNING *)
-    SELECT ${COLONNES} FROM n m LEFT JOIN utilisateur x ON x.id = m.utilisateur_id`;
+    SELECT ${COLONNES} FROM n m ${JOINTURES}`;
   const p = [salon_id, utilisateur_id, texte];
-  const r = c ? (await c.query<Message>(sql, p)).rows[0] : await q1<Message>(sql, p);
-  return r!;
+  const r = c ? (await c.query<Brut>(sql, p)).rows[0] : await q1<Brut>(sql, p);
+  return grader([r!])[0];
 }
 
 /** Retire un de ses messages. Rend faux s'il n'est pas a elle. */

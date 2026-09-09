@@ -32,7 +32,7 @@ import { LIBELLES } from "./ventes";
  *     C'est `acces_borne` qui tranche, comme pour les pages.
  */
 
-export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages";
+export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages" | "annonces";
 
 /** Ce qu'on peut demander, dans l'ordre ou la page le propose. */
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
@@ -40,7 +40,8 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "incidents",   nom: "Incidents",      quoi: "Payé, rien n’est tombé : litige, chute non détectée, spirale bloquée" },
   { cle: "vides",       nom: "Spires vides",   quoi: "Une spire vient de vendre son dernier article" },
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
-  { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe écrit dans les salons" },
+  { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe et la communauté écrivent dans les salons" },
+  { cle: "annonces",    nom: "Annonces",       quoi: "Les nouveautés de la console et des bornes, par l’équipe RedBox" },
 ];
 
 export type Evenement =
@@ -162,6 +163,7 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
 type Abonnement = {
   id: number; endpoint: string; p256dh: string; auth: string; origine: string | null;
   ventes: boolean; incidents: boolean; vides: boolean; chargements: boolean; messages: boolean;
+  annonces: boolean;
 };
 
 /**
@@ -211,7 +213,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
   const cibles = await q<Abonnement>(`
     SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
-           a.ventes, a.incidents, a.vides, a.chargements, a.messages
+           a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces
       FROM abonnement_push a
       JOIN membre m ON m.utilisateur_id = a.utilisateur_id AND m.compte_id = $1
      WHERE NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
@@ -229,28 +231,62 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
 }
 
 /**
- * UN COLLEGUE A ECRIT. Vers les appareils des membres qui voient ce salon —
- * sauf ceux de l'auteur, qui sait ce qu'il vient de dire. Le tag est celui
- * du salon : trois messages de suite font une ligne, mise a jour, pas trois.
+ * QUELQU'UN A ECRIT. Vers les appareils de ceux qui voient ce salon — sauf
+ * l'auteur, qui sait ce qu'il vient de dire. L'audience depend de la portee :
+ *
+ *   compte       les membres du compte, restreints a la borne du salon s'il en a une
+ *   support      les membres du compte, et ceux de l'editeur
+ *   annonces     tout le monde — sujet « annonces », a part des messages
+ *   communaute   tout le monde pour « tous », sinon les comptes du groupe
+ *
+ * Le tag est celui du salon : trois messages de suite font une ligne, mise a
+ * jour, pas trois.
  */
-export async function signalerMessage(compte_id: number, salon: Salon, m: MessageSalon): Promise<void> {
+export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<void> {
   if (m.utilisateur_id === null) return;
-  const cibles = await q<Abonnement>(`
-    SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
-           a.ventes, a.incidents, a.vides, a.chargements, a.messages
-      FROM abonnement_push a
-      JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id AND mb.compte_id = $1
-     WHERE a.messages AND a.utilisateur_id <> $3
-       AND ($2::bigint IS NULL
-            OR NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
-                            WHERE x.utilisateur_id = a.utilisateur_id AND b.compte_id = $1)
-            OR EXISTS (SELECT 1 FROM acces_borne x
-                        WHERE x.utilisateur_id = a.utilisateur_id AND x.borne_id = $2))`,
-    [compte_id, salon.borne_id, m.utilisateur_id]);
+  const colonnes = `a.id, a.endpoint, a.p256dh, a.auth, a.origine,
+                    a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces`;
+  let cibles: Abonnement[];
+  if (salon.portee === "compte") {
+    cibles = await q<Abonnement>(`
+      SELECT ${colonnes} FROM abonnement_push a
+        JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id AND mb.compte_id = $1
+       WHERE a.messages AND a.utilisateur_id <> $3
+         AND ($2::bigint IS NULL
+              OR NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
+                              WHERE x.utilisateur_id = a.utilisateur_id AND b.compte_id = $1)
+              OR EXISTS (SELECT 1 FROM acces_borne x
+                          WHERE x.utilisateur_id = a.utilisateur_id AND x.borne_id = $2))`,
+      [salon.compte_id, salon.borne_id, m.utilisateur_id]);
+  } else if (salon.portee === "support") {
+    cibles = await q<Abonnement>(`
+      SELECT ${colonnes} FROM abonnement_push a
+        JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id
+        JOIN compte k ON k.id = mb.compte_id
+       WHERE a.messages AND a.utilisateur_id <> $2 AND (k.id = $1 OR k.editeur)`,
+      [salon.compte_id, m.utilisateur_id]);
+  } else if (salon.portee === "annonces") {
+    cibles = await q<Abonnement>(`
+      SELECT ${colonnes} FROM abonnement_push a WHERE a.annonces AND a.utilisateur_id <> $1`,
+      [m.utilisateur_id]);
+  } else {
+    // La communaute : « tous », ou les comptes du groupe — proprietaires
+    // d'au moins une vraie borne, ou prospects sans aucune.
+    cibles = await q<Abonnement>(`
+      SELECT DISTINCT ${colonnes} FROM abonnement_push a
+        JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id
+        JOIN compte k ON k.id = mb.compte_id
+       WHERE a.messages AND a.utilisateur_id <> $2
+         AND ($1 = 'tous' OR k.editeur OR
+              ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
+                                                  AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`,
+      [salon.groupe ?? "tous", m.utilisateur_id]);
+  }
   if (cibles.length === 0) return;
   const texte = m.texte.replace(/\s+/g, " ").trim();
   const message: Message = {
-    genre: "messages", titre: `#${salon.nom} · ${m.auteur ?? "quelqu’un"}`,
+    genre: salon.portee === "annonces" ? "annonces" : "messages",
+    titre: `#${salon.nom} · ${m.auteur ?? "quelqu’un"}`,
     corps: texte.length > 140 ? texte.slice(0, 137) + "…" : texte,
     url: `/messages/${salon.id}`, tag: `salon-${salon.id}`,
   };
@@ -260,7 +296,7 @@ export async function signalerMessage(compte_id: number, salon: Salon, m: Messag
 /** Un message d'essai vers tous les appareils d'une personne. Rend le nombre atteint. */
 export async function essayer(utilisateur_id: number): Promise<number> {
   const siens = await q<Abonnement>(`
-    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages
+    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces
       FROM abonnement_push WHERE utilisateur_id = $1`, [utilisateur_id]);
   const r = await Promise.all(siens.map((a) => pousser(a, ESSAI)));
   return r.filter(Boolean).length;

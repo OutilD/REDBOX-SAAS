@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoBulle, IcoCloche, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -12,7 +12,7 @@ import { nonLus } from "@/lib/salons";
 
 export type Page =
   | "tableau" | "stock" | "reception" | "reassort"
-  | "bornes" | "ventes" | "messages"
+  | "bornes" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo";
 
@@ -40,6 +40,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "Bornes",  icone: <IcoBorne />,  vers: "/bornes" },
       { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
+      { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
     ],
   },
   {
@@ -93,6 +94,7 @@ const FIL: Record<Page, [string, string?]> = {
   ventes:     ["Ventes"],
   bornes:     ["Bornes"],
   messages:   ["Messages"],
+  communaute: ["Communauté"],
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Réassort", "Approvisionnement"],

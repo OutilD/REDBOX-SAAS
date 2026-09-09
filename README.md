@@ -210,6 +210,30 @@ Ce qu’on n’a pas lu fait une pastille sur la bulle de l’en-tête et sur ch
 salon (`salon_lecture`). Les messages des collègues sont aussi poussés sur le
 téléphone (sujet « Messages » des notifications).
 
+## Communauté
+
+Au-delà du compte, les exploitants se parlent entre eux, et à nous.
+
+**Salons de la plateforme** (`salon.compte_id` nul) : `#annonces`, où seul
+l’éditeur écrit et que tout le monde lit ; `#entrepreneurs` pour tous ;
+`#proprietaires` pour les comptes qui ont au moins une vraie borne ;
+`#prospects` pour ceux qui n’en ont pas. Et par compte, `#equipe-redbox`, la
+ligne directe avec l’éditeur, que ses membres voient tous (section « Comptes »).
+**L’éditeur est un compte** : celui qui porte `compte.editeur` (Outil Digital).
+
+**Profils, grades, badges, points** (`src/lib/communaute.ts`, pages
+`/communaute`, `/communaute/<id>`, `/communaute/moi`). Le grade dit la taille du
+parc en *vraies* bornes — Curieux, Redboxer, Exploitant, Chef de parc, Baron du
+réseau ; les bornes de la démo ne comptent pas. Les badges (Pionnier pour les dix
+premiers, Première borne, Un an, Noctambule, Pilier de comptoir…) sont des règles
+en code réévaluées à l’ouverture de la communauté ; la table `badge_obtenu` ne
+garde que ce qui a été gagné, et un badge ne se perd pas. Les points se
+recalculent depuis les faits — cent par borne, les badges pour ce qu’ils valent,
+les messages, l’ancienneté — comme le stock. Le profil se personnalise : pseudo,
+ville, deux lignes, couleur, ouvert ou fermé.
+
+Les annonces sont poussées sur le téléphone à part (sujet « Annonces »).
+
 ## Notifications
 
 La console s’installe comme une application (manifeste, service worker

@@ -3439,3 +3439,70 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   .fil .tete .retour { display: none; }
   .composeur { bottom: 0; }
 }
+
+/* ------------------------------------------------------------- communaute */
+/*
+   LA COMMUNAUTE. Des gens, des grades, des badges. Meme grammaire que le
+   reste : des pastilles, des filets, pas d'ombres ; la couleur choisie par la
+   personne ne teinte que son portrait, son nom et le cadre de sa carte.
+*/
+.etiquette {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  letter-spacing: .03em; border: 1px solid var(--bord-fort); color: var(--texte-2);
+  vertical-align: middle; white-space: nowrap;
+}
+.etiquette.grade { border-color: transparent; background: var(--ambre-fond); color: var(--ambre); }
+.etiquette.grade.grand { font-size: 12.5px; padding: 3px 11px; }
+.etiquette.editeur { border-color: transparent; background: var(--rouge); color: #fff; margin-left: 6px; }
+.msg .entete-msg .etiquette { font-size: 10px; padding: 0 7px; }
+.msg .entete-msg .dou { font-size: 12px; color: var(--texte-3); }
+.msg .entete-msg a.auteur:hover { text-decoration: underline; }
+
+.portrait-rond {
+  border-radius: 50%; overflow: hidden; flex: none;
+  background: var(--rouge); color: #fff;
+  display: inline-grid; place-items: center; font-weight: 800; letter-spacing: .02em;
+}
+.portrait-rond img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.personne { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.personne .dit { min-width: 0; line-height: 1.2; }
+.personne .nom { display: block; font-weight: 650; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personne .sous-nom { display: block; font-size: 12px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personne:hover .nom { text-decoration: underline; }
+
+.badge-rond {
+  display: inline-grid; place-items: center; border-radius: 50%; flex: none;
+  background: var(--ambre-fond); color: var(--ambre); border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
+}
+.badge-rond.eteint { background: var(--surface-2); color: var(--texte-3); border-color: var(--bord); }
+.badges-rangee { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.badge-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.badges-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px 18px; }
+.badge-fiche { display: flex; gap: 12px; align-items: flex-start; }
+.badge-fiche.eteint { opacity: .6; }
+
+.classement { list-style: none; margin: 0; padding: 0; }
+.classement li {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 9px 6px; border-radius: var(--r-m);
+}
+.classement li + li { border-top: 1px solid var(--bord); }
+.classement li.moi { background: var(--surface-2); }
+.classement .rang { font-size: 15px; font-weight: 800; color: var(--texte-3); text-align: center; }
+.classement li:nth-child(1) .rang { color: var(--ambre); }
+.classement li:nth-child(2) .rang { color: var(--texte-2); }
+.classement li:nth-child(3) .rang { color: #c07a3a; }
+.classement .chiffres { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+
+.couleurs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.couleur-choix { cursor: pointer; }
+.couleur-choix input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.pastille-couleur {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid transparent; color: var(--texte-3); font-weight: 700;
+}
+.pastille-couleur.aucune { background: var(--surface-2); border-color: var(--bord); }
+.couleur-choix input:checked + .pastille-couleur { border-color: var(--texte); box-shadow: 0 0 0 2px var(--fond), 0 0 0 4px var(--texte); }
+.couleur-choix input:focus-visible + .pastille-couleur { outline: 2px solid var(--rouge); outline-offset: 2px; }

@@ -6,7 +6,11 @@ import type { Message } from "@/lib/salons";
 import { initiales } from "@/lib/personnes";
 import { FUSEAU } from "@/lib/fuseau";
 
-type Salon = { id: number; nom: string; sujet: string | null; borne: string | null };
+type Salon = {
+  id: number; nom: string; sujet: string | null; borne: string | null;
+  /** Hors du compte — support, annonces, communaute — l'auteur dit d'ou il parle. */
+  traverse: boolean;
+};
 
 const CADENCE_MS = 3000;
 /** Deux messages du meme auteur a moins de cinq minutes ne repetent pas son nom. */
@@ -47,8 +51,10 @@ const court = (nom: string) => nom.replace(/^\s*redbox\s*[—–-]\s*/i, "").tri
  * nomme qu'une fois par serie, et le jour ne s'ecrit qu'a son changement.
  * La machine parle dans la meme colonne que les gens — c'est le point.
  */
-export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur }: {
+export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet }: {
   salon: Salon; initial: Message[]; moi: number; peutEcrire: boolean; retour: string; erreur?: string;
+  /** Ce qu'on dit a la place du composeur quand on ne peut pas ecrire ici. */
+  raisonMuet?: string;
 }) {
   const [messages, poser] = useState<Message[]>(initial);
   const [texte, ecrire] = useState("");
@@ -178,7 +184,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur }:
         </div>
       ) : (
         <p className="faible" style={{ fontSize: 13, textAlign: "center", padding: 12 }}>
-          Votre rôle ne permet que de lire.
+          {raisonMuet ?? "Votre rôle ne permet que de lire."}
         </p>
       )}
     </div>
@@ -192,9 +198,10 @@ function Bulle({ m, salon, suite, mien, oter }: {
   const nom = machine ? (salon.borne ? court(salon.borne) : "RedBox") : (m.auteur ?? "quelqu’un");
   // La machine ecrit son sujet en premiere ligne, le detail en dessous.
   const [premiere, ...reste] = m.texte.split("\n");
+  const teinte = m.couleur ? { background: m.couleur } : undefined;
   return (
     <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}`}>
-      <div className="avatar" aria-hidden>
+      <div className="avatar" aria-hidden style={suite ? undefined : teinte}>
         {suite ? null
           : machine ? <img src="/icone-192.png" alt="" />
           : m.image_id ? <img src={`/api/image/${m.image_id}`} alt="" />
@@ -203,7 +210,15 @@ function Bulle({ m, salon, suite, mien, oter }: {
       <div className="corps">
         {suite ? null : (
           <div className="entete-msg">
-            <b>{nom}</b>
+            {machine ? <b>{nom}</b> : (
+              <Link href={`/communaute/${m.utilisateur_id}`} className="auteur"
+                    style={m.couleur ? { color: m.couleur } : undefined}><b>{nom}</b></Link>
+            )}
+            {/* D'ou il parle, quand le salon traverse les comptes : la marque
+                de l'editeur, le grade, et le nom de son exploitation. */}
+            {!machine && m.editeur ? <span className="etiquette editeur">RedBox</span> : null}
+            {!machine && salon.traverse && m.grade && !m.editeur ? <span className="etiquette grade">{m.grade}</span> : null}
+            {!machine && salon.traverse && m.compte && !m.editeur ? <span className="dou">{m.compte}</span> : null}
             <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
           </div>
         )}

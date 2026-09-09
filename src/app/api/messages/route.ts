@@ -1,6 +1,6 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { signalerMessage } from "@/lib/notifications";
-import { deposer, marquerLu, messagesDe, salonDe, TEXTE_MAX } from "@/lib/salons";
+import { deposer, marquerLu, messagesDe, peutEcrire, salonDe, TEXTE_MAX } from "@/lib/salons";
 
 export const dynamic = "force-dynamic";
 
@@ -58,13 +58,13 @@ export async function POST(req: Request) {
   if (!Number.isInteger(salon_id)) return refus(400, "salon");
   if (!texte) return refus(400, "vide");
   if (texte.length > TEXTE_MAX) return refus(400, "long");
-  if (u.role === "lecture") return refus(403, "lecture");
   const s = await salonDe(u, salon_id);
   if (!s) return refus(404, "salon");
+  if (!peutEcrire(u, s)) return refus(403, "lecture");
 
   const m = await deposer(salon_id, u.id, texte);
   await marquerLu(u.id, salon_id, m.id);
-  void signalerMessage(u.compte_id, s, m)
+  void signalerMessage(s, m)
     .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
 
   return json ? Response.json({ message: m }) : versPage(req, `/messages/${salon_id}#fin`);

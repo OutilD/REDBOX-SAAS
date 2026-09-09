@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../chrome";
 import { estRestreint, peutConfigurer, type Utilisateur } from "@/lib/auth";
-import { assurerSalons, marquerLu, messagesDe, salonDe, salonsDe, type Salon } from "@/lib/salons";
+import { assurerSalons, marquerLu, messagesDe, peutEcrire, salonDe, salonsDe, type Salon } from "@/lib/salons";
 import Fil from "./fil";
 import MesureEntete from "./mesure";
 
@@ -34,8 +34,18 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur }:
   const messages = salon ? await messagesDe(salon.id, { limite: 80 }) : [];
   if (salon && messages.length > 0) await marquerLu(u.id, salon.id, messages[messages.length - 1].id);
 
-  const equipe = salons.filter((s) => s.borne_id === null);
-  const bornes = salons.filter((s) => s.borne_id !== null);
+  const miens = salons.filter((s) => s.portee === "compte");
+  const equipe = miens.filter((s) => s.borne_id === null);
+  const bornes = miens.filter((s) => s.borne_id !== null);
+  // « RedBox » : la ligne directe de ce compte, et les annonces de l'editeur.
+  const redbox = salons.filter((s) => s.portee === "annonces"
+                                   || (s.portee === "support" && s.compte_id === u.compte_id));
+  const communaute = salons.filter((s) => s.portee === "communaute");
+  // Pour l'editeur : la ligne directe de chaque autre compte, les plus
+  // recemment actives en premier.
+  const comptes = salons.filter((s) => s.portee === "support" && s.compte_id !== u.compte_id)
+    .sort((a, z) => (z.non_lus - a.non_lus)
+      || ((z.dernier_le ? +new Date(z.dernier_le) : 0) - (a.dernier_le ? +new Date(a.dernier_le) : 0)));
   const peutCreer = peutConfigurer(u) && !estRestreint(u);
 
   return (
@@ -72,13 +82,22 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur }:
             {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
             {bornes.length > 0 ? <div className="section">Bornes</div> : null}
             {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
+            {redbox.length > 0 ? <div className="section">RedBox</div> : null}
+            {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
+            {communaute.length > 0 ? <div className="section">Communauté</div> : null}
+            {communaute.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
+            {comptes.length > 0 ? <div className="section">Comptes</div> : null}
+            {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} etiquette={s.compte ?? undefined} />)}
           </nav>
         </aside>
 
         <section className="fil-cadre">
           {salon ? (
-            <Fil salon={{ id: salon.id, nom: salon.nom, sujet: salon.sujet, borne: salon.borne }}
-                 initial={messages} moi={u.id} peutEcrire={u.role !== "lecture"} retour="/messages"
+            <Fil salon={{ id: salon.id, nom: salon.portee === "support" && salon.compte_id !== u.compte_id
+                                          ? `${salon.nom} · ${salon.compte ?? ""}` : salon.nom,
+                          sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
+                 initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)} retour="/messages"
+                 raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit." : undefined}
                  erreur={erreur && erreur !== "nom" && erreur !== "pris" ? ERREURS[erreur] : undefined} />
           ) : (
             <div className="vide" style={{ paddingTop: 80 }}>
@@ -93,15 +112,16 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur }:
   );
 }
 
-function Entree({ s, actif }: { s: Salon; actif: boolean }) {
+function Entree({ s, actif, etiquette }: { s: Salon; actif: boolean; etiquette?: string }) {
   return (
     <Link href={`/messages/${s.id}`}
           className={`salon${actif ? " actif" : ""}${s.non_lus > 0 ? " non-lu" : ""}`}
           aria-current={actif ? "page" : undefined}>
       <span className="diese" aria-hidden>#</span>
       <span className="nom">
-        {s.nom}
-        {s.sujet ? <span className="sujet">{s.sujet}</span> : null}
+        {etiquette ?? s.nom}
+        {etiquette ? <span className="sujet">#{s.nom}</span>
+         : s.sujet ? <span className="sujet">{s.sujet}</span> : null}
       </span>
       {s.non_lus > 0 ? <span className="badge num">{s.non_lus > 99 ? "99+" : s.non_lus}</span> : null}
     </Link>

@@ -17,7 +17,7 @@ export function concorde(mdp: string, stocke: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type Appartenance = { compte_id: number; compte: string; role: string; demo: boolean };
+export type Appartenance = { compte_id: number; compte: string; role: string; demo: boolean; editeur: boolean };
 
 export type Utilisateur = {
   id: number; compte_id: number; email: string; role: string; compte: string;
@@ -45,6 +45,12 @@ export type Utilisateur = {
    * rattache pas de vraie machine a ce parc-la.
    */
   demo: boolean;
+  /**
+   * MEMBRE DE L'EDITEUR. Le compte actif est celui qui fait RedBox : ses
+   * membres ecrivent les annonces, voient la ligne directe de chaque compte,
+   * et portent la marque dans la communaute.
+   */
+  editeur: boolean;
 };
 
 const DUREE = 30 * 24 * 3600 * 1000;
@@ -107,7 +113,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
   }
 
   const lire = () => q<Appartenance>(`
-    SELECT m.compte_id, c.nom AS compte, m.role, c.demo
+    SELECT m.compte_id, c.nom AS compte, m.role, c.demo, c.editeur
       FROM membre m JOIN compte c ON c.id = m.compte_id
      WHERE m.utilisateur_id = $1
      ORDER BY (m.compte_id = $2) DESC, c.nom`, [l.id, l.origine]);
@@ -165,6 +171,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     comptes,
     nom: l.nom, image_id: l.image_id,
     demo: choisi.demo,
+    editeur: choisi.editeur,
   };
 }
 

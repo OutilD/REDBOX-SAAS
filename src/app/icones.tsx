@@ -186,6 +186,16 @@ export const IcoBulle = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Communaute : deux personnes, l'une devant l'autre. */
+export const IcoCommunaute = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="7.5" cy="7" r="2.8" />
+    <path d="M2.5 16.5c0-3 2.2-5 5-5s5 2 5 5" />
+    <circle cx="14" cy="7.5" r="2.2" />
+    <path d="M13.2 11.6c2.5.2 4.3 2.1 4.3 4.9" />
+  </svg>
+);
+
 /** Notifications : une cloche, et son battant. */
 export const IcoCloche = ({ size = 20 }: P) => (
   <svg {...base(size)}>

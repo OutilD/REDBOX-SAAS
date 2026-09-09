@@ -874,3 +874,59 @@ CREATE TABLE IF NOT EXISTS salon_lecture (
 
 -- Les messages des collegues se poussent aussi sur le telephone.
 ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS messages BOOLEAN NOT NULL DEFAULT true;
+
+-- ---------------------------------------------------------------- communaute
+
+-- LES EXPLOITANTS SE PARLENT ENTRE EUX, ET A NOUS.
+--
+-- Un compte etait une ile : ses bornes, son equipe, ses salons. Or ceux qui
+-- font tourner des RedBox ont les memes questions, les memes bars, les memes
+-- pannes — et l'editeur a des choses a leur dire a tous, une mise a jour a
+-- installer par exemple. La messagerie s'ouvre donc au-dela du compte :
+--
+--   annonces     l'editeur ecrit, tout le monde lit ;
+--   communaute   des salons par groupe — tous, proprietaires (au moins une
+--                vraie borne), prospects (aucune) ;
+--   support      un salon par compte, entre lui et l'editeur : la ligne directe.
+--
+-- L'EDITEUR EST UN COMPTE, pas un reglage : celui qui porte `editeur`. Ses
+-- membres voient tous les salons de support, ecrivent dans les annonces, et
+-- portent la marque dans la communaute.
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS editeur BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE salon ALTER COLUMN compte_id DROP NOT NULL;
+ALTER TABLE salon ADD COLUMN IF NOT EXISTS portee TEXT NOT NULL DEFAULT 'compte';
+ALTER TABLE salon ADD COLUMN IF NOT EXISTS groupe TEXT;
+ALTER TABLE salon DROP CONSTRAINT IF EXISTS salon_portee_check;
+ALTER TABLE salon ADD CONSTRAINT salon_portee_check CHECK (
+  portee IN ('compte', 'support', 'annonces', 'communaute')
+  AND (portee IN ('compte', 'support')) = (compte_id IS NOT NULL)
+  AND (groupe IS NULL OR groupe IN ('tous', 'proprietaires', 'prospects')));
+-- Deux NULL ne sont pas egaux pour UNIQUE (compte_id, nom) : les salons de la
+-- plateforme ont leur propre unicite.
+CREATE UNIQUE INDEX IF NOT EXISTS i_salon_plateforme ON salon (nom) WHERE compte_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS i_salon_support ON salon (compte_id) WHERE portee = 'support';
+
+-- LE PROFIL, CE QU'ON MONTRE DE SOI AUX AUTRES EXPLOITANTS. Le pseudo passe
+-- devant le nom dans la communaute ; le nom reste ce que l'equipe voit. Un
+-- profil ferme ne montre que le pseudo et le grade.
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS pseudo        TEXT;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS bio           TEXT;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS ville         TEXT;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS couleur       TEXT;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS profil_public BOOLEAN NOT NULL DEFAULT true;
+
+-- LES BADGES. Les regles vivent dans le code (lib/communaute.ts) et sont
+-- reevaluees quand on ouvre la communaute ; la table ne garde que ce qui a
+-- ete obtenu, et quand — un badge ne se perd pas, meme si la regle cesse
+-- d'etre vraie. `vu_le` fait le « nouveau ! » sur le profil.
+CREATE TABLE IF NOT EXISTS badge_obtenu (
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  badge          TEXT NOT NULL,
+  obtenu_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  vu_le          TIMESTAMPTZ,
+  PRIMARY KEY (utilisateur_id, badge)
+);
+
+-- Les annonces de l'editeur se poussent sur le telephone, a part des messages.
+ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS annonces BOOLEAN NOT NULL DEFAULT true;

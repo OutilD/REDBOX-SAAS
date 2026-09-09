@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { q1, transaction, FUSEAU, type PgClient } from "@/db";
 import { empreinteDe } from "./borne";
 import { IMAGES_DEMO } from "./demo-images";
+import { DOMAINE } from "./invente";
 import { signaler, type Evenement } from "./notifications";
 import { slug } from "./salons";
 import { laneDe } from "./machine";
@@ -44,7 +45,7 @@ export const PREFIXE_JETON = "demo_";
 const SQL_FICTIVE = "b.jeton LIKE 'demo\\_%'";
 
 /** Les adresses inventees finissent la : `.invalid` ne se livre jamais. */
-export const DOMAINE = "redbox.invalid";
+export { DOMAINE };
 
 /** La personne inventee dans l'equipe, et l'invitation qui attend. Propres au
  *  compte, pour que deux demos ne se disputent pas la meme adresse. */
