@@ -428,7 +428,11 @@ export async function classement(limite = 20): Promise<Classe[]> {
  * requete pour tous les auteurs, puis les points en code : la valeur d'un
  * badge n'est pas en base.
  */
-export type Signature = { niveau: number; grade: string; meilleur: Badge | null };
+/** Le badge le plus rare porte SON PALIER avec lui : le fil est un composant
+ *  client, il ne peut pas appeler `rangDe` sans tirer la base dans le
+ *  navigateur. On le calcule ici, une fois, et il voyage avec le message. */
+export type BadgeMontre = Badge & { rang: Rang };
+export type Signature = { niveau: number; grade: string; meilleur: BadgeMontre | null };
 
 export async function niveauxDe(ids: number[]): Promise<Map<number, Signature>> {
   const out = new Map<number, Signature>();
@@ -441,9 +445,10 @@ export async function niveauxDe(ids: number[]): Promise<Map<number, Signature>> 
   for (const g of gens) {
     // Le badge le plus cher qu'elle porte : c'est celui qu'on montre a cote de
     // son nom, parce qu'un seul se lit et que quinze ne se lisent pas.
-    const meilleur = g.badges
+    const haut = g.badges
       .map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
-      .sort((x, z) => z.points - x.points)[0] ?? null;
+      .sort((x, z) => z.points - x.points)[0];
+    const meilleur = haut ? { ...haut, rang: rangDe(haut) } : null;
     out.set(Number(g.id), { niveau: niveauDe(pointsDe(g, g.badges)), grade: gradeDe(g.bornes).nom, meilleur });
   }
   return out;

@@ -3374,7 +3374,17 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .fil .tete h1 { font-size: 18px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fil .tete h1 .diese { color: var(--texte-3); margin-right: 2px; }
 .fil .tete .sujet { font-size: 12.5px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fil .messages { flex: 1; padding: 8px 0 12px; }
+/* SOUS LES BULLES, UNE SURFACE. Une trame de points, presque invisible — deux
+   pour cent d'opacite —, qui donne au fil un sol au lieu d'un vide. Elle
+   s'arrete au bord des cartes : on la voit sans la regarder, et c'est tout ce
+   qu'on lui demande. */
+.fil .messages {
+  flex: 1; padding: 8px 14px 12px; position: relative;
+  border-radius: var(--r-l);
+  background-image: radial-gradient(color-mix(in srgb, var(--texte) 7%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px; background-position: -9px -9px;
+}
+@media (max-width: 899px) { .fil .messages { padding-left: 6px; padding-right: 6px; } }
 .fil .jour {
   display: flex; align-items: center; gap: 12px; margin: 20px 0 8px;
   font-size: 11px; color: var(--texte-3); font-weight: 700;
@@ -3420,18 +3430,48 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .msg .entete-msg .dou { font-size: 12px; color: var(--texte-3); }
 .msg .entete-msg a.auteur:hover { text-decoration: underline; }
 
+/*
+   LA BULLE A UNE MATIERE.
+
+   Un aplat unique sur un fond presque de la meme valeur, et le fil devient une
+   colonne de texte grise ou l'oeil ne trouve plus les bords. Un degre de
+   degrade suffit a poser chaque bulle sur le fond : plus clair en haut, plus
+   sombre en bas, avec un cheveu de lumiere sur l'arete du haut. C'est la meme
+   lumiere que sur les medaillons — elle vient d'en haut a gauche, partout.
+
+   Rien de plus : une bulle n'est pas une carte, elle ne porte pas d'ombre
+   portee. Ce qui la detache, c'est sa propre matiere, pas un halo dessous.
+*/
 .msg .bulle {
   position: relative; padding: 7px 12px 5px;
-  border-radius: 18px; background: var(--surface-2); color: var(--texte);
-  max-width: 100%;
+  border-radius: 18px; color: var(--texte); max-width: 100%;
+  /* Le degrade se mele a du BLANC en haut et a du NOIR en bas, jamais a
+     `--texte` : sur le theme clair `--texte` est presque noir, et la bulle se
+     retrouvait sombre en haut, claire en bas — la lumiere venait d'en dessous.
+     Blanc et noir tiennent dans les deux themes. */
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--surface-2) 90%, #fff) 0%,
+    var(--surface-2) 58%,
+    color-mix(in srgb, var(--surface-2) 92%, #000) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
 }
 .msg:not(.mien) .bulle { border-bottom-left-radius: 6px; }
 .msg.suite:not(.mien) .bulle { border-top-left-radius: 6px; }
-.msg.mien .bulle { background: var(--rouge); color: #fff; border-bottom-right-radius: 6px; }
+.msg.mien .bulle {
+  color: #fff; border-bottom-right-radius: 6px;
+  background: linear-gradient(180deg, #ec1219 0%, var(--rouge) 55%, #b60004 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
+}
 .msg.mien.suite .bulle { border-top-right-radius: 6px; }
+/* La machine ne parle pas comme un collegue : sa bulle reste une fiche, avec
+   son filet rouge a gauche et un fond qui s'en teinte a peine. */
 .msg.machine .bulle {
-  background: var(--surface); border: 1px solid var(--bord); border-left: 3px solid var(--rouge);
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--rouge) 7%, var(--surface)) 0%,
+    var(--surface) 42%);
+  border: 1px solid var(--bord); border-left: 3px solid var(--rouge);
   border-radius: 12px;
+  box-shadow: none;
 }
 .msg .texte {
   white-space: pre-wrap; overflow-wrap: anywhere;
@@ -3466,7 +3506,9 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .msg .reaction {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 8px 2px 7px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--bord); background: var(--surface-2); color: var(--texte-2);
+  border: 1px solid var(--bord); color: var(--texte-2);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--surface-2) 90%, #fff) 0%, var(--surface-2) 70%);
   font-size: 12px; font-weight: 700; line-height: 1.5;
   transition: border-color .12s ease, background .12s ease, transform .12s ease;
 }
@@ -3613,23 +3655,117 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
    doit pas avoir la meme allure qu'un badge a vingt. Eteint, tout retombe en
    gris — ce qu'on n'a pas ne se pare pas.
 */
+/*
+   UN BADGE EST UN OBJET, PAS UNE ETIQUETTE.
+
+   Le reste de cette feuille se tient a des filets d'un pixel et refuse les
+   ombres portees — l'ombre generalisee fait flotter chaque bloc et donne cet
+   aspect « tout est une carte » qu'on voit sur les maquettes sans auteur. Ici,
+   et ICI SEULEMENT, on fait l'inverse et c'est deliberé : une recompense doit
+   se ramasser du regard comme une piece qu'on prend dans la main. Un jeton
+   plat ne se convoite pas.
+
+   Le relief tient en quatre couches, sans une image :
+     — la matiere, un degrade radial dont la source de lumiere est en haut a
+       gauche, comme partout ailleurs dans l'interface ;
+     — le biseau, deux ombres internes : un liseré clair en haut, un creux
+       sombre en bas ;
+     — l'eclat, une tache blanche floue posee en `::before` sur le quart haut ;
+     — la portee, sous la piece, qui la decolle de la carte.
+
+   Le glyphe est estampe : un trait sombre dessous, un trait clair dessus.
+*/
 .badge-rond {
+  position: relative; isolation: isolate;
   display: inline-grid; place-items: center; border-radius: 50%; flex: none;
-  background: var(--ambre-fond); color: var(--ambre);
-  border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
+  /* Valeurs par defaut : l'or. Chaque palier ne redefinit que ses trois teintes. */
+  --metal:        #f2c14b;
+  --metal-sombre: #9a6a05;
+  --cerne:        #7a5504;
+  --encre:        #2a1d00;
+  background:
+    radial-gradient(circle at 32% 25%,
+      color-mix(in srgb, var(--metal) 45%, #fff) 0%,
+      var(--metal) 42%,
+      var(--metal-sombre) 100%);
+  color: var(--encre);
+  border: 0;
+  box-shadow:
+    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
+    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 70%, transparent),
+    0 0 0 1px var(--cerne),
+    0 2px 5px rgba(0, 0, 0, .45);
+  transition: transform .16s cubic-bezier(.22,.7,.3,1), box-shadow .16s ease;
 }
-.badge-rond.commun     { background: var(--surface-3); color: var(--texte-2);
-                         border-color: var(--bord-fort); }
-.badge-rond.rare       { background: var(--bleu-fond); color: var(--bleu);
-                         border-color: color-mix(in srgb, var(--bleu) 40%, transparent); }
-.badge-rond.epique     { background: var(--violet-fond); color: var(--violet);
-                         border-color: color-mix(in srgb, var(--violet) 40%, transparent); }
-.badge-rond.legendaire { background: var(--ambre-fond); color: var(--ambre);
-                         border-color: color-mix(in srgb, var(--ambre) 45%, transparent); }
+/* L'eclat. En `::before` pour qu'il passe SOUS le glyphe : une lumiere qui
+   couvrirait le dessin le rendrait illisible aux petites tailles. */
+.badge-rond::before {
+  content: ""; position: absolute; z-index: -1;
+  left: 14%; top: 8%; width: 52%; height: 38%;
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255,255,255,.72), rgba(255,255,255,0));
+  filter: blur(1px);
+}
+.badge-rond > svg {
+  filter: drop-shadow(0 1px 0 color-mix(in srgb, var(--metal) 55%, #fff));
+  opacity: .92;
+}
+
+.badge-rond.commun {
+  --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c;
+}
+.badge-rond.rare {
+  --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40;
+}
+.badge-rond.epique {
+  --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47;
+}
+.badge-rond.legendaire {
+  --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000;
+}
+
+/* Ce qu'on n'a pas encore ne se pare pas : la piece redevient un creux dans la
+   carte. Le meme dessin, en negatif — c'est ce qui donne envie de le remplir. */
 .badge-rond.eteint,
 .badge-rond.eteint.commun, .badge-rond.eteint.rare,
 .badge-rond.eteint.epique, .badge-rond.eteint.legendaire {
-  background: var(--surface-2); color: var(--texte-3); border-color: var(--bord);
+  background: var(--surface-2); color: var(--texte-3);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, .38),
+    inset 0 -1px 0 color-mix(in srgb, var(--bord-fort) 60%, transparent),
+    0 0 0 1px var(--bord);
+}
+.badge-rond.eteint::before { display: none; }
+.badge-rond.eteint > svg { filter: none; opacity: .75; }
+
+/* On la soupese du regard : la piece se leve quand on passe sur sa fiche. */
+.badge-fiche:hover .badge-rond:not(.eteint),
+.badge-item:hover .badge-rond:not(.eteint) {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow:
+    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
+    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 70%, transparent),
+    0 0 0 1px var(--cerne),
+    0 6px 14px rgba(0, 0, 0, .5);
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-rond { transition: none; }
+  .badge-fiche:hover .badge-rond:not(.eteint),
+  .badge-item:hover .badge-rond:not(.eteint) { transform: none; }
+}
+
+/* Sur fond clair, la portee doit s'alleger : la meme ombre qu'en sombre y
+   ferait une tache grise autour de chaque piece. */
+:root[data-theme="light"] .badge-rond {
+  box-shadow:
+    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
+    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 55%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--cerne) 65%, transparent),
+    0 1px 3px rgba(0, 0, 0, .22);
+}
+:root[data-theme="light"] .badge-rond.eteint {
+  background: var(--surface-2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .1), 0 0 0 1px var(--bord);
 }
 
 .etiquette.rang { border-color: transparent; font-size: 9.5px; padding: 0 6px; letter-spacing: .04em; }
@@ -3651,8 +3787,19 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   padding: 12px 14px; border: 1px solid var(--bord); border-radius: var(--r-l);
   background: var(--surface);
 }
-.badge-fiche.legendaire { border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
-.badge-fiche.epique     { border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.badge-fiche { position: relative; overflow: hidden; }
+.badge-fiche::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(110% 85% at 0% 0%, var(--lavis, transparent) 0%, transparent 58%);
+}
+.badge-fiche > * { position: relative; }
+.badge-fiche.rare       { --lavis: color-mix(in srgb, var(--bleu) 10%, transparent); }
+.badge-fiche.epique     { --lavis: color-mix(in srgb, var(--violet) 12%, transparent);
+                          border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.badge-fiche.legendaire { --lavis: color-mix(in srgb, var(--ambre) 12%, transparent);
+                          border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
+/* Ce qu'on n'a pas ne se pare pas : le lavis tombe avec la piece. */
+.badge-fiche.eteint { --lavis: transparent; }
 .badge-fiche.eteint { background: transparent; border-style: dashed; }
 .badge-fiche.eteint,
 .badge-fiche.eteint.legendaire, .badge-fiche.eteint.epique { border-color: var(--bord); }
@@ -3727,6 +3874,18 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .palmares li.argent .rang { color: var(--texte-2); font-size: 18px; }
 .palmares li.bronze .rang { color: #c07a3a;        font-size: 17px; }
 
+/* LE PODIUM SANS PODIUM. Trois vignettes en tete prendraient la moitie d'un
+   ecran de telephone pour trois chiffres ; une teinte qui s'eteint vers la
+   droite dit la meme chose sans couter une ligne. Elle part du rang et meurt
+   avant le nom : de la couleur sous du texte se paie en lisibilite. */
+.palmares li.or .ligne, .palmares li.argent .ligne, .palmares li.bronze .ligne {
+  background-image: linear-gradient(90deg, var(--teinte-podium) 0%, transparent 34%);
+}
+.palmares li.or     .ligne { --teinte-podium: color-mix(in srgb, var(--ambre) 15%, transparent);
+                             border-color: color-mix(in srgb, var(--ambre) 30%, var(--bord)); }
+.palmares li.argent .ligne { --teinte-podium: color-mix(in srgb, var(--texte-2) 13%, transparent); }
+.palmares li.bronze .ligne { --teinte-podium: color-mix(in srgb, #c07a3a 15%, transparent); }
+
 .palmares .portrait-rond { grid-area: portrait; }
 
 .palmares .qui { grid-area: qui; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -3796,7 +3955,14 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .anneau-niveau { position: relative; display: grid; place-items: center; flex: none; }
 .anneau-niveau svg { display: block; }
 .anneau-niveau .piste { stroke: var(--surface-3); }
-.anneau-niveau .part { stroke: var(--rouge); transition: stroke-dashoffset .4s ease; }
+/* L'arc parcouru rayonne un peu : c'est ce qui distingue une jauge d'un trait.
+   La lueur est portee par un filtre plutot qu'une seconde forme — un trait
+   double se desalignerait aux petits diametres. */
+.anneau-niveau .part {
+  stroke: var(--rouge); transition: stroke-dashoffset .4s ease;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rouge) 60%, transparent));
+}
+@media (prefers-reduced-motion: reduce) { .anneau-niveau .part { transition: none; } }
 /* Dans la carte de soi l'anneau entoure un portrait : son chiffre irait par
    dessus le visage. Il se pose sous l'anneau, en pastille. */
 .anneau-niveau .dedans { display: grid; place-items: center; position: absolute; line-height: 1; }
@@ -3847,13 +4013,26 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 /* LES PROCHAINS OBJECTIFS. Trois, pas quinze : une liste de quinze choses a
    faire ne se lit pas comme un but, elle se lit comme une corvee. */
 .objectifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+/* Une carte d'objectif porte la teinte de ce qu'elle promet : le lavis part du
+   coin ou se tient la piece et s'eteint avant le texte. C'est ce qui fait
+   qu'un objectif legendaire ne se confond pas avec un objectif commun quand on
+   balaie les trois du regard. */
 .objectif {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px;
   padding: 13px 15px; border: 1px solid var(--bord); border-radius: var(--r-l);
-  background: var(--surface);
+  background: var(--surface); position: relative; overflow: hidden;
 }
-.objectif.legendaire { border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
-.objectif.epique     { border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.objectif::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 0% 0%, var(--lavis, transparent) 0%, transparent 62%);
+}
+.objectif > * { position: relative; }
+.objectif.commun     { --lavis: color-mix(in srgb, var(--texte-2) 9%, transparent); }
+.objectif.rare       { --lavis: color-mix(in srgb, var(--bleu) 13%, transparent); }
+.objectif.epique     { --lavis: color-mix(in srgb, var(--violet) 15%, transparent);
+                       border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.objectif.legendaire { --lavis: color-mix(in srgb, var(--ambre) 15%, transparent);
+                       border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
 .objectif .quoi { min-width: 0; }
 .objectif .nom { font-weight: 700; font-size: 14.5px; letter-spacing: -.01em; }
 .objectif .quoi .faible { font-size: 12px; line-height: 1.35; margin-top: 1px; }

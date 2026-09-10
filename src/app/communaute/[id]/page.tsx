@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { utilisateur } from "@/lib/auth";
 import { leJour } from "@/db";
-import { BADGES, prochainGrade, profilDe } from "@/lib/communaute";
+import { BADGES, prochainGrade, profilDe, rangDe } from "@/lib/communaute";
 import { Badge } from "../badge";
 import { Portrait } from "../vignette-personne";
 
@@ -79,7 +79,7 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
             <div className="badges-grille">
               {p.badges.map((b) => (
                 <div key={b.cle} className="badge-fiche">
-                  <Badge forme={b.forme} taille={44} />
+                  <Badge forme={b.forme} taille={44} rang={rangDe(b)} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
                     <div className="faible" style={{ fontSize: 12.5 }}>{b.quoi}</div>

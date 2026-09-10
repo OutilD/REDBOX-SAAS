@@ -157,7 +157,7 @@ export default async function Communaute() {
             <div className="badges-rangee">
               {nouveaux.map((b) => (
                 <span key={b.cle} className="badge-item">
-                  <Badge forme={b.forme} taille={40} />
+                  <Badge forme={b.forme} taille={40} rang={rangDe(b)} />
                   <span><b>{b.nom}</b><br /><span className="faible">{b.quoi}</span></span>
                 </span>
               ))}

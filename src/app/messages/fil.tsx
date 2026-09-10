@@ -291,7 +291,8 @@ function Bulle({ m, salon, suite, mien, oter, reagir }: {
             {/* Le badge le plus rare qu'il porte, juste apres son nom : c'est
                 ce qui donne un visage a quelqu'un qu'on n'a jamais vu. */}
             {!machine && m.badge ? (
-              <Badge forme={m.badge.forme} taille={17} titre={`${m.badge.nom} — ${m.badge.quoi}`} />
+              <Badge forme={m.badge.forme} taille={17} rang={m.badge.rang}
+                     titre={`${m.badge.nom} — ${m.badge.quoi}`} />
             ) : null}
             {!machine && m.niveau !== null ? <span className="etiquette niveau" title="Niveau dans la communauté">Niv. {m.niveau}</span> : null}
             {!machine && m.editeur ? <span className="etiquette editeur">RedBox</span> : null}

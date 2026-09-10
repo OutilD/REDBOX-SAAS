@@ -1,6 +1,6 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
-import { groupeDuCompte, niveauxDe, type Badge } from "./communaute";
+import { groupeDuCompte, niveauxDe, type BadgeMontre } from "./communaute";
 import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
 
 /**
@@ -52,7 +52,7 @@ export type Message = {
   /** D'ou parle l'auteur, et ou il en est : son exploitation, son grade, son niveau. */
   compte: string | null; grade: string | null; niveau: number | null; editeur: boolean; couleur: string | null;
   /** Le badge le plus rare qu'il porte — un seul se lit a cote d'un nom. */
-  badge: Badge | null;
+  badge: BadgeMontre | null;
   texte: string; cree_le: string; supprime: boolean;
   reactions: Reaction[];
 };
