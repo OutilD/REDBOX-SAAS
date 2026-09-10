@@ -5,7 +5,7 @@ import type { Forme, Rang } from "@/lib/communaute";
  * une police — memes regles que les icones. Eteint quand il n'est pas encore
  * obtenu : on voit ce qu'il reste a gagner, en gris.
  */
-const TRACES: Record<Forme, React.ReactNode> = {
+export const TRACES: Record<Forme, React.ReactNode> = {
   couronne: <path d="M4 15.5h12M4 15.5 3 7l4 3 3-5 3 5 4-3-1 8.5" />,
   borne:    <><rect x="5.5" y="3" width="9" height="14" rx="1.6" /><path d="M8 6.5h4M8 9.5h4M8 12.5h4" /></>,
   sablier:  <path d="M6 3h8M6 17h8M7 3c0 4 6 5 6 7s-6 3-6 7M13 3c0 4-6 5-6 7s6 3 6 7" />,

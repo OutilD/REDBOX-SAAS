@@ -3768,6 +3768,109 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, .1), 0 0 0 1px var(--bord);
 }
 
+/* ------------------------------------------------- la piece, en volume */
+/*
+   LE CYLINDRE. Deux faces a plus et moins la demi-epaisseur, et une tranche
+   faite de lamelles rangees en couronne. La perspective est posee sur la
+   scene, jamais sur le volume : `perspective` sur l'element qui tourne
+   deformerait chaque face separement au lieu de regarder l'objet entier.
+
+   Les teintes viennent des memes variables que les pastilles — une seule
+   definition de l'or, du saphir, de l'amethyste et de l'acier pour toute la
+   console.
+*/
+.scene-piece {
+  position: relative; flex: none;
+  perspective: 1100px; perspective-origin: 50% 42%;
+  --metal:        #f2c14b;
+  --metal-sombre: #9a6a05;
+  --cerne:        #7a5504;
+  --encre:        #2a1d00;
+}
+.scene-piece.commun     { --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c; }
+.scene-piece.rare       { --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40; }
+.scene-piece.epique     { --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47; }
+.scene-piece.legendaire { --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000; }
+/* Ce qu'on n'a pas encore est une piece de plomb : le meme volume, sans
+   lumiere. On la manipule quand meme — voir ce qu'on n'a pas est le but. */
+.scene-piece.eteint { --metal: #4a4a54; --metal-sombre: #26262c; --cerne: #1c1c20; --encre: #14141a; }
+
+.scene-piece .prise {
+  width: 100%; height: 100%; cursor: grab; touch-action: none;
+  border-radius: 50%; outline-offset: 6px;
+}
+.scene-piece .prise:active { cursor: grabbing; }
+.scene-piece .prise:focus-visible { outline: 2px solid var(--rouge); }
+
+.scene-piece .volume {
+  width: 100%; height: 100%; position: relative;
+  transform-style: preserve-3d; will-change: transform;
+}
+
+.scene-piece .face {
+  position: absolute; inset: 0; border-radius: 50%;
+  display: grid; place-items: center; backface-visibility: hidden;
+  color: var(--encre);
+  background:
+    radial-gradient(circle at 32% 24%,
+      color-mix(in srgb, var(--metal) 48%, #fff) 0%,
+      var(--metal) 40%,
+      var(--metal-sombre) 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cerne) 80%, transparent);
+}
+/* Le listel : le petit anneau en relief au bord d'une piece frappee. */
+.scene-piece .cerne {
+  position: absolute; inset: 7%; border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--cerne) 45%, transparent),
+    inset 0 2px 0 color-mix(in srgb, var(--metal) 40%, #fff);
+}
+.scene-piece .face > svg {
+  position: relative;
+  filter: drop-shadow(0 1.5px 0 color-mix(in srgb, var(--metal) 60%, #fff))
+          drop-shadow(0 -1px 0 color-mix(in srgb, var(--cerne) 60%, transparent));
+}
+.scene-piece .revers .grave {
+  position: relative; display: grid; gap: 5px; text-align: center; padding: 0 16%;
+}
+.scene-piece .revers b {
+  font-size: 17px; font-weight: 800; letter-spacing: -.01em; line-height: 1.15;
+  text-shadow: 0 1.5px 0 color-mix(in srgb, var(--metal) 60%, #fff);
+}
+.scene-piece .revers i {
+  font-style: normal; font-size: 12px; font-weight: 700; opacity: .72;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+
+.scene-piece .lamelle {
+  position: absolute; left: 50%; top: 50%;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--metal) 35%, #fff) 0%,
+    var(--metal) 34%,
+    var(--metal-sombre) 100%);
+}
+
+/* L'ECLAT NE TOURNE PAS. Il est pose sur la scene, pas sur le volume : c'est
+   ce qui fait qu'on lit du metal et non un jeton peint. */
+.scene-piece .eclat {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(38% 30% at 30% 22%,
+    rgba(255,255,255,.5) 0%, rgba(255,255,255,.12) 45%, transparent 72%);
+  mix-blend-mode: screen;
+}
+.scene-piece.eteint .eclat { opacity: .25; }
+
+/* Une ombre au sol : sans elle la piece flotte dans le noir. */
+.scene-piece .socle {
+  position: absolute; left: 12%; right: 12%; bottom: -7%; height: 12%;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent 78%);
+  filter: blur(5px);
+}
+:root[data-theme="light"] .scene-piece .socle {
+  background: radial-gradient(closest-side, rgba(0,0,0,.22), transparent 78%);
+}
+
 .etiquette.rang { border-color: transparent; font-size: 9.5px; padding: 0 6px; letter-spacing: .04em; }
 .etiquette.rang.commun     { background: var(--surface-3); color: var(--texte-3); }
 .etiquette.rang.rare       { background: var(--bleu-fond); color: var(--bleu); }
@@ -3801,6 +3904,14 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 /* Ce qu'on n'a pas ne se pare pas : le lavis tombe avec la piece. */
 .badge-fiche.eteint { --lavis: transparent; }
 .badge-fiche.eteint { background: transparent; border-style: dashed; }
+/* Devenues des liens vers la page du badge : elles reagissent au survol, et
+   le texte n'herite pas de la couleur d'un lien. */
+.badge-fiche, .objectif { color: inherit; text-decoration: none; }
+.badge-fiche:hover, .objectif:hover { border-color: var(--bord-fort); }
+.badge-fiche:focus-visible, .objectif:focus-visible,
+.badge-item:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.badge-item { color: inherit; text-decoration: none; border-radius: var(--r-m); }
+.badge-item:hover { color: var(--texte); }
 .badge-fiche.eteint,
 .badge-fiche.eteint.legendaire, .badge-fiche.eteint.epique { border-color: var(--bord); }
 .badge-fiche .dit { min-width: 0; flex: 1; }
@@ -4056,6 +4167,80 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   .moi-carte .mesures-moi { grid-template-columns: repeat(2, 1fr); gap: 12px 1px; }
   .moi-carte .actions-moi { width: 100%; }
   .moi-carte .actions-moi .bouton { flex: 1; justify-content: center; }
+}
+
+/* ------------------------------------------------------- la fiche d'un badge */
+/*
+   La piece a gauche, ce qu'il faut faire a droite. Sous 820 px la piece passe
+   au-dessus et se retrecit : elle reste le sujet de la page, mais elle ne doit
+   pas repousser la reponse sous le pli.
+*/
+.fiche-badge {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 26px;
+  align-items: start; margin-top: 14px; overflow: hidden; position: relative;
+}
+.fiche-badge::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(70% 100% at 18% 0%, var(--lavis, transparent) 0%, transparent 64%);
+}
+.fiche-badge > * { position: relative; }
+.fiche-badge.rare       { --lavis: color-mix(in srgb, var(--bleu) 12%, transparent); }
+.fiche-badge.epique     { --lavis: color-mix(in srgb, var(--violet) 14%, transparent); }
+.fiche-badge.legendaire { --lavis: color-mix(in srgb, var(--ambre) 14%, transparent); }
+.fiche-badge.eteint     { --lavis: transparent; }
+
+.fiche-badge .presentoir { display: grid; justify-items: center; gap: 22px; padding: 12px 0 4px; }
+.fiche-badge .indice {
+  margin: 0; font-size: 12px; color: var(--texte-3); text-align: center;
+}
+.fiche-badge .dit > h2 { margin: 20px 0 7px; }
+.fiche-badge .quoi { margin: 11px 0 0; font-size: 15.5px; line-height: 1.5; }
+.fiche-badge .comment { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--texte-2); max-width: 62ch; }
+
+.fiche-badge .etat { margin: 14px 0 0; }
+.fiche-badge p.etat { font-size: 13.5px; }
+.fiche-badge p.etat.bon { color: var(--vert); font-weight: 650; }
+.fiche-badge .etat .piste {
+  height: 9px; border-radius: 5px; background: var(--surface-3); overflow: hidden; max-width: 420px;
+}
+.fiche-badge .etat .piste > span {
+  display: block; height: 100%; border-radius: 5px; min-width: 4px;
+  background: linear-gradient(90deg, var(--rouge-sourd), var(--rouge));
+}
+.fiche-badge .etat .chiffres {
+  display: flex; align-items: baseline; gap: 12px; margin-top: 6px;
+  font-size: 12.5px; color: var(--texte-3); max-width: 420px;
+}
+.fiche-badge .etat .chiffres b { color: var(--texte); font-weight: 780; font-size: 15px; }
+
+.fiche-badge .socle-chiffres {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--bord);
+}
+.fiche-badge .socle-chiffres > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fiche-badge .socle-chiffres b { font-size: 20px; font-weight: 780; letter-spacing: -.03em; }
+.fiche-badge .socle-chiffres span { font-size: 11.5px; color: var(--texte-3); line-height: 1.3; }
+
+.porteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 18px; }
+
+/* Feuilleter le catalogue sans repasser par la grille. */
+.feuillets { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.feuillet {
+  display: grid; gap: 5px; padding: 11px 15px; min-width: 0;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease;
+}
+.feuillet.fin { justify-items: end; text-align: right; }
+.feuillet:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.feuillet .sens { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--texte-3); }
+.feuillet b { font-size: 14px; font-weight: 700; }
+
+@media (max-width: 820px) {
+  .fiche-badge { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .fiche-badge .presentoir { padding-top: 4px; }
+  .fiche-badge .socle-chiffres { grid-template-columns: 1fr; gap: 10px; }
+  .feuillets { flex-direction: column; }
+  .feuillet.fin { justify-items: start; text-align: left; }
 }
 
 .couleurs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }

@@ -109,10 +109,11 @@ export default async function Communaute() {
           {moi.badges.length > 0 ? (
             <div className="badges-rangee" style={{ marginTop: 14 }}>
               {moi.badges.map((b) => (
-                <span key={b.cle} className="badge-item" title={`${b.nom} — ${b.quoi}`}>
+                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
+                      className="badge-item" title={`${b.nom} — ${b.quoi}`}>
                   <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
                   <span>{b.nom}</span>
-                </span>
+                </Link>
               ))}
             </div>
           ) : null}
@@ -130,7 +131,8 @@ export default async function Communaute() {
             </div>
             <div className="objectifs">
               {vises.map((b) => (
-                <div key={b.cle} className={`objectif ${rangDe(b)}`}>
+                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
+                      className={`objectif ${rangDe(b)}`}>
                   <Badge forme={b.forme} taille={40} rang={rangDe(b)} obtenu={false} />
                   <div className="quoi">
                     <div className="nom">{b.nom}</div>
@@ -143,7 +145,7 @@ export default async function Communaute() {
                       <span className="gain">+{b.points} pts</span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </>
@@ -207,7 +209,8 @@ export default async function Communaute() {
               const p = a ? null : progresDe(moi.faits, b.cle);
               const combien = rarete.get(b.cle);
               return (
-                <div key={b.cle} className={`badge-fiche ${rang}${a ? "" : " eteint"}`}>
+                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
+                      className={`badge-fiche ${rang}${a ? "" : " eteint"}`}>
                   <Badge forme={b.forme} obtenu={Boolean(a)} taille={42} rang={rang} />
                   <div className="dit">
                     <div className="nom">
@@ -236,7 +239,7 @@ export default async function Communaute() {
                       ) : null}
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
         </div>
