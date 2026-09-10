@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { utilisateur } from "@/lib/auth";
-import { BADGES, PAS_NIVEAU, badgesVus, classement, evaluerBadges, prochainGrade, profilDe } from "@/lib/communaute";
+import { BADGES, PAS_NIVEAU, badgesVus, classement, evaluerBadges, prochainGrade, profilDe, type Classe } from "@/lib/communaute";
 import { salonsDe } from "@/lib/salons";
 import { Badge } from "./badge";
-import { Personne, Portrait } from "./vignette-personne";
+import { Portrait } from "./vignette-personne";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +25,21 @@ export default async function Communaute() {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const neufs = await evaluerBadges(u.id);
-  const [moi, classe, salons] = await Promise.all([profilDe(u.id, u), classement(20), salonsDe(u)]);
+  // Tout le monde, pas seulement le haut de liste : mon rang ne se lit que
+  // dans la liste entiere, et la 34e place a autant besoin de se voir que la
+  // 4e. Le calcul est en code, la limite n'est qu'une coupe.
+  const [moi, tous, salons] = await Promise.all([profilDe(u.id, u), classement(1000), salonsDe(u)]);
   if (!moi) redirect("/");
   const nouveaux = moi.badges.filter((b) => b.nouveau);
   if (nouveaux.length > 0) await badgesVus(u.id);
   const suivant = prochainGrade(moi.bornes);
   const versNiveau = PAS_NIVEAU - (moi.points % PAS_NIVEAU);
-  const monRang = classe.findIndex((c) => c.id === u.id) + 1;
+  const HAUT = 20;
+  const haut = tous.slice(0, HAUT);
+  const monRang = tous.findIndex((c) => c.id === u.id) + 1;
+  const maLigne = monRang > HAUT ? tous[monRang - 1] : null;
+  const ecart = monRang > 1 ? tous[monRang - 2].points - tous[monRang - 1].points : 0;
+  const echelle = Math.max(1, tous[0]?.points ?? 1);
   const communs = salons.filter((s) => s.portee === "communaute" || s.portee === "annonces");
 
   return (
@@ -61,7 +69,9 @@ export default async function Communaute() {
               <p className="faible" style={{ fontSize: 13, margin: "8px 0 0" }}>
                 {moi.bornes} borne{moi.bornes > 1 ? "s" : ""} en service
                 {suivant ? ` — ${suivant.manque} de plus et vous êtes ${suivant.grade.nom}.` : " — le sommet."}
-                {" "}{monRang > 0 ? `${monRang}e au classement.` : ""}
+                {monRang === 1 ? " En tête du classement."
+                  : monRang > 1 ? ` ${monRang}e au classement, ${ecart > 0 ? `à ${ecart} pts de` : "à égalité avec"} la place au-dessus.`
+                  : ""}
               </p>
             </div>
             <div className="rangee" style={{ gap: 8 }}>
@@ -98,25 +108,23 @@ export default async function Communaute() {
         ) : null}
 
         {/* ---------------------------------------------------- classement */}
-        <h2>Classement</h2>
-        <div className="carte plate">
-          <ol className="classement">
-            {classe.map((c, i) => (
-              <li key={c.id} className={c.id === u.id ? "moi" : ""}>
-                <span className="rang num">{i + 1}</span>
-                <Personne id={c.id} image_id={c.image_id} pseudo={c.pseudo} couleur={c.couleur}
-                          editeur={c.editeur}
-                          sous={`${c.grade.nom}${c.compte ? ` · ${c.compte}` : ""}`} />
-                <span className="chiffres">
-                  <span className="num" style={{ fontWeight: 700 }}>{c.points} pts</span>
-                  <span className="faible num" style={{ fontSize: 12 }}>
-                    niv. {c.niveau} · {c.bornes} borne{c.bornes > 1 ? "s" : ""} · {c.badges} badge{c.badges > 1 ? "s" : ""}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
+        <div className="titre-section">
+          <h2>Classement</h2>
+          <span className="faible num" style={{ fontSize: 12.5 }}>
+            {tous.length} redboxer{tous.length > 1 ? "s" : ""} · par points
+          </span>
         </div>
+        <ol className="palmares">
+          {haut.map((c, i) => (
+            <LignePalmares key={c.id} c={c} rang={i + 1} moi={c.id === u.id} echelle={echelle} />
+          ))}
+          {maLigne ? (
+            <>
+              <li className="ellipse" aria-hidden="true">···</li>
+              <LignePalmares c={maLigne} rang={monRang} moi echelle={echelle} />
+            </>
+          ) : null}
+        </ol>
 
         {/* -------------------------------------------------------- badges */}
         <h2>Les badges</h2>
@@ -163,5 +171,45 @@ export default async function Communaute() {
       </main>
       <NavBasse page="communaute" />
     </>
+  );
+}
+
+/**
+ * Une ligne du palmares. Le rang en ordinal — « 1er », « 2e » —, les trois
+ * premiers colores ; la barre est sur l'echelle du premier, si bien que deux
+ * lignes se comparent d'un coup d'oeil sans lire les chiffres.
+ */
+function LignePalmares({ c, rang, moi, echelle }:
+  { c: Classe; rang: number; moi: boolean; echelle: number }) {
+  const medaille = rang === 1 ? "or" : rang === 2 ? "argent" : rang === 3 ? "bronze" : "";
+  const part = Math.max(0, Math.min(100, Math.round((c.points / echelle) * 100)));
+  return (
+    <li className={[moi ? "moi" : "", medaille].filter(Boolean).join(" ")}>
+      <Link href={`/communaute/${c.id}`} className="ligne">
+        <span className="rang num">{rang}<sup>{rang === 1 ? "er" : "e"}</sup></span>
+        <Portrait image_id={c.image_id} pseudo={c.pseudo} couleur={c.couleur} taille={44} />
+        <span className="qui">
+          <span className="nom">
+            <span>{c.pseudo}</span>
+            {c.editeur ? <span className="etiquette editeur">RedBox</span> : null}
+            {moi ? <span className="etiquette">vous</span> : null}
+          </span>
+          <span className="dessous">
+            <span className="etiquette grade">{c.grade.nom}</span>
+            {c.compte ? <span className="compte">{c.compte}</span> : null}
+          </span>
+        </span>
+        <span className="part" aria-hidden="true">
+          <span className="piste"><span style={{ width: `${part}%` }} /></span>
+          <span className="quoi num">
+            {c.bornes} borne{c.bornes > 1 ? "s" : ""} · {c.badges} badge{c.badges > 1 ? "s" : ""}
+          </span>
+        </span>
+        <span className="pts">
+          <span className="n num">{c.points}<small>pts</small></span>
+          <span className="niv num">niveau {c.niveau}</span>
+        </span>
+      </Link>
+    </li>
   );
 }
