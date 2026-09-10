@@ -1,6 +1,7 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
-import { groupeDuCompte, niveauxDe } from "./communaute";
+import { groupeDuCompte, niveauxDe, type Badge } from "./communaute";
+import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
 
 /**
  * LES SALONS, ET CE QU'ON Y DIT.
@@ -42,14 +43,21 @@ export type Salon = {
   non_lus: number; dernier_le: Date | null;
 };
 
+export type { Reaction };
+
 export type Message = {
   id: number; salon_id: number; utilisateur_id: number | null;
   /** Le nom a afficher. Nul pour la machine : c'est le salon qui dit laquelle. */
   auteur: string | null; image_id: number | null;
   /** D'ou parle l'auteur, et ou il en est : son exploitation, son grade, son niveau. */
   compte: string | null; grade: string | null; niveau: number | null; editeur: boolean; couleur: string | null;
+  /** Le badge le plus rare qu'il porte — un seul se lit a cote d'un nom. */
+  badge: Badge | null;
   texte: string; cree_le: string; supprime: boolean;
+  reactions: Reaction[];
 };
+
+export { EMOJIS } from "./reactions";
 
 /** Ce que l'editeur dit a tout le monde, et ou les gens se retrouvent. */
 const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe | null; ordre: number }[] = [
@@ -210,12 +218,43 @@ const JOINTURES = `LEFT JOIN utilisateur x ON x.id = m.utilisateur_id LEFT JOIN 
  * pour tous les auteurs du lot, pas une par message : un fil de soixante
  * messages a rarement plus de cinq voix.
  */
-type Brut = Omit<Message, "grade" | "niveau">;
-async function grader(rows: Brut[]): Promise<Message[]> {
-  const niveaux = await niveauxDe(rows.map((r) => r.utilisateur_id).filter((i): i is number => i !== null));
+type Brut = Omit<Message, "grade" | "niveau" | "badge" | "reactions">;
+
+/**
+ * Les reactions du lot, en une requete. `moi` sert a savoir lesquelles sont
+ * les miennes — c'est ce qui allume la pastille, et ce qui fait qu'un second
+ * appui retire au lieu d'ajouter.
+ */
+async function reactionsDe(ids: number[], moi: number | null): Promise<Map<number, Reaction[]>> {
+  const out = new Map<number, Reaction[]>();
+  if (ids.length === 0) return out;
+  const rows = await q<{ message_id: number; emoji: string; n: number; mien: boolean }>(`
+    SELECT r.message_id, r.emoji, COUNT(*)::int AS n,
+           BOOL_OR(r.utilisateur_id = $2::bigint) AS mien
+      FROM reaction r WHERE r.message_id = ANY($1::bigint[])
+     GROUP BY r.message_id, r.emoji`, [ids, moi]);
+  // L'ordre est celui de la barre, pas celui des comptes : une reaction qui
+  // depasse une autre ne doit pas faire sauter les pastilles de place sous le
+  // doigt de celui qui vient d'appuyer.
+  const rang = new Map(EMOJIS.map((e, i) => [e as string, i]));
+  for (const r of rows) {
+    const l = out.get(Number(r.message_id)) ?? [];
+    l.push({ emoji: r.emoji, n: r.n, mien: r.mien });
+    out.set(Number(r.message_id), l);
+  }
+  for (const l of out.values()) l.sort((a, z) => (rang.get(a.emoji) ?? 99) - (rang.get(z.emoji) ?? 99));
+  return out;
+}
+
+async function grader(rows: Brut[], moi: number | null = null): Promise<Message[]> {
+  const [niveaux, reactions] = await Promise.all([
+    niveauxDe(rows.map((r) => r.utilisateur_id).filter((i): i is number => i !== null)),
+    reactionsDe(rows.filter((r) => !r.supprime).map((r) => r.id), moi),
+  ]);
   return rows.map((r) => {
     const n = r.utilisateur_id === null ? null : niveaux.get(r.utilisateur_id) ?? null;
-    return { ...r, grade: n?.grade ?? null, niveau: n?.niveau ?? null };
+    return { ...r, grade: n?.grade ?? null, niveau: n?.niveau ?? null, badge: n?.meilleur ?? null,
+             reactions: reactions.get(r.id) ?? [] };
   });
 }
 
@@ -225,19 +264,60 @@ async function grader(rows: Brut[]): Promise<Message[]> {
  * — ; `avant`, la page precedente quand on remonte le fil. Sans l'un ni
  * l'autre, les derniers. Toujours rendus du plus ancien au plus recent.
  */
-export async function messagesDe(salon_id: number, o: { depuis?: number; avant?: number; limite?: number } = {}):
-    Promise<Message[]> {
+export async function messagesDe(salon_id: number,
+    o: { depuis?: number; avant?: number; limite?: number; moi?: number } = {}): Promise<Message[]> {
   const limite = Math.min(Math.max(o.limite ?? 60, 1), 200);
+  const moi = o.moi ?? null;
   if (o.depuis !== undefined) {
     return grader(await q<Brut>(`
       SELECT ${COLONNES} FROM message m ${JOINTURES}
-       WHERE m.salon_id = $1 AND m.id > $2 ORDER BY m.id LIMIT $3`, [salon_id, o.depuis, limite]));
+       WHERE m.salon_id = $1 AND m.id > $2 ORDER BY m.id LIMIT $3`, [salon_id, o.depuis, limite]), moi);
   }
   const rows = await q<Brut>(`
     SELECT ${COLONNES} FROM message m ${JOINTURES}
      WHERE m.salon_id = $1 AND ($2::bigint IS NULL OR m.id < $2)
      ORDER BY m.id DESC LIMIT $3`, [salon_id, o.avant ?? null, limite]);
-  return grader(rows.reverse());
+  return grader(rows.reverse(), moi);
+}
+
+/**
+ * LES REACTIONS D'UN LOT DE MESSAGES, sans les messages. Le fil rafraichit son
+ * texte par `depuis` — ce qui est arrive APRES — mais une reaction se pose sur
+ * un message ancien, qu'il ne redemanderait jamais. Elle a donc sa propre
+ * lecture, sur ce qui est deja a l'ecran.
+ */
+export async function reactionsDes(salon_id: number, ids: number[], moi: number): Promise<Record<number, Reaction[]>> {
+  const propres = ids.filter((i) => Number.isInteger(i)).slice(0, 200);
+  if (propres.length === 0) return {};
+  const permis = await q<{ id: number }>(
+    "SELECT id FROM message WHERE salon_id = $1 AND id = ANY($2::bigint[])", [salon_id, propres]);
+  const m = await reactionsDe(permis.map((r) => Number(r.id)), moi);
+  return Object.fromEntries(m);
+}
+
+/**
+ * REAGIR, OU RETIRER SA REACTION — c'est le meme geste, et c'est la cle
+ * primaire qui tranche. On ne reagit pas a soi-meme : s'applaudir rapporterait
+ * des points, et le classement cesserait de vouloir dire quelque chose.
+ *
+ * Rend l'etat complet des reactions du message, pour que la barre se redessine
+ * juste, meme si quelqu'un d'autre a appuye entre-temps.
+ */
+export async function reagir(message_id: number, utilisateur_id: number, emoji: string):
+    Promise<Reaction[] | null> {
+  if (!ESTAMPILLE.has(emoji)) return null;
+  const m = await q1<{ sien: boolean }>(
+    `SELECT (utilisateur_id = $2) AS sien FROM message
+      WHERE id = $1 AND supprime_le IS NULL`, [message_id, utilisateur_id]);
+  if (!m || m.sien) return null;
+  const pose = await q(`
+    INSERT INTO reaction (message_id, utilisateur_id, emoji) VALUES ($1, $2, $3)
+    ON CONFLICT DO NOTHING RETURNING message_id`, [message_id, utilisateur_id, emoji]);
+  if (pose.length === 0) {
+    await q("DELETE FROM reaction WHERE message_id = $1 AND utilisateur_id = $2 AND emoji = $3",
+            [message_id, utilisateur_id, emoji]);
+  }
+  return (await reactionsDe([message_id], utilisateur_id)).get(message_id) ?? [];
 }
 
 /** Un message de plus, rendu tel qu'il s'affiche. */
@@ -248,7 +328,7 @@ export async function deposer(salon_id: number, utilisateur_id: number | null, t
     SELECT ${COLONNES} FROM n m ${JOINTURES}`;
   const p = [salon_id, utilisateur_id, texte];
   const r = c ? (await c.query<Brut>(sql, p)).rows[0] : await q1<Brut>(sql, p);
-  return (await grader([r!]))[0];
+  return (await grader([r!], utilisateur_id))[0];
 }
 
 /** Retire un de ses messages. Rend faux s'il n'est pas a elle. */

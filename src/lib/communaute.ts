@@ -71,8 +71,32 @@ export const BADGES: Badge[] = [
   { cle: "centaine",    nom: "La centaine",        quoi: "Cent ventes distribuées",                             forme: "etoile",   points: 200 },
   { cle: "millier",     nom: "Le millier",         quoi: "Mille ventes distribuées",                            forme: "etoile",   points: 600 },
   { cle: "ambassadeur", nom: "Ambassadeur",        quoi: "Quelqu’un a rejoint le compte sur votre invitation", forme: "coeur",    points: 120 },
+  { cle: "applaudi",    nom: "Applaudi",           quoi: "Vingt-cinq réactions reçues sur vos messages",         forme: "etoile",   points: 250 },
+  { cle: "genereux",    nom: "Généreux",           quoi: "Cinquante réactions offertes aux autres",              forme: "coeur",    points: 100 },
+  { cle: "habitue",     nom: "Habitué",            quoi: "Trente journées différentes à prendre la parole",      forme: "sablier",  points: 200 },
   { cle: "equipe",      nom: "Équipe RedBox",      quoi: "Membre de l’éditeur",                                 forme: "medaille", points: 0 },
 ];
+
+// ------------------------------------------------------------------ rarete
+
+/**
+ * LA RARETE D'UN BADGE SE LIT DANS CE QU'IL VAUT. Pas de champ a tenir a jour
+ * en plus des points : un badge cher est un badge rare, c'est la meme phrase.
+ * Une exception, `equipe` : on ne se recrute pas, il ne vaut aucun point, et
+ * c'est pourtant le plus rare de tous.
+ */
+export type Rang = "commun" | "rare" | "epique" | "legendaire";
+
+export function rangDe(b: Badge): Rang {
+  if (b.cle === "equipe") return "legendaire";
+  return b.points >= 500 ? "legendaire"
+       : b.points >= 250 ? "epique"
+       : b.points >= 100 ? "rare" : "commun";
+}
+
+export const NOM_RANG: Record<Rang, string> = {
+  commun: "Commun", rare: "Rare", epique: "Épique", legendaire: "Légendaire",
+};
 
 const BADGE_PAR_CLE = new Map(BADGES.map((b) => [b.cle, b]));
 
@@ -82,8 +106,12 @@ const BADGE_PAR_CLE = new Map(BADGES.map((b) => [b.cle, b]));
  * conversation y est inventee, et une premiere voix ne se gagne pas en
  * ouvrant un compte.
  */
-type Faits = {
+export type Faits = {
   bornes: number; jours: number; messages: number; ventes: number;
+  /** Recues sur ses messages, offertes aux autres. Les siennes ne comptent pas. */
+  reactions: number; reactions_donnees: number;
+  /** Le nombre de journees DIFFERENTES ou elle a pris la parole. */
+  jours_actifs: number;
   pionnier: boolean; noctambule: boolean; ambassadeur: boolean; equipe: boolean;
 };
 
@@ -93,13 +121,52 @@ const SQL_BORNES = `
      JOIN membre m ON m.compte_id = b.compte_id AND m.utilisateur_id = u.id
     WHERE b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%')`;
 
+/**
+ * Ce qui se compte a partir des messages. Les salons d'un compte en demo sont
+ * exclus partout : la conversation y est inventee, et on ne devient pas Pilier
+ * de comptoir en ouvrant un compte d'essai.
+ *
+ * Ces trois fragments servent au profil, au classement et aux niveaux d'un fil
+ * — ecrits une fois, pour que les points d'une personne soient les memes
+ * partout ou on les affiche.
+ */
+const VRAIS_SALONS = `
+  JOIN salon sx ON sx.id = x.salon_id LEFT JOIN compte kx ON kx.id = sx.compte_id`;
+
+const SQL_MESSAGES = `
+  (SELECT COUNT(*)::int FROM message x ${VRAIS_SALONS}
+    WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false))`;
+
+/** Les reactions posees sur ses messages par quelqu'un d'autre qu'elle. */
+const SQL_REACTIONS = `
+  (SELECT COUNT(*)::int FROM reaction r JOIN message x ON x.id = r.message_id ${VRAIS_SALONS}
+    WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL
+      AND r.utilisateur_id <> u.id AND NOT COALESCE(kx.demo, false))`;
+
+const SQL_REACTIONS_DONNEES = `
+  (SELECT COUNT(*)::int FROM reaction r JOIN message x ON x.id = r.message_id ${VRAIS_SALONS}
+    WHERE r.utilisateur_id = u.id AND x.utilisateur_id IS DISTINCT FROM u.id
+      AND NOT COALESCE(kx.demo, false))`;
+
+const SQL_JOURS_ACTIFS = `
+  (SELECT COUNT(DISTINCT (x.cree_le AT TIME ZONE 'Europe/Paris')::date)::int
+     FROM message x ${VRAIS_SALONS}
+    WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false))`;
+
+const SQL_ANCIENNETE = `GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int`;
+
+/** Les quatre colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
+const SQL_COMPTES = `
+  ${SQL_BORNES} AS bornes,
+  ${SQL_ANCIENNETE} AS jours,
+  ${SQL_MESSAGES} AS messages,
+  ${SQL_REACTIONS} AS reactions`;
+
 const SQL_FAITS = `
   SELECT
-    ${SQL_BORNES} AS bornes,
-    GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int AS jours,
-    (SELECT COUNT(*)::int FROM message x
-       JOIN salon sx ON sx.id = x.salon_id LEFT JOIN compte kx ON kx.id = sx.compte_id
-      WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false)) AS messages,
+    ${SQL_COMPTES},
+    ${SQL_REACTIONS_DONNEES} AS reactions_donnees,
+    ${SQL_JOURS_ACTIFS} AS jours_actifs,
     (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
        JOIN membre m ON m.compte_id = b.compte_id AND m.utilisateur_id = u.id
       WHERE v.statut = 'distribue' AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%') AS ventes,
@@ -131,8 +198,78 @@ function meritesPar(f: Faits): string[] {
   if (f.ventes >= 100) out.push("centaine");
   if (f.ventes >= 1000) out.push("millier");
   if (f.ambassadeur) out.push("ambassadeur");
+  if (f.reactions >= 25) out.push("applaudi");
+  if (f.reactions_donnees >= 50) out.push("genereux");
+  if (f.jours_actifs >= 30) out.push("habitue");
   if (f.equipe) out.push("equipe");
   return out;
+}
+
+// -------------------------------------------------------------- progression
+
+/**
+ * OU EN EST-ON D'UN BADGE QU'ON N'A PAS. « Cent messages » quand on en a
+ * quarante-trois ne dit rien ; « 43 / 100 » dit qu'il est a portee, et c'est
+ * la difference entre une liste de recompenses et une liste d'objectifs.
+ *
+ * Les badges absents de cette table se gagnent d'un coup — on est parmi les
+ * dix premiers ou on ne l'est pas — et n'ont pas de demi-chemin a montrer.
+ */
+const PROGRES: Record<string, (f: Faits) => { n: number; sur: number }> = {
+  premiere: (f) => ({ n: f.bornes, sur: 1 }),
+  parc:     (f) => ({ n: f.bornes, sur: 3 }),
+  reseau:   (f) => ({ n: f.bornes, sur: 10 }),
+  mois:     (f) => ({ n: f.jours, sur: 30 }),
+  semestre: (f) => ({ n: f.jours, sur: 182 }),
+  an:       (f) => ({ n: f.jours, sur: 365 }),
+  voix:     (f) => ({ n: f.messages, sur: 1 }),
+  pilier:   (f) => ({ n: f.messages, sur: 100 }),
+  centaine: (f) => ({ n: f.ventes, sur: 100 }),
+  millier:  (f) => ({ n: f.ventes, sur: 1000 }),
+  applaudi: (f) => ({ n: f.reactions, sur: 25 }),
+  genereux: (f) => ({ n: f.reactions_donnees, sur: 50 }),
+  habitue:  (f) => ({ n: f.jours_actifs, sur: 30 }),
+};
+
+export type Progres = { n: number; sur: number; pct: number };
+
+export function progresDe(f: Faits, cle: string): Progres | null {
+  const r = PROGRES[cle]?.(f);
+  if (!r) return null;
+  return { n: Math.min(r.n, r.sur), sur: r.sur, pct: Math.min(100, Math.round((r.n / r.sur) * 100)) };
+}
+
+/**
+ * LES PROCHAINS OBJECTIFS : les badges qu'on n'a pas, les plus proches
+ * d'abord. Trois suffisent — une liste de quinze choses a faire ne se lit pas
+ * comme un but, elle se lit comme une corvee. A pourcentage egal, le plus cher
+ * passe devant : autant viser ce qui rapporte.
+ */
+export function objectifs(f: Faits, obtenus: string[], combien = 3): (Badge & { progres: Progres })[] {
+  const a = new Set(obtenus);
+  return BADGES
+    .filter((b) => !a.has(b.cle) && PROGRES[b.cle])
+    .map((b) => ({ ...b, progres: progresDe(f, b.cle)! }))
+    .filter((b) => b.progres.pct < 100)
+    .sort((x, z) => z.progres.pct - x.progres.pct || z.points - x.points)
+    .slice(0, combien);
+}
+
+/**
+ * COMBIEN DE GENS ONT CHAQUE BADGE. « Obtenu par 4 % des redboxers » vaut
+ * toutes les etiquettes de rarete : c'est la rarete reelle, pas celle qu'on a
+ * decretee. Une requete pour toute la grille.
+ */
+export async function rareteDesBadges(): Promise<Map<string, { n: number; pct: number }>> {
+  const [gens, par] = await Promise.all([
+    q1<{ n: number }>("SELECT COUNT(*)::int AS n FROM utilisateur WHERE email NOT LIKE '%@' || $1", [DOMAINE]),
+    q<{ badge: string; n: number }>(`
+      SELECT o.badge, COUNT(*)::int AS n FROM badge_obtenu o
+        JOIN utilisateur u ON u.id = o.utilisateur_id
+       WHERE u.email NOT LIKE '%@' || $1 GROUP BY o.badge`, [DOMAINE]),
+  ]);
+  const total = Math.max(1, gens?.n ?? 1);
+  return new Map(par.map((r) => [r.badge, { n: r.n, pct: Math.round((r.n / total) * 100) }]));
 }
 
 /**
@@ -156,18 +293,33 @@ export async function evaluerBadges(utilisateur_id: number): Promise<Badge[]> {
 
 /**
  * Les points : cent par borne, les badges pour ce qu'ils valent, deux par
- * message jusqu'a cinq cents, un par jour d'anciennete jusqu'a un an. Le
- * niveau monte tous les deux cent cinquante.
+ * message jusqu'a cinq cents, cinq par reaction RECUE jusqu'a soixante, un par
+ * jour d'anciennete jusqu'a un an. Le niveau monte tous les deux cent
+ * cinquante.
+ *
+ * Une reaction recue vaut plus qu'un message ecrit, et c'est voulu : on choisit
+ * ce qu'on ecrit, pas ce qui plait. Les plafonds sont la pour la meme raison —
+ * sans eux, le classement recompenserait le volume, et le volume s'obtient en
+ * parlant pour ne rien dire.
  */
-export function pointsDe(f: { bornes: number; messages: number; jours: number }, badges: string[]): number {
+export function pointsDe(f: { bornes: number; messages: number; jours: number; reactions?: number },
+                         badges: string[]): number {
   return f.bornes * 100
        + badges.reduce((s, b) => s + (BADGE_PAR_CLE.get(b)?.points ?? 0), 0)
        + Math.min(f.messages, 500) * 2
+       + Math.min(f.reactions ?? 0, 60) * 5
        + Math.min(f.jours, 365);
 }
 
 export const PAS_NIVEAU = 250;
 export const niveauDe = (points: number) => 1 + Math.floor(points / PAS_NIVEAU);
+
+/** Ou l'on en est DANS son niveau : ce qu'on a fait depuis le dernier, ce qui reste. */
+export function niveauProgres(points: number): { niveau: number; dans: number; reste: number; pct: number } {
+  const dans = points % PAS_NIVEAU;
+  return { niveau: niveauDe(points), dans, reste: PAS_NIVEAU - dans,
+           pct: Math.round((dans / PAS_NIVEAU) * 100) };
+}
 
 // ------------------------------------------------------------------ profils
 
@@ -178,8 +330,10 @@ export type Profil = {
   compte: string; ville: string | null; bio: string | null; couleur: string | null;
   cree_le: Date; public: boolean; editeur: boolean; moi: boolean;
   bornes: number; grade: Grade; points: number; niveau: number;
-  messages: number; ventes: number; jours: number;
+  messages: number; ventes: number; jours: number; reactions: number;
   badges: BadgeObtenu[];
+  /** De quoi montrer ou l'on en est des badges qu'on n'a pas encore. */
+  faits: Faits;
 };
 
 /** Les couleurs qu'un profil peut choisir : la marque, et sept autres qui se lisent sur sombre et sur clair. */
@@ -221,7 +375,8 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
     couleur: l.couleur, cree_le: l.cree_le, public: l.profil_public, editeur: l.editeur, moi,
     bornes: f.bornes, grade: gradeDe(f.bornes), points, niveau: niveauDe(points),
     messages: ouvert ? f.messages : 0, ventes: ouvert ? f.ventes : 0, jours: f.jours,
-    badges,
+    reactions: ouvert ? f.reactions : 0,
+    badges, faits: f,
   };
 }
 
@@ -232,7 +387,9 @@ export async function badgesVus(utilisateur_id: number): Promise<void> {
 
 export type Classe = {
   id: number; pseudo: string; image_id: number | null; compte: string; couleur: string | null;
-  editeur: boolean; bornes: number; grade: Grade; points: number; niveau: number; badges: number;
+  editeur: boolean; bornes: number; grade: Grade; points: number; niveau: number;
+  /** Combien de badges, et le plus rare d'entre eux — celui qu'on montre. */
+  badges: number; meilleur: Badge | null;
 };
 
 /**
@@ -244,23 +401,22 @@ export async function classement(limite = 20): Promise<Classe[]> {
   const gens = await q<{
     id: number; pseudo: string | null; nom: string | null; email: string; image_id: number | null;
     compte: string; couleur: string | null; editeur: boolean; profil_public: boolean;
-    bornes: number; jours: number; messages: number; badges: string[];
+    bornes: number; jours: number; messages: number; reactions: number; badges: string[];
   }>(`
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, c.nom AS compte, u.couleur, c.editeur, u.profil_public,
-           ${SQL_BORNES} AS bornes,
-           GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int AS jours,
-           (SELECT COUNT(*)::int FROM message x
-       JOIN salon sx ON sx.id = x.salon_id LEFT JOIN compte kx ON kx.id = sx.compte_id
-      WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false)) AS messages,
+           ${SQL_COMPTES},
            COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
      WHERE u.email NOT LIKE '%@' || $1`, [DOMAINE]);
   return gens
     .map((g) => {
       const points = pointsDe(g, g.badges);
+      const meilleur = g.badges
+        .map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
+        .sort((x, z) => z.points - x.points)[0] ?? null;
       return { id: g.id, pseudo: pseudoDe(g), image_id: g.image_id, compte: g.profil_public ? g.compte : "",
                couleur: g.couleur, editeur: g.editeur, bornes: g.bornes, grade: gradeDe(g.bornes),
-               points, niveau: niveauDe(points), badges: g.badges.length };
+               points, niveau: niveauDe(points), badges: g.badges.length, meilleur };
     })
     .sort((a, z) => z.points - a.points || z.bornes - a.bornes || a.pseudo.localeCompare(z.pseudo, "fr"))
     .slice(0, limite);
@@ -272,21 +428,23 @@ export async function classement(limite = 20): Promise<Classe[]> {
  * requete pour tous les auteurs, puis les points en code : la valeur d'un
  * badge n'est pas en base.
  */
-export async function niveauxDe(ids: number[]): Promise<Map<number, { niveau: number; grade: string }>> {
-  const out = new Map<number, { niveau: number; grade: string }>();
+export type Signature = { niveau: number; grade: string; meilleur: Badge | null };
+
+export async function niveauxDe(ids: number[]): Promise<Map<number, Signature>> {
+  const out = new Map<number, Signature>();
   const propres = [...new Set(ids)].filter((i) => Number.isInteger(i));
   if (propres.length === 0) return out;
-  const gens = await q<{ id: number; bornes: number; jours: number; messages: number; badges: string[] }>(`
-    SELECT u.id,
-           ${SQL_BORNES} AS bornes,
-           GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int AS jours,
-           (SELECT COUNT(*)::int FROM message x
-              JOIN salon sx ON sx.id = x.salon_id LEFT JOIN compte kx ON kx.id = sx.compte_id
-             WHERE x.utilisateur_id = u.id AND x.supprime_le IS NULL AND NOT COALESCE(kx.demo, false)) AS messages,
+  const gens = await q<{ id: number; bornes: number; jours: number; messages: number; reactions: number; badges: string[] }>(`
+    SELECT u.id, ${SQL_COMPTES},
            COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
       FROM utilisateur u WHERE u.id = ANY($1::bigint[])`, [propres]);
   for (const g of gens) {
-    out.set(Number(g.id), { niveau: niveauDe(pointsDe(g, g.badges)), grade: gradeDe(g.bornes).nom });
+    // Le badge le plus cher qu'elle porte : c'est celui qu'on montre a cote de
+    // son nom, parce qu'un seul se lit et que quinze ne se lisent pas.
+    const meilleur = g.badges
+      .map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
+      .sort((x, z) => z.points - x.points)[0] ?? null;
+    out.set(Number(g.id), { niveau: niveauDe(pointsDe(g, g.badges)), grade: gradeDe(g.bornes).nom, meilleur });
   }
   return out;
 }

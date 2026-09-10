@@ -2,9 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { utilisateur } from "@/lib/auth";
-import { BADGES, PAS_NIVEAU, badgesVus, classement, evaluerBadges, prochainGrade, profilDe, type Classe } from "@/lib/communaute";
+import { BADGES, badgesVus, classement, evaluerBadges, objectifs, prochainGrade, profilDe,
+         progresDe, rangDe, rareteDesBadges, NOM_RANG, type Classe } from "@/lib/communaute";
 import { salonsDe } from "@/lib/salons";
 import { Badge } from "./badge";
+import { AnneauNiveau, BarreNiveau } from "./niveau";
 import { Portrait } from "./vignette-personne";
 
 export const dynamic = "force-dynamic";
@@ -28,12 +30,15 @@ export default async function Communaute() {
   // Tout le monde, pas seulement le haut de liste : mon rang ne se lit que
   // dans la liste entiere, et la 34e place a autant besoin de se voir que la
   // 4e. Le calcul est en code, la limite n'est qu'une coupe.
-  const [moi, tous, salons] = await Promise.all([profilDe(u.id, u), classement(1000), salonsDe(u)]);
+  const [moi, tous, salons, rarete] = await Promise.all([
+    profilDe(u.id, u), classement(1000), salonsDe(u), rareteDesBadges(),
+  ]);
   if (!moi) redirect("/");
   const nouveaux = moi.badges.filter((b) => b.nouveau);
   if (nouveaux.length > 0) await badgesVus(u.id);
   const suivant = prochainGrade(moi.bornes);
-  const versNiveau = PAS_NIVEAU - (moi.points % PAS_NIVEAU);
+  const acquis = moi.badges.map((b) => b.cle);
+  const vises = objectifs(moi.faits, acquis);
   const HAUT = 20;
   const haut = tous.slice(0, HAUT);
   const monRang = tous.findIndex((c) => c.id === u.id) + 1;
@@ -52,21 +57,32 @@ export default async function Communaute() {
           qui dit la taille de votre parc, des badges pour ce que vous avez traversé.
         </p>
 
-        {/* ---------------------------------------------------------- moi */}
+        {/* ---------------------------------------------------------- moi
+            OU J'EN SUIS, EN UNE CARTE. L'anneau porte le niveau et la part
+            parcourue ; la barre dit ce qui reste ; les trois chiffres disent
+            d'ou viennent les points. Le portrait passe DANS l'anneau : deux
+            ronds cote a cote se disputeraient le regard. */}
         <div className="carte moi-carte" style={moi.couleur ? { borderColor: moi.couleur } : undefined}>
-          <div className="rangee" style={{ gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <Portrait image_id={moi.image_id} pseudo={moi.pseudo} couleur={moi.couleur} taille={72} />
-            <div className="pousse" style={{ minWidth: 200 }}>
-              <div style={{ fontSize: 20, fontWeight: 750, letterSpacing: "-.02em" }}>
+          <div className="haut-moi">
+            <div className="face">
+              <AnneauNiveau points={moi.points} taille={104} couleur={moi.couleur} />
+              <span className="dans-anneau">
+                <Portrait image_id={moi.image_id} pseudo={moi.pseudo} couleur={moi.couleur} taille={72} />
+              </span>
+            </div>
+
+            <div className="pousse" style={{ minWidth: 220 }}>
+              <div className="nom-moi">
                 {moi.pseudo}{moi.editeur ? <span className="etiquette editeur">RedBox</span> : null}
               </div>
-              <div className="faible" style={{ fontSize: 13 }}>{moi.compte}{moi.ville ? ` · ${moi.ville}` : ""}</div>
-              <div className="rangee" style={{ marginTop: 10, gap: 8, flexWrap: "wrap" }}>
+              <div className="rangee" style={{ gap: 8, flexWrap: "wrap", marginTop: 4 }}>
                 <span className="etiquette grade grand">{moi.grade.nom}</span>
-                <span className="etiquette">Niveau {moi.niveau}</span>
-                <span className="faible" style={{ fontSize: 13 }}>{moi.points} pts · encore {versNiveau} pour le niveau {moi.niveau + 1}</span>
+                <span className="faible" style={{ fontSize: 13 }}>
+                  {moi.compte}{moi.ville ? ` · ${moi.ville}` : ""}
+                </span>
               </div>
-              <p className="faible" style={{ fontSize: 13, margin: "8px 0 0" }}>
+              <BarreNiveau points={moi.points} />
+              <p className="faible" style={{ fontSize: 13, margin: "9px 0 0" }}>
                 {moi.bornes} borne{moi.bornes > 1 ? "s" : ""} en service
                 {suivant ? ` — ${suivant.manque} de plus et vous êtes ${suivant.grade.nom}.` : " — le sommet."}
                 {monRang === 1 ? " En tête du classement."
@@ -74,22 +90,64 @@ export default async function Communaute() {
                   : ""}
               </p>
             </div>
-            <div className="rangee" style={{ gap: 8 }}>
+
+            <div className="rangee actions-moi" style={{ gap: 8 }}>
               <Link href={`/communaute/${u.id}`} className="bouton petit">Mon profil public</Link>
               <Link href="/communaute/moi" className="bouton petit primaire">Personnaliser</Link>
             </div>
           </div>
+
+          {/* D'ou viennent les points. Sans ce compte, « 1109 » est un nombre
+              tombe du ciel, et on ne sait pas quoi faire pour l'augmenter. */}
+          <div className="mesures-moi">
+            <div><b className="num">{moi.points}</b><span>points</span></div>
+            <div><b className="num">{moi.badges.length}</b><span>badge{moi.badges.length > 1 ? "s" : ""} sur {BADGES.length}</span></div>
+            <div><b className="num">{moi.messages}</b><span>message{moi.messages > 1 ? "s" : ""}</span></div>
+            <div><b className="num">{moi.reactions}</b><span>réaction{moi.reactions > 1 ? "s" : ""} reçue{moi.reactions > 1 ? "s" : ""}</span></div>
+          </div>
+
           {moi.badges.length > 0 ? (
             <div className="badges-rangee" style={{ marginTop: 14 }}>
               {moi.badges.map((b) => (
-                <span key={b.cle} className="badge-item" title={b.quoi}>
-                  <Badge forme={b.forme} taille={36} />
+                <span key={b.cle} className="badge-item" title={`${b.nom} — ${b.quoi}`}>
+                  <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
                   <span>{b.nom}</span>
                 </span>
               ))}
             </div>
           ) : null}
         </div>
+
+        {/* ------------------------------------------------------ objectifs
+            LES TROIS BADGES LES PLUS PROCHES. C'est la difference entre une
+            liste de recompenses et une liste d'objectifs : on voit ou l'on en
+            est, et ce que ca rapporte. */}
+        {vises.length > 0 ? (
+          <>
+            <div className="titre-section">
+              <h2>Vos prochains objectifs</h2>
+              <span className="faible" style={{ fontSize: 12.5 }}>les plus proches d’abord</span>
+            </div>
+            <div className="objectifs">
+              {vises.map((b) => (
+                <div key={b.cle} className={`objectif ${rangDe(b)}`}>
+                  <Badge forme={b.forme} taille={40} rang={rangDe(b)} obtenu={false} />
+                  <div className="quoi">
+                    <div className="nom">{b.nom}</div>
+                    <div className="faible">{b.quoi}</div>
+                  </div>
+                  <div className="ou">
+                    <div className="piste"><span style={{ width: `${b.progres.pct}%` }} /></div>
+                    <div className="chiffres num">
+                      <span><b>{b.progres.n}</b> / {b.progres.sur}</span>
+                      <span className="gain">+{b.points} pts</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {nouveaux.length > 0 || neufs.length > 0 ? (
           <div className="carte chaude" style={{ marginTop: 12 }}>
@@ -126,27 +184,61 @@ export default async function Communaute() {
           ) : null}
         </ol>
 
-        {/* -------------------------------------------------------- badges */}
-        <h2>Les badges</h2>
-        <div className="carte plate">
-          <div className="badges-grille">
-            {BADGES.map((b) => {
+        {/* -------------------------------------------------------- badges
+            TOUT CE QUI EXISTE, obtenu en couleur, le reste en gris — avec ou
+            l'on en est quand ca se compte, et combien de gens l'ont deja.
+            « Obtenu par 4 % » vaut toutes les etiquettes de rarete : c'est la
+            rarete reelle, pas celle qu'on a decretee.
+
+            Les non-obtenus passent apres : la vitrine d'abord, la liste des
+            courses ensuite. */}
+        <div className="titre-section">
+          <h2>Les badges</h2>
+          <span className="faible num" style={{ fontSize: 12.5 }}>
+            {moi.badges.length} sur {BADGES.length}
+          </span>
+        </div>
+        <div className="badges-grille">
+          {[...BADGES]
+            .sort((x, z) => Number(acquis.includes(z.cle)) - Number(acquis.includes(x.cle)) || z.points - x.points)
+            .map((b) => {
               const a = moi.badges.find((x) => x.cle === b.cle);
+              const rang = rangDe(b);
+              const p = a ? null : progresDe(moi.faits, b.cle);
+              const combien = rarete.get(b.cle);
               return (
-                <div key={b.cle} className={`badge-fiche${a ? "" : " eteint"}`}>
-                  <Badge forme={b.forme} obtenu={Boolean(a)} taille={44} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{b.nom}</div>
-                    <div className="faible" style={{ fontSize: 12.5 }}>{b.quoi}</div>
-                    <div className="faible num" style={{ fontSize: 11.5, marginTop: 2 }}>
-                      {b.points > 0 ? `${b.points} pts` : ""}
-                      {a ? ` · obtenu le ${new Date(a.obtenu_le).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "short", year: "numeric" })}` : ""}
+                <div key={b.cle} className={`badge-fiche ${rang}${a ? "" : " eteint"}`}>
+                  <Badge forme={b.forme} obtenu={Boolean(a)} taille={42} rang={rang} />
+                  <div className="dit">
+                    <div className="nom">
+                      {b.nom}
+                      <span className={`etiquette rang ${rang}`}>{NOM_RANG[rang]}</span>
+                    </div>
+                    <div className="faible quoi">{b.quoi}</div>
+
+                    {p && p.pct > 0 ? (
+                      <div className="avance">
+                        <div className="piste"><span style={{ width: `${p.pct}%` }} /></div>
+                        <span className="num">{p.n} / {p.sur}</span>
+                      </div>
+                    ) : null}
+
+                    <div className="pied num">
+                      {b.points > 0 ? <span className="gain">+{b.points} pts</span> : null}
+                      {combien && combien.n > 0
+                        ? <span className="faible">{combien.pct > 0 ? `${combien.pct} %` : "moins de 1 %"} des redboxers</span>
+                        : <span className="faible">personne ne l’a encore</span>}
+                      {a ? (
+                        <span className="faible">
+                          obtenu le {new Date(a.obtenu_le).toLocaleDateString("fr-FR",
+                            { timeZone: "Europe/Paris", day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
         </div>
 
         {/* -------------------------------------------------------- salons */}
@@ -191,6 +283,12 @@ function LignePalmares({ c, rang, moi, echelle }:
         <span className="qui">
           <span className="nom">
             <span>{c.pseudo}</span>
+            {/* Le badge le plus rare qu'elle porte : un seul se lit, quinze ne
+                se lisent pas. */}
+            {c.meilleur ? (
+              <Badge forme={c.meilleur.forme} taille={18} rang={rangDe(c.meilleur)}
+                     titre={`${c.meilleur.nom} — ${c.meilleur.quoi}`} />
+            ) : null}
             {c.editeur ? <span className="etiquette editeur">RedBox</span> : null}
             {moi ? <span className="etiquette">vous</span> : null}
           </span>

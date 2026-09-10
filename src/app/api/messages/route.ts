@@ -1,16 +1,21 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { signalerMessage } from "@/lib/notifications";
-import { deposer, marquerLu, messagesDe, peutEcrire, salonDe, TEXTE_MAX } from "@/lib/salons";
+import { deposer, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/messages?salon=&depuis=      ce qui est arrive apres `depuis`
+ * GET /api/messages?salon=&depuis=[&vus=1,2,3]
  *
- * C'est ce que le navigateur demande toutes les trois secondes quand le fil
- * est ouvert. Il a lu jusque-la : on le note, la pastille en depend. Une
- * lecture, un compteur — la messagerie n'a pas de connexion ouverte a tenir,
- * et elle marche derriere n'importe quel hebergeur.
+ * Ce que le navigateur demande toutes les trois secondes quand le fil est
+ * ouvert : les messages arrives apres `depuis`, et — si `vus` les nomme — les
+ * reactions de ceux qui sont deja a l'ecran. Une reaction se pose sur un vieux
+ * message, que `depuis` ne rendrait jamais ; sans cette seconde liste, un
+ * pouce n'apparaitrait qu'au rechargement de la page.
+ *
+ * Il a lu jusque-la : on le note, la pastille en depend. Une lecture, un
+ * compteur — la messagerie n'a pas de connexion ouverte a tenir, et elle
+ * marche derriere n'importe quel hebergeur.
  */
 export async function GET(req: Request) {
   const u = await utilisateurDe(req);
@@ -23,10 +28,14 @@ export async function GET(req: Request) {
   }
   const s = await salonDe(u, salon_id);
   if (!s) return Response.json({ erreur: "salon inconnu" }, { status: 404 });
-  const messages = await messagesDe(salon_id, { depuis, limite: 200 });
+  const vus = (url.searchParams.get("vus") ?? "").split(",").map(Number).filter(Number.isInteger);
+  const [messages, reactions] = await Promise.all([
+    messagesDe(salon_id, { depuis, limite: 200, moi: u.id }),
+    vus.length > 0 ? reactionsDes(salon_id, vus, u.id) : Promise.resolve({}),
+  ]);
   const dernier = messages.at(-1)?.id;
   if (dernier !== undefined) await marquerLu(u.id, salon_id, dernier);
-  return Response.json({ messages });
+  return Response.json({ messages, reactions });
 }
 
 /**

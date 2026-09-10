@@ -1,4 +1,4 @@
-import type { Forme } from "@/lib/communaute";
+import type { Forme, Rang } from "@/lib/communaute";
 
 /**
  * Un badge : une pastille ronde et un dessin dedans. Dessines, pas pris dans
@@ -16,10 +16,13 @@ const TRACES: Record<Forme, React.ReactNode> = {
   coeur:    <path d="M10 16.5s-6.5-4-6.5-8.3A3.4 3.4 0 0 1 10 6.3a3.4 3.4 0 0 1 6.5 1.9c0 4.3-6.5 8.3-6.5 8.3z" />,
 };
 
-export function Badge({ forme, obtenu = true, taille = 44, titre }:
-  { forme: Forme; obtenu?: boolean; taille?: number; titre?: string }) {
+export function Badge({ forme, obtenu = true, taille = 44, titre, rang }:
+  { forme: Forme; obtenu?: boolean; taille?: number; titre?: string;
+    /** La rarete teinte la pastille : gris, bleu, violet, or. Sans elle, l'or par defaut. */
+    rang?: Rang }) {
   return (
-    <span className={`badge-rond${obtenu ? "" : " eteint"}`} style={{ width: taille, height: taille }}
+    <span className={`badge-rond${obtenu ? "" : " eteint"}${rang ? " " + rang : ""}`}
+          style={{ width: taille, height: taille }}
           title={titre} aria-hidden={titre ? undefined : true}>
       <svg width={taille * 0.55} height={taille * 0.55} viewBox="0 0 20 20" fill="none"
            stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">

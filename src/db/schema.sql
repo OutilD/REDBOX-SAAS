@@ -942,3 +942,22 @@ CREATE TABLE IF NOT EXISTS salon_membre (
   utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
   PRIMARY KEY (salon_id, utilisateur_id)
 );
+
+-- LES REACTIONS.
+--
+-- Un pouce sous un message coute moins qu'une phrase, et dit la meme chose :
+-- « lu, et d'accord ». Dans une communaute d'exploitants qui se croisent peu,
+-- c'est le geste le plus frequent qu'on puisse offrir.
+--
+-- Une personne, un emoji, un message : la cle primaire dit qu'on ne peut pas
+-- applaudir deux fois. Reappuyer retire — c'est un interrupteur, pas un
+-- compteur. On ne reagit pas a soi-meme : la regle est en code, la ou elle se
+-- lit, plutot qu'en contrainte qui demanderait une jointure a chaque insertion.
+CREATE TABLE IF NOT EXISTS reaction (
+  message_id     BIGINT NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  emoji          TEXT NOT NULL,
+  cree_le        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id, utilisateur_id, emoji)
+);
+CREATE INDEX IF NOT EXISTS reaction_message ON reaction(message_id);

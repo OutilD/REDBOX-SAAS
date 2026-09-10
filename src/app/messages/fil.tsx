@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Message } from "@/lib/salons";
+import { EMOJIS, type Reaction } from "@/lib/reactions";
 import { initiales } from "@/lib/personnes";
+import { Badge } from "../communaute/badge";
 import { FUSEAU } from "@/lib/fuseau";
 
 type Salon = {
@@ -82,15 +84,31 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     if (enBas.current) window.scrollTo(0, document.documentElement.scrollHeight);
   }, [messages.length]);
 
+  // Ce qui est a l'ecran, sans refaire un rendu a chaque tour : le rafraichit
+  // le lit pour demander les reactions de ces messages-la.
+  const vus = useRef<number[]>([]);
+  vus.current = messages.map((m) => m.id);
+
   const rafraichir = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
     try {
-      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}`, { cache: "no-store" });
+      // Les cinquante derniers suffisent : au-dela on ne regarde plus, et
+      // l'adresse ne doit pas grandir sans fin.
+      const derniers = vus.current.slice(-50).join(",");
+      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}&vus=${derniers}`,
+                            { cache: "no-store" });
       if (!r.ok) return;
-      const { messages: neufs } = await r.json() as { messages: Message[] };
-      if (neufs.length > 0) poser((m) => {
+      const { messages: neufs, reactions } = await r.json() as
+        { messages: Message[]; reactions?: Record<number, Reaction[]> };
+      poser((m) => {
         const connus = new Set(m.map((x) => x.id));
-        return [...m, ...neufs.filter((x) => !connus.has(x.id))];
+        // Les reactions des messages deja la : le serveur fait foi, il a vu les
+        // appuis des autres. Un message absent de la reponse n'en a plus aucune.
+        const a_jour = reactions
+          ? m.map((x) => (x.supprime ? x : { ...x, reactions: reactions[x.id] ?? [] }))
+          : m;
+        const ajouts = neufs.filter((x) => !connus.has(x.id));
+        return ajouts.length > 0 ? [...a_jour, ...ajouts] : a_jour;
       });
     } catch { /* le prochain tour reessaiera */ }
   }, [salon.id, dernier]);
@@ -125,6 +143,35 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     }
   }
 
+  /**
+   * Poser ou retirer une reaction. La pastille bouge tout de suite — c'est un
+   * geste, il doit repondre comme un interrupteur — puis le serveur rend le
+   * compte vrai, qui tient compte des autres.
+   */
+  async function reagir(id: number, emoji: string) {
+    poser((m) => m.map((x) => {
+      if (x.id !== id) return x;
+      const a = x.reactions.find((r) => r.emoji === emoji);
+      const suite = a
+        ? x.reactions.map((r) => r.emoji === emoji ? { ...r, n: r.n + (r.mien ? -1 : 1), mien: !r.mien } : r)
+                     .filter((r) => r.n > 0)
+        : [...x.reactions, { emoji, n: 1, mien: true }];
+      return { ...x, reactions: suite };
+    }));
+    try {
+      const r = await fetch("/api/messages/reaction", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message_id: id, salon_id: salon.id, emoji }),
+      });
+      if (!r.ok) throw new Error();
+      const { reactions } = await r.json() as { reactions: Reaction[] };
+      poser((m) => m.map((x) => (x.id === id ? { ...x, reactions } : x)));
+    } catch {
+      // Refuse ou hors ligne : le prochain tour de rafraichissement remettra
+      // la barre telle qu'elle est vraiment.
+    }
+  }
+
   async function oter(id: number) {
     const r = await fetch("/api/messages/retirer", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -148,7 +195,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     const suite = precedent !== null
       && precedent.utilisateur_id === m.utilisateur_id
       && new Date(m.cree_le).getTime() - new Date(precedent.cree_le).getTime() < REGROUPE_MS;
-    rendu.push(<Bulle key={m.id} m={m} salon={salon} suite={suite} mien={m.utilisateur_id === moi} oter={oter} />);
+    rendu.push(<Bulle key={m.id} m={m} salon={salon} suite={suite} mien={m.utilisateur_id === moi}
+                      oter={oter} reagir={peutEcrire ? reagir : undefined} />);
     precedent = m;
   }
 
@@ -208,9 +256,12 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   );
 }
 
-function Bulle({ m, salon, suite, mien, oter }: {
+function Bulle({ m, salon, suite, mien, oter, reagir }: {
   m: Message; salon: Salon; suite: boolean; mien: boolean; oter: (id: number) => void;
+  /** Absent quand on ne peut pas ecrire ici : on ne repond pas non plus par un pouce. */
+  reagir?: (id: number, emoji: string) => void;
 }) {
+  const [choisir, ouvrir] = useState(false);
   const machine = m.utilisateur_id === null;
   const nom = machine ? (salon.borne ? court(salon.borne) : "RedBox") : (m.auteur ?? "quelqu’un");
   // La machine ecrit son sujet en premiere ligne, le detail en dessous.
@@ -237,6 +288,11 @@ function Bulle({ m, salon, suite, mien, oter }: {
             )}
             {/* D'ou il parle, quand le salon traverse les comptes : la marque
                 de l'editeur, le grade, et le nom de son exploitation. */}
+            {/* Le badge le plus rare qu'il porte, juste apres son nom : c'est
+                ce qui donne un visage a quelqu'un qu'on n'a jamais vu. */}
+            {!machine && m.badge ? (
+              <Badge forme={m.badge.forme} taille={17} titre={`${m.badge.nom} — ${m.badge.quoi}`} />
+            ) : null}
             {!machine && m.niveau !== null ? <span className="etiquette niveau" title="Niveau dans la communauté">Niv. {m.niveau}</span> : null}
             {!machine && m.editeur ? <span className="etiquette editeur">RedBox</span> : null}
             {!machine && salon.traverse && m.grade && !m.editeur ? <span className="etiquette grade">{m.grade}</span> : null}
@@ -253,6 +309,47 @@ function Bulle({ m, salon, suite, mien, oter }: {
           )}
           <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
         </div>
+
+        {/* CE QU'ON REPOND SANS ECRIRE. Un pouce coute moins qu'une phrase et
+            dit la meme chose ; dans un metier ou l'on se croise peu, c'est le
+            geste le plus frequent qu'on puisse offrir. On ne s'applaudit pas
+            soi-meme — la barre reste, en lecture seule, sous ses propres
+            messages. */}
+        {m.supprime || (m.reactions.length === 0 && !reagir) ? null : (
+          <div className="reactions">
+            {m.reactions.map((r) => (
+              <button key={r.emoji} type="button"
+                      className={`reaction${r.mien ? " mienne" : ""}`}
+                      disabled={!reagir || mien}
+                      onClick={() => reagir?.(m.id, r.emoji)}
+                      aria-pressed={r.mien}
+                      title={r.mien ? "Retirer ma réaction" : "Réagir"}>
+                <span className="e" aria-hidden>{r.emoji}</span><span className="num">{r.n}</span>
+              </button>
+            ))}
+            {reagir && !mien ? (
+              <span className="poser">
+                <button type="button" className={`ajout${choisir ? " actif" : ""}`}
+                        onClick={() => ouvrir((v) => !v)}
+                        aria-expanded={choisir} aria-label="Réagir à ce message">
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                       strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+                    <circle cx="10" cy="10" r="7.2" /><path d="M7.4 11.6a3.2 3.2 0 0 0 5.2 0" />
+                    <path d="M7.6 8h.01M12.4 8h.01" strokeWidth="2.2" />
+                  </svg>
+                </button>
+                {choisir ? (
+                  <span className="choix-emoji" role="menu">
+                    {EMOJIS.map((e) => (
+                      <button key={e} type="button" role="menuitem" title={e}
+                              onClick={() => { reagir(m.id, e); ouvrir(false); }}>{e}</button>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </div>
+        )}
       </div>
       {mien && !m.supprime ? (
         <form method="post" action="/api/messages/retirer" className="oter"

@@ -62,6 +62,14 @@
   --ambre-fond:   rgba(224,165,0,.13);
   --rouge-fond:   rgba(215,0,5,.14);
 
+  /* La rarete d'un badge. Quatre teintes qui se distinguent au premier coup
+     d'oeil et tiennent sur sombre comme sur clair — l'or au sommet, parce que
+     c'est la seule convention que tout le monde lit sans legende. */
+  --bleu:         #4d8dff;
+  --bleu-fond:    rgba(77,141,255,.14);
+  --violet:       #a274ff;
+  --violet-fond:  rgba(162,116,255,.14);
+
   /* Rythme.
      Des angles courts et des filets de 1 px plutot que de grosses ombres :
      l'ombre portee generalisee fait flotter chaque bloc et donne cet aspect
@@ -92,6 +100,8 @@
   --vert-fond: rgba(53,180,106,.12);
   --ambre-fond: rgba(224,165,0,.16);
   --rouge-fond: rgba(215,0,5,.09);
+  --bleu: #1d63d8;  --bleu-fond: rgba(29,99,216,.11);
+  --violet: #7433d4; --violet-fond: rgba(116,51,212,.11);
   --ombre: none;
 }
 
@@ -3437,6 +3447,79 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .msg.mien .bulle time { color: rgba(255,255,255,.78); }
 
 /* Retirer un des miens : la croix apparait a gauche de la bulle, au survol. */
+/* ------------------------------------------------------------- reactions */
+/*
+   LA BARRE SOUS UNE BULLE. Des pastilles comptees, et un bouton pour en
+   ajouter une. Elle suit le cote de la bulle : a gauche chez les autres, a
+   droite chez soi — sinon les siennes flotteraient dans le vide.
+
+   Le bouton « + » ne se montre qu'au survol tant qu'il n'y a rien : une barre
+   vide sous chaque message ferait une deuxieme ligne grise sur tout le fil.
+   Au doigt il n'y a pas de survol : sous 900 px il reste la, en pale.
+*/
+.msg .reactions {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  margin: 4px 0 0 6px; min-height: 24px;
+}
+.msg.mien .reactions { margin: 4px 6px 0 0; justify-content: flex-end; }
+
+.msg .reaction {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px 2px 7px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--bord); background: var(--surface-2); color: var(--texte-2);
+  font-size: 12px; font-weight: 700; line-height: 1.5;
+  transition: border-color .12s ease, background .12s ease, transform .12s ease;
+}
+.msg .reaction .e { font-size: 13px; line-height: 1; }
+.msg .reaction:hover:not(:disabled) { border-color: var(--bord-fort); background: var(--surface-3); }
+.msg .reaction:active:not(:disabled) { transform: scale(.94); }
+.msg .reaction:disabled { cursor: default; }
+/* La mienne : c'est un interrupteur enfonce, il se voit comme tel. */
+.msg .reaction.mienne {
+  border-color: color-mix(in srgb, var(--rouge) 55%, transparent);
+  background: var(--rouge-fond); color: var(--rouge-vif);
+}
+
+.msg .poser { position: relative; display: inline-flex; }
+.msg .poser .ajout {
+  display: grid; place-items: center; width: 26px; height: 24px; padding: 0;
+  border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--bord); background: var(--surface-2); color: var(--texte-3);
+  opacity: 0; transition: opacity .12s ease, color .12s ease, border-color .12s ease;
+}
+.msg:hover .poser .ajout, .msg:focus-within .poser .ajout,
+.msg .reaction + .poser .ajout, .msg .poser .ajout.actif { opacity: 1; }
+.msg .poser .ajout:hover, .msg .poser .ajout.actif { color: var(--texte); border-color: var(--bord-fort); }
+
+/* Le choix : six gestes, toujours les memes. Il s'ouvre VERS LE BAS, et c'est
+   le point : au-dessus, il recouvrait la bulle a laquelle on est en train de
+   repondre — on cachait la phrase au moment de la juger. Dessous il ne masque
+   au pire que le message suivant, et rien du tout sur le dernier du fil, qui
+   est celui auquel on reagit le plus souvent.
+
+   Pose en absolu plutot qu'en flux : le fil ne doit pas se decaler sous le
+   doigt au moment ou l'on vise. */
+.msg .choix-emoji {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+  display: flex; gap: 2px; padding: 5px;
+  border: 1px solid var(--bord-fort); border-radius: 999px; background: var(--surface);
+}
+.msg.mien .choix-emoji { left: auto; right: 0; }
+.msg .choix-emoji button {
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer; font-size: 16px; line-height: 1;
+  transition: background .12s ease, transform .12s ease;
+}
+.msg .choix-emoji button:hover { background: var(--surface-2); transform: scale(1.15); }
+
+@media (max-width: 899px) {
+  .msg .poser .ajout { opacity: .55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg .reaction, .msg .choix-emoji button { transition: none; }
+  .msg .reaction:active:not(:disabled), .msg .choix-emoji button:hover { transform: none; }
+}
+
 .msg .oter { display: none; align-self: center; }
 .msg:hover .oter, .msg:focus-within .oter { display: block; }
 .msg .oter .bouton { min-height: 28px; width: 28px; padding: 0; font-size: 16px; }
@@ -3523,16 +3606,78 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .personne .sous-nom { display: block; font-size: 12px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .personne:hover .nom { text-decoration: underline; }
 
+/* ------------------------------------------------------ badges et rarete */
+/*
+   LA RARETE SE VOIT AVANT DE SE LIRE. Quatre teintes, du gris a l'or, posees
+   sur la pastille et rappelees sur l'etiquette : un badge a mille points ne
+   doit pas avoir la meme allure qu'un badge a vingt. Eteint, tout retombe en
+   gris — ce qu'on n'a pas ne se pare pas.
+*/
 .badge-rond {
   display: inline-grid; place-items: center; border-radius: 50%; flex: none;
-  background: var(--ambre-fond); color: var(--ambre); border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
+  background: var(--ambre-fond); color: var(--ambre);
+  border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
 }
-.badge-rond.eteint { background: var(--surface-2); color: var(--texte-3); border-color: var(--bord); }
+.badge-rond.commun     { background: var(--surface-3); color: var(--texte-2);
+                         border-color: var(--bord-fort); }
+.badge-rond.rare       { background: var(--bleu-fond); color: var(--bleu);
+                         border-color: color-mix(in srgb, var(--bleu) 40%, transparent); }
+.badge-rond.epique     { background: var(--violet-fond); color: var(--violet);
+                         border-color: color-mix(in srgb, var(--violet) 40%, transparent); }
+.badge-rond.legendaire { background: var(--ambre-fond); color: var(--ambre);
+                         border-color: color-mix(in srgb, var(--ambre) 45%, transparent); }
+.badge-rond.eteint,
+.badge-rond.eteint.commun, .badge-rond.eteint.rare,
+.badge-rond.eteint.epique, .badge-rond.eteint.legendaire {
+  background: var(--surface-2); color: var(--texte-3); border-color: var(--bord);
+}
+
+.etiquette.rang { border-color: transparent; font-size: 9.5px; padding: 0 6px; letter-spacing: .04em; }
+.etiquette.rang.commun     { background: var(--surface-3); color: var(--texte-3); }
+.etiquette.rang.rare       { background: var(--bleu-fond); color: var(--bleu); }
+.etiquette.rang.epique     { background: var(--violet-fond); color: var(--violet); }
+.etiquette.rang.legendaire { background: var(--ambre-fond); color: var(--ambre); }
+
 .badges-rangee { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 .badge-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-.badges-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px 18px; }
-.badge-fiche { display: flex; gap: 12px; align-items: flex-start; }
-.badge-fiche.eteint { opacity: .6; }
+
+/* Chaque badge est une fiche a lui : un filet, le nom, sa rarete, ou l'on en
+   est s'il se compte, ce qu'il rapporte et combien de gens l'ont. Aligner tout
+   cela dans une simple rangee de texte le rendait illisible des qu'il y avait
+   trois chiffres. */
+.badges-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+.badge-fiche {
+  display: flex; gap: 12px; align-items: flex-start; min-width: 0;
+  padding: 12px 14px; border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface);
+}
+.badge-fiche.legendaire { border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
+.badge-fiche.epique     { border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.badge-fiche.eteint { background: transparent; border-style: dashed; }
+.badge-fiche.eteint,
+.badge-fiche.eteint.legendaire, .badge-fiche.eteint.epique { border-color: var(--bord); }
+.badge-fiche .dit { min-width: 0; flex: 1; }
+.badge-fiche .nom {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  font-weight: 700; font-size: 14px; letter-spacing: -.01em;
+}
+.badge-fiche .quoi { font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+/* Ce qui reste a faire, quand ca se compte. Une barre fine : c'est une
+   indication, pas le sujet de la fiche. */
+.badge-fiche .avance { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.badge-fiche .avance .piste {
+  flex: 1; min-width: 0; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden;
+}
+.badge-fiche .avance .piste > span {
+  display: block; height: 100%; border-radius: 3px; min-width: 2px; background: var(--texte-3);
+}
+.badge-fiche .avance .num { font-size: 11.5px; color: var(--texte-2); font-weight: 700; flex: none; }
+.badge-fiche .pied {
+  display: flex; align-items: baseline; gap: 5px 10px; flex-wrap: wrap;
+  font-size: 11.5px; margin-top: 6px;
+}
+.badge-fiche .pied .gain { color: var(--vert); font-weight: 750; }
+.badge-fiche.eteint .pied .gain { color: var(--texte-2); }
 
 /* LE PALMARES DES REDBOXERS. Il ne s'appelle PAS `classement` : ce nom etait
    deja pris plus haut par le classement des bornes du tableau de bord, dont la
@@ -3634,6 +3779,104 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   .palmares .pts .n { font-size: 17px; }
   .palmares .nom .etiquette { font-size: 10px; padding: 0 6px; }
   .palmares .qui .compte { display: none; }
+}
+
+/* --------------------------------------------------- ou j'en suis, et apres */
+/*
+   LA CARTE DE SOI. Le portrait est POSE DANS l'anneau du niveau : deux ronds
+   cote a cote se disputeraient le regard, l'un dedans l'autre n'en fait qu'un,
+   et la part parcourue se lit tout autour du visage.
+*/
+.moi-carte .haut-moi {
+  display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap;
+}
+.moi-carte .face { position: relative; display: grid; place-items: center; flex: none; }
+.moi-carte .dans-anneau { position: absolute; display: grid; place-items: center; }
+
+.anneau-niveau { position: relative; display: grid; place-items: center; flex: none; }
+.anneau-niveau svg { display: block; }
+.anneau-niveau .piste { stroke: var(--surface-3); }
+.anneau-niveau .part { stroke: var(--rouge); transition: stroke-dashoffset .4s ease; }
+/* Dans la carte de soi l'anneau entoure un portrait : son chiffre irait par
+   dessus le visage. Il se pose sous l'anneau, en pastille. */
+.anneau-niveau .dedans { display: grid; place-items: center; position: absolute; line-height: 1; }
+.anneau-niveau .dedans small {
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-3); margin-top: 1px;
+}
+.moi-carte .face .anneau-niveau .dedans {
+  position: absolute; bottom: -10px; top: auto;
+  grid-auto-flow: column; align-items: baseline; gap: 4px;
+  padding: 1px 9px 2px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--bord-fort);
+}
+/* La taille du chiffre est posee en style en ligne par le composant, qui la
+   calcule sur le diametre. Ici l'anneau entoure un visage : le chiffre passe
+   en pastille sous le cercle, et une pastille ne se mesure pas au diametre. */
+.moi-carte .face .anneau-niveau .dedans b { font-size: 13px !important; }
+.moi-carte .face .anneau-niveau .dedans small { margin: 0; }
+
+.moi-carte .nom-moi {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 21px; font-weight: 760; letter-spacing: -.025em;
+}
+.moi-carte .actions-moi { flex: none; }
+
+/* La barre du niveau : ce qui est fait, ce qui reste, et le chiffre au bout. */
+.barre-niveau { margin-top: 11px; max-width: 420px; }
+.barre-niveau .piste { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.barre-niveau .piste > span {
+  display: block; height: 100%; border-radius: 4px; min-width: 4px;
+  background: linear-gradient(90deg, var(--rouge-sourd), var(--rouge));
+}
+.barre-niveau .dit {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-top: 5px; font-size: 12px; flex-wrap: wrap;
+}
+.barre-niveau .dit b { font-weight: 780; color: var(--texte); }
+
+/* D'ou viennent les points. Sans ce compte, « 1109 » tombe du ciel et l'on ne
+   sait pas quoi faire pour l'augmenter. */
+.moi-carte .mesures-moi {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+  margin-top: 16px; border-top: 1px solid var(--bord); padding-top: 13px;
+}
+.moi-carte .mesures-moi > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.moi-carte .mesures-moi b { font-size: 19px; font-weight: 780; letter-spacing: -.03em; }
+.moi-carte .mesures-moi span { font-size: 11.5px; color: var(--texte-3); line-height: 1.3; }
+
+/* LES PROCHAINS OBJECTIFS. Trois, pas quinze : une liste de quinze choses a
+   faire ne se lit pas comme un but, elle se lit comme une corvee. */
+.objectifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.objectif {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px;
+  padding: 13px 15px; border: 1px solid var(--bord); border-radius: var(--r-l);
+  background: var(--surface);
+}
+.objectif.legendaire { border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
+.objectif.epique     { border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.objectif .quoi { min-width: 0; }
+.objectif .nom { font-weight: 700; font-size: 14.5px; letter-spacing: -.01em; }
+.objectif .quoi .faible { font-size: 12px; line-height: 1.35; margin-top: 1px; }
+.objectif .ou { grid-column: 1 / -1; margin-top: 9px; }
+.objectif .ou .piste { height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.objectif .ou .piste > span {
+  display: block; height: 100%; border-radius: 4px; min-width: 3px;
+  background: linear-gradient(90deg, var(--rouge-sourd), var(--rouge));
+}
+.objectif .chiffres {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: 6px; font-size: 12px; color: var(--texte-3);
+}
+.objectif .chiffres b { color: var(--texte); font-weight: 780; font-size: 13.5px; }
+.objectif .chiffres .gain { color: var(--vert); font-weight: 750; }
+
+/* Le badge le plus rare, colle au pseudo dans le palmares et dans un fil. */
+.palmares .nom .badge-rond, .msg .entete-msg .badge-rond { flex: none; }
+
+@media (max-width: 620px) {
+  .moi-carte .mesures-moi { grid-template-columns: repeat(2, 1fr); gap: 12px 1px; }
+  .moi-carte .actions-moi { width: 100%; }
+  .moi-carte .actions-moi .bouton { flex: 1; justify-content: center; }
 }
 
 .couleurs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }

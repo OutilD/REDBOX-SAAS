@@ -35,7 +35,7 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
   const salons = await salonsDe(u);
   const salon = salon_id !== undefined ? await salonDe(u, salon_id) : null;
   const [messages, lecteurs] = salon
-    ? await Promise.all([messagesDe(salon.id, { limite: 80 }), lecteursDe(u, salon)])
+    ? await Promise.all([messagesDe(salon.id, { limite: 80, moi: u.id }), lecteursDe(u, salon)])
     : [[], null];
   if (salon && messages.length > 0) await marquerLu(u.id, salon.id, messages[messages.length - 1].id);
 
