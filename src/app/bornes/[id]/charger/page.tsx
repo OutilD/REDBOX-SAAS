@@ -55,7 +55,7 @@ export default async function Charger({ params, searchParams }:
 
   return (
     <>
-      <Entete page="bornes" />
+      <Entete page="charger" />
       <main className="ecran">
         <div className="tete-borne">
           <Link href={`/bornes/${id}`} className="bouton petit retour"

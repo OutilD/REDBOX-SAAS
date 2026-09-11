@@ -155,7 +155,7 @@ export default async function Stock(
         {peutCharger(u) ? (
           <div className="rangee-actions" style={{ marginBottom: 18 }}>
             <Link href="/reception" className="bouton primaire">+ Réception</Link>
-            <Link href="/bornes" className="bouton">Charger une RedBox</Link>
+            <Link href="/charger" className="bouton">Réassortir une RedBox</Link>
           </div>
         ) : null}
 

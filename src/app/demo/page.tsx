@@ -71,7 +71,7 @@ export default async function Demo({ searchParams }:
                     deux de vos visites, confirment les chargements que vous saisissez, répondent
                     aux corrections de compteur et restent en ligne.</li>
                 <li>Vous pouvez tout faire comme pour de vrai : recevoir de la marchandise,
-                    charger une RedBox, traiter un litige, poser un prix, composer l’écran d’accueil,
+                    réassortir une RedBox, traiter un litige, poser un prix, composer l’écran d’accueil,
                     inviter quelqu’un.</li>
                 <li>Une <b>vraie</b> machine ne peut pas être appairée tant que le mode démo est
                     actif : ses ventes se mêleraient aux ventes inventées.</li>

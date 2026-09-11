@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { q } from "@/db";
-import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
+import { nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
@@ -13,7 +13,7 @@ import { clesVapid } from "@/lib/notifications";
 import InviteNotifications from "./invite-notifications";
 
 export type Page =
-  | "tableau" | "analytiques" | "stock" | "reception" | "reassort"
+  | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger"
   | "bornes" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo";
@@ -56,7 +56,11 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: (u) => u.bornes === null },
       { cle: "reception", nom: "Réception", icone: <IcoReception />, vers: "/reception",
         droit: (u) => u.bornes === null },
-      { cle: "reassort",  nom: "Réassort",  icone: <IcoReassort />,  vers: "/reassort" },
+      // Le reassort d'une machine : on choisit la RedBox, on est sur son ecran de
+      // chargement. La fiche d'approvisionnement (plusieurs RedBox, a imprimer)
+      // se rejoint depuis ce choix.
+      { cle: "charger",   nom: "Réassort", icone: <IcoReassort />, vers: "/charger",
+        droit: peutCharger },
     ],
   },
   {
@@ -91,7 +95,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 /** La page ouverte, ramenee a l'onglet du pouce qui la contient. */
 const FAMILLE: Partial<Record<Page, Page>> = {
   analytiques: "tableau",
-  reception: "stock", reassort: "stock",
+  reception: "stock", reassort: "stock", charger: "stock",
   catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
   sav: "reglages", notifications: "reglages",
 };
@@ -106,6 +110,7 @@ const FIL: Record<Page, [string, string?]> = {
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Fiche d’approvisionnement", "Approvisionnement"],
+  charger:    ["Réassort", "Approvisionnement"],
   reglages:   ["Réglages"],
   catalogue:  ["Catalogue", "Configuration"],
   categories: ["Catégories", "Configuration"],
@@ -339,6 +344,8 @@ export async function Entete({ page, borne, fenetre, periode }:
 
 function cheminDe(page: Page): string {
   for (const s of SECTIONS) for (const i of s.items) if (i.cle === page) return i.vers;
+  // La fiche d'approvisionnement n'a plus d'entree au menu, mais une adresse.
+  if (page === "reassort") return "/reassort";
   return "/reglages";
 }
 
