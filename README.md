@@ -77,10 +77,13 @@ total. Une spire qui se vide déclenche l’alerte « spire vide », en précisa
 ce qu’il en reste sur les autres spires ; « produit épuisé » seulement quand
 il n’en reste nulle part sur la machine.
 
-## Tableau de bord
+## Tableau de bord et analytiques
 
-Il répond à quatre questions, dans cet ordre : est-ce que ça tourne, combien ça
-rapporte, quelle borne marche le mieux, qu’est-ce qui va manquer.
+Le tableau de bord ne répond qu'à deux questions : combien ça rapporte et dans
+quel sens ça va, et qu'est-ce qui demande une main tout de suite. Il tient sur
+un écran. Tout ce qui se lit en prenant le temps — jour par jour, quelle borne
+marche le mieux, ce qui se vend, les catégories, ce qui va manquer — est sur la
+page **Analytiques**, avec la même période et la même borne dans l'adresse.
 
 **Seule une vente distribuée compte.** Un litige est un problème d’argent, pas un
 chiffre d’affaires ; le compter gonflerait le total d’exactement le montant qu’il

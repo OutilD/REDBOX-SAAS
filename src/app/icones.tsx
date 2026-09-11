@@ -38,6 +38,14 @@ export const IcoTableau = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Analytiques : une courbe qui monte, sur son axe. */
+export const IcoAnalyses = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 3.5v13.5h14" />
+    <path d="M6 12.5l3.5-3.5 2.5 2.5 5-5" />
+  </svg>
+);
+
 /** Ventes : un ticket de caisse. */
 export const IcoVentes = ({ size = 20 }: P) => (
   <svg {...base(size)}>

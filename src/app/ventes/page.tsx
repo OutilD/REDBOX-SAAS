@@ -142,13 +142,15 @@ export default async function Ventes(
           Ce que les RedBox ont remonté. Le SaaS n’encaisse rien : l’argent est chez votre processeur de paiement.
         </p>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {/* Le meme segment que le tableau de bord : quatre etats d'un seul
+            reglage, pas quatre boutons detaches. */}
+        <nav className="periodes" aria-label="Période observée" style={{ marginBottom: 16 }}>
           {FENETRES.map((x) => (
             <Link key={x.cle}
                   href={choisie ? `/ventes?f=${x.cle}&b=${choisie.id}` : `/ventes?f=${x.cle}`}
-                  className={`bouton petit ${x.cle === fen.cle ? "primaire" : ""}`}>{x.nom}</Link>
+                  aria-current={x.cle === fen.cle ? "true" : undefined}>{x.nom}</Link>
           ))}
-        </div>
+        </nav>
 
         <div className="bandeau quatre">
           <div><div className="stat">
