@@ -15,6 +15,8 @@
  * la borne qui l'emploie — et sa file ne se viderait plus.
  */
 
+import { anterieureA } from "./borne";
+
 export const A_REGARDER = ["litige", "chute_non_detectee", "non_distribue"] as const;
 export const AVORTEES = ["age_refuse", "carte_absente", "carte_refusee",
                          "terminal_indisponible", "avortee"] as const;
@@ -61,13 +63,6 @@ export function statutRecu(version: string | null | undefined, statut: string,
     return "avortee";
   }
   return statut;
-}
-
-function anterieureA(version: string | null | undefined, majeure: number, mineure: number): boolean {
-  const m = /^(\d+)\.(\d+)/.exec(version ?? "");
-  if (!m) return true;                      // pas de version : une vieille borne
-  const a = Number(m[1]), b = Number(m[2]);
-  return a < majeure || (a === majeure && b < mineure);
 }
 
 /**

@@ -25,6 +25,83 @@ export type Borne = {
  * Au-dela de dix minutes, le panier d'un client parti attend le suivant, qui
  * paierait ce qu'il n'a pas choisi.
  */
+/**
+ * LA VERSION DE L'APPLICATION DE LA BORNE, ET CE QU'ON EN ATTEND.
+ *
+ * Deux reperes, parce qu'un parc en retard n'est pas forcement un parc casse :
+ *
+ *   VERSION_MINIMALE  en dessous, des fonctions de la console ne marchent plus.
+ *                     Le journal ne voyage qu'a partir de la 5.13, et les
+ *                     bornes anterieures ne distinguaient aucun motif
+ *                     d'abandon : tout arrivait en « non distribue » sans
+ *                     canal. C'est un defaut a corriger, pas une preference.
+ *
+ *   VERSION_ATTENDUE  la plus recente que cette console connaisse. Entre les
+ *                     deux, la machine fonctionne : elle a seulement une mise
+ *                     a jour disponible.
+ *
+ * Une seule definition, parce que plusieurs pages posent la question et qu'un
+ * seuil recopie finirait par diverger — la moitie du parc semblerait en retard
+ * sur une page et a jour sur une autre.
+ *
+ * A RELEVER a chaque version de l'application de la borne. Tant que ce chiffre
+ * n'est pas releve, une machine plus recente que la console s'affiche « a jour »,
+ * ce qui est le bon defaut : la console ne peut pas connaitre l'avenir.
+ */
+export const VERSION_MINIMALE = "5.13";
+export const VERSION_ATTENDUE = "5.14";
+
+/**
+ * Compare deux versions « majeure.mineure ». Rend un nombre negatif si `a` est
+ * anterieure a `b`, zero si elles sont egales, positif sinon.
+ *
+ * Une version illisible ou absente compte comme la plus ancienne : une borne
+ * qui ne dit pas ce qu'elle est n'a jamais annonce de version, donc elle date
+ * d'avant que les bornes le fassent.
+ */
+export function comparerVersions(a: string | null | undefined, b: string): number {
+  const lire = (v: string | null | undefined): [number, number] => {
+    const m = /^(\d+)\.(\d+)/.exec(v ?? "");
+    return m ? [Number(m[1]), Number(m[2])] : [-1, -1];
+  };
+  const [am, an] = lire(a), [bm, bn] = lire(b);
+  return am !== bm ? am - bm : an - bn;
+}
+
+/** Vrai si `version` est strictement anterieure a `majeure.mineure`. */
+export function anterieureA(version: string | null | undefined,
+                            majeure: number, mineure: number): boolean {
+  return comparerVersions(version, `${majeure}.${mineure}`) < 0;
+}
+
+export type EtatVersion = {
+  /** `perimee` : des fonctions ne marchent plus. `retard` : simple mise a jour. */
+  etat: "inconnue" | "perimee" | "retard" | "a_jour";
+  /** Ce que la pilule dit, sans le mot « version ». */
+  dit: string;
+  /** La teinte de la pilule : celle des autres etats de la carte. */
+  ton: "mal" | "attente" | "ok" | "";
+  /** Vrai des qu'il y a quelque chose a faire — ce que compte l'onglet. */
+  aFaire: boolean;
+};
+
+/**
+ * CE QU'IL FAUT DIRE D'UNE VERSION. La page n'a pas a comparer des chaines :
+ * elle pose la question ici et affiche la reponse.
+ */
+export function etatVersion(version: string | null | undefined): EtatVersion {
+  if (!version) {
+    return { etat: "inconnue", dit: "version inconnue", ton: "attente", aFaire: true };
+  }
+  if (comparerVersions(version, VERSION_MINIMALE) < 0) {
+    return { etat: "perimee", dit: `${version} · à mettre à jour`, ton: "mal", aFaire: true };
+  }
+  if (comparerVersions(version, VERSION_ATTENDUE) < 0) {
+    return { etat: "retard", dit: `${version} · mise à jour disponible`, ton: "attente", aFaire: true };
+  }
+  return { etat: "a_jour", dit: version, ton: "", aFaire: false };
+}
+
 export const INACTIVITE_MIN = 20;
 export const INACTIVITE_MAX = 600;
 export const INACTIVITE_DEFAUT = 90;

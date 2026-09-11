@@ -5,6 +5,7 @@ import { q, enLigne, depuis, pli } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { Repli } from "../repli";
 import { IcoBorne, IcoLoupe } from "../icones";
+import { VERSION_ATTENDUE, VERSION_MINIMALE, etatVersion } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ const VUES = [
   { cle: "", nom: "Toutes" },
   { cle: "charger", nom: "À charger" },
   { cle: "muettes", nom: "Hors ligne" },
+  { cle: "version", nom: "À mettre à jour" },
   { cle: "appairer", nom: "À appairer" },
 ] as const;
 
@@ -99,12 +101,17 @@ export default async function Bornes({ searchParams }:
   const unites = bornes.reduce((s, b) => s + b.unites, 0);
   const capacite = bornes.reduce((s, b) => s + b.capacite, 0);
   const aCharger = bornes.filter((b) => b.vides > 0 || b.bas > 0).length;
+  // Une borne pas encore appairee n'a jamais annoncé sa version : elle serait
+  // comptee « a mettre a jour » alors qu'il n'y a rien a mettre a jour — elle
+  // a son propre onglet.
+  const aJourNon = bornes.filter((b) => b.jeton && etatVersion(b.version).aFaire).length;
 
   const mots = pli(cherche);
   const visibles = bornes
     .filter((b) => vue === "" ? true
                  : vue === "charger" ? b.vides > 0 || b.bas > 0
                  : vue === "muettes" ? Boolean(b.jeton) && !enLigne(b.vue_le)
+                 : vue === "version" ? Boolean(b.jeton) && etatVersion(b.version).aFaire
                  : !b.jeton)
     .filter((b) => !mots || pli(b.nom).includes(mots) || pli(b.adresse ?? "").includes(mots));
 
@@ -218,7 +225,8 @@ export default async function Bornes({ searchParams }:
                 {VUES.map((x) => {
                   const n = x.cle === "" ? bornes.length
                           : x.cle === "charger" ? aCharger
-                          : x.cle === "muettes" ? muettes : aAppairer;
+                          : x.cle === "muettes" ? muettes
+                          : x.cle === "version" ? aJourNon : aAppairer;
                   return (
                     <Link key={x.cle || "toutes"} href={lien({ v: x.cle })}
                           aria-current={x.cle === vue ? "true" : undefined}>
@@ -311,7 +319,39 @@ function CarteBorne({ b }: { b: Ligne }) {
               : null}
         {b.en_route > 0
           ? <span className="pilule attente"><i />{b.en_route} en route</span> : null}
+        {/* LA VERSION DE LA MACHINE. Elle ne se voyait que sur la fiche, une
+            borne a la fois : pour savoir laquelle du parc etait en retard il
+            fallait ouvrir les vingt. Une borne pas encore appairee n'a rien
+            annonce — on ne lui reproche pas une version qu'elle n'a pas.
+            A jour, la pilule reste grise : c'est un renseignement, pas une
+            alerte, et trois pilules de couleur par carte ne se lisent plus. */}
+        {b.jeton ? <PiluleVersion version={b.version} /> : null}
       </div>
     </Link>
+  );
+}
+
+/**
+ * LA VERSION, ET S'IL FAUT S'EN OCCUPER.
+ *
+ * Trois etats, trois tons : rouge quand des fonctions de la console ne marchent
+ * plus a cette version, ambre quand il y a simplement une mise a jour, gris
+ * quand tout va bien. L'infobulle dit pourquoi, parce que « 5.12 » ne veut rien
+ * dire a qui ne suit pas les versions de l'application.
+ */
+function PiluleVersion({ version }: { version: string | null }) {
+  const v = etatVersion(version);
+  const pourquoi =
+    v.etat === "perimee"
+      ? `Cette machine est en ${version}. En dessous de la ${VERSION_MINIMALE}, le journal ne remonte pas et les abandons arrivent sans motif.`
+      : v.etat === "retard"
+        ? `Cette machine est en ${version}. La ${VERSION_ATTENDUE} est disponible.`
+        : v.etat === "inconnue"
+          ? "Cette machine n’a pas encore annoncé sa version."
+          : `Cette machine est à jour (${VERSION_ATTENDUE}).`;
+  return (
+    <span className={`pilule ${v.ton}`} title={pourquoi}>
+      {v.ton ? <i /> : null}version {v.dit}
+    </span>
   );
 }
