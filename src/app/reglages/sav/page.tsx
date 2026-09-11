@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q1 } from "@/db";
+import { q, q1 } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { TEL_MAX, TEXTE_DEFAUT, TEXTE_MAX } from "@/lib/sav";
 
@@ -22,16 +22,22 @@ export default async function Sav({
   if (!peutConfigurer(u)) redirect("/reglages");
   const { e } = await searchParams;
 
-  const [c, bornes] = await Promise.all([
+  const [c, bornes, propres] = await Promise.all([
     q1<{ sav_tel: string | null; sav_texte: string | null }>(
       "SELECT sav_tel, sav_texte FROM compte WHERE id = $1", [u.compte_id]),
     q1<{ n: number }>(
       "SELECT COUNT(*)::int n FROM borne WHERE compte_id = $1", [u.compte_id]),
+    // Celles qui affichent autre chose : sans cette liste, on changerait le
+    // numero du compte en se demandant pourquoi une machine ne suit pas.
+    q<{ id: number; nom: string; sav_tel: string }>(
+      `SELECT id, nom, sav_tel FROM borne
+        WHERE compte_id = $1 AND NULLIF(trim(sav_tel), '') IS NOT NULL
+        ORDER BY nom`, [u.compte_id]),
   ]);
 
   const tel = (c?.sav_tel ?? "").trim();
   const texte = (c?.sav_texte ?? "").trim();
-  const n = bornes?.n ?? 0;
+  const n = (bornes?.n ?? 0) - propres.length;
 
   const messages: Record<string, string> = {
     tel: "Ce numéro ne contient pas assez de chiffres pour qu’on puisse appeler.",
@@ -68,9 +74,26 @@ export default async function Sav({
           </div>
           <p className="faible" style={{ fontSize: 13, marginTop: 12, marginBottom: 0 }}>
             Laissez le numéro vide pour ne rien afficher du tout.
-            {n > 0 ? ` La modification part sur vos ${n} RedBox à leur prochaine synchronisation.` : ""}
+            {n > 0
+              ? ` La modification part sur ${propres.length > 0 ? "les" : "vos"} ${n} RedBox${propres.length > 0 ? " qui n’ont pas leur propre numéro" : ""}, à leur prochaine synchronisation.`
+              : ""}
+            {" "}Une RedBox peut avoir son propre numéro : il se règle sur sa fiche.
           </p>
         </form>
+
+        {propres.length > 0 ? (
+          <>
+            <h2>RedBox avec leur propre numéro</h2>
+            <div className="carte plate"><div className="lignes">
+              {propres.map((b) => (
+                <Link className="ligne" key={b.id} href={`/bornes/${b.id}/fiche`}>
+                  <div className="corps"><div className="nom">{b.nom}</div></div>
+                  <div className="fin num">{b.sav_tel.trim()}</div>
+                </Link>
+              ))}
+            </div></div>
+          </>
+        ) : null}
 
         <h2>Ce que verra le client</h2>
         <div className="carte" style={{ background: "#0d0d10", borderColor: "#23232a" }}>

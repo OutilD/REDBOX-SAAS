@@ -366,11 +366,13 @@ CREATE INDEX IF NOT EXISTS visuel_playlist ON visuel (playlist_id, ordre);
 -- dire : il s'en va, et l'exploitant ne saura jamais qu'il a perdu une vente et
 -- un client. Un numero affiche coute une ligne de texte et rattrape les deux.
 --
--- Il vit sur le COMPTE et non sur la borne : c'est le meme exploitant qui
--- repond pour toutes ses machines. Une borne qui aurait besoin du sien pourra
--- l'obtenir plus tard sans defaire celui-ci.
+-- Il vit sur le COMPTE : c'est le meme exploitant qui repond pour toutes ses
+-- machines. Une borne peut porter le sien (un bar qui repond pour la machine
+-- qu'il heberge) ; vide, elle affiche celui du compte.
 ALTER TABLE compte ADD COLUMN IF NOT EXISTS sav_tel   TEXT;
 ALTER TABLE compte ADD COLUMN IF NOT EXISTS sav_texte TEXT;
+ALTER TABLE borne  ADD COLUMN IF NOT EXISTS sav_tel   TEXT;
+ALTER TABLE borne  ADD COLUMN IF NOT EXISTS sav_texte TEXT;
 
 -- ------------------------------------------------------- fiche produit
 

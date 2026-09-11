@@ -11,9 +11,10 @@ import { q1 } from "@/db";
  *
  * Un numero affiche coute une ligne de texte et rattrape les deux.
  *
- * IL VIT SUR LE COMPTE, PAS SUR LA BORNE : c'est le meme exploitant qui repond
- * pour toutes ses machines. Une borne qui aurait besoin du sien pourra en
- * recevoir un plus tard sans defaire celui-ci.
+ * IL VIT SUR LE COMPTE : c'est le meme exploitant qui repond pour toutes ses
+ * machines. Une borne peut pourtant porter le sien — le bar qui l'heberge
+ * repond pour elle, un associe tient un quartier. Vide, elle prend celui du
+ * compte : un exploitant a un seul numero n'a rien a regler machine par machine.
  */
 
 export type Sav = { tel: string; texte: string };
@@ -46,9 +47,16 @@ export function telPlausible(tel: string): boolean {
   return (tel.match(/[0-9]/g) ?? []).length >= 6;
 }
 
-export async function savDe(compte_id: number): Promise<Sav | null> {
+/**
+ * Ce que CETTE borne affiche : son numero s'il en a un, sinon celui du compte.
+ * La phrase suit la meme regle, champ par champ.
+ */
+export async function savDe(compte_id: number, borne_id?: number): Promise<Sav | null> {
   const r = await q1<{ sav_tel: string | null; sav_texte: string | null }>(
-    "SELECT sav_tel, sav_texte FROM compte WHERE id = $1", [compte_id]);
+    `SELECT COALESCE(NULLIF(trim(b.sav_tel), ''), c.sav_tel)     AS sav_tel,
+            COALESCE(NULLIF(trim(b.sav_texte), ''), c.sav_texte) AS sav_texte
+       FROM compte c LEFT JOIN borne b ON b.id = $2 AND b.compte_id = c.id
+      WHERE c.id = $1`, [compte_id, borne_id ?? null]);
   const tel = (r?.sav_tel ?? "").trim();
   if (!tel) return null;
   return { tel, texte: (r?.sav_texte ?? "").trim() || TEXTE_DEFAUT };

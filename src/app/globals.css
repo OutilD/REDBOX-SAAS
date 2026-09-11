@@ -1144,6 +1144,9 @@ input[type="radio"]:focus, input[type="checkbox"]:focus {
               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ligne .meta { font-size: 13px; color: var(--texte-3); margin-top: 2px; }
 .ligne .fin { text-align: right; flex: none; }
+a.ligne { color: inherit; text-decoration: none; }
+a.ligne:hover .nom { color: var(--rouge-vif); }
+a.ligne:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 
 /* --------------------------------------------------------- navigation basse */
 /*

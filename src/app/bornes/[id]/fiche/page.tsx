@@ -3,12 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q1 } from "@/db";
 import { peutConfigurer, peutVoirBorne, utilisateur } from "@/lib/auth";
+import { TEL_MAX, TEXTE_DEFAUT, TEXTE_MAX } from "@/lib/sav";
 
 export const dynamic = "force-dynamic";
 
 type Borne = {
   id: number; nom: string; adresse: string | null;
   description: string | null; image_id: number | null;
+  sav_tel: string | null; sav_texte: string | null;
+  compte_tel: string | null; compte_texte: string | null;
 };
 
 /**
@@ -32,8 +35,10 @@ export default async function FicheBorne({ params, searchParams }:
   const { e } = await searchParams;
 
   const b = await q1<Borne>(
-    `SELECT id, nom, adresse, description, image_id
-       FROM borne WHERE id = $1 AND compte_id = $2`, [id, u.compte_id]);
+    `SELECT b.id, b.nom, b.adresse, b.description, b.image_id, b.sav_tel, b.sav_texte,
+            c.sav_tel AS compte_tel, c.sav_texte AS compte_texte
+       FROM borne b JOIN compte c ON c.id = b.compte_id
+      WHERE b.id = $1 AND b.compte_id = $2`, [id, u.compte_id]);
   if (!b) notFound();
   // Regarder ne suffit pas pour ecrire : la page elle-meme se refuse, sans quoi
   // on remplirait un formulaire que la route rejetterait a l'envoi.
@@ -52,6 +57,9 @@ export default async function FicheBorne({ params, searchParams }:
         </div>
 
         {e === "nom" ? <p className="erreur">Le nom ne peut pas être vide.</p> : null}
+        {e === "tel"
+          ? <p className="erreur">Ce numéro d’assistance ne contient pas assez de chiffres pour qu’on puisse appeler.</p>
+          : null}
 
         <form method="post" action={`/api/bornes/${id}/fiche`} encType="multipart/form-data">
           {/*
@@ -117,6 +125,34 @@ export default async function FicheBorne({ params, searchParams }:
                 Ce qu’aucun champ ne dira : où elle est dans le bar, à qui parler, ce
                 qui coince. C’est ce que lit le réassortisseur avant de partir.
               </p>
+            </div>
+          </div>
+
+          {/*
+            SON PROPRE NUMERO D'ASSISTANCE, FACULTATIF.
+
+            Le champ vide montre en filigrane celui du compte : c'est celui que la
+            machine affiche tant qu'on n'ecrit rien, et il faut le voir pour
+            savoir s'il y a lieu d'en changer.
+          */}
+          <h2>Assistance</h2>
+          <div className="carte">
+            <div className="champ">
+              <label htmlFor="sav_tel">Numéro d’assistance de cette RedBox</label>
+              <input id="sav_tel" name="sav_tel" defaultValue={b.sav_tel ?? ""} maxLength={TEL_MAX}
+                     inputMode="tel" placeholder={b.compte_tel?.trim() || "06 12 34 56 78"} />
+              <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
+                {b.compte_tel?.trim()
+                  ? <>Laissé vide, elle affiche celui du compte : <b>{b.compte_tel.trim()}</b>.</>
+                  : "Laissé vide, elle affiche celui du compte — aucun n’est renseigné pour l’instant."}{" "}
+                <Link href="/reglages/sav" style={{ textDecoration: "underline" }}>Numéro du compte</Link>
+              </p>
+            </div>
+
+            <div className="champ">
+              <label htmlFor="sav_texte">La phrase qui l’accompagne</label>
+              <input id="sav_texte" name="sav_texte" defaultValue={b.sav_texte ?? ""} maxLength={TEXTE_MAX}
+                     placeholder={b.compte_texte?.trim() || TEXTE_DEFAUT} />
             </div>
           </div>
 

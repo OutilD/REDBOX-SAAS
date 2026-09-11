@@ -2,6 +2,7 @@ import { transaction } from "@/db";
 import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
 import { balayerImages, rangerImage } from "@/lib/image";
+import { normaliserTel, telPlausible, TEXTE_MAX } from "@/lib/sav";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const description = String(f.get("description") ?? "").trim();
   const photo = f.get("photo");
   const oter = f.get("oter") !== null;
+  // Son propre numero d'assistance. Vide, elle reprend celui du compte.
+  const savTel = normaliserTel(String(f.get("sav_tel") ?? ""));
+  const savTexte = String(f.get("sav_texte") ?? "").trim().slice(0, TEXTE_MAX);
 
   // Une borne sans nom n'est plus reperable nulle part : ni dans la liste, ni
   // dans le selecteur, ni dans un mouvement de stock.
   if (!nom) return versPage(req, `/bornes/${id}?e=nom`);
+  if (savTel && !telPlausible(savTel)) return versPage(req, `/bornes/${id}/fiche?e=tel`);
 
   let refus = false;
   await transaction(async (c) => {
@@ -45,9 +50,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       "SELECT lieu_id FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
     if ((sienne.rowCount ?? 0) === 0) return;
 
-    await c.query(`UPDATE borne SET nom = $1, adresse = $2, description = $3
+    await c.query(`UPDATE borne SET nom = $1, adresse = $2, description = $3,
+                                    sav_tel = $6, sav_texte = $7
                     WHERE id = $4 AND compte_id = $5`,
-                  [nom, adresse || null, description || null, id, u.compte_id]);
+                  [nom, adresse || null, description || null, id, u.compte_id,
+                   savTel || null, savTexte || null]);
 
     const lieu = sienne.rows[0].lieu_id;
     if (lieu) await c.query("UPDATE lieu SET nom = $1 WHERE id = $2", [nom, lieu]);

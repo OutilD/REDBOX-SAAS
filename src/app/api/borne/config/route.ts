@@ -55,7 +55,7 @@ export async function GET(req: Request) {
     // part a chaque appel plutot que derriere une empreinte, parce qu'une borne
     // qui afficherait l'ancien numero pendant une panne serait pire qu'une
     // borne qui n'en affiche aucun.
-    savDe(borne.compte_id!),
+    savDe(borne.compte_id!, borne.id),
 
     q(`SELECT m.id, m.lane, m.quantite, p.sku, p.nom
          FROM mouvement m JOIN produit p ON p.id = m.produit_id
