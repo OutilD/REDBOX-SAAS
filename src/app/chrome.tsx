@@ -281,11 +281,13 @@ export async function Entete({ page, borne, fenetre, periode }:
             <BasculeTheme depart={theme} retour={ici} />
 
             <div className="compte-chip">
-              {/* La pastille mene a « Mon compte », ou l'on trouve aussi ses
-                  badges et son niveau. La deconnexion n'est plus ici : collee a
-                  la pastille, on la touchait en voulant ouvrir son compte. Elle
-                  est au pied de la page du compte, seule, en rouge. */}
-              <Link href="/profil" className="moi" title="Mon compte et mes badges">
+              {/* La pastille mene a SON PROFIL COMPLET — niveau, rang, badges,
+                  objectifs —, d'ou « Mon compte » garde les reglages. C'est ce
+                  qu'on attend en touchant son propre visage. La deconnexion
+                  n'est plus ici : collee a la pastille, on la touchait en
+                  voulant ouvrir son compte. Elle est au pied de « Mon compte »,
+                  seule, en rouge. */}
+              <Link href={u ? `/communaute/${u.id}` : "/connexion"} className="moi" title="Mon profil : niveau, badges">
                 {u?.image_id ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/image/${u.image_id}`} alt="" className="jeton photo" />

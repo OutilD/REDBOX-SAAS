@@ -4,6 +4,8 @@ import { Entete, NavBasse } from "../../chrome";
 import { q1 } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { COULEURS } from "@/lib/communaute";
+import { initiales } from "@/lib/personnes";
+import ChangerPhoto from "../../profil/changer-photo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +33,15 @@ export default async function Personnaliser({ searchParams }:
           <div className="pousse"><h1 style={{ margin: 0 }}>Mon profil public</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Ce que les autres redboxers voient de vous. La photo se change sur{" "}
-          <Link href="/profil" style={{ textDecoration: "underline" }}>Mon compte</Link>.
+          Ce que les autres redboxers voient de vous.
         </p>
+        {/* La photo aussi, ici : c'est la qu'on la cherche en regardant son
+            profil. C'est la meme que sur « Mon compte », et elle s'enregistre
+            des qu'on la choisit. */}
+        <div className="carte" style={{ marginBottom: 12 }}>
+          <ChangerPhoto imageId={u.image_id} initiales={initiales(moi.pseudo || u.nom || u.email)}
+                        couleur={moi.couleur} retour="/communaute/moi" taille={72} />
+        </div>
         {e ? <p className="erreur">{e === "pseudo" ? "Le pseudo est trop long (trente caractères)." : "Impossible."}</p> : null}
 
         <form method="post" action="/api/communaute/profil" className="carte">

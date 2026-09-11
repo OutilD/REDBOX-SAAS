@@ -6,6 +6,7 @@ import { BADGES, profilDe, rangDe } from "@/lib/communaute";
 import { Badge } from "../communaute/badge";
 import { AnneauNiveau, BarreNiveau } from "../communaute/niveau";
 import { IcoSortir } from "../icones";
+import ChangerPhoto from "./changer-photo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function Profil({ searchParams }:
     mdp: "Le nouveau mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
     actuel: "Mot de passe actuel incorrect.",
     adresse: "Adresse refusée.",
-    photo: "Photo refusée : JPEG, PNG ou WebP, 2 Mo au plus. Le reste a été enregistré.",
+    photo: "Photo refusée : il faut une image JPEG, PNG ou WebP de 8 Mo au plus.",
   };
 
   return (
@@ -83,31 +84,20 @@ export default async function Profil({ searchParams }:
         {fait ? <p className="avis-ok">Profil enregistré.</p> : null}
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
 
-        <form method="post" action="/api/profil" encType="multipart/form-data">
-          {/* ------------------------------------------------------ identite */}
-          <div className="carte profil-tete">
-            <div className="portrait">
-              {u.image_id ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/image/${u.image_id}`} alt="" />
-              ) : (
-                <span className="jeton">{initiales(u.nom || u.email)}</span>
-              )}
-            </div>
-            <div className="qui">
-              <div className="nom">{u.nom || u.email.split("@")[0]}</div>
-              <div className="meta">{nomDuRole(u.role)} · {u.compte}</div>
-              <label className="fichier">
-                <input name="photo" type="file" accept="image/jpeg,image/png,image/webp" />
-                <span>{u.image_id ? "Changer la photo" : "Choisir une photo"}</span>
-              </label>
-              {u.image_id ? (
-                <label className="oter">
-                  <input type="checkbox" name="oter" /> Retirer la photo
-                </label>
-              ) : null}
-            </div>
-          </div>
+        {/* ------------------------------------------------------ identite
+            La photo a son propre formulaire, hors de celui du bas : la choisir
+            l'enregistre aussitot. Dans le grand formulaire, il fallait ensuite
+            descendre jusqu'a « Enregistrer », sous le mot de passe, et rien ne
+            changeait a l'ecran en attendant — on croyait qu'elle n'etait pas
+            passee. */}
+        <div className="carte">
+          <div style={{ fontSize: 19, fontWeight: 750, letterSpacing: "-.02em" }}>{u.nom || u.email.split("@")[0]}</div>
+          <div className="faible" style={{ fontSize: 13, margin: "2px 0 14px" }}>{nomDuRole(u.role)} · {u.compte}</div>
+          <ChangerPhoto imageId={u.image_id} initiales={initiales(u.nom || u.email)}
+                        couleur={moi?.couleur ?? null} retour="/profil" taille={72} />
+        </div>
+
+        <form method="post" action="/api/profil">
 
           {/* ------------------------------------------------------ le nom */}
           <div className="carte">
