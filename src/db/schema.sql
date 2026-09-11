@@ -972,3 +972,7 @@ UPDATE badge_obtenu o SET badge = 'bavard'
                     WHERE x.utilisateur_id = o.utilisateur_id AND x.badge = 'bavard');
 DELETE FROM badge_obtenu WHERE badge = 'pilier';
 
+-- La communaute se pousse aussi sur le telephone : une reaction a ses messages,
+-- un badge debloque. A part des messages : on peut vouloir savoir qu'on vous a
+-- applaudi sans vouloir chaque phrase de #entrepreneurs.
+ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS communaute BOOLEAN NOT NULL DEFAULT true;

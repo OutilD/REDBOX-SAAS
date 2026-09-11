@@ -1,7 +1,7 @@
 import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
-import { signaler, type Evenement } from "@/lib/notifications";
+import { evaluerLeCompte, signaler, type Evenement } from "@/lib/notifications";
 import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
@@ -295,6 +295,13 @@ export async function POST(req: Request) {
   if (borne.compte_id && evenements.length > 0) {
     void signaler(borne.compte_id, { id: borne.id, nom: borne.nom }, evenements)
       .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  }
+  // Des ventes distribuees par une vraie machine peuvent debloquer des badges —
+  // la dizaine, la centaine, le noctambule — pour toute l'equipe du compte. Une
+  // borne de demonstration n'en fait gagner aucun : on ne la compte meme pas.
+  if (borne.compte_id && distribuees.length > 0 && !(borne.jeton ?? "").startsWith("demo_")) {
+    void evaluerLeCompte(borne.compte_id)
+      .catch((e) => console.error("badges :", e instanceof Error ? e.message : e));
   }
 
   return Response.json({

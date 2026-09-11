@@ -1,5 +1,6 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { peutEcrire, reagir, salonDe } from "@/lib/salons";
+import { evaluerEtSignaler, signalerReaction } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,22 @@ export async function POST(req: Request) {
   if (!s) return refus(404, "salon");
   if (!peutEcrire(u, s)) return refus(403, "lecture");
 
-  const reactions = await reagir(message_id, u.id, emoji);
-  if (reactions === null) return refus(400, "réaction");
-  return json ? Response.json({ reactions }) : versPage(req, `/messages/${salon_id}`);
+  const r = await reagir(message_id, u.id, emoji);
+  if (r === null) return refus(400, "réaction");
+
+  // Une reaction POSEE previent l'auteur, et peut debloquer deux badges : le
+  // sien (Applaudi) et celui de qui reagit (Genereux). Rien sur une reaction
+  // retiree, ni vers la machine, qui n'a pas de telephone. Sans attendre : la
+  // pastille doit repondre au doigt, pas au service de push.
+  if (r.posee) {
+    const trace = (quoi: string) => (e: unknown) =>
+      console.error(quoi, e instanceof Error ? e.message : e);
+    if (r.auteur_id !== null) {
+      void signalerReaction({ auteur_id: r.auteur_id, par: r.par, emoji, message_id,
+                              salon_id, salon: s.nom, texte: r.texte }).catch(trace("push reaction :"));
+      void evaluerEtSignaler(r.auteur_id).catch(trace("badges :"));
+    }
+    void evaluerEtSignaler(u.id).catch(trace("badges :"));
+  }
+  return json ? Response.json({ reactions: r.reactions }) : versPage(req, `/messages/${salon_id}`);
 }

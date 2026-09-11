@@ -1,5 +1,5 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { signalerMessage } from "@/lib/notifications";
+import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { deposer, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +78,11 @@ export async function POST(req: Request) {
     .catch((e) => console.error("lecture :", e instanceof Error ? e.message : e));
   void signalerMessage(s, m)
     .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  // Ce message peut debloquer un badge — le premier, le centieme, la
+  // trentieme journee. On le verifie maintenant plutot qu'a la prochaine visite
+  // de la page Communaute, et ce qui tombe part sur le telephone.
+  void evaluerEtSignaler(u.id)
+    .catch((e) => console.error("badges :", e instanceof Error ? e.message : e));
 
   return json ? Response.json({ message: m }) : versPage(req, `/messages/${salon_id}#fin`);
 }

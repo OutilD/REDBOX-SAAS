@@ -2,6 +2,7 @@ import webpush from "web-push";
 import { codeCanal, euros, q, q1 } from "@/db";
 import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
+import { NOM_RANG, evaluerBadges, rangDe } from "./communaute";
 
 /**
  * LES NOTIFICATIONS POUSSEES VERS LE TELEPHONE.
@@ -32,7 +33,7 @@ import { LIBELLES } from "./ventes";
  *     C'est `acces_borne` qui tranche, comme pour les pages.
  */
 
-export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages" | "annonces";
+export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages" | "annonces" | "communaute";
 
 /** Ce qu'on peut demander, dans l'ordre ou la page le propose. */
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
@@ -42,6 +43,7 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
   { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe et la communauté écrivent dans les salons" },
   { cle: "annonces",    nom: "Annonces",       quoi: "Les nouveautés de la console et des RedBox, par l’équipe RedBox" },
+  { cle: "communaute",  nom: "Communauté",     quoi: "Une réaction à vos messages, un badge débloqué" },
 ];
 
 export type Evenement =
@@ -172,7 +174,7 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
 type Abonnement = {
   id: number; endpoint: string; p256dh: string; auth: string; origine: string | null;
   ventes: boolean; incidents: boolean; vides: boolean; chargements: boolean; messages: boolean;
-  annonces: boolean;
+  annonces: boolean; communaute: boolean;
 };
 
 /**
@@ -222,7 +224,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
   const cibles = await q<Abonnement>(`
     SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
-           a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces
+           a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces, a.communaute
       FROM abonnement_push a
       JOIN membre m ON m.utilisateur_id = a.utilisateur_id AND m.compte_id = $1
      WHERE NOT EXISTS (SELECT 1 FROM acces_borne x JOIN borne b ON b.id = x.borne_id
@@ -254,7 +256,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
 export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<void> {
   if (m.utilisateur_id === null) return;
   const colonnes = `a.id, a.endpoint, a.p256dh, a.auth, a.origine,
-                    a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces`;
+                    a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces, a.communaute`;
   let cibles: Abonnement[];
   if (salon.portee === "compte") {
     cibles = await q<Abonnement>(`
@@ -302,10 +304,86 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
   await Promise.allSettled(cibles.map((a) => pousser(a, message)));
 }
 
+// ------------------------------------------------------------- la communaute
+
+/** Les appareils d'UNE personne qui veulent entendre parler de la communaute. */
+async function appareilsCommunaute(utilisateur_id: number): Promise<Abonnement[]> {
+  return q<Abonnement>(`
+    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
+           communaute
+      FROM abonnement_push WHERE utilisateur_id = $1 AND communaute`, [utilisateur_id]);
+}
+
+/**
+ * QUELQU'UN A REAGI A MON MESSAGE. Vers l'auteur seul : c'est a lui qu'on
+ * repond. Le tag est celui du message — cinq pouces sur la meme phrase font
+ * une notification mise a jour, pas cinq qui vibrent l'une apres l'autre.
+ * On ne previent jamais d'une reaction retiree : un « on ne vous applaudit
+ * plus » n'apprend rien a personne.
+ */
+export async function signalerReaction(r: {
+  auteur_id: number; par: string; emoji: string;
+  message_id: number; salon_id: number; salon: string; texte: string;
+}): Promise<void> {
+  const cibles = await appareilsCommunaute(r.auteur_id);
+  if (cibles.length === 0) return;
+  const extrait = r.texte.replace(/\s+/g, " ").trim();
+  const m: Message = {
+    genre: "communaute",
+    titre: `${r.emoji} ${r.par} a réagi à votre message`,
+    corps: `#${r.salon} · « ${extrait.length > 90 ? extrait.slice(0, 87) + "…" : extrait} »`,
+    url: `/messages/${r.salon_id}`, tag: `reaction-${r.message_id}`,
+  };
+  await Promise.allSettled(cibles.map((a) => pousser(a, m)));
+}
+
+/**
+ * LES BADGES SE GAGNENT AUSSI QUAND ON N'EST PAS LA.
+ *
+ * Ils n'etaient evalues qu'a l'ouverture de la page Communaute : un badge merite
+ * pendant la nuit — la centieme vente, le vingt-cinquieme pouce — attendait
+ * qu'on vienne le chercher, et la surprise tombait a plat. On les evalue
+ * maintenant la ou les faits changent : apres un message, une reaction, un
+ * releve de ventes. Ce qui tombe part sur le telephone, avec sa rarete dans le
+ * titre — « legendaire » se lit sur un ecran de verrouillage.
+ *
+ * Jamais depuis la page Communaute elle-meme : on y voit deja la carte
+ * « Nouveau badge ! », faire vibrer le telephone en plus serait du bruit.
+ * A appeler sans l'attendre : `void evaluerEtSignaler(id)`.
+ */
+export async function evaluerEtSignaler(utilisateur_id: number): Promise<void> {
+  const neufs = await evaluerBadges(utilisateur_id);
+  if (neufs.length === 0) return;
+  const cibles = await appareilsCommunaute(utilisateur_id);
+  if (cibles.length === 0) return;
+  const b = neufs[0];
+  const m: Message = neufs.length === 1
+    ? { genre: "communaute",
+        titre: `Badge ${NOM_RANG[rangDe(b)].toLowerCase()} débloqué : ${b.nom}`,
+        corps: `${b.quoi}${b.points > 0 ? ` · +${b.points} pts` : ""}`,
+        url: `/communaute/badges/${b.cle}`, tag: `badge-${b.cle}` }
+    : { genre: "communaute",
+        titre: `${neufs.length} badges débloqués`,
+        corps: neufs.map((x) => x.nom).join(", "),
+        url: "/communaute", tag: "badges" };
+  await Promise.allSettled(cibles.map((a) => pousser(a, m)));
+}
+
+/**
+ * Toute l'equipe d'un compte, apres un releve de ventes : la centieme vente
+ * compte pour chacun de ceux qui font tourner la machine, pas pour elle.
+ */
+export async function evaluerLeCompte(compte_id: number): Promise<void> {
+  const gens = await q<{ utilisateur_id: number }>(
+    "SELECT utilisateur_id FROM membre WHERE compte_id = $1", [compte_id]);
+  await Promise.allSettled(gens.map((g) => evaluerEtSignaler(Number(g.utilisateur_id))));
+}
+
 /** Un message d'essai vers tous les appareils d'une personne. Rend le nombre atteint. */
 export async function essayer(utilisateur_id: number): Promise<number> {
   const siens = await q<Abonnement>(`
-    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces
+    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
+           communaute
       FROM abonnement_push WHERE utilisateur_id = $1`, [utilisateur_id]);
   const r = await Promise.all(siens.map((a) => pousser(a, ESSAI)));
   return r.filter(Boolean).length;

@@ -321,12 +321,24 @@ export async function reactionsDes(salon_id: number, ids: number[], moi: number)
  * Rend l'etat complet des reactions du message, pour que la barre se redessine
  * juste, meme si quelqu'un d'autre a appuye entre-temps.
  */
+export type Reagi = {
+  reactions: Reaction[];
+  /** Vrai si l'appui a POSE la reaction, faux s'il l'a retiree. */
+  posee: boolean;
+  /** De quoi prevenir l'auteur : qui il est, ce qu'il avait ecrit, qui vient de reagir. */
+  auteur_id: number | null; texte: string; par: string;
+};
+
 export async function reagir(message_id: number, utilisateur_id: number, emoji: string):
-    Promise<Reaction[] | null> {
+    Promise<Reagi | null> {
   if (!ESTAMPILLE.has(emoji)) return null;
-  const m = await q1<{ sien: boolean }>(
-    `SELECT (utilisateur_id = $2) AS sien FROM message
-      WHERE id = $1 AND supprime_le IS NULL`, [message_id, utilisateur_id]);
+  // La meme lecture dit si c'est son propre message, et de quoi prevenir
+  // l'auteur ensuite — pas un aller-retour de plus pour la notification.
+  const m = await q1<{ sien: boolean; auteur_id: number | null; texte: string; par: string }>(
+    `SELECT (x.utilisateur_id = $2) AS sien, x.utilisateur_id AS auteur_id, x.texte,
+            (SELECT COALESCE(NULLIF(TRIM(u.pseudo), ''), NULLIF(TRIM(u.nom), ''), split_part(u.email, '@', 1))
+               FROM utilisateur u WHERE u.id = $2) AS par
+       FROM message x WHERE x.id = $1 AND x.supprime_le IS NULL`, [message_id, utilisateur_id]);
   if (!m || m.sien) return null;
   const pose = await q(`
     INSERT INTO reaction (message_id, utilisateur_id, emoji) VALUES ($1, $2, $3)
@@ -335,7 +347,9 @@ export async function reagir(message_id: number, utilisateur_id: number, emoji: 
     await q("DELETE FROM reaction WHERE message_id = $1 AND utilisateur_id = $2 AND emoji = $3",
             [message_id, utilisateur_id, emoji]);
   }
-  return (await reactionsDe([message_id], utilisateur_id)).get(message_id) ?? [];
+  const reactions = (await reactionsDe([message_id], utilisateur_id)).get(message_id) ?? [];
+  return { reactions, posee: pose.length > 0,
+           auteur_id: m.auteur_id === null ? null : Number(m.auteur_id), texte: m.texte, par: m.par };
 }
 
 /** Un message de plus, rendu tel qu'il s'affiche. */
