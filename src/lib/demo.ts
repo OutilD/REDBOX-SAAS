@@ -966,10 +966,10 @@ export async function animerDemo(compte_id: number): Promise<void> {
 
     // 2. Ce qui s'est vendu depuis le dernier passage.
     const spires = await c.query<{
-      borne_id: number; lane: number; produit_id: number; quantite: number;
+      borne_id: number; lane: number; produit_id: number; quantite: number; seuil_bas: number;
       prix_c: number; age_min: number; sku: string; nom: string; rang: number;
     }>(`
-      SELECT c.borne_id, c.lane, c.produit_id, c.quantite, p.age_min, p.sku, p.nom,
+      SELECT c.borne_id, c.lane, c.produit_id, c.quantite, c.seuil_bas, p.age_min, p.sku, p.nom,
              COALESCE(pb.prix_c, p.prix_vente_c) AS prix_c,
              (SELECT COUNT(*) FROM borne b2 WHERE b2.compte_id = $1 AND b2.jeton LIKE 'demo\\_%'
                  AND b2.id < b.id)::int AS rang
@@ -1001,6 +1001,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
     const vendus = parSujet<{ nom: string; prix_c: number; lane: number }>();
     const incidents = parSujet<{ nom: string; prix_c: number; lane: number; statut: string }>();
     const videes = parSujet<{ lane: number; nom: string; ailleurs: number }>();
+    const basses = parSujet<{ lane: number; nom: string; reste: number; ailleurs: number }>();
 
     for (let t = debut; t < maintenant; t += 3600e3) {
       const fin = Math.min(t + 3600e3, maintenant);
@@ -1020,10 +1021,13 @@ export async function animerDemo(compte_id: number): Promise<void> {
           if (statut === "distribue") s.quantite--;
           if (statut === "distribue") {
             vendus(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane });
-            if (s.quantite === 0) {
+            if (s.quantite === 0 || s.quantite === s.seuil_bas) {
               const ailleurs = liste.filter((x) => x.produit_id === s.produit_id && x.lane !== s.lane)
                                     .reduce((n, x) => n + x.quantite, 0);
-              videes(borne_id).push({ lane: s.lane, nom: s.nom, ailleurs });
+              if (s.quantite === 0) videes(borne_id).push({ lane: s.lane, nom: s.nom, ailleurs });
+              // Le seuil « bas » se franchit une fois : c'est la vente qui y
+              // fait tomber la spire qui le dit, comme sur une vraie machine.
+              else basses(borne_id).push({ lane: s.lane, nom: s.nom, reste: s.quantite, ailleurs });
             }
           } else if (aRegarder) {
             incidents(borne_id).push({ nom: s.nom, prix_c: s.prix_c, lane: s.lane, statut });
@@ -1058,6 +1062,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
         if (vendus(borne_id).length > 0)    signalerA(borne_id, { genre: "ventes", ventes: vendus(borne_id) });
         if (incidents(borne_id).length > 0) signalerA(borne_id, { genre: "incidents", incidents: incidents(borne_id) });
         if (videes(borne_id).length > 0)    signalerA(borne_id, { genre: "vides", canaux: videes(borne_id) });
+        if (basses(borne_id).length > 0)    signalerA(borne_id, { genre: "basses", canaux: basses(borne_id) });
       }
     }
 

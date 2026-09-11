@@ -1,6 +1,7 @@
 import { q1 } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
+import { signaler } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const actif = String(f.get("actif") ?? "") === "1";
   const texte = String(f.get("texte") ?? "").trim().slice(0, TEXTE_MAX) || null;
 
-  const b = await q1("SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
+  const b = await q1<{ nom: string; hors_service: boolean }>(
+    "SELECT nom, hors_service FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
   if (!b) return versPage(req, "/bornes");
+
+  // LA MACHINE LE DIT DANS SON SALON, et sur les telephones : l'equipe doit
+  // savoir qu'une RedBox a cesse de vendre, et qui l'a decide. Seulement si
+  // l'etat change — reenvoyer le formulaire ne doit pas le redire.
+  if (b.hors_service !== actif) {
+    void signaler(u.compte_id, { id, nom: b.nom }, [{
+      genre: "service", actif, texte: actif ? texte : null,
+      par: u.nom?.trim() || u.email.split("@")[0],
+    }]).catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  }
 
   await q1(`
     UPDATE borne

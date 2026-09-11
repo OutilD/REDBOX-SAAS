@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { codeCanal, euros, q, q1 } from "@/db";
+import { codeCanal, euros, FUSEAU, q, q1 } from "@/db";
 import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
 import { NOM_RANG, evaluerBadges, rangDe } from "./communaute";
@@ -38,8 +38,8 @@ export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages
 /** Ce qu'on peut demander, dans l'ordre ou la page le propose. */
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "ventes",      nom: "Ventes",         quoi: "Chaque relevé qui apporte des ventes, avec le montant" },
-  { cle: "incidents",   nom: "Incidents",      quoi: "Payé, rien n’est tombé : litige, chute non détectée, spirale bloquée" },
-  { cle: "vides",       nom: "Spires vides",   quoi: "Une spire vient de vendre son dernier article" },
+  { cle: "incidents",   nom: "Incidents et coupures", quoi: "Payé, rien n’est tombé ; machine hors ligne ou de retour ; mise hors service" },
+  { cle: "vides",       nom: "Stock bas et épuisé",   quoi: "Un produit passe sous son seuil, ou une spire vend son dernier article" },
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
   { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe et la communauté écrivent dans les salons" },
   { cle: "annonces",    nom: "Annonces",       quoi: "Les nouveautés de la console et des RedBox, par l’équipe RedBox" },
@@ -51,9 +51,24 @@ export type Evenement =
   | { genre: "incidents";   incidents: { nom: string | null; prix_c: number; lane: number | null; statut: string }[] }
   /** `ailleurs` : ce qu'il en reste sur les autres spires de la meme borne. */
   | { genre: "vides";       canaux: { lane: number; nom: string | null; ailleurs: number }[] }
-  | { genre: "chargements"; unites: number; spires: number };
+  | { genre: "chargements"; unites: number; spires: number }
+  /** Une spire vient d'atteindre son seuil « bas » : il en reste `reste`. */
+  | { genre: "basses";      canaux: { lane: number; nom: string | null; reste: number; ailleurs: number }[] }
+  /** La machine ne donne plus signe de vie depuis `depuis` : courant ou reseau. */
+  | { genre: "silence";     depuis: Date | string }
+  /** Elle reparle apres `minutes` de silence. */
+  | { genre: "retour";      minutes: number }
+  /** Quelqu'un l'a mise hors service, ou rouverte, depuis la console. */
+  | { genre: "service";     actif: boolean; texte: string | null; par: string }
+  /** Son application a change de version. */
+  | { genre: "version";     avant: string; apres: string };
 
-type Message = { genre: Genre; titre: string; corps: string; url: string; tag: string };
+/**
+ * `genre` est la preference qui decide de l'envoi sur le telephone ; `muet`,
+ * un message qui s'ecrit dans le salon sans faire vibrer personne — une mise a
+ * jour de l'application se lit, elle ne reveille pas.
+ */
+type Message = { genre: Genre; titre: string; corps: string; url: string; tag: string; muet?: boolean };
 
 /** Le message d'un abonnement d'essai : c'est ce qu'on voit en appuyant sur « Essayer ». */
 export const ESSAI: Message = {
@@ -121,6 +136,25 @@ function liste(noms: (string | null)[], max = 110): string {
 
 const spire = (lane: number) => codeCanal(Math.ceil(lane / 10), ((lane - 1) % 10) + 1);
 
+/** « 14 h 32 » aujourd'hui, « le 9 septembre à 14 h 32 » avant. */
+function heure(d: Date | string): string {
+  const t = new Date(d);
+  const jour = (x: Date) => x.toLocaleDateString("fr-FR", { timeZone: FUSEAU, day: "numeric", month: "long" });
+  const h = t.toLocaleTimeString("fr-FR", { timeZone: FUSEAU, hour: "2-digit", minute: "2-digit" })
+    .replace(":", " h ");
+  return jour(t) === jour(new Date()) ? h : `le ${jour(t)} à ${h}`;
+}
+
+/** « 38 minutes », « 2 h 14 », « 3 jours ». */
+function duree(minutes: number): string {
+  if (minutes < 60) return pluriel(Math.max(1, Math.round(minutes)), "minute", "minutes");
+  if (minutes < 48 * 60) {
+    const h = Math.floor(minutes / 60), m = Math.round(minutes % 60);
+    return m > 0 ? `${h} h ${String(m).padStart(2, "0")}` : pluriel(h, "heure", "heures");
+  }
+  return pluriel(Math.round(minutes / 1440), "jour", "jours");
+}
+
 function composer(borne: { id: number; nom: string }, e: Evenement): Message | null {
   const b = court(borne.nom);
   switch (e.genre) {
@@ -166,6 +200,39 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                corps: `${pluriel(e.unites, "article", "articles")} sur ${pluriel(e.spires, "spire", "spires")}, confirmés par la machine.`,
                url: `/bornes/${borne.id}`, tag: `chargements-${borne.id}` };
     }
+    // BIENTOT EPUISE : la spire vient d'atteindre son seuil « bas ». C'est le
+    // moment de prevoir le passage — pas celui ou elle est deja vide.
+    case "basses": {
+      if (e.canaux.length === 0) return null;
+      return { genre: "vides",
+               titre: e.canaux.length === 1 ? `Bientôt épuisé · ${b}` : `${e.canaux.length} produits bientôt épuisés · ${b}`,
+               corps: liste(e.canaux.map((c) =>
+                 `${spire(c.lane)} ${c.nom ?? ""}`.trim() + ` : plus que ${c.reste}`
+                 + (c.ailleurs > 0 ? ` (et ${c.ailleurs} sur une autre spire)` : ""))),
+               url: `/bornes/${borne.id}?c=bas`, tag: `basses-${borne.id}` };
+    }
+    // LE SILENCE ET LE RETOUR partagent leur `tag` : « De retour » remplace
+    // « Hors ligne » sur l'ecran de verrouillage, au lieu de s'empiler dessous.
+    case "silence":
+      return { genre: "incidents", titre: `Hors ligne · ${b}`,
+               corps: `Plus de nouvelles depuis ${heure(e.depuis)}. Coupure de courant ou de réseau ? `
+                    + "Vérifiez qu’elle est allumée : éteinte, elle ne vend plus.",
+               url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
+    case "retour":
+      return { genre: "incidents", titre: `De retour · ${b}`,
+               corps: `Elle répond à nouveau après ${duree(e.minutes)} de silence. Ses ventes remontent.`,
+               url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
+    case "service":
+      return { genre: "incidents",
+               titre: e.actif ? `Mise hors service · ${b}` : `Remise en service · ${b}`,
+               corps: e.actif
+                 ? `Par ${e.par}${e.texte ? ` — l’écran affiche « ${e.texte} »` : ""}. Elle ne vend plus jusqu’à sa remise en service.`
+                 : `Par ${e.par}. Elle vend à nouveau.`,
+               url: `/bornes/${borne.id}`, tag: `service-${borne.id}` };
+    case "version":
+      return { genre: "incidents", muet: true, titre: `Mise à jour · ${b}`,
+               corps: `L’application de la machine est passée de la version ${e.avant} à la ${e.apres}.`,
+               url: `/bornes/${borne.id}`, tag: `version-${borne.id}` };
   }
 }
 
@@ -221,6 +288,10 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   await deposerSysteme(compte_id, borne, messages.map((m) => `${m.titre}\n${m.corps}`))
     .catch((e) => console.error("salon :", e instanceof Error ? e.message : e));
 
+  // Ce qui s'ecrit sans faire vibrer — une mise a jour — s'arrete au salon.
+  const sonores = messages.filter((m) => !m.muet);
+  if (sonores.length === 0) return;
+
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
   const cibles = await q<Abonnement>(`
     SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
@@ -236,7 +307,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
 
   const envois: Promise<boolean>[] = [];
   for (const a of cibles) {
-    for (const m of messages) if (a[m.genre]) envois.push(pousser(a, m));
+    for (const m of sonores) if (a[m.genre]) envois.push(pousser(a, m));
   }
   await Promise.allSettled(envois);
 }

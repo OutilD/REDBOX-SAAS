@@ -3,6 +3,7 @@ import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
 import { evaluerLeCompte, signaler, type Evenement } from "@/lib/notifications";
 import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
+import { SILENCE_MS, veillerSiLeMoment } from "@/lib/veille";
 
 export const dynamic = "force-dynamic";
 
@@ -62,13 +63,30 @@ export async function POST(req: Request) {
   const videes: { lane: number; nom: string | null; ailleurs: number }[] = [];
 
   const bilan = await transaction(async (c) => {
-    await c.query(
-      `UPDATE borne SET vue_le = now(), version = COALESCE($1, version),
-              catalogue_version = COALESCE($4, catalogue_version), sante = $2,
-              maintenance_vu = COALESCE($5, maintenance_vu)
-        WHERE id = $3`,
+    // Ce qu'elle etait AVANT ce releve — depuis quand elle se taisait, dans
+    // quelle version elle tournait —, lu et remplace d'un meme geste, sous
+    // verrou : deux releves simultanes ne peuvent pas annoncer deux retours.
+    const avant = (await c.query<{ vue_avant: Date | null; version_avant: string | null }>(
+      `WITH avant AS (SELECT id, vue_le, version FROM borne WHERE id = $3 FOR UPDATE)
+       UPDATE borne b SET vue_le = now(), version = COALESCE($1, b.version),
+              catalogue_version = COALESCE($4, b.catalogue_version), sante = $2,
+              maintenance_vu = COALESCE($5, b.maintenance_vu)
+         FROM avant WHERE b.id = avant.id
+       RETURNING avant.vue_le AS vue_avant, avant.version AS version_avant`,
       [r.version ?? null, r.sante ? JSON.stringify(r.sante) : null, borne.id,
-       r.catalogue_version ?? null, r.maintenance_pin ?? null]);
+       r.catalogue_version ?? null, r.maintenance_pin ?? null])).rows[0];
+
+    // ELLE REPARLE APRES UN SILENCE. Courant revenu, reseau retabli : c'est son
+    // premier releve qui le dit, avec la duree de l'absence — le meme seuil
+    // que la ronde qui a annonce qu'elle se taisait.
+    if (avant?.vue_avant) {
+      const absence = Date.now() - new Date(avant.vue_avant).getTime();
+      if (absence >= SILENCE_MS) evenements.push({ genre: "retour", minutes: absence / 60_000 });
+    }
+    // Son application a change : on l'ecrit dans son salon, sans faire vibrer.
+    if (r.version && avant?.version_avant && r.version !== avant.version_avant) {
+      evenements.push({ genre: "version", avant: avant.version_avant, apres: r.version });
+    }
 
     // 0. Adoption du catalogue de la machine.
     //
@@ -210,6 +228,8 @@ export async function POST(req: Request) {
     // 3. Les ventes. Le mouvement n'est cree que si la vente etait nouvelle :
     //    `RETURNING` ne rend rien quand le conflit a joue.
     let retenues = 0;
+    // Les spires qui viennent d'atteindre leur seuil « bas » dans ce releve.
+    const basses: { lane: number; nom: string | null; reste: number; ailleurs: number }[] = [];
     const neufs = (r.ventes ?? []).length > 0 && await baseMigree((sql) => c.query(sql));
     for (const v of r.ventes ?? []) {
       if (!v.commande_id || !CONNUS.has(v.statut)) continue;
@@ -261,21 +281,30 @@ export async function POST(req: Request) {
         // pensions qu'elle portait, c'est notre chiffre qui etait faux, et
         // l'ecart avec le sien le dira mieux qu'un nombre en dessous de zero.
         if (v.lane !== null && v.lane !== undefined) {
-          const reste = await c.query<{ quantite: number }>(`
+          const reste = await c.query<{ quantite: number; seuil_bas: number }>(`
             UPDATE canal SET quantite = GREATEST(0, quantite - 1)
-             WHERE borne_id = $1 AND lane = $2 RETURNING quantite`, [borne.id, v.lane]);
-          // La spire vient de vendre son dernier article : c'est le moment de
-          // le dire, pas au prochain inventaire — en precisant ce qu'il en
-          // reste sur les autres spires de la machine, qui sert la suivante.
-          if (reste.rows[0]?.quantite === 0) {
-            const ailleurs = await c.query<{ n: number }>(`
+             WHERE borne_id = $1 AND lane = $2 RETURNING quantite, seuil_bas`, [borne.id, v.lane]);
+          const n = reste.rows[0]?.quantite;
+          // La spire vient de vendre son dernier article, ou d'atteindre son
+          // seuil « bas » : c'est le moment de le dire, pas au prochain
+          // inventaire — en precisant ce qu'il en reste sur les autres spires
+          // de la machine, qui sert la suivante.
+          //
+          // LE SEUIL SE FRANCHIT UNE FOIS. On ventile les ventes une par une :
+          // le compteur passe donc exactement par la valeur du seuil, et c'est
+          // a ce passage-la qu'on previent — pas a chaque vente d'apres.
+          if (n === 0 || (n !== undefined && n > 0 && n === reste.rows[0].seuil_bas)) {
+            const ailleurs = (await c.query<{ n: number }>(`
               SELECT COALESCE(SUM(quantite), 0)::int AS n FROM canal
-               WHERE borne_id = $1 AND produit_id = $2 AND lane <> $3`, [borne.id, produit, v.lane]);
-            videes.push({ lane: v.lane, nom: trouve?.nom ?? null, ailleurs: ailleurs.rows[0]?.n ?? 0 });
+               WHERE borne_id = $1 AND produit_id = $2 AND lane <> $3`, [borne.id, produit, v.lane]))
+              .rows[0]?.n ?? 0;
+            if (n === 0) videes.push({ lane: v.lane, nom: trouve?.nom ?? null, ailleurs });
+            else basses.push({ lane: v.lane, nom: trouve?.nom ?? null, reste: n, ailleurs });
           }
         }
       }
     }
+    if (basses.length > 0) evenements.push({ genre: "basses", canaux: basses });
 
     const attente = await c.query<{ n: number }>(`
       SELECT COUNT(*)::int n FROM mouvement
@@ -284,6 +313,11 @@ export async function POST(req: Request) {
 
     return { canaux, refuses, retenues, confirmes, adopte, attente: attente.rows[0].n };
   });
+
+  // Cette machine parle : c'est l'occasion de chercher celles qui se taisent.
+  // La minuterie du serveur fait deja la ronde ; ceci la remplace la ou elle
+  // ne tourne pas — une plateforme qui endort le serveur entre deux requetes.
+  veillerSiLeMoment();
 
   // Les telephones, apres coup et sans attendre. Une borne sans compte n'a
   // personne a prevenir.
