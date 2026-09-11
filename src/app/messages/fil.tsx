@@ -236,7 +236,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   }
 
   return (
-    <div className="fil">
+    <div className="fil-salon">
       <div className="tete">
         <Link href={retour} className="bouton petit retour" aria-label="Tous les salons">‹</Link>
         <div className="pousse" style={{ minWidth: 0 }}>
