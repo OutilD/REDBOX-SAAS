@@ -176,7 +176,7 @@ export async function assurerSalons(compte_id: number): Promise<void> {
 
 /** Les salons que cette personne voit, avec ce qu'elle n'y a pas encore lu. */
 const COLONNES_SALON = `
-  s.id, s.nom, s.sujet, s.borne_id, b.nom AS RedBox, s.ordre,
+  s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre,
   s.portee, s.groupe, s.compte_id, k.nom AS compte`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {

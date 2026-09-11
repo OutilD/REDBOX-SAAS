@@ -199,7 +199,7 @@ const SQL_ANCIENNETE = `GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86
 
 /** Les quatre colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
 const SQL_COMPTES = `
-  ${SQL_BORNES} AS RedBox,
+  ${SQL_BORNES} AS bornes,
   ${SQL_ANCIENNETE} AS jours,
   ${SQL_MESSAGES} AS messages,
   ${SQL_REACTIONS} AS reactions`;
