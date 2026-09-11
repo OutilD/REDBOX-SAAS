@@ -138,12 +138,12 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
 
         <div className="pied-ranger">
           <button className="bouton primaire">Enregistrer l’ordre</button>
-          <span className="faible">Les bornes l’appliqueront à leur prochaine synchronisation.</span>
+          <span className="faible">Les RedBox l’appliqueront à leur prochaine synchronisation.</span>
         </div>
       </div>
 
       <aside className="apercu-borne">
-        <div className="titre-apercu">Sur l’écran de la borne</div>
+        <div className="titre-apercu">Sur l’écran de la RedBox</div>
         <div className="ecran-borne">
           <div className="entete-borne">Que vous faut-il ?</div>
           <div className="tuiles">
@@ -156,7 +156,7 @@ export default function Ranger({ initiales }: { initiales: Cat[] }) {
             ))}
           </div>
           {cats.every((c) => c.produits === 0) ? (
-            <p className="t-rien">Aucune catégorie n’a de produit : la borne n’afficherait rien.</p>
+            <p className="t-rien">Aucune catégorie n’a de produit : la RedBox n’afficherait rien.</p>
           ) : null}
         </div>
         <p className="faible" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>

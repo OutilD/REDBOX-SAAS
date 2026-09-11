@@ -123,15 +123,15 @@ export default async function Bornes({ searchParams }:
       <main className="ecran">
         <div className="tete-tableau">
           <div className="quoi">
-            <h1>Bornes</h1>
+            <h1>RedBox</h1>
             <p className="sous">
-              {bornes.length === 0 ? "Aucune borne sur ce compte."
+              {bornes.length === 0 ? "Aucune RedBox sur ce compte."
                 : `${bornes.length} machine${bornes.length > 1 ? "s" : ""} sur ce compte.`}
             </p>
           </div>
           {bornes.length > 0 ? (
             <div className="rangee-actions">
-              <Link href="/bornes/ajouter" className="bouton primaire">+ Ajouter une borne</Link>
+              <Link href="/bornes/ajouter" className="bouton primaire">+ Ajouter une RedBox</Link>
               <form method="post" action="/api/bornes/reveiller">
                 <input type="hidden" name="retour" value="/bornes" />
                 <button className="bouton">Tout synchroniser</button>
@@ -144,7 +144,7 @@ export default async function Bornes({ searchParams }:
           <div className="avis reussi">
             <div className="dit">
               <div className="titre">
-                {reveil} borne{Number(reveil) > 1 ? "s" : ""} réveillée{Number(reveil) > 1 ? "s" : ""}
+                {reveil} RedBox réveillée{Number(reveil) > 1 ? "s" : ""}
               </div>
               <div className="texte">
                 Celles qui sont en ligne synchronisent dans la seconde ; les autres le feront
@@ -155,9 +155,9 @@ export default async function Bornes({ searchParams }:
         ) : null}
 
         {bornes.length === 0 ? (
-          <Repli icone={<IcoBorne />} titre="Aucune borne sur ce compte"
+          <Repli icone={<IcoBorne />} titre="Aucune RedBox sur ce compte"
                  texte="Sur la machine : Maintenance → SaaS → Demander l’appairage. Elle affiche un code de six caractères que vous saisissez ici."
-                 action={{ nom: "Appairer une borne", vers: "/bornes/ajouter" }} />
+                 action={{ nom: "Appairer une RedBox", vers: "/bornes/ajouter" }} />
         ) : (
           <>
             {/* L'etat du parc d'un coup : ce qui repond, et ce qui manque. */}
@@ -217,7 +217,7 @@ export default async function Bornes({ searchParams }:
                 <IcoLoupe size={17} />
                 <input type="search" name="q" defaultValue={cherche} maxLength={60}
                        placeholder="Chercher une machine, une adresse…"
-                       aria-label="Chercher une borne" />
+                       aria-label="Chercher une RedBox" />
                 {vue ? <input type="hidden" name="v" value={vue} /> : null}
                 <button type="submit" className="bouton petit">Chercher</button>
               </form>

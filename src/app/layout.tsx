@@ -8,7 +8,7 @@ import Pwa from "./pwa";
 
 export const metadata: Metadata = {
   title: "RedBox",
-  description: "Stock, réassort et état des bornes RedBox",
+  description: "Stock, réassort et état des RedBox",
   icons: { icon: "/favicon.png", apple: "/apple-touch-icon.png" },
   // L'application installee : le manifeste pour Android et le bureau, et les
   // trois lignes qu'iOS lit a la place — plein ecran, barre d'etat fondue,

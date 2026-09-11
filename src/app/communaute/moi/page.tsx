@@ -47,7 +47,7 @@ export default async function Personnaliser({ searchParams }:
           </div>
           <div className="champ">
             <label htmlFor="ville">Ville</label>
-            <input id="ville" name="ville" defaultValue={moi.ville ?? ""} maxLength={60} placeholder="Où tournent vos bornes" />
+            <input id="ville" name="ville" defaultValue={moi.ville ?? ""} maxLength={60} placeholder="Où tournent vos RedBox" />
           </div>
           <div className="champ">
             <label htmlFor="bio">Deux lignes sur vous</label>

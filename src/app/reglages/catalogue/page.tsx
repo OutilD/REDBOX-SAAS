@@ -107,9 +107,9 @@ export default async function Catalogue({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Catalogue</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Les prix posés ici valent pour toutes vos bornes, sauf celles qui ont fixé
+          Les prix posés ici valent pour toutes vos RedBox, sauf celles qui ont fixé
           le leur — le réglage se prend sur la fiche de chaque machine, onglet
-          <b> Prix</b>. Les bornes relisent le catalogue à chaque synchronisation.{" "}
+          <b> Prix</b>. Les RedBox relisent le catalogue à chaque synchronisation.{" "}
           <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>
           Organiser les catégories</Link>.
         </p>
@@ -119,16 +119,16 @@ export default async function Catalogue({
             <div className="dit">
               <div className="titre">
                 {orphelins.length === 1
-                  ? `${orphelins[0].nom} n’est sur aucune borne`
-                  : `${orphelins.length} produits ne sont sur aucune borne`}
+                  ? `${orphelins[0].nom} n’est sur aucune RedBox`
+                  : `${orphelins.length} produits ne sont sur aucune RedBox`}
               </div>
               <div className="texte">
                 {orphelins.length === 1
-                  ? "Il est bien envoyé aux machines, mais aucun canal ne lui est affecté : la borne n’a pas de tiroir d’où le sortir, donc elle ne l’affiche pas. Affectez-lui un canal dans le planogramme."
-                  : "Ils sont bien envoyés aux machines, mais aucun canal ne leur est affecté : la borne n’a pas de tiroir d’où les sortir, donc elle ne les affiche pas. Affectez-leur un canal dans le planogramme."}
+                  ? "Il est bien envoyé aux machines, mais aucun canal ne lui est affecté : la RedBox n’a pas de tiroir d’où le sortir, donc elle ne l’affiche pas. Affectez-lui un canal dans le planogramme."
+                  : "Ils sont bien envoyés aux machines, mais aucun canal ne leur est affecté : la RedBox n’a pas de tiroir d’où les sortir, donc elle ne les affiche pas. Affectez-leur un canal dans le planogramme."}
               </div>
             </div>
-            <Link href="/bornes" className="bouton petit">Choisir une borne</Link>
+            <Link href="/bornes" className="bouton petit">Choisir une RedBox</Link>
           </div>
         ) : null}
         {e === "sku" ? <p className="erreur">Ce SKU existe déjà, ou le nom est vide.</p> : null}
@@ -139,7 +139,7 @@ export default async function Catalogue({
         {e === "vecu" ? <p className="erreur">
           Ce produit a déjà bougé — réceptions, transferts ou ventes. Il ne peut pas
           être supprimé sans trouer le grand livre du stock. Suspendez-le : il
-          disparaît des bornes et garde son histoire.
+          disparaît des RedBox et garde son histoire.
         </p> : null}
         {e === "cat" ? <p className="erreur">
           Aucune catégorie. <Link href="/reglages/categories" style={{ textDecoration: "underline" }}>

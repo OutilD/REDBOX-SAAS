@@ -115,7 +115,7 @@ export default async function JournalBorne({ params, searchParams }:
       <Entete page="bornes" />
       <main className="ecran">
         <div className="rangee" style={{ marginTop: 18 }}>
-          <Link href={`/bornes/${id}`} className="bouton petit" aria-label="Retour à la borne">‹</Link>
+          <Link href={`/bornes/${id}`} className="bouton petit" aria-label="Retour à la RedBox">‹</Link>
           <div className="pousse">
             <h1 style={{ margin: 0, fontSize: 22 }}>Journal</h1>
             <div className="faible" style={{ fontSize: 13 }}>
@@ -163,16 +163,16 @@ export default async function JournalBorne({ params, searchParams }:
         {commande ? (
           <div className="avis-ok" style={{ marginTop: 14 }}>
             Le récit de la commande <span className="num">{commande}</span> dans l’ordre du temps :
-            ses propres lignes, et tout ce que la borne a écrit entre son premier et son dernier geste.
+            ses propres lignes, et tout ce que la RedBox a écrit entre son premier et son dernier geste.
           </div>
         ) : null}
 
         {rien ? (
-          <Repli titre="Cette borne n’a encore rien remonté"
-                 texte={`Le journal voyage avec la version 5.13 ou plus de l’application de la borne${
+          <Repli titre="Cette RedBox n’a encore rien remonté"
+                 texte={`Le journal voyage avec la version 5.13 ou plus de l’application de la RedBox${
                         b.version ? ` (celle-ci est en ${b.version})` : ""}. Une fois à jour, la première
                         synchronisation apporte ce que la machine a gardé.`}
-                 action={{ nom: "Retour à la borne", vers: `/bornes/${id}` }} />
+                 action={{ nom: "Retour à la RedBox", vers: `/bornes/${id}` }} />
         ) : lignes.length === 0 ? (
           <Repli titre="Rien ne correspond"
                  texte={commande

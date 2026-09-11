@@ -70,18 +70,18 @@ export default async function Fiche({
           <div className="fiche-chiffre">
             <b>{f.total}</b>
             <span>{f.total > 1 ? "unités" : "unité"} · {servies.length}
-              {servies.length > 1 ? " bornes" : " borne"}</span>
+              {servies.length > 1 ? " RedBox" : " RedBox"}</span>
           </div>
         </header>
 
         {f.total === 0 ? (
           <Repli icone={<IcoReassort />} titre="Rien à charger"
                  texte={f.manque > 0
-                   ? "Les bornes ont besoin de marchandise, mais votre réserve est vide pour ces produits. Enregistrez une réception avant de partir."
-                   : "Les bornes choisies sont pleines. Rien à emporter aujourd’hui."}
+                   ? "Les RedBox ont besoin de marchandise, mais votre réserve est vide pour ces produits. Enregistrez une réception avant de partir."
+                   : "Les RedBox choisies sont pleines. Rien à emporter aujourd’hui."}
                  action={f.manque > 0
                    ? { nom: "Enregistrer une réception", vers: "/reception" }
-                   : { nom: "Choisir d’autres bornes", vers: "/reassort" }} />
+                   : { nom: "Choisir d’autres RedBox", vers: "/reassort" }} />
         ) : (
           <>
             {/* 1 — LE CAMION */}
@@ -125,7 +125,7 @@ export default async function Fiche({
                   <div className="titre">{unites(f.manque)} manquent en réserve</div>
                   <div className="texte">
                     Les quantités ci-dessus sont déjà plafonnées : la fiche ne demande
-                    jamais ce que vous n’avez pas. Les bornes resteront partiellement
+                    jamais ce que vous n’avez pas. Les RedBox resteront partiellement
                     remplies sur&nbsp;
                     {f.camion.filter((l) => l.manque > 0)
                       .map((l) => `${l.nom} (−${l.manque})`).join(", ")}.
@@ -145,7 +145,7 @@ export default async function Fiche({
                     {b.vides > 0
                       ? ` · ${b.vides} ${b.vides > 1 ? "canaux vides" : "canal vide"}`
                       : ""}
-                    {servies.length > 1 ? ` · borne ${i + 1} sur ${servies.length}` : ""}
+                    {servies.length > 1 ? ` · RedBox ${i + 1} sur ${servies.length}` : ""}
                   </span>
                 </h2>
                 {/* Une seule table par borne. Repeter l'en-tete a chaque categorie

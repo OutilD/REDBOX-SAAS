@@ -83,7 +83,7 @@ export default async function Communaute() {
               </div>
               <BarreNiveau points={moi.points} />
               <p className="faible" style={{ fontSize: 13, margin: "9px 0 0" }}>
-                {moi.bornes} borne{moi.bornes > 1 ? "s" : ""} en service
+                {moi.bornes} RedBox en service
                 {suivant ? ` — ${suivant.manque} de plus et vous êtes ${suivant.grade.nom}.` : " — le sommet."}
                 {monRang === 1 ? " En tête du classement."
                   : monRang > 1 ? ` ${monRang}e au classement, ${ecart > 0 ? `à ${ecart} pts de` : "à égalité avec"} la place au-dessus.`
@@ -303,7 +303,7 @@ function LignePalmares({ c, rang, moi, echelle }:
         <span className="part" aria-hidden="true">
           <span className="piste"><span style={{ width: `${part}%` }} /></span>
           <span className="quoi num">
-            {c.bornes} borne{c.bornes > 1 ? "s" : ""} · {c.badges} badge{c.badges > 1 ? "s" : ""}
+            {c.bornes} RedBox · {c.badges} badge{c.badges > 1 ? "s" : ""}
           </span>
         </span>
         <span className="pts">

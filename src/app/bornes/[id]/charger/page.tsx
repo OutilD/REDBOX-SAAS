@@ -77,7 +77,7 @@ export default async function Charger({ params, searchParams }:
 
         <p className="sous">
           Indiquez ce que vous <b>ajoutez</b> dans chaque canal. Le stock part de votre réserve
-          tout de suite ; la borne le confirmera à sa prochaine synchronisation. Un nombre
+          tout de suite ; la RedBox le confirmera à sa prochaine synchronisation. Un nombre
           <b> négatif</b> retire de la marchandise — on vous demandera pourquoi avant d’enregistrer.
         </p>
 
@@ -207,7 +207,7 @@ function Canal({ c }: { c: LigneCanal }) {
       </div>
 
       <div className="jauge" data-etat={etat} role="img"
-           aria-label={`${c.quantite} sur ${c.capacite} dans la borne`}>
+           aria-label={`${c.quantite} sur ${c.capacite} dans la RedBox`}>
         <span style={{ width: `${part}%` }} />
       </div>
 
@@ -215,7 +215,7 @@ function Canal({ c }: { c: LigneCanal }) {
         <span className="num compteur">
           {c.quantite}<span className="sur">/{c.capacite}</span>
         </span>
-        <span className="q">dans la borne</span>
+        <span className="q">dans la RedBox</span>
       </div>
 
       {/* Le plancher est ce que la machine porte : on ne retire pas ce qui n'y est pas. */}

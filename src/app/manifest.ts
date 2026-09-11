@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "RedBox",
     short_name: "RedBox",
-    description: "Stock, réassort et état des bornes RedBox",
+    description: "Stock, réassort et état des RedBox",
     lang: "fr",
     start_url: "/",
     scope: "/",

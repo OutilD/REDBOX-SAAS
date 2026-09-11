@@ -58,7 +58,7 @@ export const BISCUIT = "rbx";
 
 export const ROLES = [
   { cle: "gerant",   nom: "Gérant",              peut: "tout, sauf céder le compte" },
-  { cle: "reassort", nom: "Réapprovisionnement", peut: "charger les bornes, voir l’état" },
+  { cle: "reassort", nom: "Réapprovisionnement", peut: "charger les RedBox, voir l’état" },
   { cle: "lecture",  nom: "Lecture seule",       peut: "regarder, rien d’autre" },
 ] as const;
 

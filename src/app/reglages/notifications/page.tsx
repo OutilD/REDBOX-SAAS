@@ -51,7 +51,7 @@ export default async function Notifications({ searchParams }:
           <div className="pousse"><h1 style={{ margin: 0 }}>Notifications</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12, maxWidth: 720 }}>
-          Soyez prévenu sur votre téléphone quand une borne vend, coince ou se vide, sans
+          Soyez prévenu sur votre téléphone quand une RedBox vend, coince ou se vide, sans
           avoir la console ouverte. Ça passe par le navigateur, rien à installer d’autre.
         </p>
         {e ? <p className="erreur" style={{ marginTop: 0 }}>{ERREURS[e] ?? "Impossible."}</p> : null}

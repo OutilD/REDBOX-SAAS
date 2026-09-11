@@ -38,7 +38,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       { cle: "tableau", nom: "Tableau de bord", icone: <IcoTableau />, vers: "/",
         droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
-      { cle: "bornes",  nom: "Bornes",  icone: <IcoBorne />,  vers: "/bornes" },
+      { cle: "bornes",  nom: "RedBox",  icone: <IcoBorne />,  vers: "/bornes" },
       { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
       { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
     ],
@@ -77,7 +77,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
 const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] = [
   { cle: "tableau",  nom: "Tableau",  icone: <IcoTableau size={19} />,  vers: "/" },
   { cle: "stock",    nom: "Stock",    icone: <IcoStock size={19} />,    vers: "/stock" },
-  { cle: "bornes",   nom: "Bornes",   icone: <IcoBorne size={19} />,    vers: "/bornes" },
+  { cle: "bornes",   nom: "RedBox",   icone: <IcoBorne size={19} />,    vers: "/bornes" },
   { cle: "ventes",   nom: "Ventes",   icone: <IcoVentes size={19} />,   vers: "/ventes" },
   { cle: "reglages", nom: "Réglages", icone: <IcoReglages size={19} />, vers: "/reglages" },
 ];
@@ -92,7 +92,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
 const FIL: Record<Page, [string, string?]> = {
   tableau:    ["Tableau de bord"],
   ventes:     ["Ventes"],
-  bornes:     ["Bornes"],
+  bornes:     ["RedBox"],
   messages:   ["Messages"],
   communaute: ["Communauté"],
   stock:      ["Mon stock", "Approvisionnement"],
@@ -239,8 +239,8 @@ export async function Entete({ page, borne, fenetre, periode }:
                     {Object.entries(garde).map(([cle, v]) => (
                       <input key={cle} type="hidden" name={cle} value={v} />
                     ))}
-                    <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par borne">
-                      <option value="">Toutes les bornes</option>
+                    <select name="b" defaultValue={borne ?? ""} aria-label="Filtrer par RedBox">
+                      <option value="">Toutes les RedBox</option>
                       {machines.map((m) => (
                         <option key={m.id} value={m.id}>{m.nom}</option>
                       ))}
@@ -304,9 +304,9 @@ export async function Entete({ page, borne, fenetre, periode }:
             <IcoAlerte size={18} />
             <div className="dit">
               <b>Mode démo · données fictives.</b>{" "}
-              Les bornes, les ventes, le stock et l’équipe affichés sont inventés pour
+              Les RedBox, les ventes, le stock et l’équipe affichés sont inventés pour
               vous faire découvrir la console. Vous pouvez tout manipuler
-              <span className="long"> — charger une borne, traiter un litige, changer un prix</span> :
+              <span className="long"> — charger une RedBox, traiter un litige, changer un prix</span> :
               rien n’est réel, et tout sera effacé quand vous désactiverez ce mode.
             </div>
             <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>

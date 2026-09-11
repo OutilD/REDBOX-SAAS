@@ -85,7 +85,7 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
           <nav aria-label="Salons">
             <div className="section">Équipe</div>
             {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {bornes.length > 0 ? <div className="section">Bornes</div> : null}
+            {bornes.length > 0 ? <div className="section">RedBox</div> : null}
             {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
             {redbox.length > 0 ? <div className="section">RedBox</div> : null}
             {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}

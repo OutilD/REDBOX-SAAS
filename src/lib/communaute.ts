@@ -32,11 +32,11 @@ export type Grade = { cle: string; nom: string; des: number; quoi: string };
 
 /** Du plus petit parc au plus grand. `des` est le nombre de bornes qu'il faut. */
 export const GRADES: Grade[] = [
-  { cle: "curieux",    nom: "Curieux",          des: 0,  quoi: "Pas encore de borne : on regarde, on essaie" },
-  { cle: "redboxer",   nom: "Redboxer",         des: 1,  quoi: "Une première borne en service" },
-  { cle: "exploitant", nom: "Exploitant",       des: 2,  quoi: "Deux bornes ou plus" },
-  { cle: "chef",       nom: "Chef de parc",     des: 5,  quoi: "Cinq bornes ou plus" },
-  { cle: "baron",      nom: "Baron du réseau",  des: 10, quoi: "Dix bornes ou plus" },
+  { cle: "curieux",    nom: "Curieux",          des: 0,  quoi: "Pas encore de RedBox : on regarde, on essaie" },
+  { cle: "redboxer",   nom: "Redboxer",         des: 1,  quoi: "Une première RedBox en service" },
+  { cle: "exploitant", nom: "Exploitant",       des: 2,  quoi: "Deux RedBox ou plus" },
+  { cle: "chef",       nom: "Chef de parc",     des: 5,  quoi: "Cinq RedBox ou plus" },
+  { cle: "baron",      nom: "Baron du réseau",  des: 10, quoi: "Dix RedBox ou plus" },
 ];
 
 export function gradeDe(bornes: number): Grade {
@@ -73,11 +73,11 @@ export const BADGES: Badge[] = [
   { cle: "pionnier", nom: "Pionnier", quoi: "Parmi les dix premiers redboxers", forme: "couronne", points: 500,
     patience: true,
     comment: "Il ne se gagne plus : il revient aux dix premiers comptes ouverts sur la console, et ces dix places sont prises. Si vous l’avez, vous étiez là au début — c’est tout ce qu’il dit, et c’est pour ça qu’il vaut cher." },
-  { cle: "premiere", nom: "Première borne", quoi: "Une première machine appairée", forme: "borne", points: 200,
-    comment: "Sur la machine : Maintenance → SaaS → Demander l’appairage. Elle affiche un code de six caractères. Dans la console, Bornes → Ajouter une borne, saisissez ce code. Le badge tombe à l’ouverture suivante de la communauté." },
-  { cle: "parc", nom: "Parc", quoi: "Trois bornes en service", forme: "borne", points: 300,
-    comment: "Trois machines appairées et vivantes sur le même compte, comptées ensemble. Les bornes de la démonstration ne comptent pas : on ne devient pas exploitant en ouvrant un compte d’essai." },
-  { cle: "reseau", nom: "Réseau", quoi: "Dix bornes en service", forme: "couronne", points: 1000,
+  { cle: "premiere", nom: "Première RedBox", quoi: "Une première machine appairée", forme: "borne", points: 200,
+    comment: "Sur la machine : Maintenance → SaaS → Demander l’appairage. Elle affiche un code de six caractères. Dans la console, RedBox → Ajouter une RedBox, saisissez ce code. Le badge tombe à l’ouverture suivante de la communauté." },
+  { cle: "parc", nom: "Parc", quoi: "Trois RedBox en service", forme: "borne", points: 300,
+    comment: "Trois machines appairées et vivantes sur le même compte, comptées ensemble. Les RedBox de la démonstration ne comptent pas : on ne devient pas exploitant en ouvrant un compte d’essai." },
+  { cle: "reseau", nom: "Réseau", quoi: "Dix RedBox en service", forme: "couronne", points: 1000,
     comment: "Dix machines appairées sur le compte. C’est le badge le plus cher de la console, et le seul qui donne le grade de Baron du réseau." },
   { cle: "mois", nom: "Premier mois", quoi: "Un mois de RedBox", forme: "sablier", points: 50, patience: true,
     comment: "Trente jours après l’ouverture de votre compte. Rien à faire : il arrive tout seul." },
@@ -187,7 +187,7 @@ const SQL_ANCIENNETE = `GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86
 
 /** Les quatre colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
 const SQL_COMPTES = `
-  ${SQL_BORNES} AS bornes,
+  ${SQL_BORNES} AS RedBox,
   ${SQL_ANCIENNETE} AS jours,
   ${SQL_MESSAGES} AS messages,
   ${SQL_REACTIONS} AS reactions`;

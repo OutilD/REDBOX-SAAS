@@ -139,7 +139,7 @@ export default async function Ventes(
       <main className="ecran">
         <h1>Ventes</h1>
         <p className="sous">
-          Ce que les bornes ont remonté. Le SaaS n’encaisse rien : l’argent est chez votre processeur de paiement.
+          Ce que les RedBox ont remonté. Le SaaS n’encaisse rien : l’argent est chez votre processeur de paiement.
         </p>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -187,8 +187,8 @@ export default async function Ventes(
           </>
         ) : (
           <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
-                 texte="Élargissez la fenêtre, ou vérifiez que vos bornes sont en ligne et remontent bien leurs ventes."
-                 secondaire={{ nom: "Voir les bornes", vers: "/bornes" }} dedans />
+                 texte="Élargissez la fenêtre, ou vérifiez que vos RedBox sont en ligne et remontent bien leurs ventes."
+                 secondaire={{ nom: "Voir les RedBox", vers: "/bornes" }} dedans />
         )}
 
         {parProduit.length > 0 ? (
@@ -222,7 +222,7 @@ export default async function Ventes(
                     <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
                     {s.lane ? ` · canal ${s.lane}` : ""} · {depuis(s.faite_le)}
                     {" · "}<Link href={`/bornes/${s.borne_id}/journal?c=${s.commande_id}`}
-                                 className="num" title="Le journal de la borne pour cette commande">{s.commande_id}</Link>
+                                 className="num" title="Le journal de la RedBox pour cette commande">{s.commande_id}</Link>
                   </div>
                   <div style={{ marginTop: 7 }}>
                     <span className={`pilule ${s.statut === "litige" ? "mal" : ""}`}>
@@ -252,9 +252,9 @@ export default async function Ventes(
             Dans les trois cas le client a été débité par le terminal. « Chute non détectée » : la
             spirale a tourné et la cellule optique n’a rien vu passer. « La spirale n’a pas tourné » :
             la carte à ressorts n’a pas répondu, ou plus aucun canal n’avait le produit. Dans ces deux
-            cas la borne a demandé le remboursement au terminal ; « argent conservé » veut dire qu’elle
+            cas la RedBox a demandé le remboursement au terminal ; « argent conservé » veut dire qu’elle
             ne l’a pas fait. Le remboursement se vérifie chez votre processeur de paiement. Marquer « traité » ne change pas
-            ce que la borne a remonté — on note seulement que quelqu’un s’en est occupé.
+            ce que la RedBox a remonté — on note seulement que quelqu’un s’en est occupé.
           </p>
         ) : null}
 
@@ -290,7 +290,7 @@ export default async function Ventes(
                       <Link href={`/bornes/${s.borne_id}`}>{s.borne}</Link>
                       {" · "}{depuis(s.faite_le)}{" · "}
                       <Link href={`/bornes/${s.borne_id}/journal?c=${s.commande_id}`}
-                            className="num" title="Le journal de la borne pour cette commande">{s.commande_id}</Link>
+                            className="num" title="Le journal de la RedBox pour cette commande">{s.commande_id}</Link>
                     </div>
                     <div style={{ marginTop: 7 }}>
                       <span className="pilule">{LIBELLES[s.statut] ?? s.statut}</span>
@@ -306,7 +306,7 @@ export default async function Ventes(
           Une vente avortée ne coûte rien à la caisse : le client n’a pas été débité. « Âge non
           vérifié » : l’article a été retiré du panier avant le paiement. « Aucune carte présentée » :
           le client est parti ou a annulé. « Carte refusée » : le terminal a dit non. « Interrompue
-          avant la spirale » : une borne d’avant la 5.13, qui ne précisait pas le motif.
+          avant la spirale » : une RedBox d’avant la 5.13, qui ne précisait pas le motif.
         </p>
       </main>
       <NavBasse page="ventes" />

@@ -112,7 +112,7 @@ export default function GrillePrix({
 
         <div className={`prix-champ${mauvais ? " faux" : ""}`}>
           <input name={`prix_${p.id}`} inputMode="decimal" className="num"
-                 aria-label={`Prix de ${p.nom} sur cette borne — vide pour suivre le catalogue`}
+                 aria-label={`Prix de ${p.nom} sur cette RedBox — vide pour suivre le catalogue`}
                  aria-invalid={mauvais || undefined}
                  placeholder={enSaisie(p.catalogue_c)}
                  value={saisies[p.id] ?? ""}
@@ -193,8 +193,8 @@ export default function GrillePrix({
           ) : null}
           <span className="faible">
             {propres.length === 0
-              ? "Cette borne suit le catalogue sur tous ses produits."
-              : `${propres.length} prix propre${propres.length > 1 ? "s" : ""} à cette borne.`}
+              ? "Cette RedBox suit le catalogue sur tous ses produits."
+              : `${propres.length} prix propre${propres.length > 1 ? "s" : ""} à cette RedBox.`}
             {" "}La machine l’appliquera dès qu’elle répond — quelques secondes.
           </span>
         </div>
@@ -204,7 +204,7 @@ export default function GrillePrix({
           Meme rendu que le catalogue general — c'est le meme ecran, vu depuis
           une machine plutot que depuis le compte. */}
       <aside className="apercu-borne">
-        <div className="titre-apercu">Sur l’écran de cette borne</div>
+        <div className="titre-apercu">Sur l’écran de cette RedBox</div>
 
         <div className="onglets-rayon">
           {rayons.map(({ cat, liste }) => (
@@ -242,7 +242,7 @@ export default function GrillePrix({
             </div>
           ) : (
             <p className="t-rien">
-              Ce rayon n’apparaîtra pas sur cette borne : aucun produit affiché n’y occupe de canal.
+              Ce rayon n’apparaîtra pas sur cette RedBox : aucun produit affiché n’y occupe de canal.
             </p>
           )}
 
@@ -253,7 +253,7 @@ export default function GrillePrix({
         </div>
 
         <p className="faible" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
-          Un prix propre à cette borne apparaît en rouge. Les produits masqués ici,
+          Un prix propre à cette RedBox apparaît en rouge. Les produits masqués ici,
           ou qui n’occupent aucun canal, ne sont pas montrés.
         </p>
       </aside>

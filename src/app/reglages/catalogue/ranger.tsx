@@ -121,11 +121,11 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
           {p.prix_ailleurs > 0 ? (
             <b className="prix-a-part sur-mesure"
                title={p.prix_ailleurs > 1
-                 ? `${p.prix_ailleurs} bornes appliquent leur propre prix : ce montant ne les concerne pas.`
-                 : "Une borne applique son propre prix : ce montant ne la concerne pas."}>
+                 ? `${p.prix_ailleurs} RedBox appliquent leur propre prix : ce montant ne les concerne pas.`
+                 : "Une RedBox applique son propre prix : ce montant ne la concerne pas."}>
               {p.prix_ailleurs > 1
-                ? ` · ${p.prix_ailleurs} bornes ont leur prix`
-                : " · 1 borne a son prix"}
+                ? ` · ${p.prix_ailleurs} RedBox ont leur prix`
+                : " · 1 RedBox a son prix"}
             </b>
           ) : null}
         </div>
@@ -153,7 +153,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         Recevoir
       </Link>
       <Link href={`/reassort?p=${p.id}`} className="bouton petit discret"
-            draggable={false} title={`Réassort des bornes qui portent ${p.nom}`}>
+            draggable={false} title={`Réassort des RedBox qui portent ${p.nom}`}>
         Réassort
       </Link>
 
@@ -169,7 +169,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
               aria-expanded={fiche === p.id}
               title={p.fiche_visible
                 ? `Fiche de ${p.nom} — description et mention légale`
-                : `Fiche de ${p.nom} — le « i » ne s’affiche pas sur les bornes`}>
+                : `Fiche de ${p.nom} — le « i » ne s’affiche pas sur les RedBox`}>
         Fiche{p.fiche_visible ? (p.description || p.mention ? " ·" : "") : " · i masqué"}
       </button>
 
@@ -212,7 +212,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         <label className="coche coche-fiche">
           <input type="checkbox" checked={p.fiche_visible}
                  onChange={(ev) => modifier(p.id, { fiche_visible: ev.target.checked })} />
-          <span>Bouton « i » sur la borne</span>
+          <span>Bouton « i » sur la RedBox</span>
         </label>
         <input type="hidden" name={`pfiche_${p.id}`} value={p.fiche_visible ? "1" : "0"} />
         <p className="faible" style={{ fontSize: 12.5, margin: "0 0 12px" }}>
@@ -238,7 +238,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
 
         {mentionDAge(p.age_min) ? (
           <p className="faible" style={{ fontSize: 12.5, margin: "8px 0 0" }}>
-            La borne ajoute d’office : « {mentionDAge(p.age_min)} »
+            La RedBox ajoute d’office : « {mentionDAge(p.age_min)} »
           </p>
         ) : null}
       </div>
@@ -249,7 +249,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
             <b>« {p.nom} » ne peut pas être supprimé.</b> Il porte {p.bouge} mouvement
             {p.bouge > 1 ? "s" : ""} de stock — réceptions, transferts, ventes. L’effacer
             trouerait le grand livre, qui est la seule vérité de votre stock.
-            {" "}<b>Suspendez-le</b> : il disparaît des bornes, garde son historique,
+            {" "}<b>Suspendez-le</b> : il disparaît des RedBox, garde son historique,
             et revient d’un clic.
           </div>
           <div className="actions">
@@ -304,7 +304,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
 
         <div className="pied-ranger">
           <button className="bouton primaire">Enregistrer le catalogue</button>
-          <span className="faible">Les bornes l’appliqueront à leur prochaine synchronisation.</span>
+          <span className="faible">Les RedBox l’appliqueront à leur prochaine synchronisation.</span>
         </div>
       </div>
 
@@ -315,7 +315,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
           change de rayon comme le client le ferait, et on voit ce qu'il verra :
           la grille a deux colonnes, les noms tels qu'ils tiendront, les prix. */}
       <aside className="apercu-borne">
-        <div className="titre-apercu">Sur l’écran de la borne</div>
+        <div className="titre-apercu">Sur l’écran de la RedBox</div>
 
         <div className="onglets-rayon">
           {rayons.map(({ cat, liste }) => {

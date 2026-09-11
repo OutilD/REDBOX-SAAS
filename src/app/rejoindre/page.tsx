@@ -62,7 +62,7 @@ export default async function Rejoindre({ searchParams }:
           <p className="sous" style={{ marginBottom: 22 }}>
             Vous êtes invité à rejoindre <strong>{offre.compte}</strong> comme{" "}
             <strong>{nomDuRole(offre.role)}</strong>
-            {offre.borne ? <> pour la borne <strong>{offre.borne}</strong> uniquement</> : null}.
+            {offre.borne ? <> pour <strong>{offre.borne}</strong> uniquement</> : null}.
           </p>
         ) : (
           <p className="sous" style={{ marginBottom: 22 }}>

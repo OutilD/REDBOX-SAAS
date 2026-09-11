@@ -112,7 +112,7 @@ export default async function Prix({
         </div>
 
         <p className="sous" style={{ marginTop: 12 }}>
-          Ce que <b>cette borne</b> fait payer. Un champ laissé vide suit le prix du{" "}
+          Ce que <b>cette RedBox</b> fait payer. Un champ laissé vide suit le prix du{" "}
           <Link href="/reglages/catalogue" style={{ textDecoration: "underline" }}>
           catalogue</Link> — aujourd’hui, et le jour où il changera. Le produit reste
           le même partout : son nom, sa photo, sa fiche et son stock ne se dédoublent
@@ -122,14 +122,14 @@ export default async function Prix({
         {fait === "ok" ? (
           <p className="avis-ok">
             Prix enregistrés{n && Number(n) > 0
-              ? ` — ${n} prix propre${Number(n) > 1 ? "s" : ""} à cette borne`
-              : " — cette borne suit le catalogue partout"}.
+              ? ` — ${n} prix propre${Number(n) > 1 ? "s" : ""} à cette RedBox`
+              : " — cette RedBox suit le catalogue partout"}.
             La machine l’applique dès qu’elle répond.
           </p>
         ) : null}
         {fait === "aligne" ? (
           <p className="avis-ok">
-            Tous les prix de cette borne sont revenus au catalogue.
+            Tous les prix de cette RedBox sont revenus au catalogue.
           </p>
         ) : null}
         {refuses ? (
@@ -145,7 +145,7 @@ export default async function Prix({
         <div className="bandeau">
           <div>
             <div className="valeur">{propres.length}</div>
-            <div className="etiq">prix propres à cette borne</div>
+            <div className="etiq">prix propres à cette RedBox</div>
           </div>
           <div>
             <div className="valeur">{enVente.length}</div>
@@ -180,7 +180,7 @@ export default async function Prix({
           <div className="avis">
             <IcoAlerte size={17} />
             <div className="dit">
-              <div className="titre">Cette borne ne vend rien pour l’instant</div>
+              <div className="titre">Cette RedBox ne vend rien pour l’instant</div>
               <div className="texte">
                 Aucun produit affiché n’occupe de canal ici. Les prix se règlent quand
                 même — ils s’appliqueront dès que le planogramme sera posé.
@@ -211,7 +211,7 @@ export default async function Prix({
                 <div className="fin">
                   <div className="num">{euros(p.prix_c)}</div>
                   {p.propre
-                    ? <span className="pilule attente"><i />propre à cette borne</span>
+                    ? <span className="pilule attente"><i />propre à cette RedBox</span>
                     : null}
                 </div>
               </div>

@@ -95,7 +95,7 @@ export default async function Planogramme({
         </div>
 
         {e === "place" ? <p className="erreur">Rangée et colonne vont de 1 à 10.</p> : null}
-        {e === "deja" ? <p className="erreur">Ce canal existe déjà sur cette borne.</p> : null}
+        {e === "deja" ? <p className="erreur">Ce canal existe déjà sur cette RedBox.</p> : null}
         {e === "pleine" ? <p className="erreur">
           Ce canal contient encore des unités : videz-le avant de le retirer, sinon
           le stock disparaîtrait des comptes.

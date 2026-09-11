@@ -75,7 +75,7 @@ export default async function Reglages() {
     },
     {
       cle: "catalogue", vers: "/reglages/catalogue", icone: <IcoCatalogue />,
-      nom: "Catalogue", quoi: "Ce que vendent vos bornes — nom, prix, âge minimum",
+      nom: "Catalogue", quoi: "Ce que vendent vos RedBox — nom, prix, âge minimum",
       etat: produits > 0 ? String(produits) : "à remplir", alerte: produits === 0,
     },
     {
@@ -105,7 +105,7 @@ export default async function Reglages() {
     },
     peutConfigurer(u) && {
       cle: "sav", vers: "/reglages/sav", icone: <IcoSav />,
-      nom: "Assistance", quoi: "Le numéro que la borne affiche quand elle coince",
+      nom: "Assistance", quoi: "Le numéro que la RedBox affiche quand elle coince",
       // Une machine sans numero laisse un client devant un ecran muet : c'est le
       // seul zero de cette page qui coute quelque chose tout de suite.
       etat: tel || "à renseigner", alerte: !tel,

@@ -62,7 +62,7 @@ export default async function Inscription({ searchParams }:
             <label htmlFor="code">Code d’inscription</label>
             <input id="code" name="code" required className="mono"
                    autoCapitalize="characters" autoComplete="off"
-                   placeholder="fourni avec votre borne" />
+                   placeholder="fourni avec votre RedBox" />
           </div>
         ) : null}
 

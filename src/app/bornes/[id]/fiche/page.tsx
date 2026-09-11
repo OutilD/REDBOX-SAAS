@@ -46,7 +46,7 @@ export default async function FicheBorne({ params, searchParams }:
         <div className="rangee" style={{ marginTop: 18 }}>
           <Link href={`/bornes/${id}`} className="bouton petit">‹</Link>
           <div className="pousse">
-            <h1 style={{ margin: 0, fontSize: 22 }}>Fiche de la borne</h1>
+            <h1 style={{ margin: 0, fontSize: 22 }}>Fiche de la RedBox</h1>
             <div className="faible" style={{ fontSize: 13 }}>{b.nom}</div>
           </div>
         </div>
@@ -73,7 +73,7 @@ export default async function FicheBorne({ params, searchParams }:
             <div className="quoi">
               <div className="titre">Photo de la machine</div>
               <p className="faible" style={{ fontSize: 13, margin: "4px 0 10px" }}>
-                Une vue du bar, de la devanture, de la borne en place. C’est ce qui
+                Une vue du bar, de la devanture, de la RedBox en place. C’est ce qui
                 permet de la reconnaître d’un coup d’œil dans une tournée.
               </p>
               <label className="fichier">
@@ -93,7 +93,7 @@ export default async function FicheBorne({ params, searchParams }:
               <label htmlFor="nom">Nom</label>
               <input id="nom" name="nom" required defaultValue={b.nom} maxLength={80} />
               <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
-                Il apparaît partout : la liste des bornes, le sélecteur, et les
+                Il apparaît partout : la liste des RedBox, le sélecteur, et les
                 mouvements de stock.
               </p>
             </div>

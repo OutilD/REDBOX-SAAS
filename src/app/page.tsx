@@ -148,7 +148,7 @@ export default async function Tableau(
     },
     muettes > 0 && {
       cle: "muettes", niveau: "moyen" as const, n: muettes,
-      quoi: `borne${muettes > 1 ? "s" : ""} sans signe de vie`,
+      quoi: `RedBox sans signe de vie`,
       pourquoi: "elles ne remontent plus leurs ventes ; le chiffre ci-dessus est incomplet",
       vers: "/bornes", faire: "Voir",
     },
@@ -160,7 +160,7 @@ export default async function Tableau(
     },
     tete.jamais_appairees > 0 && {
       cle: "appairer", niveau: "doux" as const, n: tete.jamais_appairees,
-      quoi: `borne${tete.jamais_appairees > 1 ? "s" : ""} à appairer`,
+      quoi: `RedBox à appairer`,
       pourquoi: "elle est déclarée ici, mais la machine ne parle pas encore",
       vers: "/bornes", faire: "Appairer",
     },
@@ -190,7 +190,7 @@ export default async function Tableau(
         <main className="ecran">
           <h1>Bienvenue</h1>
           <p className="sous">
-            Compte {u.compte} — voici ce qu’il reste à faire pour que vos bornes se mettent
+            Compte {u.compte} — voici ce qu’il reste à faire pour que vos RedBox se mettent
             à vendre.
           </p>
           <PremiersPas a={avance} />
@@ -217,7 +217,7 @@ export default async function Tableau(
           <div className="quoi">
             <h1>Tableau de bord</h1>
             <p className="sous">
-              {u.compte} — {choisie ? <>borne <strong>{choisie.nom}</strong></> : "toutes les bornes"}
+              {u.compte} — {choisie ? <><strong>{choisie.nom}</strong></> : "toutes les RedBox"}
               {perso ? <> — <strong>{p.nom}</strong></>
                      : <>, sur {p.cle === "1" ? "la journée" : `les ${p.nom}`}</>}.
             </p>
@@ -297,7 +297,7 @@ export default async function Tableau(
                     dessous={taux === null ? "—" : `${taux} % du chiffre`}
                     delta={<Delta ici={tete.marge} avant={avant.marge} />} />
             <Mesure titre="Articles vendus" valeur={String(tete.ventes)}
-                    dessous={`${tete.bornes} borne${tete.bornes > 1 ? "s" : ""} · ${tete.en_ligne} en ligne`}
+                    dessous={`${tete.bornes} RedBox · ${tete.en_ligne} en ligne`}
                     delta={<Delta ici={tete.ventes} avant={avant.ventes} />} />
             <Mesure titre="Panier moyen" valeur={euros(panier)}
                     dessous="par article distribué"
@@ -349,7 +349,7 @@ export default async function Tableau(
           <Link href="/bornes">
             <span className="rond"><IcoBorne /></span>
             <span>
-              <span className="titre">Charger une borne</span>
+              <span className="titre">Charger une RedBox</span>
               <span className="quoi">
                 {tete.canaux_vides > 0
                   ? `${tete.canaux_vides} canaux vides à remplir`
@@ -378,13 +378,13 @@ export default async function Tableau(
 
         {/* ------------------------------------------------------------- bornes */}
         <div className="titre-section">
-          <h2>Quelle borne marche le mieux</h2>
+          <h2>Quelle RedBox marche le mieux</h2>
           <Link href="/bornes" className="lien">Voir tout <IcoFleche size={13} /></Link>
         </div>
         {bornes.length === 0 ? (
-          <Repli icone={<IcoBorne />} titre="Aucune borne sur ce compte"
-                 texte="Une borne se rattache à votre compte en lisant le code qu’elle affiche dans sa console de maintenance."
-                 action={{ nom: "Ajouter une borne", vers: "/bornes/ajouter" }} />
+          <Repli icone={<IcoBorne />} titre="Aucune RedBox sur ce compte"
+                 texte="Une RedBox se rattache à votre compte en lisant le code qu’elle affiche dans sa console de maintenance."
+                 action={{ nom: "Ajouter une RedBox", vers: "/bornes/ajouter" }} />
         ) : (
           <Classement bornes={bornes} />
         )}
@@ -491,7 +491,7 @@ export default async function Tableau(
         <h2>Ventes par catégorie</h2>
         {classees.length === 0 ? (
           <Repli icone={<IcoVentes />} titre="Aucune vente sur cette période"
-                 texte="Élargissez la fenêtre, ou vérifiez que les bornes remontent bien leurs ventes."
+                 texte="Élargissez la fenêtre, ou vérifiez que les RedBox remontent bien leurs ventes."
                  dedans />
         ) : (
           <div className="duo viz">
@@ -526,7 +526,7 @@ export default async function Tableau(
               {risques.map((s) => <FicheRisque key={s.id} s={s} />)}
             </div>
             <p className="faible" style={{ fontSize: 13, marginTop: 12 }}>
-              L’autonomie divise le stock total — réserve, bornes et en route — par la cadence
+              L’autonomie divise le stock total — réserve, RedBox et en route — par la cadence
               de vente de la période. La quantité proposée est celle qui vous ramène à trente
               jours d’avance.
             </p>
@@ -902,15 +902,15 @@ function PremiersPas({ a }: { a: Avancement }) {
       quoi: "Elles rangent votre stock et fixent l’ordre dans lequel il se présente.",
       cta: "Créer une catégorie", vers: "/reglages/categories" },
     { fait: a.produits > 0, nom: "Remplir le catalogue",
-      quoi: "Ce que vendent vos bornes : nom, prix, âge minimum.",
+      quoi: "Ce que vendent vos RedBox : nom, prix, âge minimum.",
       cta: "Ajouter un produit", vers: "/reglages/catalogue" },
     { fait: a.recu > 0, nom: "Enregistrer une réception",
       quoi: "La marchandise que vous avez achetée entre dans votre réserve.",
       cta: "Enregistrer", vers: "/reception" },
-    { fait: a.bornes > 0 && a.appairees > 0, nom: "Appairer une borne",
+    { fait: a.bornes > 0 && a.appairees > 0, nom: "Appairer une RedBox",
       quoi: "La machine affiche un code ; vous le portez ici depuis votre téléphone.",
       cta: "Appairer", vers: "/bornes/ajouter" },
-    { fait: a.chargees > 0, nom: "Charger la borne",
+    { fait: a.chargees > 0, nom: "Charger la RedBox",
       quoi: "Vous indiquez ce que vous ajoutez ; la machine confirme à sa prochaine synchro.",
       cta: "Charger", vers: "/bornes" },
   ];

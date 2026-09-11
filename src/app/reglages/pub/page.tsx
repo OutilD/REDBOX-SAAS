@@ -29,7 +29,7 @@ const ERREURS: Record<string, string> = {
   vide:  "Aucun fichier choisi.",
   type:  "Format refusé. Images : JPEG, PNG, WebP. Vidéos : MP4, WebM.",
   poids: `Fichier trop lourd. Maximum ${Math.round(TAILLE_MAX / 1024 / 1024)} Mo.`,
-  cible: "Choisissez au moins une borne, ou cochez « toutes mes bornes ». " +
+  cible: "Choisissez au moins une RedBox, ou cochez « toutes mes RedBox ». " +
          "Sans destination, la playlist ne passerait nulle part.",
   introuvable: "Cette playlist n’existe plus.",
 };
@@ -55,17 +55,17 @@ function ChoixBornes({ bornes, suffixe, coches, partout }: {
       <legend>Où diffuser</legend>
       <label className="coche maitresse">
         <input type="checkbox" name={`partout${suffixe}`} defaultChecked={partout} />
-        <span><b>Toutes mes bornes</b> — celles d’aujourd’hui et les prochaines</span>
+        <span><b>Toutes mes RedBox</b> — celles d’aujourd’hui et les prochaines</span>
       </label>
       {bornes.length === 0 ? (
         <p className="faible" style={{ fontSize: 12.5, margin: "8px 2px 2px" }}>
-          Vous n’avez encore aucune borne. La playlist partira dès qu’une machine
+          Vous n’avez encore aucune RedBox. La playlist partira dès qu’une machine
           sera appairée.
         </p>
       ) : (
         <>
           <p className="faible" style={{ fontSize: 12.5, margin: "9px 2px 7px" }}>
-            Sinon décochez ci-dessus, et choisissez parmi vos {bornes.length} borne
+            Sinon décochez ci-dessus, et choisissez parmi vos {bornes.length} RedBox
             {bornes.length > 1 ? "s" : ""} :
           </p>
           <div className="bornes-choix">
@@ -131,7 +131,7 @@ export default async function Pub({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Écran d’accueil</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Ce que la borne montre quand personne n’est devant : le logo, l’invite, et
+          Ce que la RedBox montre quand personne n’est devant : le logo, l’invite, et
           les visuels que vous y déposez. Le premier toucher les efface et lance l’achat —
           la publicité ne s’interpose jamais entre un client et son produit.
         </p>
@@ -146,7 +146,7 @@ export default async function Pub({
           <h2 style={{ marginTop: 28 }}>Où l’écran d’accueil est allumé</h2>
           <section className="carte">
             <p className="faible" style={{ margin: 0, fontSize: 13 }}>
-              Les visuels ne passent que sur cet écran : une borne coupée reste sur
+              Les visuels ne passent que sur cet écran : une RedBox coupée reste sur
               son catalogue et ne diffuse rien.
             </p>
 
@@ -275,7 +275,7 @@ export default async function Pub({
             <input type="hidden" name="dans" value={cible.id} />
             <h2 style={{ marginTop: 0 }}>Ajouter à « {cible.nom} »</h2>
             <p className="faible" style={{ fontSize: 13, marginTop: 0 }}>
-              Les fichiers rejoignent cette playlist à la suite. Ses bornes et ses dates
+              Les fichiers rejoignent cette playlist à la suite. Ses RedBox et ses dates
               ne changent pas.
             </p>
             <ChoixFichier name="fichier" required multiple libelle="Choisir des visuels"
@@ -296,7 +296,7 @@ export default async function Pub({
         {/* Les playlists */}
         {listes.length === 0 ? (
           <Repli icone={<IcoPub />} titre="Aucune playlist"
-                 texte="Déposez des images ou une vidéo : elles passeront en plein écran sur vos bornes au repos." />
+                 texte="Déposez des images ou une vidéo : elles passeront en plein écran sur vos RedBox au repos." />
         ) : (
           <form method="post" action="/api/pub">
             {listes.map((l) => (
@@ -310,8 +310,8 @@ export default async function Pub({
                     <div className="meta" style={{ marginTop: 6 }}>
                       {l.medias.length} média{l.medias.length > 1 ? "s" : ""} ·
                       {" "}{duree(l.duree_s)} par tour · {poids(l.taille)}
-                      {l.partout ? " · toutes les bornes"
-                                 : ` · ${l.bornes.length} borne${l.bornes.length > 1 ? "s" : ""}`}
+                      {l.partout ? " · toutes les RedBox"
+                                 : ` · ${l.bornes.length} RedBox`}
                     </div>
                     <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {l.diffuse
@@ -322,7 +322,7 @@ export default async function Pub({
                               : "période terminée"}
                           </span>}
                       {!l.partout && l.bornes.length === 0
-                        ? <span className="pilule mal"><i />sur aucune borne</span> : null}
+                        ? <span className="pilule mal"><i />sur aucune RedBox</span> : null}
                       {l.medias.length === 0
                         ? <span className="pilule mal"><i />vide</span> : null}
                     </div>
@@ -354,7 +354,7 @@ export default async function Pub({
                       <div className="texte">
                         Les fichiers sont effacés de la base : il faudra les retéléverser
                         pour les rediffuser. Si vous vouliez seulement arrêter la campagne,
-                        <b> Suspendre</b> la garde intacte, avec ses dates et ses bornes.
+                        <b> Suspendre</b> la garde intacte, avec ses dates et ses RedBox.
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flex: "none", alignItems: "center" }}>
@@ -455,9 +455,9 @@ export default async function Pub({
             <div className="pousse" style={{ minWidth: 250 }}>
               <div className="nom">{illuAge ? "Votre vidéo" : "Animation d’origine"}</div>
               <p className="faible" style={{ fontSize: 13, margin: "6px 0 0", lineHeight: 1.55 }}>
-                La borne montre une carte qui descend vers la fente — un geste dessiné,
+                La RedBox montre une carte qui descend vers la fente — un geste dessiné,
                 qui marche partout mais ne montre pas <b>votre</b> lecteur sur <b>votre</b>
-                {" "}machine. Vous pouvez y mettre une vidéo tournée devant la vraie borne.
+                {" "}machine. Vous pouvez y mettre une vidéo tournée devant la vraie RedBox.
                 {" "}{illuAge ? `Actuellement : ${poids(illuAge.taille)}.`
                               : "Sans fichier, l’animation d’origine reste."}
               </p>

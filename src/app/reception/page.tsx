@@ -134,9 +134,9 @@ export default async function Reception({ searchParams }:
         )}
 
         <p className="faible" style={{ fontSize: 13 }}>
-          Une réception n’envoie rien dans les bornes : elle remplit votre réserve.
+          Une réception n’envoie rien dans les RedBox : elle remplit votre réserve.
           Le passage en machine se fait depuis{" "}
-          <Link href="/bornes" style={{ textDecoration: "underline" }}>la fiche d’une borne</Link>.
+          <Link href="/bornes" style={{ textDecoration: "underline" }}>la fiche d’une RedBox</Link>.
         </p>
       </main>
       <NavBasse page="reception" />

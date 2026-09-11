@@ -41,7 +41,7 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "vides",       nom: "Spires vides",   quoi: "Une spire vient de vendre son dernier article" },
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
   { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe et la communauté écrivent dans les salons" },
-  { cle: "annonces",    nom: "Annonces",       quoi: "Les nouveautés de la console et des bornes, par l’équipe RedBox" },
+  { cle: "annonces",    nom: "Annonces",       quoi: "Les nouveautés de la console et des RedBox, par l’équipe RedBox" },
 ];
 
 export type Evenement =
@@ -56,7 +56,7 @@ type Message = { genre: Genre; titre: string; corps: string; url: string; tag: s
 /** Le message d'un abonnement d'essai : c'est ce qu'on voit en appuyant sur « Essayer ». */
 export const ESSAI: Message = {
   genre: "ventes", titre: "RedBox · notifications activées",
-  corps: "Vous recevrez ici les ventes et les incidents de vos bornes.", url: "/", tag: "essai",
+  corps: "Vous recevrez ici les ventes et les incidents de vos RedBox.", url: "/", tag: "essai",
 };
 
 // ---------------------------------------------------------------- les cles

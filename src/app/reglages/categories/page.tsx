@@ -55,7 +55,7 @@ export default async function Categories({
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
           Faites-les glisser pour les ranger, renommez-les sur place. L’ordre vaut ici
-          et sur l’écran d’accueil des bornes — l’aperçu montre ce que verra le client.
+          et sur l’écran d’accueil des RedBox — l’aperçu montre ce que verra le client.
         </p>
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
         {detaches ? (

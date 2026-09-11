@@ -67,23 +67,23 @@ export default async function Reassort({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche de réassort</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Cochez les bornes de la tournée. La fiche dira quoi sortir de la réserve,
-          puis borne par borne quel produit va dans quel canal et combien en poser.
+          Cochez les RedBox de la tournée. La fiche dira quoi sortir de la réserve,
+          puis RedBox par RedBox quel produit va dans quel canal et combien en poser.
         </p>
         {parProduit ? (
           <p className="faible" style={{ fontSize: 13.5, marginTop: -6 }}>
             Pré-coché pour <b>{parProduit.nom}</b> :{" "}
             {visees.length > 0
-              ? `${visees.length} borne${visees.length > 1 ? "s" : ""} le portent.`
-              : "aucune borne ne le porte pour l’instant."}{" "}
+              ? `${visees.length} RedBox le portent.`
+              : "aucune RedBox ne le porte pour l’instant."}{" "}
             <Link href="/reassort" style={{ textDecoration: "underline" }}>Tout décocher</Link>
           </p>
         ) : null}
 
         {servables.length === 0 ? (
-          <Repli icone={<IcoBorne />} titre="Aucune borne à servir"
-                 texte="Une borne apparaît ici dès qu’un produit est affecté à l’un de ses canaux."
-                 action={{ nom: "Voir mes bornes", vers: "/bornes" }} />
+          <Repli icone={<IcoBorne />} titre="Aucune RedBox à servir"
+                 texte="Une RedBox apparaît ici dès qu’un produit est affecté à l’un de ses canaux."
+                 action={{ nom: "Voir mes RedBox", vers: "/bornes" }} />
         ) : (
           <form method="get" action="/reassort/fiche">
             <div className="carte plate"><div className="lignes">

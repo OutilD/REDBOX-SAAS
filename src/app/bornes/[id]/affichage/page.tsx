@@ -115,20 +115,20 @@ export default async function Affichage({
           </div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Décochez ce que <b>cette borne</b> ne doit pas montrer. Le stock et le
+          Décochez ce que <b>cette RedBox</b> ne doit pas montrer. Le stock et le
           planogramme ne bougent pas : le canal garde son produit et son compteur,
           la machine l’annonce simplement comme libre. On peut rendre un rayon le
           lendemain sans rien avoir perdu. Pour ce qu’elle fait payer,{" "}
           <Link href={`/bornes/${id}/prix`} style={{ textDecoration: "underline" }}>
-          les prix de cette borne</Link>.
+          les prix de cette RedBox</Link>.
         </p>
 
         {ok ? <p className="faible" style={{ fontSize: 13.5 }}>
-          Enregistré. La borne l’appliquera à sa prochaine synchronisation.
+          Enregistré. La RedBox l’appliquera à sa prochaine synchronisation.
         </p> : null}
 
         {veille ? <p className="avis-ok">
-          Écran d’accueil enregistré. La borne l’applique dès qu’elle répond —
+          Écran d’accueil enregistré. La RedBox l’applique dès qu’elle répond —
           quelques secondes.
         </p> : null}
 
@@ -158,7 +158,7 @@ export default async function Affichage({
               Coché : le logo, l’invite « Touchez l’écran pour commencer » et les
               visuels publicitaires. Décoché : la machine reste <b>en permanence sur
               le catalogue</b>. Le client voit ce qui est en vente sans avoir à
-              toucher une première fois — c’est ce qu’on veut sur une borne posée
+              toucher une première fois — c’est ce qu’on veut sur une RedBox posée
               dans un passage. La publicité, elle, ne passe que sur l’écran
               d’accueil : la couper la coupe aussi.
             </p>
@@ -207,7 +207,7 @@ export default async function Affichage({
           <div className="avis">
             <IcoAlerte size={17} />
             <div className="dit">
-              <div className="titre">Cette borne n’afficherait plus rien</div>
+              <div className="titre">Cette RedBox n’afficherait plus rien</div>
               <div className="texte">
                 Aucun produit visible et placé dans un canal : la machine
                 retomberait sur sa vitrine de secours. Recochez au moins une
@@ -242,7 +242,7 @@ export default async function Affichage({
             <h2>Produits</h2>
             <p className="faible" style={{ fontSize: 13, marginTop: -6 }}>
               Un produit d’une catégorie décochée reste caché, même coché ici.
-              Un produit sans canal sur cette borne n’apparaît de toute façon pas.
+              Un produit sans canal sur cette RedBox n’apparaît de toute façon pas.
             </p>
             {parCategorie.map(([nom, liste]) => (
               <div className="carte plate" key={nom} style={{ marginBottom: 10 }}>
@@ -258,10 +258,10 @@ export default async function Affichage({
                           <span className="mono">{p.sku}</span> · {euros(p.prix_c)}
                           {p.prix_propre ? (
                             <b className="prix-a-part"
-                               title={`Prix propre à cette borne — le catalogue dit ${euros(p.prix_vente_c)}`}>
+                               title={`Prix propre à cette RedBox — le catalogue dit ${euros(p.prix_vente_c)}`}>
                               <span aria-hidden>∗</span>
                               <span className="hors-vue">
-                                {` prix propre à cette borne, le catalogue dit ${euros(p.prix_vente_c)}`}
+                                {` prix propre à cette RedBox, le catalogue dit ${euros(p.prix_vente_c)}`}
                               </span>
                             </b>
                           ) : null}
@@ -283,7 +283,7 @@ export default async function Affichage({
             <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
               <button className="bouton primaire large">Enregistrer l’affichage</button>
               <span className="faible" style={{ fontSize: 13 }}>
-                La borne l’appliquera à sa prochaine synchronisation.
+                La RedBox l’appliquera à sa prochaine synchronisation.
               </span>
             </div>
           </form>

@@ -71,12 +71,12 @@ export function SelecteurBorne(
       <button type="button" className="declencheur" aria-haspopup="listbox"
               aria-expanded={ouvert} onClick={() => { setOuvert(!ouvert); setFiltre(""); }}>
         <span className="glyphe" aria-hidden="true"><IcoBorne size={15} /></span>
-        <span className="nom">{choisie ? choisie.nom : "Toutes les bornes"}</span>
+        <span className="nom">{choisie ? choisie.nom : "Toutes les RedBox"}</span>
         <span className="chevron" aria-hidden="true"><IcoChevron size={14} /></span>
       </button>
 
       {ouvert ? (
-        <div className="menu" role="listbox" aria-label="Choisir une borne">
+        <div className="menu" role="listbox" aria-label="Choisir une RedBox">
           {/*
             LE CHAMP EST TOUJOURS LA.
 
@@ -89,15 +89,15 @@ export function SelecteurBorne(
           */}
           <div className="chercher">
             <span aria-hidden="true"><IcoLoupe size={15} /></span>
-            <input ref={champ} type="search" value={filtre} placeholder="Chercher une borne…"
+            <input ref={champ} type="search" value={filtre} placeholder="Chercher une RedBox…"
                    onChange={(e) => setFiltre(e.target.value)}
-                   aria-label="Chercher une borne" />
+                   aria-label="Chercher une RedBox" />
           </div>
 
           <div className="choix">
             <Link href={vers("")} role="option" aria-selected={!choisie}
                   className={!choisie ? "actif" : ""} onClick={() => setOuvert(false)}>
-              <span className="etiquette">Toutes les bornes</span>
+              <span className="etiquette">Toutes les RedBox</span>
               {!choisie ? <IcoCoche size={15} /> : null}
             </Link>
 
@@ -112,7 +112,7 @@ export function SelecteurBorne(
             ))}
 
             {vues.length === 0 ? (
-              <p className="rien">Aucune borne ne porte ce nom.</p>
+              <p className="rien">Aucune RedBox ne porte ce nom.</p>
             ) : null}
           </div>
         </div>

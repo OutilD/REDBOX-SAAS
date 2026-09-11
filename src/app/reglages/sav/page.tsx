@@ -46,7 +46,7 @@ export default async function Sav({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Assistance</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Le numéro que la borne affiche au client quand quelque chose coince. Il apparaît
+          Le numéro que la RedBox affiche au client quand quelque chose coince. Il apparaît
           en bas de l’écran d’achat, et en grand sur les écrans de panne — là où
           quelqu’un cherche à qui parler.
         </p>
@@ -68,7 +68,7 @@ export default async function Sav({
           </div>
           <p className="faible" style={{ fontSize: 13, marginTop: 12, marginBottom: 0 }}>
             Laissez le numéro vide pour ne rien afficher du tout.
-            {n > 0 ? ` La modification part sur vos ${n} borne${n > 1 ? "s" : ""} à leur prochaine synchronisation.` : ""}
+            {n > 0 ? ` La modification part sur vos ${n} RedBox à leur prochaine synchronisation.` : ""}
           </p>
         </form>
 
@@ -83,7 +83,7 @@ export default async function Sav({
             </div>
           ) : (
             <p className="faible" style={{ margin: 0 }}>
-              Rien n’est affiché : la borne laisse la place vide tant qu’aucun numéro
+              Rien n’est affiché : la RedBox laisse la place vide tant qu’aucun numéro
               n’est renseigné. Un client bloqué devant une machine muette s’en va.
             </p>
           )}

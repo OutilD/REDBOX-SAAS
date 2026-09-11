@@ -123,14 +123,14 @@ export default async function Stock(
             {total > 0 ? (
               <div>
                 <div className="repartition" role="img"
-                     aria-label={`${enReserve} chez vous, ${enBornes} en bornes, ${enRoute} en route`}>
+                     aria-label={`${enReserve} chez vous, ${enBornes} en RedBox, ${enRoute} en route`}>
                   <span className="reserve" style={{ width: part(enReserve) }} />
                   <span className="bornes" style={{ width: part(enBornes) }} />
                   <span className="route" style={{ width: part(enRoute) }} />
                 </div>
                 <div className="legende">
                   <span className="reserve"><i />chez vous <b className="num">{enReserve}</b></span>
-                  <span className="bornes"><i />en bornes <b className="num">{enBornes}</b></span>
+                  <span className="bornes"><i />en RedBox <b className="num">{enBornes}</b></span>
                   <span className="route"><i />en route <b className="num">{enRoute}</b></span>
                 </div>
               </div>
@@ -147,7 +147,7 @@ export default async function Stock(
             <Mesure titre="En route" valeur={String(enRoute)}
                     dessous={attendus.length > 0
                       ? `sur ${attendus.length} référence${attendus.length > 1 ? "s" : ""}`
-                      : "rien en transit vers les bornes"}
+                      : "rien en transit vers les RedBox"}
                     vers={attendus.length > 0 ? lien({ q: "", v: "route" }) : undefined} />
           </div>
         </section>
@@ -155,7 +155,7 @@ export default async function Stock(
         {peutCharger(u) ? (
           <div className="rangee-actions" style={{ marginBottom: 18 }}>
             <Link href="/reception" className="bouton primaire">+ Réception</Link>
-            <Link href="/bornes" className="bouton">Charger une borne</Link>
+            <Link href="/bornes" className="bouton">Charger une RedBox</Link>
           </div>
         ) : null}
 
@@ -192,13 +192,13 @@ export default async function Stock(
         </div>
 
         <p className="note-lecture">
-          Pour chaque produit : ce qui est <b>chez vous</b>, ce qui est <b>en bornes</b>, et ce qui
+          Pour chaque produit : ce qui est <b>chez vous</b>, ce qui est <b>en RedBox</b>, et ce qui
           est <b>en route</b> — parti de votre réserve mais pas encore confirmé par la machine.
         </p>
 
         {groupes.length === 0 ? (
           <Repli icone={<IcoCatalogue />} titre="Aucun produit au catalogue"
-                 texte="Le catalogue décrit ce que vendent vos bornes : nom, prix, âge minimum. Votre stock s’y adosse."
+                 texte="Le catalogue décrit ce que vendent vos RedBox : nom, prix, âge minimum. Votre stock s’y adosse."
                  action={{ nom: "Ajouter un produit", vers: "/reglages/catalogue" }}
                  secondaire={{ nom: "Organiser les catégories", vers: "/reglages/categories" }} />
         ) : total === 0 && !cherche ? (
@@ -320,7 +320,7 @@ function Chiffres({ reserve, bornes, en_route, grands = false }: {
       </span>
       <span>
         <span className="n">{bornes}</span>
-        <span className="q">en bornes</span>
+        <span className="q">en RedBox</span>
       </span>
       <span>
         {/* `data-vide`, pas la classe `vide` : celle-ci est l'ecran vide

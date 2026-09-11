@@ -782,14 +782,14 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
   const courtNom = (n: string) => n.replace(/^\s*redbox\s*[—–-]\s*/i, "").trim();
   const lignes: { salon: number; qui: number | null; texte: string; quand: Date }[] = [
     { salon: general, qui: moi, quand: instant(6, 9, 12),
-      texte: "Bienvenue dans la messagerie. Ici on se dit ce qui concerne les machines ; chaque borne a son salon, où elle écrit elle-même ses ventes et ses soucis." },
+      texte: "Bienvenue dans la messagerie. Ici on se dit ce qui concerne les machines ; chaque RedBox a son salon, où elle écrit elle-même ses ventes et ses soucis." },
     { salon: general, qui: sami, quand: instant(6, 9, 15),
       texte: "Reçu. Je fais la tournée du Duplex et du Sous-Marin jeudi." },
     { salon: general, qui: sami, quand: instant(3, 18, 40),
       texte: "Duplex rechargé. Il ne reste presque plus de câbles USB-C en réserve." },
     { salon: general, qui: moi, quand: instant(3, 18, 52), texte: "Je passe commande demain." },
     { salon: general, qui: sami, quand: instant(1, 22, 5),
-      texte: "Chez Marcel est fermé pour travaux jusqu’à lundi, j’ai mis la borne hors service depuis la console." },
+      texte: "Chez Marcel est fermé pour travaux jusqu’à lundi, j’ai mis la RedBox hors service depuis la console." },
   ];
   if (duplex) {
     const b = courtNom(bornes[0].nom);
@@ -1079,7 +1079,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
   // les vraies : c'est ainsi qu'on voit les notifications marcher avant
   // d'avoir une machine.
   for (const [borne_id, evenements] of aSignaler) {
-    void signaler(compte_id, { id: borne_id, nom: nomDe.get(borne_id) ?? "Borne" }, evenements)
+    void signaler(compte_id, { id: borne_id, nom: nomDe.get(borne_id) ?? "RedBox" }, evenements)
       .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
   }
 }

@@ -112,7 +112,7 @@ export default function Activer({ publique, connus }: { publique: string; connus
     refuse: { titre: "Notifications refusées",
             texte: "La permission a été refusée pour ce site. Rouvrez-la dans les réglages du navigateur (ou du téléphone, pour une application installée), puis revenez ici." },
     pret: { titre: "Cet appareil ne reçoit rien",
-            texte: "Activez, acceptez la demande du navigateur, et il recevra les ventes et les incidents de vos bornes." },
+            texte: "Activez, acceptez la demande du navigateur, et il recevra les ventes et les incidents de vos RedBox." },
     actif: { titre: "Cet appareil reçoit les notifications",
             texte: "Réglez ce qu’il reçoit dans la liste ci-dessous, ou envoyez un essai." },
     occupe: { titre: "Un instant…", texte: "" },

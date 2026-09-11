@@ -147,7 +147,7 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
             </p>
           ) : (
             <p className="dit-faible">
-              Un produit sans spire part bien sur les bornes, mais aucune ne peut le sortir.
+              Un produit sans spire part bien sur les RedBox, mais aucune ne peut le sortir.
             </p>
           )}
         </fieldset>

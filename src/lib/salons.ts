@@ -62,13 +62,13 @@ export { EMOJIS } from "./reactions";
 /** Ce que l'editeur dit a tout le monde, et ou les gens se retrouvent. */
 const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe | null; ordre: number }[] = [
   { nom: "annonces", portee: "annonces", groupe: null, ordre: 0,
-    sujet: "Les nouveautés de la console et des bornes, par l’équipe RedBox" },
+    sujet: "Les nouveautés de la console et des RedBox, par l’équipe RedBox" },
   { nom: "entrepreneurs", portee: "communaute", groupe: "tous", ordre: 1,
     sujet: "Tous ceux qui font tourner des RedBox — et ceux qui y pensent" },
   { nom: "proprietaires", portee: "communaute", groupe: "proprietaires", ordre: 2,
     sujet: "Entre exploitants : ce qui marche, ce qui casse, ce qui se vend" },
   { nom: "prospects", portee: "communaute", groupe: "prospects", ordre: 3,
-    sujet: "Pas encore de borne ? Posez vos questions ici" },
+    sujet: "Pas encore de RedBox ? Posez vos questions ici" },
 ];
 
 export const SUPPORT = { nom: "equipe-redbox", sujet: "Votre ligne directe avec l’équipe RedBox" };
@@ -158,7 +158,7 @@ export async function assurerSalons(compte_id: number): Promise<void> {
 
 /** Les salons que cette personne voit, avec ce qu'elle n'y a pas encore lu. */
 const COLONNES_SALON = `
-  s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre,
+  s.id, s.nom, s.sujet, s.borne_id, b.nom AS RedBox, s.ordre,
   s.portee, s.groupe, s.compte_id, k.nom AS compte`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
@@ -418,7 +418,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
       (s.borne_id === null || t.restreint_a === null || t.restreint_a.map(Number).includes(s.borne_id))
       && (!restreint || t.choisi));
     total = gens.length;
-    regle = s.borne_id !== null ? `L’équipe du compte qui voit ${s.borne ?? "cette borne"}.`
+    regle = s.borne_id !== null ? `L’équipe du compte qui voit ${s.borne ?? "cette RedBox"}.`
           : restreint ? "Seulement les personnes choisies ci-dessous."
           : "Toute l’équipe du compte.";
     if (reglable) equipe.push(...tous.filter((t) => t.restreint_a === null));
@@ -452,8 +452,8 @@ export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
         FROM lecteurs x ORDER BY x.editeur DESC, pseudo LIMIT ${LIMITE}`, [groupe]);
     gens = r; total = r[0]?.total ?? 0;
     regle = groupe === "tous" ? "Tous les redboxers, et ceux qui y pensent."
-          : groupe === "proprietaires" ? "Les comptes qui ont au moins une vraie borne en service, et l’équipe RedBox."
-          : "Les comptes qui n’ont pas encore de borne, et l’équipe RedBox.";
+          : groupe === "proprietaires" ? "Les comptes qui ont au moins une vraie RedBox en service, et l’équipe RedBox."
+          : "Les comptes qui n’ont pas encore de RedBox, et l’équipe RedBox.";
   }
   return { regle, total, gens: gens.slice(0, LIMITE), reglable, equipe };
 }

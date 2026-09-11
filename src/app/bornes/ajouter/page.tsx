@@ -28,11 +28,11 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
     "SELECT COUNT(*)::int n FROM appairage WHERE borne_id IS NULL AND expire_le > now()");
 
   const messages: Record<string, string> = {
-    code: "Code inconnu ou expiré. La borne en affiche un nouveau toutes les vingt minutes.",
-    nom: "Donnez un nom à la borne.",
+    code: "Code inconnu ou expiré. La RedBox en affiche un nouveau toutes les vingt minutes.",
+    nom: "Donnez un nom à la RedBox.",
     prise: "Cette demande a déjà été adoptée.",
-    demo: "Le mode démo est actif : désactivez-le avant d’appairer une vraie borne.",
-    deja: "Cette borne est déjà rattachée à un compte. Une machine ne peut appartenir "
+    demo: "Le mode démo est actif : désactivez-le avant d’appairer une vraie RedBox.",
+    deja: "Cette RedBox est déjà rattachée à un compte. Une machine ne peut appartenir "
         + "qu’à un seul SaaS à la fois : faites-la désappairer depuis le compte qui la "
         + "détient, puis recommencez. Son catalogue et ses visuels seront repris ici.",
   };
@@ -43,16 +43,16 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
       <main className="ecran">
         <div className="rangee" style={{ marginTop: 18 }}>
           <Link href="/bornes" className="bouton petit">‹</Link>
-          <div className="pousse"><h1 style={{ margin: 0 }}>Ajouter une borne</h1></div>
+          <div className="pousse"><h1 style={{ margin: 0 }}>Ajouter une RedBox</h1></div>
         </div>
 
         {u.demo ? (
           <div className="avis" style={{ marginTop: 18 }}>
             <IcoAlerte size={17} />
             <div className="dit">
-              <div className="titre">Pas de vraie borne pendant la démo</div>
+              <div className="titre">Pas de vraie RedBox pendant la démo</div>
               <div className="texte">
-                Ce compte est rempli de bornes et de ventes inventées. Une vraie machine y
+                Ce compte est rempli de RedBox et de ventes inventées. Une vraie machine y
                 mêlerait ses ventes aux ventes fictives, et quitter la démo l’effacerait avec le
                 reste. Désactivez d’abord le mode démo, puis revenez ici.
               </div>
@@ -77,7 +77,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
 
         <form method="post" action="/api/bornes/adopter" className="carte">
           <div className="champ">
-            <label htmlFor="code">Code affiché par la borne</label>
+            <label htmlFor="code">Code affiché par la RedBox</label>
             <input id="code" name="code" required defaultValue={code ?? ""}
                    placeholder="XXXXXX" autoCapitalize="characters" autoComplete="off"
                    className="mono" maxLength={6}
@@ -85,7 +85,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
                             textTransform: "uppercase", minHeight: 62 }} />
           </div>
           <div className="champ">
-            <label htmlFor="nom">Nom de la borne</label>
+            <label htmlFor="nom">Nom de la RedBox</label>
             <input id="nom" name="nom" required placeholder="RedBox — Le Duplex" />
           </div>
           <div className="champ">
@@ -94,13 +94,13 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
           </div>
           {e ? <p className="erreur" style={{ marginTop: 14 }}>{messages[e] ?? "Impossible."}</p> : null}
           <div style={{ height: 18 }} />
-          <button className="bouton primaire large" disabled={u.demo}>Adopter cette borne</button>
+          <button className="bouton primaire large" disabled={u.demo}>Adopter cette RedBox</button>
         </form>
 
         <p className="faible" style={{ fontSize: 13.5, textAlign: "center" }}>
           {attente && attente.n > 0
-            ? `${attente.n} borne${attente.n > 1 ? "s" : ""} en attente d’adoption en ce moment.`
-            : "Aucune borne n’attend d’être adoptée."}
+            ? `${attente.n} RedBox en attente d’adoption en ce moment.`
+            : "Aucune RedBox n’attend d’être adoptée."}
         </p>
       </main>
       <NavBasse page="bornes" />

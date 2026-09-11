@@ -58,7 +58,7 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="bandeau quatre" style={{ marginTop: 16 }}>
-            <div><div className="faible" style={{ fontSize: 12 }}>Bornes en service</div>
+            <div><div className="faible" style={{ fontSize: 12 }}>RedBox en service</div>
                  <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{p.bornes}</div>
                  {suivant ? <div className="faible" style={{ fontSize: 11.5 }}>{suivant.manque} de plus → {suivant.grade.nom}</div> : null}</div>
             <div><div className="faible" style={{ fontSize: 12 }}>Redboxer depuis</div>

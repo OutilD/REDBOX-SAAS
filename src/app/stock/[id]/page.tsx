@@ -132,7 +132,7 @@ export default async function Produit({
             <span className="libelle">chez moi</span></div></div>
           <div><div className="stat">
             <span className="valeur num">{p.bornes}</span>
-            <span className="libelle">en bornes</span></div></div>
+            <span className="libelle">en RedBox</span></div></div>
           <div><div className={`stat ${p.en_route ? "attention" : ""}`}>
             <span className="valeur num">{p.en_route}</span>
             <span className="libelle">en route</span></div></div>
@@ -166,7 +166,7 @@ export default async function Produit({
             <Link href="/bornes">
               <span className="rond"><IcoBorne /></span>
               <span>
-                <span className="titre">Charger une borne</span>
+                <span className="titre">Charger une RedBox</span>
                 <span className="quoi">Passer du stock en machine</span>
               </span>
               <span className="fleche"><IcoFleche /></span>

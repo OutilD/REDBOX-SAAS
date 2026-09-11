@@ -54,7 +54,7 @@ export default async function Demo({ searchParams }:
             </p>
 
             <div className="bandeau quatre" style={{ marginBottom: 18 }}>
-              <div><div className="faible" style={{ fontSize: 12 }}>Bornes fictives</div>
+              <div><div className="faible" style={{ fontSize: 12 }}>RedBox fictives</div>
                    <div className="num" style={{ fontSize: 24, fontWeight: 750 }}>{etat.bornes}</div></div>
               <div><div className="faible" style={{ fontSize: 12 }}>Produits</div>
                    <div className="num" style={{ fontSize: 24, fontWeight: 750 }}>{etat.produits}</div></div>
@@ -67,11 +67,11 @@ export default async function Demo({ searchParams }:
             <div className="carte">
               <h2 style={{ marginTop: 0 }}>Comment ça marche</h2>
               <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, fontSize: 14.5 }}>
-                <li>Les trois bornes fictives <b>vivent</b> : elles vendent quelques articles entre
+                <li>Les trois RedBox fictives <b>vivent</b> : elles vendent quelques articles entre
                     deux de vos visites, confirment les chargements que vous saisissez, répondent
                     aux corrections de compteur et restent en ligne.</li>
                 <li>Vous pouvez tout faire comme pour de vrai : recevoir de la marchandise,
-                    charger une borne, traiter un litige, poser un prix, composer l’écran d’accueil,
+                    charger une RedBox, traiter un litige, poser un prix, composer l’écran d’accueil,
                     inviter quelqu’un.</li>
                 <li>Une <b>vraie</b> machine ne peut pas être appairée tant que le mode démo est
                     actif : ses ventes se mêleraient aux ventes inventées.</li>
@@ -82,10 +82,10 @@ export default async function Demo({ searchParams }:
             <h2>Désactiver le mode démo</h2>
             <div className="carte">
               <p style={{ margin: "0 0 12px", fontSize: 14.5, lineHeight: 1.6 }}>
-                Le compte est <b>entièrement vidé</b> : bornes, catalogue, catégories, stock,
+                Le compte est <b>entièrement vidé</b> : RedBox, catalogue, catégories, stock,
                 ventes, écran d’accueil — y compris ce que vous avez ajouté pendant l’essai.
                 Restent votre compte, les personnes que vous y avez fait entrer, et une réserve vide.
-                Vous pourrez alors appairer votre première borne.
+                Vous pourrez alors appairer votre première RedBox.
               </p>
               {!patron ? (
                 <p className="faible" style={{ margin: 0, fontSize: 13.5 }}>
@@ -97,7 +97,7 @@ export default async function Demo({ searchParams }:
                   <div className="dit">
                     <div className="titre">Effacer les données de démonstration et repartir à zéro ?</div>
                     <div className="texte">
-                      {etat.bornes} borne{etat.bornes > 1 ? "s" : ""}, {etat.produits} produit{etat.produits > 1 ? "s" : ""},
+                      {etat.bornes} RedBox, {etat.produits} produit{etat.produits > 1 ? "s" : ""},
                       {" "}{etat.ventes} vente{etat.ventes > 1 ? "s" : ""} et {etat.mouvements} mouvement{etat.mouvements > 1 ? "s" : ""} seront
                       supprimés. Il n’y a pas de retour en arrière.
                     </div>
@@ -154,7 +154,7 @@ export default async function Demo({ searchParams }:
               <div className="carte">
                 <p style={{ margin: "0 0 12px", fontSize: 14.5, lineHeight: 1.6 }}>
                   Le compte est vide. Vous pouvez relancer la démo pour continuer à essayer la
-                  console avec un parc inventé — tant qu’aucune vraie borne n’est appairée.
+                  console avec un parc inventé — tant qu’aucune vraie RedBox n’est appairée.
                 </p>
                 <form method="post" action="/api/demo/relancer">
                   <button className="bouton">Relancer le mode démo</button>

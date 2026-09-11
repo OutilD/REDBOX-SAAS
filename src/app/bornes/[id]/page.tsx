@@ -194,7 +194,7 @@ export default async function Detail({
           ligne » repond a la premiere question qu'on se pose sur une machine.
         */}
         <div className="tete-borne">
-          <Link href="/bornes" className="bouton petit retour" aria-label="Retour aux bornes">‹</Link>
+          <Link href="/bornes" className="bouton petit retour" aria-label="Retour aux RedBox">‹</Link>
           {b.image_id ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={`/api/image/${b.image_id}`} alt="" className="photo-borne" />
@@ -224,7 +224,7 @@ export default async function Detail({
             Ils etaient cinq cartes presque identiques semees dans la page. */}
         {charge ? (
           <Avis titre={`${charge} unités envoyées sur ${nCanaux} canaux`}>
-            Elles quittent votre réserve maintenant. La borne les inscrira à sa prochaine
+            Elles quittent votre réserve maintenant. La RedBox les inscrira à sa prochaine
             synchronisation — d’ici une trentaine de secondes si elle est en ligne.
             {Number(refuses) > 0
               ? ` ${refuses} ${Number(refuses) > 1 ? "canaux n’ont" : "canal n’a"} pas pu être servi en entier : place ou réserve insuffisante.`
@@ -232,14 +232,14 @@ export default async function Detail({
           </Avis>
         ) : null}
         {hs !== undefined ? (
-          <Avis titre={hs === "1" ? "Borne mise hors service" : "Borne remise en service"}>
+          <Avis titre={hs === "1" ? "RedBox mise hors service" : "RedBox remise en service"}>
             Elle a été réveillée : l’écran change dans la seconde si elle est en ligne,
             à son retour sinon.
           </Avis>
         ) : null}
         {pin ? (
           <Avis titre="Renouvellement demandé">
-            La borne a été réveillée : elle prend son nouveau code dans la seconde si
+            La RedBox a été réveillée : elle prend son nouveau code dans la seconde si
             elle est en ligne, à son retour sinon. Le code ne s’affiche qu’une fois
             qu’elle l’a confirmé — d’ici là, c’est un chargement que vous voyez.
           </Avis>
@@ -252,7 +252,7 @@ export default async function Detail({
           </Avis>
         ) : null}
         {reveil ? (
-          <Avis titre="Borne réveillée">
+          <Avis titre="RedBox réveillée">
             Elle tient une question ouverte en permanence : si elle est en ligne, elle
             synchronise dans la seconde. Sinon, elle le fera dès son retour.
           </Avis>
@@ -275,7 +275,7 @@ export default async function Detail({
               <div className="texte">
                 La machine cessera de répondre à ce compte et réaffichera un code
                 d’appairage. Vos ventes et votre historique restent ici — ils vous
-                appartiennent. La borne, elle, garde son catalogue et ses visuels :
+                appartiennent. La RedBox, elle, garde son catalogue et ses visuels :
                 le compte qui l’adoptera ensuite les reprendra tels quels.
               </div>
             </div>
@@ -290,7 +290,7 @@ export default async function Detail({
 
         {b.hors_service ? (
           <div className="carte chaude" style={{ marginTop: 14 }}>
-            <strong>Cette borne est hors service.</strong>
+            <strong>Cette RedBox est hors service.</strong>
             <p className="faible" style={{ margin: "8px 0 14px", fontSize: 14 }}>
               Elle n’encaisse plus rien et affiche l’écran d’indisponibilité
               {b.hors_service_texte ? ` : « ${b.hors_service_texte} »` : ""}.
@@ -309,17 +309,17 @@ export default async function Detail({
 
         {!b.jeton ? (
           <div className="carte chaude" style={{ marginTop: 14 }}>
-            <strong>Cette borne n’est pas encore appairée.</strong>
+            <strong>Cette RedBox n’est pas encore appairée.</strong>
             <p className="faible" style={{ margin: "8px 0 14px", fontSize: 14 }}>
               Sur la machine : Maintenance → SaaS. Elle affiche un code et un QR à porter ici.
             </p>
-            <Link href="/bornes/ajouter" className="bouton large">Appairer une borne</Link>
+            <Link href="/bornes/ajouter" className="bouton large">Appairer une RedBox</Link>
           </div>
         ) : null}
 
         {/* Le chiffre du jour est le phare ; ce que la machine porte l'entoure.
             Quatre tuiles de meme taille laissaient l'oeil tomber sur la premiere. */}
-        <section className="chiffres-cle" aria-label="La borne aujourd’hui">
+        <section className="chiffres-cle" aria-label="La RedBox aujourd’hui">
           <div className="phare">
             <div className="txt">
               <h2 className="etiquette">Encaissé aujourd’hui</h2>
@@ -395,7 +395,7 @@ export default async function Detail({
 
         {enRoute.length > 0 ? (
           <>
-            <h2>En route vers cette borne</h2>
+            <h2>En route vers cette RedBox</h2>
             <div className="carte plate">
               <div className="lignes">
                 {enRoute.map((m, i) => (
@@ -541,7 +541,7 @@ export default async function Detail({
                 */}
                 <p className="faible" style={{ margin: "10px 0 0", fontSize: 13.5 }}>
                   {!codeGere
-                    ? "Cette borne tourne encore sur une version qui ne reçoit pas de code : elle ouvre avec le code d’usine. Mettez son application à jour pour qu’elle prenne un code propre."
+                    ? "Cette RedBox tourne encore sur une version qui ne reçoit pas de code : elle ouvre avec le code d’usine. Mettez son application à jour pour qu’elle prenne un code propre."
                     : attend
                       ? "La machine est en train de prendre son nouveau code. Rien ne s’affiche tant qu’elle ne l’a pas confirmé : un code montré ici est un code qui ouvre."
                       : codeDormant
@@ -576,7 +576,7 @@ export default async function Detail({
                   </div>
 
                   <p className="faible" style={{ margin: "10px 0 0", fontSize: 13 }}>
-                    La borne garde sa liaison : elle remonte ses ventes, reçoit ses
+                    La RedBox garde sa liaison : elle remonte ses ventes, reçoit ses
                     transferts, et se rouvre d’ici sans déplacement. Une vente en cours va
                     à son terme — on ne coupe pas une distribution commencée.
                   </p>
@@ -671,10 +671,10 @@ function Canal({ c, borne, peut }: { c: LigneCanal; borne: number; peut: boolean
           {c.prix_c !== null ? euros(c.prix_c) : "—"}
           {c.prix_propre ? (
             <b className="prix-a-part"
-               title={`Prix propre à cette borne — le catalogue dit ${euros(c.prix_vente_c)}`}>
+               title={`Prix propre à cette RedBox — le catalogue dit ${euros(c.prix_vente_c)}`}>
               <span aria-hidden>∗</span>
               <span className="hors-vue">
-                {` prix propre à cette borne, le catalogue dit ${euros(c.prix_vente_c)}`}
+                {` prix propre à cette RedBox, le catalogue dit ${euros(c.prix_vente_c)}`}
               </span>
             </b>
           ) : null}

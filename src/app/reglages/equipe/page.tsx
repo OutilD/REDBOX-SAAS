@@ -52,11 +52,11 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Équipe</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Une borne appartient au compte, jamais à une personne : l’associé qui part ne part pas
+          Une RedBox appartient au compte, jamais à une personne : l’associé qui part ne part pas
           avec la machine.
         </p>
         {e === "email" ? <p className="erreur">Adresse manquante ou déjà membre de ce compte.</p> : null}
-        {e === "borne" ? <p className="erreur">Cette borne n’appartient pas à ce compte.</p> : null}
+        {e === "borne" ? <p className="erreur">Cette RedBox n’appartient pas à ce compte.</p> : null}
 
         <h2>Membres</h2>
         <div className="carte plate"><div className="lignes">
@@ -113,9 +113,9 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
           <div className="champ">
             <label htmlFor="borne_id">Portée</label>
             <select id="borne_id" name="borne_id" defaultValue="">
-              <option value="">Tout le compte — toutes les bornes</option>
+              <option value="">Tout le compte — toutes les RedBox</option>
               {machines.map((b) => (
-                <option key={b.id} value={b.id}>Cette borne seulement — {b.nom}</option>
+                <option key={b.id} value={b.id}>{b.nom} seulement</option>
               ))}
             </select>
           </div>
