@@ -182,11 +182,11 @@ export default async function Prix({
             <div className="dit">
               <div className="titre">Cette RedBox ne vend rien pour l’instant</div>
               <div className="texte">
-                Aucun produit affiché n’occupe de canal ici. Les prix se règlent quand
-                même — ils s’appliqueront dès que le planogramme sera posé.
+                Aucun produit affiché n’occupe de spirale ici. Les prix se règlent quand
+                même — ils s’appliqueront dès que les produits seront placés.
               </div>
             </div>
-            <Link href={`/bornes/${id}/planogramme`} className="bouton petit">Planogramme</Link>
+            <Link href={`/bornes/${id}/planogramme`} className="bouton petit">Emplacements</Link>
           </div>
         ) : null}
 

@@ -3077,6 +3077,542 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   grid-area: note; margin: 11px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LES EMPLACEMENTS — LA REDBOX DESSINEE
+
+   La machine telle qu'on la voit porte ouverte : un caisson noir liseré de
+   rouge, une vitrine, cinq plateaux de tole ou courent les spirales en fil
+   rouge, le rail de la porte a droite, le bac de retrait et le boitier en bas.
+   Le caisson garde ses couleurs dans les deux themes : c'est un objet, et une
+   RedBox est noire.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.machine { width: 100%; max-width: 600px; margin-inline: auto; }
+
+/* La plaque du caisson : la marque, et le nom de CETTE machine. */
+.plaque { display: flex; align-items: baseline; gap: 10px; min-width: 0; margin: -4px 6px 12px; }
+.plaque .marque {
+  flex: none; font-size: 15px; font-weight: 900; letter-spacing: .08em; color: #ff2a30;
+  text-shadow: 0 0 12px rgba(255,42,48,.55);
+}
+.plaque .nom-borne {
+  min-width: 0; font-size: 13px; font-weight: 650; letter-spacing: .02em; color: #c4c4cc;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Le surtitre de la page : ce qu'on y fait, au-dessus du nom de la machine. */
+.tete-borne .surtitre {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rouge-vif); margin-bottom: 2px;
+}
+
+.caisson {
+  position: relative; padding: 18px 16px 14px 14px; border-radius: 28px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.08), transparent 10%, transparent 90%, rgba(255,255,255,.05)),
+    linear-gradient(180deg, #2b2b31 0%, #151518 7%, #0d0d0f 100%);
+  border: 1px solid #3a3a42;
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.1), inset 0 -2px 0 rgba(0,0,0,.6),
+    0 30px 60px -24px rgba(0,0,0,.85), 0 0 60px -10px rgba(215,0,5,.55);
+}
+/* Le liseré de lumiere rouge qui court sur le bord. */
+.caisson::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px;
+  background: linear-gradient(180deg, rgba(255,42,48,.95), rgba(215,0,5,.18) 35%,
+              rgba(215,0,5,.06) 70%, rgba(255,42,48,.7));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none;
+}
+/* L'epaisseur du caisson, a droite. */
+.caisson::after {
+  content: ""; position: absolute; top: 22px; bottom: 22px; right: -9px; width: 9px;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(90deg, #0c0c0e, #202026);
+  box-shadow: 4px 0 14px rgba(215,0,5,.25);
+  pointer-events: none;
+}
+
+/* La vitrine : le creux sombre ou sont empiles les plateaux, a droite le rail
+   perfore qui porte la porte, et par-dessus un reflet de verre. */
+.vitrine {
+  position: relative; display: grid; gap: 14px;
+  padding: 12px 28px 12px 10px; border-radius: 12px;
+  background: linear-gradient(180deg, #0b0b0d, #161619 50%, #0a0a0c);
+  box-shadow: inset 0 0 0 1px #26262c, inset 0 14px 30px rgba(0,0,0,.9),
+              inset 0 -10px 20px rgba(0,0,0,.7);
+}
+.vitrine::after {
+  content: ""; position: absolute; top: 10px; bottom: 10px; right: 8px; width: 11px;
+  border-radius: 2px;
+  background:
+    radial-gradient(circle, #0b0b0d 1.3px, transparent 1.8px) center 4px / 11px 9px repeat-y,
+    linear-gradient(90deg, #858990, #d6d9de 45%, #979ba2);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.55);
+}
+.vitrine::before {
+  content: ""; position: absolute; inset: 0; z-index: 3; border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.025) 30%,
+              transparent 30.4%, transparent 62%, rgba(255,255,255,.035) 62.4%, transparent 78%);
+}
+
+/* Un plateau : la paroi du fond, sombre en haut ; les spirales posees dessus ;
+   devant, la levre plus claire qui en cache le bas, et l'encoche au milieu. */
+.etagere {
+  --levre: 52px; --recouvre: 5px;
+  position: relative; isolation: isolate; display: grid; gap: 18px;
+  grid-template-columns: repeat(var(--colonnes, 2), minmax(0, 1fr));
+  padding: 4px 10px 0; border-radius: 5px 5px 4px 4px;
+  background: linear-gradient(180deg, #55595f 0%, #9fa3aa 34%, #b8bcc1 74%, #a3a7ad 100%);
+  box-shadow: inset 1px 0 0 rgba(255,255,255,.3), inset -1px 0 0 rgba(0,0,0,.25),
+              0 12px 14px -4px rgba(0,0,0,.8);
+}
+.etagere::before {
+  content: ""; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: var(--levre);
+  border-radius: 3px 3px 4px 4px;
+  background: linear-gradient(180deg, #f1f2f4 0%, #dcdfe3 40%, #c3c7cc 100%);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -2px 0 rgba(0,0,0,.2), 0 -3px 7px rgba(0,0,0,.35);
+}
+.etagere::after {
+  content: ""; position: absolute; z-index: 2; left: 50%; bottom: 8px; width: 12px; height: 28px;
+  margin-left: -6px; border-radius: 5px;
+  background: linear-gradient(180deg, #62666d, #868a91);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,.5);
+}
+.machine .place { position: relative; display: flex; min-width: 0; }
+.machine .place > * { flex: 1; min-width: 0; }
+
+/* Une spirale : le fil rouge, dont la levre cache le bas, puis l'etiquette. */
+.machine .spirale {
+  display: grid; grid-template-rows: auto var(--levre); min-width: 0;
+  color: #16161a; border-radius: 6px;
+}
+.machine .bobine {
+  position: relative; z-index: 0; display: flex; align-items: flex-end;
+  margin-bottom: calc(var(--recouvre) * -1); min-width: 0;
+}
+.spire { display: block; width: 100%; height: auto; max-height: 72px; }
+.spire .axe { stroke: #6e7279; stroke-width: 2; }
+/* L'epaisseur du fil est dans le dessin : elle s'affine quand les tours se
+   serrent, sur une spirale de grande capacite. */
+.spire .dos { fill: none; stroke: #7a0004; }
+.spire .face { fill: none; stroke: #e3121a; stroke-linecap: round; }
+/* Les produits pris dans la spirale : une petite boite, la photo ou le
+   pictogramme dessus, un filet de lumiere par-dessus. */
+.spire .boite { fill: #fff; stroke: rgba(0,0,0,.4); stroke-width: .6; }
+.spire .picto { color: #16161a; }
+.spire .lettre { font: 800 9px ui-sans-serif, system-ui, sans-serif; fill: #16161a; text-anchor: middle; }
+.spire .reflet { fill: none; stroke: rgba(255,255,255,.55); stroke-width: .5; }
+.spire .moteur { fill: #d70005; }
+.spire .moteur-ombre { fill: #8c0004; }
+
+.machine .etiquette-spirale {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  padding: 5px 5px 7px 3px; border-radius: 6px;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.machine .etiquette-spirale .dit { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.machine .etiquette-spirale .ligne1 { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.machine .spirale .code {
+  padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 800;
+  background: #16161a; color: #fff; line-height: 16px;
+}
+.machine .spirale .compte { font-weight: 700; color: #45474d; }
+.machine .spirale .mot { font-weight: 800; }
+.machine .spirale[data-etat="vide"] .mot { color: #c30006; }
+.machine .spirale[data-etat="bas"] .mot { color: #8f6200; }
+.machine .spirale .double { font-weight: 600; color: #5a5c62; }
+.machine .spirale .nom {
+  min-width: 0; font-weight: 700; font-size: 12.5px; line-height: 1.15;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.machine .spirale .rien { font-size: 11.5px; font-weight: 600; color: #4b4d53; }
+.machine .spirale[data-etat="absente"] .bobine { opacity: .35; }
+.machine .spirale[data-etat="libre"] .bobine { opacity: .6; }
+
+a.spirale.lien { cursor: pointer; text-decoration: none; }
+.machine a.spirale.lien:hover .etiquette-spirale { background: rgba(255,255,255,.55); }
+.machine a.spirale.lien:focus-visible { outline: 2px solid #ff2a30; outline-offset: 2px; }
+.machine a.spirale.lien[aria-current] .etiquette-spirale {
+  background: #fff; box-shadow: 0 0 0 2px #d70005, 0 0 18px rgba(215,0,5,.55);
+}
+.machine a.spirale.lien[aria-current] .spire { filter: drop-shadow(0 0 4px rgba(255,42,48,.9)); }
+
+/* Le bas : le bac de retrait a volet, le boitier d'alimentation. */
+.socle { display: grid; grid-template-columns: 1.55fr 1fr; gap: 12px; margin-top: 14px; }
+.bac, .boitier { height: 72px; }
+.bac {
+  position: relative; display: grid; place-items: center; border-radius: 12px;
+  background: linear-gradient(180deg, #212126, #0f0f12);
+  box-shadow: inset 0 0 0 1px #34343b, inset 0 2px 0 rgba(255,255,255,.06), 0 6px 12px rgba(0,0,0,.5);
+}
+.bac::before {
+  content: ""; position: absolute; inset: 13px 14px 11px; border-radius: 10px;
+  background: linear-gradient(180deg, #131316, #1e1e23);
+  box-shadow: inset 0 0 0 1px #2f2f36, inset 0 6px 10px rgba(0,0,0,.65);
+}
+.bac span {
+  position: relative; font-size: 9.5px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: #6d6d76;
+}
+.boitier {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;
+  padding: 8px 10px; border-radius: 8px;
+  background: linear-gradient(180deg, #62656b, #3b3d42);
+  box-shadow: inset 0 0 0 1px #75787f, inset 0 2px 0 rgba(255,255,255,.18), 0 6px 12px rgba(0,0,0,.5);
+}
+.boitier .ventilateur {
+  height: 100%; aspect-ratio: 1; flex: none; border-radius: 50%;
+  background: repeating-radial-gradient(circle, #1f2125 0 1.4px, #4c4f55 1.4px 4px);
+  box-shadow: inset 0 0 0 2px #2a2c30, 0 1px 0 rgba(255,255,255,.15);
+}
+.boitier .voyants { display: grid; grid-template-columns: repeat(2, 10px); gap: 3px; flex: none; }
+.boitier .voyants i {
+  width: 10px; height: 13px; border-radius: 2px; background: #d70005;
+  box-shadow: 0 0 8px rgba(255,42,48,.75), inset 0 -3px 0 rgba(0,0,0,.25);
+}
+
+/* Le produit se reconnait avant de se lire : photo, pictogramme, ou initiale. */
+.visuel {
+  width: 36px; height: 36px; flex: none; overflow: hidden;
+  display: grid; place-items: center; border-radius: 7px;
+  background: var(--surface-2); border: 1px solid var(--bord); color: var(--texte-2);
+}
+.visuel img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.visuel svg { width: 24px; height: 24px; }
+.visuel .initiale { font-size: 15px; font-weight: 800; }
+.machine .visuel {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: #fff; border-color: rgba(0,0,0,.12); color: #16161a;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+.machine .visuel svg { width: 20px; height: 20px; }
+.machine .visuel .initiale { font-size: 14px; }
+
+/* ── La vue en 3D ─────────────────────────────────────────────────────────
+   Le meme caisson, pose dans l'espace : ses deux flancs et son dessus
+   s'ouvrent vers l'arriere, et on le fait tourner autour de son axe. */
+.flanc, .dessus { display: none; }
+.bloc-3d { display: grid; gap: 12px; }
+.scene-3d {
+  perspective: 1500px; padding: 12px 0 4px;
+  touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
+}
+.scene-3d[data-glisse] { cursor: grabbing; }
+.scene-3d .caisson {
+  --profondeur: 96px;
+  transform-style: preserve-3d;
+  transform: rotateX(-7deg) rotateY(var(--ry, -24deg));
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1);
+}
+.scene-3d[data-glisse] .caisson { transition: none; }
+.scene-3d .caisson::after { display: none; }
+.scene-3d .flanc, .scene-3d .dessus { display: block; position: absolute; pointer-events: none; }
+.scene-3d .flanc {
+  top: 0; bottom: 0; width: var(--profondeur);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), transparent 8%, transparent 92%, rgba(0,0,0,.4)),
+    linear-gradient(90deg, #08080a, #1d1d23 55%, #111115);
+  border: 1px solid #2c2c33;
+}
+.scene-3d .flanc.gauche {
+  left: 0; transform-origin: left center; transform: rotateY(90deg);
+  border-radius: 28px 0 0 28px; box-shadow: inset 0 0 0 1px rgba(255,42,48,.3);
+}
+.scene-3d .flanc.droit {
+  right: 0; transform-origin: right center; transform: rotateY(-90deg);
+  border-radius: 0 28px 28px 0; box-shadow: inset 0 0 0 1px rgba(255,42,48,.3);
+}
+.scene-3d .dessus {
+  left: 24px; right: 24px; top: 0; height: var(--profondeur);
+  transform-origin: center top; transform: rotateX(-90deg);
+  background: linear-gradient(180deg, #2a2a30, #101013); border: 1px solid #2c2c33;
+}
+/* Le reflet rouge au sol, sous la machine. */
+.scene-3d::after {
+  content: ""; display: block; width: 72%; height: 26px; margin: 4px auto 0;
+  background: radial-gradient(closest-side, rgba(215,0,5,.45), transparent);
+  filter: blur(4px);
+}
+.commandes-3d { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.commandes-3d .bouton[aria-pressed="true"] { border-color: var(--rouge); color: var(--texte); }
+.commandes-3d .aide-3d { font-size: 12px; color: var(--texte-3); }
+@media (prefers-reduced-motion: reduce) { .scene-3d .caisson { transition: none; } }
+
+/* ── La grille : la vue ordinaire ───────────────────────────────────────── */
+.facade {
+  display: grid; padding: 4px 8px;
+  border: 1px solid var(--bord-fort); border-radius: var(--r-l); background: var(--surface-2);
+}
+.facade .rang {
+  display: grid; grid-template-columns: repeat(var(--colonnes, 2), minmax(0, 1fr));
+  gap: 8px; padding: 8px 0;
+}
+/* Un filet epais entre les plateaux, comme les etageres. */
+.facade .rang + .rang { border-top: 3px solid var(--bord-fort); }
+.facade .place { display: flex; min-width: 0; }
+.facade .place > * { flex: 1; min-width: 0; }
+.facade .spirale {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  padding: 10px; border: 1px solid var(--bord); border-radius: var(--r-m);
+  background: var(--surface);
+}
+.facade .spirale:is([data-etat="libre"], [data-etat="absente"]) {
+  background: transparent; border-style: dashed; color: var(--texte-3);
+}
+.facade .spirale .tete { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; }
+.facade .spirale .code {
+  padding: 1px 6px; border-radius: 5px; font-size: 11.5px; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--bord); color: var(--texte-2);
+}
+.facade .spirale .double { margin-left: auto; font-size: 11px; color: var(--texte-3); }
+.facade .spirale .produit { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.facade .spirale .nom {
+  min-width: 0; font-weight: 650; font-size: 13.5px; line-height: 1.25;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.facade .spirale .rien { margin: 0; font-size: 12.5px; }
+.facade .spirale .meta { font-size: 12px; color: var(--texte-3); }
+.facade a.spirale.lien:hover { border-color: var(--texte-3); }
+.facade a.spirale.lien:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.facade a.spirale.lien[aria-current] {
+  border-style: solid; border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond);
+}
+
+/* Le choix de la vue, a cote de la consigne. */
+.barre-vue {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; margin: 0 0 14px;
+}
+.consigne-machine { margin: 0; font-size: 13px; color: var(--texte-2); }
+.consigne-machine .tours-rouges { color: var(--rouge-vif); font-weight: 700; }
+
+/* Les spirales a gauche, le reglage de la spirale touchee a droite. */
+.emplacements { display: grid; gap: 18px; align-items: start; }
+.actions-reglage { margin-top: 14px; }
+@media (min-width: 900px) {
+  .emplacements { grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); }
+  .emplacements .reglage { position: sticky; top: 74px; }
+  .voile-reglage { display: none; }
+}
+
+/*
+  SUR UN TELEPHONE, LE REGLAGE MONTE DU BAS.
+
+  Pose sous la machine, il fallait descendre, regler, remonter chercher la
+  spirale suivante. Il s'ouvre maintenant en panneau par-dessus la page, la
+  machine visible derriere son voile ; toucher le voile le ferme.
+*/
+@media (max-width: 899px) {
+  .machine { max-width: 460px; }
+  .emplacements .reglage:not([data-ouvert]) { display: none; }
+  .emplacements .reglage[data-ouvert] {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 71; margin: 0;
+    max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 18px 18px 0 0; border-bottom: none;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 0 -18px 40px rgba(0,0,0,.5);
+    animation: reglage-monte .22s ease-out;
+  }
+  /* La poignee : on reconnait un panneau qu'on peut refermer. */
+  .emplacements .reglage[data-ouvert]::before {
+    content: ""; display: block; width: 40px; height: 4px; margin: 0 auto 12px;
+    border-radius: 2px; background: var(--bord-fort);
+  }
+  .voile-reglage {
+    position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.55);
+    animation: reglage-fondu .2s ease-out;
+  }
+  .actions-reglage .bouton.primaire { flex: 1; }
+}
+/* Les petits telephones : on serre le decor, pas le texte. */
+@media (max-width: 420px) {
+  .caisson { padding: 12px 11px 10px 10px; border-radius: 22px; }
+  .vitrine { padding: 8px 22px 8px 7px; gap: 11px; }
+  .vitrine::after { right: 6px; width: 9px; }
+  .etagere { --levre: 50px; --recouvre: 4px; padding: 3px 7px 0; gap: 14px; }
+  .machine .visuel { width: 28px; height: 28px; }
+  .machine .visuel svg { width: 18px; height: 18px; }
+  .machine .spirale .nom { font-size: 12px; }
+  .socle { margin-top: 10px; gap: 9px; }
+  .bac, .boitier { height: 56px; }
+}
+@keyframes reglage-monte { from { transform: translateY(28px); opacity: .6; } to { transform: none; opacity: 1; } }
+@keyframes reglage-fondu { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .emplacements .reglage[data-ouvert], .voile-reglage { animation: none; }
+}
+
+.reglage { scroll-margin-top: 80px; }
+.reglage .titre-reglage {
+  margin: 0 0 6px; font-size: 16px; font-weight: 750; letter-spacing: -.02em;
+  text-transform: none; color: var(--texte);
+}
+.reglage .dit-faible { font-size: 13px; line-height: 1.5; }
+.reglage .dit-faible.attention { color: var(--ambre); }
+.tete-reglage { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.tete-reglage .titre-reglage { margin: 0; }
+.tete-reglage .dit-faible { margin: 0; }
+.tete-reglage .code {
+  padding: 4px 9px; border-radius: var(--r-s); font-size: 14px; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--bord-fort);
+}
+.deux-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+/* ── Le reglage d'une spirale ─────────────────────────────────────────────
+   Qui elle est et ou elle est, ce qu'il y a dedans, le produit qu'on touche
+   dans une liste illustree, deux compteurs, et les boutons sous le pouce. */
+/* Le nom de la RedBox, en tete du reglage : le panneau couvre la page sur un
+   telephone, et son titre avec. */
+.borne-reglage {
+  display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--bord); min-width: 0;
+}
+.borne-reglage .point { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--rouge-vif); box-shadow: 0 0 8px rgba(255,42,48,.6); }
+.borne-reglage .nom-borne {
+  flex: 1; min-width: 0; font-size: 13px; font-weight: 700; color: var(--texte-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.reglage .tete-reglage { gap: 12px; margin-bottom: 12px; }
+.reglage .tete-reglage .visuel { width: 52px; height: 52px; border-radius: 10px; }
+.reglage .tete-reglage .visuel svg { width: 32px; height: 32px; }
+.reglage .tete-reglage .dit-faible b { color: var(--texte-2); font-weight: 600; }
+.reglage .fermer-reglage { align-self: flex-start; }
+/* Pas `.vide` : c'est l'ecran vide de l'application, avec ses 46 px de marge. */
+.visuel.sans-produit { font-size: 13px; font-weight: 700; color: var(--texte-3); }
+
+/* Le produit actuel, en une ligne. La liste ne s'ouvre que si l'on veut en
+   changer : c'est l'exception, pas ce qu'on vient faire a chaque fois. */
+.changer-produit { border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2); }
+.changer-produit > summary {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  cursor: pointer; list-style: none;
+}
+.changer-produit > summary::-webkit-details-marker { display: none; }
+.changer-produit > summary .quoi { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.changer-produit > summary .etiq { font-size: 12px; color: var(--texte-3); }
+.changer-produit > summary b {
+  font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.changer-produit .changer {
+  flex: none; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  border: 1px solid var(--bord-fort); color: var(--texte);
+}
+.changer-produit .changer .ouvert,
+.changer-produit[open] .changer .ferme { display: none; }
+.changer-produit[open] .changer .ouvert { display: inline; }
+.changer-produit[open] .changer { background: var(--surface-3); }
+.changer-produit[open] > summary { border-bottom: 1px solid var(--bord); }
+.changer-produit .liste-produits { margin: 0; padding: 8px; }
+.option-produit.option-vider { border-style: dashed; background: transparent; }
+
+/* Ce qu'il y a dedans : une jauge, et le chiffre. */
+.etat-spirale {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
+  padding: 9px 12px; border-radius: var(--r-m); background: var(--surface-2);
+  font-size: 13px; color: var(--texte-2);
+}
+.etat-spirale b { color: var(--texte); font-weight: 800; }
+.etat-spirale .mot { font-size: 12px; }
+.etat-spirale[data-etat="vide"] .mot { color: var(--rouge-vif); }
+.etat-spirale[data-etat="bas"] .mot { color: var(--ambre); }
+.jauge-reglage { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.jauge-reglage > span { display: block; height: 100%; border-radius: 3px; background: var(--vert); }
+.etat-spirale[data-etat="bas"] .jauge-reglage > span { background: var(--ambre); }
+.etat-spirale[data-etat="vide"] .jauge-reglage > span { background: var(--rouge); }
+
+/* Le choix du produit : des cartes a toucher, rangees par categorie. */
+.choix-produit { border: 0; padding: 0; margin: 0; min-width: 0; }
+.choix-produit legend { padding: 0; margin: 0 0 6px; font-size: 13px; color: var(--texte-2); }
+.liste-produits {
+  display: grid; gap: 5px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 -4px; padding: 4px;
+}
+.groupe-produits { display: grid; gap: 5px; }
+.groupe-produits .cat {
+  padding: 8px 4px 1px; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--texte-3);
+}
+.option-produit {
+  position: relative; display: flex; align-items: center; gap: 10px; margin: 0;
+  padding: 8px 12px 8px 8px; cursor: pointer; color: var(--texte); font-size: 14px;
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2);
+  transition: border-color .15s ease, background .15s ease;
+}
+.option-produit:hover { border-color: var(--bord-fort); }
+.option-produit input[type="radio"] {
+  position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0;
+  opacity: 0; pointer-events: none;
+}
+.option-produit:has(input:checked) {
+  border-color: var(--rouge); box-shadow: 0 0 0 1px var(--rouge);
+  background: color-mix(in srgb, var(--rouge) 9%, var(--surface-2));
+}
+.option-produit:has(input:focus-visible) { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.option-produit .quoi { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.option-produit .quoi b { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.option-produit .quoi span { font-size: 12px; color: var(--texte-3); }
+.option-produit .ici {
+  flex: none; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  color: var(--texte-2); border: 1px solid var(--bord-fort);
+}
+/* La pastille de choix, dessinee : le vrai bouton radio est cache dessous. */
+.option-produit::after {
+  content: ""; flex: none; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--bord-fort);
+}
+.option-produit:has(input:checked)::after {
+  border-color: var(--rouge);
+  background: radial-gradient(circle, var(--rouge) 0 4px, transparent 4.5px);
+}
+
+/* L'avertissement ne parait que si l'on choisit UN AUTRE produit. */
+.alerte-changement {
+  display: none; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 10px 12px;
+  border-radius: var(--r-m); background: var(--ambre-fond);
+  border: 1px solid color-mix(in srgb, var(--ambre) 40%, transparent);
+  font-size: 13px; line-height: 1.45; color: var(--texte-2);
+}
+.alerte-changement svg { flex: none; margin-top: 2px; color: var(--ambre); }
+.alerte-changement b { color: var(--texte); }
+.alerte-changement a { color: var(--texte); font-weight: 650; text-decoration: underline; }
+.reglage form:has(.option-produit input:checked:not([data-actuel])) .alerte-changement { display: flex; }
+
+/* Les compteurs : deux grosses cibles autour du chiffre. */
+.champ-compteur label { margin-bottom: 6px; }
+.champ-compteur .aide { display: block; margin-top: 5px; font-size: 11.5px; color: var(--texte-3); }
+.compteur {
+  display: grid; grid-template-columns: var(--touche) minmax(0, 1fr) var(--touche);
+  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2); overflow: hidden;
+}
+.compteur:focus-within { border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.compteur button {
+  min-height: var(--touche); padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 20px; font-weight: 700; color: var(--texte);
+}
+.compteur button:hover { background: var(--surface-3); }
+.compteur button:disabled { opacity: .3; cursor: default; }
+.compteur input {
+  min-width: 0; min-height: var(--touche); padding: 0; border: 0; border-radius: 0;
+  background: transparent; text-align: center; font-size: 18px; font-weight: 800;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.compteur input:focus { border: 0; box-shadow: none; }
+.compteur input::-webkit-inner-spin-button,
+.compteur input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Les boutons restent sous le pouce, meme quand la liste defile. */
+.reglage .actions-reglage {
+  position: sticky; bottom: 0; z-index: 1; display: flex; gap: 8px; align-items: center;
+  margin-top: 16px; padding-top: 12px;
+  background: linear-gradient(to bottom, transparent, var(--surface) 12px);
+}
+.reglage .actions-reglage .bouton.primaire { flex: 1; }
+@media (max-width: 899px) {
+  .liste-produits { max-height: 36vh; }
+}
+
 /*
   LA BARRE D'ENVOI RESTE SOUS LE POUCE, ET DIT CE QU'ELLE VA ENVOYER.
 

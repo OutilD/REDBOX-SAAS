@@ -124,8 +124,8 @@ export default async function Catalogue({
               </div>
               <div className="texte">
                 {orphelins.length === 1
-                  ? "Il est bien envoyé aux machines, mais aucun canal ne lui est affecté : la RedBox n’a pas de tiroir d’où le sortir, donc elle ne l’affiche pas. Affectez-lui un canal dans le planogramme."
-                  : "Ils sont bien envoyés aux machines, mais aucun canal ne leur est affecté : la RedBox n’a pas de tiroir d’où les sortir, donc elle ne les affiche pas. Affectez-leur un canal dans le planogramme."}
+                  ? "Il est bien envoyé aux machines, mais aucune spirale ne le porte : la RedBox n’a pas d’où le sortir, donc elle ne l’affiche pas. Placez-le dans une spirale : RedBox → Emplacements."
+                  : "Ils sont bien envoyés aux machines, mais aucune spirale ne les porte : la RedBox n’a pas d’où les sortir, donc elle ne les affiche pas. Placez-les dans une spirale : RedBox → Emplacements."}
               </div>
             </div>
             <Link href="/bornes" className="bouton petit">Choisir une RedBox</Link>

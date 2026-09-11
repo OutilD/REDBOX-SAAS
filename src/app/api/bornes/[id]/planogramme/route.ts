@@ -16,21 +16,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!peutVoirBorne(u, id)) return versPage(req, "/bornes");
 
   const f = await req.formData();
+  // On revient sur la vue qu'on avait choisie — grille, 2D ou 3D. Seules les
+  // deux valeurs connues passent : ce champ finit dans une adresse.
+  const vue = String(f.get("vue") ?? "");
+  const ici = (param: string) =>
+    `/bornes/${id}/planogramme?${param}${vue === "2d" || vue === "3d" ? `&vue=${vue}` : ""}`;
 
-  // ── Declarer une spire que le SaaS ne connait pas encore ──────────────────
+  // ── Activer une spirale que le SaaS ne connait pas encore ─────────────────
   //
   // Les canaux d'une borne sont adoptes de ce que la machine annonce au premier
   // releve — c'est-a-dire, sur une machine neuve, de la vitrine de demonstration
-  // codee dans l'application. Cette liste n'a rien d'un inventaire materiel : il
-  // y manque des spires qui existent physiquement. Sans ce formulaire, un produit
-  // de plus que la vitrine n'avait nulle part ou aller, et il fallait sacrifier
-  // un autre article pour lui faire une place.
+  // codee dans l'application. Il y manque des spires qui existent physiquement :
+  // l'ecran des emplacements les dessine toutes, et on active ici celle qu'on
+  // touche.
   if (f.get("action") === "ajouter") {
     const rangee = Number(f.get("rangee")), colonne = Number(f.get("colonne"));
     // La machine a DIX spires, cinq rangees de deux. Le protocole en accepterait
     // cent ; la mecanique, non. Annoncer 601 promettrait une vente encaissee que
     // rien ne pourrait distribuer.
-    if (!spireValide(rangee, colonne)) return versPage(req, `/bornes/${id}/planogramme?e=place`);
+    if (!spireValide(rangee, colonne)) return versPage(req, ici("e=place"));
     const lane = laneDe(rangee, colonne);
 
     const fait = await transaction(async (c) => {
@@ -48,14 +52,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return r.rowCount ?? 0;
     });
 
-    if (fait === 0) return versPage(req, `/bornes/${id}/planogramme?e=deja`);
+    if (fait === 0) return versPage(req, ici(`s=${lane}&e=deja`));
     await reveiller(id, "canal ajouté");
-    return versPage(req, `/bornes/${id}/planogramme`);
+    return versPage(req, ici(`ok=${lane}`));
   }
 
-  // ── Retirer une spire qui n'existe pas sur la machine ─────────────────────
+  // ── Retirer une spirale qui n'existe pas sur la machine ───────────────────
   //
-  // Uniquement si elle est vide : un canal qui porte encore des unites ferait
+  // Uniquement si elle est vide : une spirale qui porte encore des unites ferait
   // disparaitre du stock reel d'un clic.
   const aOter = Number(f.get("oter"));
   if (Number.isInteger(aOter) && aOter > 0) {
@@ -65,9 +69,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
          AND c.quantite = 0
        RETURNING c.lane`, [aOter, id, u.compte_id]);
     if (r.length > 0) await reveiller(id, "canal retiré");
-    return versPage(req, r.length > 0 ? `/bornes/${id}/planogramme` : `/bornes/${id}/planogramme?e=pleine`);
+    return versPage(req, r.length > 0 ? ici("retire=1") : ici(`s=${aOter}&e=pleine`));
   }
 
+  // ── Regler une spirale (ou plusieurs) ─────────────────────────────────────
+  //
+  // Les champs portent la spirale dans leur nom (`p_203`, `c_203`, `s_203`) :
+  // l'ecran des emplacements n'en envoie qu'une a la fois, mais rien n'empeche
+  // d'en regler plusieurs d'un coup.
   await transaction(async (c) => {
     const b = await c.query("SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
     if ((b.rowCount ?? 0) === 0) return;
@@ -95,5 +104,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
   });
   await reveiller(id, "planogramme modifié");
-  return versPage(req, `/bornes/${id}`);
+  const lane = Number(f.get("lane"));
+  return versPage(req, Number.isInteger(lane) && lane > 0 ? ici(`ok=${lane}`) : `/bornes/${id}`);
 }

@@ -90,8 +90,8 @@ export default async function Charger({ params, searchParams }:
 
         {aCharger.length === 0 ? (
           <Repli icone={<IcoBorne />} titre="Aucun canal n’a de produit affecté"
-                 texte="Le planogramme dit quel produit occupe quel canal, et jusqu’à combien il tient. Sans lui, il n’y a rien à charger."
-                 action={{ nom: "Définir le planogramme", vers: `/bornes/${id}/planogramme` }} />
+                 texte="Les emplacements disent quel produit occupe quel canal, et jusqu’à combien il tient. Sans eux, il n’y a rien à réassortir."
+                 action={{ nom: "Choisir les emplacements", vers: `/bornes/${id}/planogramme` }} />
         ) : (
           <form method="post" action={`/api/bornes/${id}/charger`}>
             <FiltreCanaux manque={manque}>
@@ -102,7 +102,7 @@ export default async function Charger({ params, searchParams }:
               <p className="faible" style={{ fontSize: 13, textAlign: "center" }}>
                 {libres} {libres > 1 ? "canaux" : "canal"} sans produit affecté —{" "}
                 <Link href={`/bornes/${id}/planogramme`} style={{ textDecoration: "underline" }}>
-                  planogramme</Link>
+                  emplacements</Link>
               </p>
             ) : null}
 

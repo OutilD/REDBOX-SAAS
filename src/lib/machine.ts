@@ -42,3 +42,45 @@ export function toutesLesSpires(): { lane: number; rangee: number; colonne: numb
   }
   return out;
 }
+
+/**
+ * LA FACADE, TELLE QU'ON LA VOIT PORTE OUVERTE.
+ *
+ * Les ecrans du reassort dessinent les spirales a leur place : cinq plateaux de
+ * deux, du premier au dernier. Une liste « 101, 102, 201… » obligeait a
+ * traduire chaque ligne en une position dans sa tete ; la grille, elle, se
+ * superpose a la machine qu'on a devant soi.
+ *
+ * Les dix positions sont toujours la, garnies ou non : une spirale sans produit
+ * est une place a prendre, pas une ligne qui manque. Une spirale connue hors de
+ * ces dix — une machine adoptee avant que la geometrie soit fixee — s'ajoute a
+ * sa place au lieu de disparaitre.
+ */
+export type Position<T> = {
+  lane: number; rangee: number; colonne: number; code: string;
+  /** L'une des dix spires du materiel. */
+  standard: boolean;
+  /** Ce que le SaaS en sait — rien, pour une spirale jamais declaree. */
+  item: T | null;
+};
+
+export function facade<T extends { lane: number; rangee: number; colonne: number }>(
+  items: T[]): { rangs: Position<T>[][]; colonnes: number } {
+  const colonnes = Math.max(COLONNES, ...items.map((i) => i.colonne));
+  const rangees = Math.max(RANGEES, ...items.map((i) => i.rangee));
+  const par = new Map(items.map((i) => [`${i.rangee}:${i.colonne}`, i]));
+
+  const rangs: Position<T>[][] = [];
+  for (let r = 1; r <= rangees; r++) {
+    const rang: Position<T>[] = [];
+    for (let c = 1; c <= colonnes; c++) {
+      const item = par.get(`${r}:${c}`) ?? null;
+      const standard = spireValide(r, c);
+      if (!item && !standard) continue;
+      rang.push({ lane: item?.lane ?? laneDe(r, c), rangee: r, colonne: c,
+                  code: `${r}${String(c).padStart(2, "0")}`, standard, item });
+    }
+    if (rang.length > 0) rangs.push(rang);
+  }
+  return { rangs, colonnes };
+}

@@ -73,6 +73,8 @@ export type LigneCanal = {
   canal_id: number; lane: number; rangee: number; colonne: number;
   produit_id: number | null; sku: string | null; nom: string | null;
   categorie_id: number | null; categorie: string; ordre: number;
+  /** L'image du produit — photo, sinon pictogramme de la borne. */
+  image: number | null; icone: string | null;
   /**
    * LE PRIX DU CATALOGUE — celui qui vaut partout ou rien n'a ete decide.
    * Il reste ici pour pouvoir dire de combien cette borne s'en ecarte ; ce
@@ -98,7 +100,7 @@ export type LigneCanal = {
 export async function canauxDe(borne_id: number, compte_id: number): Promise<LigneCanal[]> {
   return q<LigneCanal>(`
     SELECT c.id AS canal_id, c.lane, c.rangee, c.colonne, c.produit_id,
-           p.sku, p.nom, p.prix_vente_c,
+           p.sku, p.nom, p.prix_vente_c, p.image_id AS image, p.icone,
            -- LE PRIX DE CETTE BORNE, pas celui du catalogue. Toutes les pages
            -- qui montrent un plateau passent par ici : la jointure est posee
            -- une fois, et aucune d'elles ne peut afficher un tarif que la

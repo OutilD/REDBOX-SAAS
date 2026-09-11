@@ -204,7 +204,7 @@ export default async function Bornes({ searchParams }:
                   <span className="dessous">
                     {capacite > 0
                       ? `${Math.round((unites / capacite) * 100)} % de la place occupée`
-                      : "aucun planogramme défini"}
+                      : "aucun produit placé"}
                   </span>
                 </div>
               </div>
@@ -301,7 +301,7 @@ function CarteBorne({ b }: { b: Ligne }) {
         </div>
       ) : (
         <div className="remplissage">
-          <div className="dit faible">Aucun canal affecté — le planogramme reste à définir.</div>
+          <div className="dit faible">Aucun produit placé — à choisir dans ses emplacements.</div>
         </div>
       )}
 
