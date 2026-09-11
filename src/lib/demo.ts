@@ -621,7 +621,7 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
             ventes.push({
               borne: b.id, cmd, article: a, lane: avantSpirale ? null : lane, produit: pid.get(s.sku)!,
               prix: p, statut, quand: new Date(quand.getTime() + a * 12000), traite,
-              note: !traite ? null : statut === "litige" ? "Remboursé chez Nayax"
+              note: !traite ? null : statut === "litige" ? "Remboursé chez votre processeur de paiement"
                                                          : "Remboursement confirmé par le terminal",
             });
             // Le journal, pour les ventes recentes de la premiere borne : c'est

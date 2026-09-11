@@ -139,7 +139,7 @@ export default async function Ventes(
       <main className="ecran">
         <h1>Ventes</h1>
         <p className="sous">
-          Ce que les bornes ont remonté. Le SaaS n’encaisse rien : l’argent est chez Nayax.
+          Ce que les bornes ont remonté. Le SaaS n’encaisse rien : l’argent est chez votre processeur de paiement.
         </p>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -253,7 +253,7 @@ export default async function Ventes(
             spirale a tourné et la cellule optique n’a rien vu passer. « La spirale n’a pas tourné » :
             la carte à ressorts n’a pas répondu, ou plus aucun canal n’avait le produit. Dans ces deux
             cas la borne a demandé le remboursement au terminal ; « argent conservé » veut dire qu’elle
-            ne l’a pas fait. Le remboursement se vérifie chez Nayax. Marquer « traité » ne change pas
+            ne l’a pas fait. Le remboursement se vérifie chez votre processeur de paiement. Marquer « traité » ne change pas
             ce que la borne a remonté — on note seulement que quelqu’un s’en est occupé.
           </p>
         ) : null}
