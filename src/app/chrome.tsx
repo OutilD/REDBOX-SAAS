@@ -318,14 +318,21 @@ export async function Entete({ page, borne, fenetre, periode }:
             <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>
           </div>
         ) : null}
-        {/* L'INVITATION AUX NOTIFICATIONS, sur chaque page tant que cet appareil
-            n'a jamais ete sollicite — sauf sur Reglages → Notifications, qui a
-            deja son bouton. Le composant decide seul, dans le navigateur : la
-            permission ne se lit pas depuis le serveur. */}
-        {u && page !== "notifications"
-          ? await clesVapid().then((k) => <InviteNotifications publique={k.publique} />).catch(() => null)
-          : null}
       </header>
+      {/* L'INVITATION AUX NOTIFICATIONS, sur chaque page tant que cet appareil
+          n'a jamais ete sollicite — sauf sur Reglages → Notifications, qui a
+          deja son bouton. Le composant decide seul, dans le navigateur : la
+          permission ne se lit pas depuis le serveur.
+
+          HORS DE L'EN-TETE, et c'est voulu. Elle n'apparait qu'une fois la page
+          chargee ; posee dans l'en-tete collant, elle poussait toute la page
+          vers le bas au moment ou l'on visait un champ, et le clic tombait a
+          cote. Elle flotte maintenant par-dessus — et le flou de l'en-tete
+          (`backdrop-filter`) aurait accroche une carte fixe a lui, pas a
+          l'ecran. */}
+      {u && page !== "notifications"
+        ? await clesVapid().then((k) => <InviteNotifications publique={k.publique} />).catch(() => null)
+        : null}
     </>
   );
 }
