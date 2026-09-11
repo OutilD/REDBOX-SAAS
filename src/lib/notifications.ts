@@ -317,7 +317,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
  * l'auteur, qui sait ce qu'il vient de dire. L'audience depend de la portee :
  *
  *   compte       les membres du compte, restreints a la borne du salon s'il en a une
- *   support      les membres du compte, et ceux de l'editeur
+ *   support      la personne dont c'est le SAV, et les membres de l'editeur
  *   annonces     tout le monde — sujet « annonces », a part des messages
  *   communaute   tout le monde pour « tous », sinon les comptes du groupe
  *
@@ -341,12 +341,14 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
                           WHERE x.utilisateur_id = a.utilisateur_id AND x.borne_id = $2))`,
       [salon.compte_id, salon.borne_id, m.utilisateur_id]);
   } else if (salon.portee === "support") {
+    // Prive : son equipe n'en recoit rien.
     cibles = await q<Abonnement>(`
       SELECT ${colonnes} FROM abonnement_push a
-        JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id
-        JOIN compte k ON k.id = mb.compte_id
-       WHERE a.messages AND a.utilisateur_id <> $2 AND (k.id = $1 OR k.editeur)`,
-      [salon.compte_id, m.utilisateur_id]);
+       WHERE a.messages AND a.utilisateur_id <> $2
+         AND (a.utilisateur_id = $1
+              OR EXISTS (SELECT 1 FROM membre mb JOIN compte k ON k.id = mb.compte_id
+                          WHERE mb.utilisateur_id = a.utilisateur_id AND k.editeur))`,
+      [salon.utilisateur_id, m.utilisateur_id]);
   } else if (salon.portee === "annonces") {
     cibles = await q<Abonnement>(`
       SELECT ${colonnes} FROM abonnement_push a WHERE a.annonces AND a.utilisateur_id <> $1`,

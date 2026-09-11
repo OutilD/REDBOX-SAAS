@@ -13,9 +13,10 @@ import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
  * et avec des gens dedans.
  *
  * Et au-dela du compte, la communaute : les ANNONCES de l'editeur, que tout
- * le monde lit ; les salons de COMMUNAUTE, par groupe — tous, proprietaires
- * d'au moins une vraie borne, prospects ; et le SUPPORT, un salon par compte
- * entre lui et l'editeur.
+ * le monde lit ; les salons de COMMUNAUTE, par groupe — #futurs-redboxers pour
+ * tous, #redboxers pour qui a au moins une vraie borne ; et le SAV, une
+ * conversation PRIVEE par personne entre elle et l'editeur. Pas par compte :
+ * ce qu'on confie au SAV, son equipe ne le lit pas.
  *
  * Trois regles :
  *
@@ -40,6 +41,8 @@ export type Salon = {
   portee: Portee; groupe: Groupe | null; compte_id: number | null;
   /** Le nom du compte, pour un salon de support vu par l'editeur. */
   compte: string | null;
+  /** Le SAV est a une personne : elle, et son nom pour l'editeur. */
+  utilisateur_id: number | null; personne: string | null;
   non_lus: number; dernier_le: Date | null;
 };
 
@@ -63,15 +66,20 @@ export { EMOJIS } from "./reactions";
 const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe | null; ordre: number }[] = [
   { nom: "annonces", portee: "annonces", groupe: null, ordre: 0,
     sujet: "Les nouveautés de la console et des RedBox, par l’équipe RedBox" },
-  { nom: "entrepreneurs", portee: "communaute", groupe: "tous", ordre: 1,
-    sujet: "Tous ceux qui font tourner des RedBox — et ceux qui y pensent" },
-  { nom: "proprietaires", portee: "communaute", groupe: "proprietaires", ordre: 2,
-    sujet: "Entre exploitants : ce qui marche, ce qui casse, ce qui se vend" },
-  { nom: "prospects", portee: "communaute", groupe: "prospects", ordre: 3,
-    sujet: "Pas encore de RedBox ? Posez vos questions ici" },
+  // Ouvert a tous : les futurs redboxers y posent leurs questions, ceux qui
+  // en font tourner y repondent. Un salon reserve aux prospects restait vide,
+  // faute de quelqu'un pour leur repondre.
+  { nom: "futurs-redboxers", portee: "communaute", groupe: "tous", ordre: 1,
+    sujet: "Pas encore de RedBox ? Posez vos questions, les redboxers répondent" },
+  { nom: "redboxers", portee: "communaute", groupe: "proprietaires", ordre: 2,
+    sujet: "Entre redboxers : ce qui marche, ce qui casse, ce qui se vend" },
 ];
 
-export const SUPPORT = { nom: "equipe-redbox", sujet: "Votre ligne directe avec l’équipe RedBox" };
+/**
+ * Le SAV d'une personne. En base il s'appelle « sav-<id> » — le nom est unique
+ * dans un compte, et chacun y a le sien ; a l'ecran, toujours « sav ».
+ */
+export const SUPPORT = { nom: "sav", sujet: "Votre conversation privée avec le SAV RedBox" };
 
 export const TEXTE_MAX = 2000;
 export const NOM_MAX = 40;
@@ -96,7 +104,7 @@ const VISIBLE = `s.archive_le IS NULL AND (
         AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2))
         AND (NOT EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id)
              OR EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id AND sm.utilisateur_id = $5::bigint)))
-  OR (s.portee = 'support' AND (s.compte_id = $1 OR $3::boolean))
+  OR (s.portee = 'support' AND (s.utilisateur_id = $5::bigint OR $3::boolean))
   OR  s.portee = 'annonces'
   OR (s.portee = 'communaute' AND (s.groupe = 'tous' OR s.groupe = $4::text OR $3::boolean)))`;
 
@@ -105,7 +113,7 @@ const VISIBLE = `s.archive_le IS NULL AND (
  * sa premiere vraie machine — quelques fois dans sa vie. Le fil, lui, le
  * redemandait toutes les trois secondes : un aller-retour vers la base a
  * chaque tour et a chaque envoi, pour une reponse qui ne bouge pas. Au pire,
- * un compte qui vient d'appairer sa premiere RedBox voit #proprietaires une
+ * un compte qui vient d'appairer sa premiere RedBox voit #redboxers une
  * minute plus tard.
  */
 const GROUPES = new Map<number, { groupe: string; le: number }>();
@@ -136,17 +144,22 @@ export function peutEcrire(u: Utilisateur, s: Salon): boolean {
  * son numero. Idempotent, appele a chaque ouverture de la messagerie — une
  * borne adoptee hier a son salon aujourd'hui sans que personne l'ait cree.
  */
-export async function assurerSalons(compte_id: number): Promise<void> {
+export async function assurerSalons(u: Utilisateur): Promise<void> {
+  const compte_id = u.compte_id;
   await q(`
     INSERT INTO salon (compte_id, nom, sujet, ordre)
     VALUES ($1, 'general', 'Toute l’équipe, pour tout le reste', 0)
     ON CONFLICT (compte_id, nom) DO NOTHING`, [compte_id]);
-  // La ligne directe avec l'editeur, et les salons de la plateforme.
-  await q(`
-    INSERT INTO salon (compte_id, nom, sujet, portee, ordre)
-    SELECT $1, $2, $3, 'support', 90
-     WHERE NOT EXISTS (SELECT 1 FROM salon WHERE compte_id = $1 AND portee = 'support')
-    ON CONFLICT (compte_id, nom) DO NOTHING`, [compte_id, SUPPORT.nom, SUPPORT.sujet]);
+  // Son SAV — sauf pour l'editeur, qui EST le SAV — et les salons de la
+  // plateforme. Rattache au compte ou il a ete ouvert, mais il suit la
+  // personne : VISIBLE le lit par `utilisateur_id`.
+  if (!u.editeur) {
+    await q(`
+      INSERT INTO salon (compte_id, nom, sujet, portee, ordre, utilisateur_id)
+      SELECT $1, $2 || '-' || $3::bigint, $4, 'support', 90, $3::bigint
+       WHERE NOT EXISTS (SELECT 1 FROM salon WHERE portee = 'support' AND utilisateur_id = $3::bigint)
+      ON CONFLICT DO NOTHING`, [compte_id, SUPPORT.nom, u.id, SUPPORT.sujet]);
+  }
   await q(`
     INSERT INTO salon (compte_id, nom, sujet, portee, groupe, ordre)
     SELECT NULL, p.nom, p.sujet, p.portee, p.groupe, p.ordre
@@ -176,8 +189,10 @@ export async function assurerSalons(compte_id: number): Promise<void> {
 
 /** Les salons que cette personne voit, avec ce qu'elle n'y a pas encore lu. */
 const COLONNES_SALON = `
-  s.id, s.nom, s.sujet, s.borne_id, b.nom AS borne, s.ordre,
-  s.portee, s.groupe, s.compte_id, k.nom AS compte`;
+  s.id, CASE WHEN s.portee = 'support' THEN '${SUPPORT.nom}' ELSE s.nom END AS nom,
+  s.sujet, s.borne_id, b.nom AS borne, s.ordre,
+  s.portee, s.groupe, s.compte_id, k.nom AS compte, s.utilisateur_id,
+  COALESCE(NULLIF(TRIM(p.nom), ''), NULLIF(TRIM(p.pseudo), ''), split_part(p.email, '@', 1)) AS personne`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
   return q<Salon>(`
@@ -190,6 +205,7 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
       FROM salon s
       LEFT JOIN borne b ON b.id = s.borne_id
       LEFT JOIN compte k ON k.id = s.compte_id
+      LEFT JOIN utilisateur p ON p.id = s.utilisateur_id
       LEFT JOIN salon_lecture l ON l.salon_id = s.id AND l.utilisateur_id = $5::bigint
      WHERE ${VISIBLE}
      ORDER BY (s.compte_id IS DISTINCT FROM $1), s.ordre, s.nom`, await portee(u));
@@ -200,6 +216,7 @@ export async function salonDe(u: Utilisateur, id: number): Promise<Salon | null>
   return q1<Salon>(`
     SELECT ${COLONNES_SALON}, 0 AS non_lus, NULL AS dernier_le
       FROM salon s LEFT JOIN borne b ON b.id = s.borne_id LEFT JOIN compte k ON k.id = s.compte_id
+      LEFT JOIN utilisateur p ON p.id = s.utilisateur_id
      WHERE ${VISIBLE} AND s.id = $6`, [...await portee(u), id]);
 }
 
@@ -463,10 +480,12 @@ export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
     gens = await q<Lecteur>(`
       SELECT DISTINCT ${COLONNES_LECTEUR}, false AS choisi
         FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
-       WHERE (m.compte_id = $1 OR k.editeur)
-       ORDER BY k.editeur DESC, pseudo`, [s.compte_id]);
+       WHERE (x.id = $1 AND m.compte_id = $2) OR k.editeur
+       ORDER BY k.editeur DESC, pseudo`, [s.utilisateur_id, s.compte_id]);
     total = gens.length;
-    regle = `L’équipe de ${s.compte ?? "ce compte"}, et l’équipe RedBox. Personne d’autre.`;
+    regle = Number(s.utilisateur_id) === Number(u.id)
+      ? "Vous et le SAV RedBox. Personne d’autre, pas même votre équipe."
+      : `${s.personne ?? "Cette personne"} et le SAV RedBox. Personne d’autre, pas même son équipe.`;
   } else if (s.portee === "annonces") {
     const n = await q1<{ n: number }>("SELECT COUNT(*)::int AS n FROM utilisateur WHERE email NOT LIKE '%@redbox.invalid'");
     total = n?.n ?? 0;

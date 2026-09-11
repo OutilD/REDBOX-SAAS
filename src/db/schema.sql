@@ -907,7 +907,37 @@ ALTER TABLE salon ADD CONSTRAINT salon_portee_check CHECK (
 -- Deux NULL ne sont pas egaux pour UNIQUE (compte_id, nom) : les salons de la
 -- plateforme ont leur propre unicite.
 CREATE UNIQUE INDEX IF NOT EXISTS i_salon_plateforme ON salon (nom) WHERE compte_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS i_salon_support ON salon (compte_id) WHERE portee = 'support';
+
+-- LE SAV EST PRIVE, UNE CONVERSATION PAR PERSONNE. Il etait un salon par
+-- compte, que toute l'equipe lisait ; on n'y confiait donc rien de personnel.
+-- Il suit desormais la personne (`utilisateur_id`) ; `compte_id` garde le
+-- compte ou il a ete ouvert, pour que l'editeur sache qui lui ecrit. Les
+-- anciens salons par compte partent s'ils sont vides, s'archivent sinon.
+ALTER TABLE salon ADD COLUMN IF NOT EXISTS utilisateur_id BIGINT REFERENCES utilisateur(id) ON DELETE CASCADE;
+DROP INDEX IF EXISTS i_salon_support;
+CREATE UNIQUE INDEX IF NOT EXISTS i_salon_sav ON salon (utilisateur_id) WHERE portee = 'support';
+DELETE FROM salon s WHERE s.portee = 'support' AND s.utilisateur_id IS NULL
+   AND NOT EXISTS (SELECT 1 FROM message m WHERE m.salon_id = s.id);
+UPDATE salon SET archive_le = now()
+ WHERE portee = 'support' AND utilisateur_id IS NULL AND archive_le IS NULL;
+
+-- LES SALONS DE COMMUNAUTE RENOMMES SUR PLACE, pour garder leurs messages :
+-- #entrepreneurs devient #futurs-redboxers, #proprietaires #redboxers ;
+-- #prospects, que personne n'animait, s'archive. Un doublon vide cree entre
+-- le deploiement et cette migration s'efface d'abord. Les cles de groupe
+-- (`proprietaires`, `prospects`) ne changent pas : on ne les voit nulle part.
+DELETE FROM salon n WHERE n.compte_id IS NULL
+   AND ((n.nom = 'futurs-redboxers' AND EXISTS (SELECT 1 FROM salon o WHERE o.compte_id IS NULL AND o.nom = 'entrepreneurs'))
+     OR (n.nom = 'redboxers'        AND EXISTS (SELECT 1 FROM salon o WHERE o.compte_id IS NULL AND o.nom = 'proprietaires')))
+   AND NOT EXISTS (SELECT 1 FROM message m WHERE m.salon_id = n.id);
+UPDATE salon SET nom = 'futurs-redboxers',
+                 sujet = 'Pas encore de RedBox ? Posez vos questions, les redboxers répondent'
+ WHERE compte_id IS NULL AND nom = 'entrepreneurs';
+UPDATE salon SET nom = 'redboxers',
+                 sujet = 'Entre redboxers : ce qui marche, ce qui casse, ce qui se vend'
+ WHERE compte_id IS NULL AND nom = 'proprietaires';
+UPDATE salon SET archive_le = now()
+ WHERE compte_id IS NULL AND nom = 'prospects' AND archive_le IS NULL;
 
 -- LE PROFIL, CE QU'ON MONTRE DE SOI AUX AUTRES EXPLOITANTS. Le pseudo passe
 -- devant le nom dans la communaute ; le nom reste ce que l'equipe voit. Un

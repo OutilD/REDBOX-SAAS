@@ -14,7 +14,7 @@ const ERREURS: Record<string, string> = {
   salon:   "Ce salon n’existe pas, ou ne vous est pas ouvert.",
   nom:     "Donnez un nom au salon.",
   pris:    "Un salon porte déjà ce nom.",
-  droit:   "Seul un gérant ou le propriétaire règle qui lit un salon d’équipe.",
+  droit:   "Seul un gérant ou le redboxer du compte règle qui lit un salon d’équipe.",
 };
 
 /**
@@ -31,7 +31,7 @@ const ERREURS: Record<string, string> = {
  */
 export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
   { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string; qui?: boolean }) {
-  await assurerSalons(u.compte_id);
+  await assurerSalons(u);
   const salons = await salonsDe(u);
   const salon = salon_id !== undefined ? await salonDe(u, salon_id) : null;
   const [messages, lecteurs] = salon
@@ -42,13 +42,13 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
   const miens = salons.filter((s) => s.portee === "compte");
   const equipe = miens.filter((s) => s.borne_id === null);
   const bornes = miens.filter((s) => s.borne_id !== null);
-  // « RedBox » : la ligne directe de ce compte, et les annonces de l'editeur.
-  const redbox = salons.filter((s) => s.portee === "annonces"
-                                   || (s.portee === "support" && s.compte_id === u.compte_id));
+  // « RedBox » : son SAV, et les annonces de l'editeur.
+  const moi = (s: Salon) => Number(s.utilisateur_id) === Number(u.id);
+  const redbox = salons.filter((s) => s.portee === "annonces" || (s.portee === "support" && moi(s)));
   const communaute = salons.filter((s) => s.portee === "communaute");
-  // Pour l'editeur : la ligne directe de chaque autre compte, les plus
-  // recemment actives en premier.
-  const comptes = salons.filter((s) => s.portee === "support" && s.compte_id !== u.compte_id)
+  // Pour l'editeur : le SAV de chaque personne, les plus recemment actifs en
+  // premier.
+  const comptes = salons.filter((s) => s.portee === "support" && !moi(s))
     .sort((a, z) => (z.non_lus - a.non_lus)
       || ((z.dernier_le ? +new Date(z.dernier_le) : 0) - (a.dernier_le ? +new Date(a.dernier_le) : 0)));
   const peutCreer = peutConfigurer(u) && !estRestreint(u);
@@ -85,21 +85,22 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
           <nav aria-label="Salons">
             <div className="section">Équipe</div>
             {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {bornes.length > 0 ? <div className="section">RedBox</div> : null}
+            {bornes.length > 0 ? <div className="section">Vos RedBox</div> : null}
             {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
             {redbox.length > 0 ? <div className="section">RedBox</div> : null}
             {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
             {communaute.length > 0 ? <div className="section">Communauté</div> : null}
             {communaute.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {comptes.length > 0 ? <div className="section">Comptes</div> : null}
-            {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} etiquette={s.compte ?? undefined} />)}
+            {comptes.length > 0 ? <div className="section">SAV</div> : null}
+            {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id}
+                                        etiquette={[s.personne, s.compte].filter(Boolean).join(" · ") || undefined} />)}
           </nav>
         </aside>
 
         <section className="fil-cadre">
           {salon ? (
-            <Fil salon={{ id: salon.id, nom: salon.portee === "support" && salon.compte_id !== u.compte_id
-                                          ? `${salon.nom} · ${salon.compte ?? ""}` : salon.nom,
+            <Fil salon={{ id: salon.id, nom: salon.portee === "support" && !moi(salon)
+                                          ? `${salon.nom} · ${salon.personne ?? salon.compte ?? ""}` : salon.nom,
                           sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
                  initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)} retour="/messages"
                  raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit." : undefined}

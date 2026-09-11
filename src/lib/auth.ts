@@ -63,7 +63,7 @@ export const ROLES = [
 ] as const;
 
 export function nomDuRole(cle: string): string {
-  if (cle === "proprietaire") return "Propriétaire";
+  if (cle === "proprietaire") return "Redboxer";
   return ROLES.find((r) => r.cle === cle)?.nom ?? cle;
 }
 

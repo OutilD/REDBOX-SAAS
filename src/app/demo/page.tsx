@@ -8,7 +8,7 @@ import { IcoAlerte } from "../icones";
 export const dynamic = "force-dynamic";
 
 const ERREURS: Record<string, string> = {
-  role:  "Seul le propriétaire du compte peut changer le mode démo.",
+  role:  "Seul le redboxer du compte peut changer le mode démo.",
   plein: "Ce compte contient déjà des données : la démo ne se relance que sur un compte vide.",
 };
 
@@ -89,7 +89,7 @@ export default async function Demo({ searchParams }:
               </p>
               {!patron ? (
                 <p className="faible" style={{ margin: 0, fontSize: 13.5 }}>
-                  Seul le propriétaire du compte peut désactiver la démo.
+                  Seul le redboxer du compte peut désactiver la démo.
                 </p>
               ) : quitter ? (
                 <div className="avis" style={{ borderLeftColor: "var(--rouge)", margin: 0 }}>
