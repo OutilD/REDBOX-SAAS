@@ -72,7 +72,10 @@ export async function POST(req: Request) {
   if (!peutEcrire(u, s)) return refus(403, "lecture");
 
   const m = await deposer(salon_id, u.id, texte);
-  await marquerLu(u.id, salon_id, m.id);
+  // Ses propres messages ne comptent jamais comme non lus : avancer le curseur
+  // n'est pas urgent, et attendre la base pour le faire retardait la reponse.
+  void marquerLu(u.id, salon_id, m.id)
+    .catch((e) => console.error("lecture :", e instanceof Error ? e.message : e));
   void signalerMessage(s, m)
     .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
 

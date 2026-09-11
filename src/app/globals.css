@@ -3493,9 +3493,8 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
    ajouter une. Elle suit le cote de la bulle : a gauche chez les autres, a
    droite chez soi — sinon les siennes flotteraient dans le vide.
 
-   Le bouton « + » ne se montre qu'au survol tant qu'il n'y a rien : une barre
-   vide sous chaque message ferait une deuxieme ligne grise sur tout le fil.
-   Au doigt il n'y a pas de survol : sous 900 px il reste la, en pale.
+   Le bouton de reaction reste visible, en pale. Cache jusqu'au survol, il
+   n'existait pas pour un doigt — et c'est au doigt qu'on reagit le plus.
 */
 .msg .reactions {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
@@ -3524,25 +3523,24 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 
 .msg .poser { position: relative; display: inline-flex; }
 .msg .poser .ajout {
-  display: grid; place-items: center; width: 26px; height: 24px; padding: 0;
+  display: grid; place-items: center; width: 30px; height: 26px; padding: 0;
   border-radius: 999px; cursor: pointer;
   border: 1px solid var(--bord); background: var(--surface-2); color: var(--texte-3);
-  opacity: 0; transition: opacity .12s ease, color .12s ease, border-color .12s ease;
+  opacity: .6; transition: opacity .12s ease, color .12s ease, border-color .12s ease;
 }
-.msg:hover .poser .ajout, .msg:focus-within .poser .ajout,
-.msg .reaction + .poser .ajout, .msg .poser .ajout.actif { opacity: 1; }
+.msg:hover .poser .ajout, .msg:focus-within .poser .ajout, .msg .poser .ajout.actif { opacity: 1; }
 .msg .poser .ajout:hover, .msg .poser .ajout.actif { color: var(--texte); border-color: var(--bord-fort); }
 
-/* Le choix : six gestes, toujours les memes. Il s'ouvre VERS LE BAS, et c'est
-   le point : au-dessus, il recouvrait la bulle a laquelle on est en train de
-   repondre — on cachait la phrase au moment de la juger. Dessous il ne masque
-   au pire que le message suivant, et rien du tout sur le dernier du fil, qui
-   est celui auquel on reagit le plus souvent.
+/* Le choix : six gestes, toujours les memes. Il s'ouvre sous le bouton, ou
+   au-dessus quand il tomberait sous le composeur — le script choisit a
+   l'ouverture, selon la place. Et il passe devant le composeur : a egalite de
+   plan, le composeur, venu apres dans la page, le recouvrait et recevait le
+   doigt a sa place.
 
    Pose en absolu plutot qu'en flux : le fil ne doit pas se decaler sous le
    doigt au moment ou l'on vise. */
 .msg .choix-emoji {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 5;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
   display: flex; gap: 2px; padding: 5px;
   border: 1px solid var(--bord-fort); border-radius: 999px; background: var(--surface);
 }
@@ -3554,8 +3552,14 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 }
 .msg .choix-emoji button:hover { background: var(--surface-2); transform: scale(1.15); }
 
-@media (max-width: 899px) {
-  .msg .poser .ajout { opacity: .55; }
+/* Un envoi pas encore confirme : pale, « envoi… » a la place de l'heure. Un
+   envoi qui a echoue le dit sous la bulle, avec de quoi recommencer. */
+.msg .choix-emoji.haut { top: auto; bottom: calc(100% + 6px); }
+.msg.envoi .bulle { opacity: .6; }
+.msg .pas-parti { margin: 4px 6px 0 0; font-size: 12px; font-weight: 650; color: var(--rouge-vif); }
+.msg .pas-parti button {
+  padding: 0; border: 0; background: none; font: inherit; color: inherit;
+  text-decoration: underline; cursor: pointer;
 }
 @media (prefers-reduced-motion: reduce) {
   .msg .reaction, .msg .choix-emoji button { transition: none; }

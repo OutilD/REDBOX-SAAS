@@ -100,9 +100,27 @@ const VISIBLE = `s.archive_le IS NULL AND (
   OR  s.portee = 'annonces'
   OR (s.portee = 'communaute' AND (s.groupe = 'tous' OR s.groupe = $4::text OR $3::boolean)))`;
 
+/**
+ * LE GROUPE D'UN COMPTE, GARDE UNE MINUTE. Il change quand le compte appaire
+ * sa premiere vraie machine — quelques fois dans sa vie. Le fil, lui, le
+ * redemandait toutes les trois secondes : un aller-retour vers la base a
+ * chaque tour et a chaque envoi, pour une reponse qui ne bouge pas. Au pire,
+ * un compte qui vient d'appairer sa premiere RedBox voit #proprietaires une
+ * minute plus tard.
+ */
+const GROUPES = new Map<number, { groupe: string; le: number }>();
+const GROUPE_MS = 60_000;
+async function groupeGarde(compte_id: number): Promise<string> {
+  const g = GROUPES.get(compte_id);
+  if (g && Date.now() - g.le < GROUPE_MS) return g.groupe;
+  const groupe = await groupeDuCompte(compte_id);
+  GROUPES.set(compte_id, { groupe, le: Date.now() });
+  return groupe;
+}
+
 /** Les cinq parametres de VISIBLE, dans l'ordre. $5 est la personne. */
 async function portee(u: Utilisateur): Promise<unknown[]> {
-  return [u.compte_id, u.bornes, u.editeur, await groupeDuCompte(u.compte_id), u.id];
+  return [u.compte_id, u.bornes, u.editeur, await groupeGarde(u.compte_id), u.id];
 }
 
 /** Peut-elle ecrire la ? Les annonces sont a l'editeur ; le reste, a qui n'est pas en lecture seule. */
@@ -328,7 +346,12 @@ export async function deposer(salon_id: number, utilisateur_id: number | null, t
     SELECT ${COLONNES} FROM n m ${JOINTURES}`;
   const p = [salon_id, utilisateur_id, texte];
   const r = c ? (await c.query<Brut>(sql, p)).rows[0] : await q1<Brut>(sql, p);
-  return (await grader([r!], utilisateur_id))[0];
+  // Rendu sans grade ni reactions : il revient a son auteur, dont la bulle
+  // n'affiche ni nom, ni niveau, ni badge — et un message ne a l'instant n'a
+  // encore recu aucune reaction. Les deux lectures de `grader` coutaient un
+  // aller-retour de plus a chaque envoi pour des champs que personne ne voyait.
+  // Les autres le recoivent complet, par leur propre rafraichissement.
+  return { ...r!, grade: null, niveau: null, badge: null, reactions: [] };
 }
 
 /** Retire un de ses messages. Rend faux s'il n'est pas a elle. */

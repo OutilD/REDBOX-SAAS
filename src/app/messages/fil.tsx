@@ -14,6 +14,9 @@ type Salon = {
   traverse: boolean;
 };
 
+/** Un message tel que le fil le tient : celui du serveur, ou un envoi pas encore confirme. */
+type Ligne = Message & { envoi?: boolean; echec?: boolean };
+
 const CADENCE_MS = 3000;
 /** Deux messages du meme auteur a moins de cinq minutes ne repetent pas son nom. */
 const REGROUPE_MS = 5 * 60 * 1000;
@@ -62,12 +65,15 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   /** Le panneau « qui lit ici », rendu par le serveur, glisse sous la tete. */
   panneau?: React.ReactNode;
 }) {
-  const [messages, poser] = useState<Message[]>(initial);
+  const [messages, poser] = useState<Ligne[]>(initial);
   const [texte, ecrire] = useState("");
-  const [envoi, envoyer] = useState(false);
   const enBas = useRef(true);
   const zone = useRef<HTMLTextAreaElement>(null);
-  const dernier = messages.length > 0 ? messages[messages.length - 1].id : 0;
+  const provisoires = useRef(0);
+  // Le plus grand identifiant CONNU DU SERVEUR. Un envoi en cours porte un
+  // identifiant provisoire negatif, qui ne doit pas servir de repere au
+  // rafraichissement : il redemanderait tout le fil depuis le debut.
+  const dernier = messages.reduce((a, m) => (m.id > a ? m.id : a), 0);
 
   // Le fil s'ouvre en bas, la ou ca se passe ; et y reste tant qu'on n'est
   // pas remonte lire plus haut.
@@ -87,7 +93,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   // Ce qui est a l'ecran, sans refaire un rendu a chaque tour : le rafraichit
   // le lit pour demander les reactions de ces messages-la.
   const vus = useRef<number[]>([]);
-  vus.current = messages.map((m) => m.id);
+  vus.current = messages.filter((m) => m.id > 0).map((m) => m.id);
 
   const rafraichir = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
@@ -108,10 +114,15 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
           ? m.map((x) => (x.supprime ? x : { ...x, reactions: reactions[x.id] ?? [] }))
           : m;
         const ajouts = neufs.filter((x) => !connus.has(x.id));
-        return ajouts.length > 0 ? [...a_jour, ...ajouts] : a_jour;
+        // Un de mes envois peut revenir par ce tour avant sa propre reponse :
+        // la version du serveur prend la place de la provisoire, sinon la meme
+        // phrase s'afficherait deux fois le temps d'une seconde.
+        const arrives = new Set(ajouts.filter((x) => x.utilisateur_id === moi).map((x) => x.texte));
+        const base = a_jour.filter((x) => !(x.id < 0 && arrives.has(x.texte)));
+        return ajouts.length > 0 ? [...base, ...ajouts] : base;
       });
     } catch { /* le prochain tour reessaiera */ }
-  }, [salon.id, dernier]);
+  }, [salon.id, dernier, moi]);
 
   useEffect(() => {
     const t = setInterval(rafraichir, CADENCE_MS);
@@ -119,27 +130,50 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", rafraichir); };
   }, [rafraichir]);
 
+  /**
+   * ENVOYER NE FAIT PLUS ATTENDRE. La bulle part a l'ecran tout de suite, en
+   * pale, et le champ se vide : on ecrit la phrase suivante pendant que la base
+   * enregistre la premiere. Quand le serveur repond, sa version prend la place
+   * de la provisoire ; s'il ne repond pas, la bulle reste avec « Non envoye ·
+   * Reessayer », et le texte n'est jamais perdu.
+   *
+   * Avant, le bouton restait bloque le temps de tous les allers-retours vers la
+   * base — une a deux secondes, quatre a froid — et l'on croyait que rien ne
+   * partait.
+   */
   async function soumettre(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const propre = texte.trim();
-    if (!propre || envoi) return;
-    envoyer(true);
+    if (!propre) return;
+    const provisoire: Ligne = {
+      id: -(++provisoires.current), salon_id: salon.id, utilisateur_id: moi, auteur: null,
+      image_id: null, compte: null, grade: null, niveau: null, editeur: false, couleur: null,
+      badge: null, texte: propre, cree_le: new Date().toISOString(), supprime: false,
+      reactions: [], envoi: true,
+    };
+    poser((m) => [...m, provisoire]);
+    ecrire("");
+    enBas.current = true;
+    zone.current?.focus();
+    await expedier(provisoire);
+  }
+
+  async function expedier(p: Ligne) {
+    poser((m) => m.map((x) => (x.id === p.id ? { ...x, envoi: true, echec: false } : x)));
     try {
       const r = await fetch("/api/messages", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ salon_id: salon.id, texte: propre }),
+        body: JSON.stringify({ salon_id: salon.id, texte: p.texte }),
       });
       if (!r.ok) throw new Error();
       const { message } = await r.json() as { message: Message };
-      poser((m) => (m.some((x) => x.id === message.id) ? m : [...m, message]));
-      ecrire("");
-      enBas.current = true;
-      zone.current?.focus();
+      // A sa place dans le fil ; si le rafraichissement l'a deja apporte, la
+      // provisoire s'efface simplement.
+      poser((m) => m.some((x) => x.id === message.id)
+        ? m.filter((x) => x.id !== p.id)
+        : m.map((x) => (x.id === p.id ? message : x)));
     } catch {
-      // Le formulaire natif sait encore le faire : on le laisse partir.
-      (e.target as HTMLFormElement).submit();
-    } finally {
-      envoyer(false);
+      poser((m) => m.map((x) => (x.id === p.id ? { ...x, envoi: false, echec: true } : x)));
     }
   }
 
@@ -196,7 +230,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
       && precedent.utilisateur_id === m.utilisateur_id
       && new Date(m.cree_le).getTime() - new Date(precedent.cree_le).getTime() < REGROUPE_MS;
     rendu.push(<Bulle key={m.id} m={m} salon={salon} suite={suite} mien={m.utilisateur_id === moi}
-                      oter={oter} reagir={peutEcrire ? reagir : undefined} />);
+                      oter={oter} reagir={peutEcrire ? reagir : undefined}
+                      reessayer={m.echec ? () => { void expedier(m); } : undefined} />);
     precedent = m;
   }
 
@@ -244,7 +279,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
                           e.currentTarget.form?.requestSubmit();
                         }
                       }} />
-            <button className="bouton primaire" disabled={envoi} aria-label="Envoyer">Envoyer</button>
+            <button className="bouton primaire" aria-label="Envoyer">Envoyer</button>
           </form>
         </div>
       ) : (
@@ -256,19 +291,47 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   );
 }
 
-function Bulle({ m, salon, suite, mien, oter, reagir }: {
-  m: Message; salon: Salon; suite: boolean; mien: boolean; oter: (id: number) => void;
+function Bulle({ m, salon, suite, mien, oter, reagir, reessayer }: {
+  m: Ligne; salon: Salon; suite: boolean; mien: boolean; oter: (id: number) => void;
   /** Absent quand on ne peut pas ecrire ici : on ne repond pas non plus par un pouce. */
   reagir?: (id: number, emoji: string) => void;
+  /** Present seulement quand l'envoi a echoue. */
+  reessayer?: () => void;
 }) {
-  const [choisir, ouvrir] = useState(false);
+  // Le choix s'ouvre la ou il y a de la place : sous le bouton d'ordinaire,
+  // au-dessus quand il tomberait sous le composeur. Ouvert toujours vers le
+  // bas, il se glissait sous la zone d'ecriture sur les derniers messages du
+  // fil — ceux auxquels on reagit — et c'est le composeur qui recevait le doigt.
+  const [choisir, ouvrir] = useState<false | "haut" | "bas">(false);
+  const bouton = useRef<HTMLButtonElement>(null);
+  const zonePoser = useRef<HTMLSpanElement>(null);
+  function basculer() {
+    if (choisir) { ouvrir(false); return; }
+    const r = bouton.current?.getBoundingClientRect();
+    const plancher = document.querySelector(".composeur")?.getBoundingClientRect().top ?? window.innerHeight;
+    ouvrir(r && r.bottom + 64 > plancher ? "haut" : "bas");
+  }
+  // Toucher ailleurs, ou Echap, referme le choix.
+  useEffect(() => {
+    if (!choisir) return;
+    const dehors = (e: PointerEvent) => {
+      if (!zonePoser.current?.contains(e.target as Node)) ouvrir(false);
+    };
+    const echap = (e: KeyboardEvent) => { if (e.key === "Escape") ouvrir(false); };
+    document.addEventListener("pointerdown", dehors);
+    document.addEventListener("keydown", echap);
+    return () => {
+      document.removeEventListener("pointerdown", dehors);
+      document.removeEventListener("keydown", echap);
+    };
+  }, [choisir]);
   const machine = m.utilisateur_id === null;
   const nom = machine ? (salon.borne ? court(salon.borne) : "RedBox") : (m.auteur ?? "quelqu’un");
   // La machine ecrit son sujet en premiere ligne, le detail en dessous.
   const [premiere, ...reste] = m.texte.split("\n");
   const teinte = m.couleur ? { background: m.couleur } : undefined;
   return (
-    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}`}>
+    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}${m.envoi ? " envoi" : ""}`}>
       {/* Les autres ont leur portrait a gauche de la premiere bulle d'une
           serie ; les miennes n'en ont pas — c'est le cote qui dit qui parle. */}
       {mien ? null : (
@@ -308,15 +371,20 @@ function Bulle({ m, salon, suite, mien, oter, reagir }: {
           ) : (
             <div className="texte">{m.texte}</div>
           )}
-          <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
+          <time dateTime={m.cree_le}>{m.envoi ? "envoi…" : heure(m.cree_le)}</time>
         </div>
+        {reessayer ? (
+          <div className="pas-parti" role="alert">
+            Non envoyé · <button type="button" onClick={reessayer}>Réessayer</button>
+          </div>
+        ) : null}
 
         {/* CE QU'ON REPOND SANS ECRIRE. Un pouce coute moins qu'une phrase et
             dit la meme chose ; dans un metier ou l'on se croise peu, c'est le
             geste le plus frequent qu'on puisse offrir. On ne s'applaudit pas
             soi-meme — la barre reste, en lecture seule, sous ses propres
             messages. */}
-        {m.supprime || (m.reactions.length === 0 && !reagir) ? null : (
+        {m.supprime || m.id < 0 || (m.reactions.length === 0 && !(reagir && !mien)) ? null : (
           <div className="reactions">
             {m.reactions.map((r) => (
               <button key={r.emoji} type="button"
@@ -329,10 +397,10 @@ function Bulle({ m, salon, suite, mien, oter, reagir }: {
               </button>
             ))}
             {reagir && !mien ? (
-              <span className="poser">
-                <button type="button" className={`ajout${choisir ? " actif" : ""}`}
-                        onClick={() => ouvrir((v) => !v)}
-                        aria-expanded={choisir} aria-label="Réagir à ce message">
+              <span className="poser" ref={zonePoser}>
+                <button type="button" ref={bouton} className={`ajout${choisir ? " actif" : ""}`}
+                        onClick={basculer}
+                        aria-expanded={Boolean(choisir)} aria-label="Réagir à ce message">
                   <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor"
                        strokeWidth="1.6" strokeLinecap="round" aria-hidden>
                     <circle cx="10" cy="10" r="7.2" /><path d="M7.4 11.6a3.2 3.2 0 0 0 5.2 0" />
@@ -340,7 +408,7 @@ function Bulle({ m, salon, suite, mien, oter, reagir }: {
                   </svg>
                 </button>
                 {choisir ? (
-                  <span className="choix-emoji" role="menu">
+                  <span className={`choix-emoji ${choisir}`} role="menu">
                     {EMOJIS.map((e) => (
                       <button key={e} type="button" role="menuitem" title={e}
                               onClick={() => { reagir(m.id, e); ouvrir(false); }}>{e}</button>
@@ -352,7 +420,7 @@ function Bulle({ m, salon, suite, mien, oter, reagir }: {
           </div>
         )}
       </div>
-      {mien && !m.supprime ? (
+      {mien && !m.supprime && m.id > 0 ? (
         <form method="post" action="/api/messages/retirer" className="oter"
               onSubmit={(e) => { e.preventDefault(); oter(m.id); }}>
           <input type="hidden" name="id" value={m.id} />
