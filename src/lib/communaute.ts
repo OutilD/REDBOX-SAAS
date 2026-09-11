@@ -85,14 +85,26 @@ export const BADGES: Badge[] = [
     comment: "Cent quatre-vingt-deux jours après l’ouverture de votre compte. Rien à faire non plus — sinon rester." },
   { cle: "an", nom: "Un an", quoi: "Un an de RedBox", forme: "medaille", points: 400, patience: true,
     comment: "Trois cent soixante-cinq jours de compte. Le seul badge que personne ne peut accélérer." },
-  { cle: "voix", nom: "Première voix", quoi: "Un premier message dans un salon", forme: "bulle", points: 20,
+  { cle: "voix", nom: "Premier pas", quoi: "Un premier message dans un salon", forme: "bulle", points: 20,
     comment: "Écrivez une fois, n’importe où : #entrepreneurs pour vous présenter, #general pour votre équipe, ou la ligne directe avec l’équipe RedBox. Les salons d’un compte de démonstration ne comptent pas." },
-  { cle: "pilier", nom: "Pilier de comptoir", quoi: "Cent messages", forme: "bulle", points: 150,
-    comment: "Cent messages écrits, tous salons confondus. Ce n’est pas un sprint : c’est ce qui arrive à quelqu’un qui répond aux autres pendant quelques mois." },
+  { cle: "bavard", nom: "Bavard", quoi: "Cent messages", forme: "bulle", points: 150,
+    comment: "Cent messages écrits, tous salons confondus. Il vient vite à qui répond aux questions des autres dans #entrepreneurs." },
+  { cle: "actif", nom: "Actif", quoi: "Cinq cents messages", forme: "bulle", points: 300,
+    comment: "Cinq cents messages. À ce stade on ne découvre plus la communauté : on la fait vivre." },
+  { cle: "pilier_commu", nom: "Pilier de la commu", quoi: "Deux mille messages", forme: "bulle", points: 700,
+    comment: "Deux mille messages. Le badge des gens qu’on finit par reconnaître à leur façon d’écrire — il n’y en a jamais beaucoup." },
   { cle: "noctambule", nom: "Noctambule", quoi: "Une vente entre trois et cinq heures du matin", forme: "eclair", points: 80,
     comment: "Une seule vente distribuée entre 3 h et 5 h, heure de Paris. Il ne se force pas : il récompense un emplacement qui vit la nuit — une boîte, un hôpital, une gare." },
+  { cle: "dizaine", nom: "Première dizaine", quoi: "Dix ventes distribuées", forme: "etoile", points: 30,
+    comment: "Dix produits réellement tombés dans le bac, sur l’ensemble de vos machines. Le premier signe qu’un emplacement fonctionne." },
+  { cle: "cinquantaine", nom: "Cinquantaine", quoi: "Cinquante ventes distribuées", forme: "etoile", points: 80,
+    comment: "Cinquante produits distribués. Ce n’est plus un coup de chance : c’est une clientèle." },
   { cle: "centaine", nom: "La centaine", quoi: "Cent ventes distribuées", forme: "etoile", points: 200,
     comment: "Cent produits réellement tombés dans le bac, sur l’ensemble de vos machines. Les ventes encaissées mais non distribuées ne comptent pas — c’est le produit livré qui fait la vente." },
+  { cle: "rode", nom: "Rodé", quoi: "Deux cent cinquante ventes distribuées", forme: "etoile", points: 300,
+    comment: "Deux cent cinquante produits distribués. L’emplacement est trouvé et le réassort suit : la machine tourne." },
+  { cle: "cinq_cents", nom: "Grand débit", quoi: "Cinq cents ventes distribuées", forme: "etoile", points: 450,
+    comment: "Cinq cents produits distribués. Un seul très bon emplacement y arrive ; plusieurs bons, plus vite." },
   { cle: "millier", nom: "Le millier", quoi: "Mille ventes distribuées", forme: "etoile", points: 600,
     comment: "Mille produits distribués. Un bon emplacement y arrive en quelques mois ; deux bons emplacements, plus vite." },
   { cle: "ambassadeur", nom: "Ambassadeur", quoi: "Quelqu’un a rejoint le compte sur votre invitation", forme: "coeur", points: 120,
@@ -223,9 +235,15 @@ function meritesPar(f: Faits): string[] {
   if (f.jours >= 182) out.push("semestre");
   if (f.jours >= 365) out.push("an");
   if (f.messages >= 1) out.push("voix");
-  if (f.messages >= 100) out.push("pilier");
+  if (f.messages >= 100) out.push("bavard");
+  if (f.messages >= 500) out.push("actif");
+  if (f.messages >= 2000) out.push("pilier_commu");
   if (f.noctambule) out.push("noctambule");
+  if (f.ventes >= 10) out.push("dizaine");
+  if (f.ventes >= 50) out.push("cinquantaine");
   if (f.ventes >= 100) out.push("centaine");
+  if (f.ventes >= 250) out.push("rode");
+  if (f.ventes >= 500) out.push("cinq_cents");
   if (f.ventes >= 1000) out.push("millier");
   if (f.ambassadeur) out.push("ambassadeur");
   if (f.reactions >= 25) out.push("applaudi");
@@ -253,8 +271,14 @@ const PROGRES: Record<string, (f: Faits) => { n: number; sur: number }> = {
   semestre: (f) => ({ n: f.jours, sur: 182 }),
   an:       (f) => ({ n: f.jours, sur: 365 }),
   voix:     (f) => ({ n: f.messages, sur: 1 }),
-  pilier:   (f) => ({ n: f.messages, sur: 100 }),
+  bavard:       (f) => ({ n: f.messages, sur: 100 }),
+  actif:        (f) => ({ n: f.messages, sur: 500 }),
+  pilier_commu: (f) => ({ n: f.messages, sur: 2000 }),
+  dizaine:      (f) => ({ n: f.ventes, sur: 10 }),
+  cinquantaine: (f) => ({ n: f.ventes, sur: 50 }),
   centaine: (f) => ({ n: f.ventes, sur: 100 }),
+  rode:         (f) => ({ n: f.ventes, sur: 250 }),
+  cinq_cents:   (f) => ({ n: f.ventes, sur: 500 }),
   millier:  (f) => ({ n: f.ventes, sur: 1000 }),
   applaudi: (f) => ({ n: f.reactions, sur: 25 }),
   genereux: (f) => ({ n: f.reactions_donnees, sur: 50 }),

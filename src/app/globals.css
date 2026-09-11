@@ -3665,28 +3665,32 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
    Le reste de cette feuille se tient a des filets d'un pixel et refuse les
    ombres portees — l'ombre generalisee fait flotter chaque bloc et donne cet
    aspect « tout est une carte » qu'on voit sur les maquettes sans auteur. Ici,
-   et ICI SEULEMENT, on fait l'inverse et c'est deliberé : une recompense doit
-   se ramasser du regard comme une piece qu'on prend dans la main. Un jeton
-   plat ne se convoite pas.
+   et ICI SEULEMENT, on fait l'inverse, et c'est delibere : une recompense doit
+   se ramasser du regard comme une piece qu'on prend dans la main.
 
-   Le relief tient en quatre couches, sans une image :
-     — la matiere, un degrade radial dont la source de lumiere est en haut a
-       gauche, comme partout ailleurs dans l'interface ;
-     — le biseau, deux ombres internes : un liseré clair en haut, un creux
-       sombre en bas ;
-     — l'eclat, une tache blanche floue posee en `::before` sur le quart haut ;
-     — la portee, sous la piece, qui la decolle de la carte.
+   Le relief tient en quatre couches, sans une image : la matiere (un degrade
+   radial, la lumiere en haut a gauche comme partout ailleurs), le biseau (un
+   lisere clair en haut, un creux sombre en bas), l'eclat (une tache blanche
+   en `::before`, SOUS le glyphe) et la portee sous la piece.
 
-   Le glyphe est estampe : un trait sombre dessous, un trait clair dessus.
+   Ces couches sont des variables : le survol, le theme clair et les paliers
+   n'en changent qu'une au lieu de recopier toute la liste. Trois copies d'une
+   ombre a six couches finissent toujours par diverger.
 */
 .badge-rond {
   position: relative; isolation: isolate;
   display: inline-grid; place-items: center; border-radius: 50%; flex: none;
-  /* Valeurs par defaut : l'or. Chaque palier ne redefinit que ses trois teintes. */
+  /* Valeurs par defaut : l'or. Chaque palier ne redefinit que ses teintes. */
   --metal:        #f2c14b;
   --metal-sombre: #9a6a05;
   --cerne:        #7a5504;
   --encre:        #2a1d00;
+  --lisere:  color-mix(in srgb, var(--metal) 30%, #fff);
+  --creux:   color-mix(in srgb, var(--cerne) 70%, transparent);
+  --contour: var(--cerne);
+  --anneau:  transparent;
+  --halo:    0 0 0 0 transparent;
+  --portee:  0 2px 5px rgba(0, 0, 0, .45);
   background:
     radial-gradient(circle at 32% 25%,
       color-mix(in srgb, var(--metal) 45%, #fff) 0%,
@@ -3695,14 +3699,14 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   color: var(--encre);
   border: 0;
   box-shadow:
-    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
-    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 70%, transparent),
-    0 0 0 1px var(--cerne),
-    0 2px 5px rgba(0, 0, 0, .45);
+    inset 0 1.5px 0 var(--lisere),
+    inset 0 -2px 3px var(--creux),
+    0 0 0 1px var(--contour),
+    0 0 0 3px var(--anneau),
+    var(--halo),
+    var(--portee);
   transition: transform .16s cubic-bezier(.22,.7,.3,1), box-shadow .16s ease;
 }
-/* L'eclat. En `::before` pour qu'il passe SOUS le glyphe : une lumiere qui
-   couvrirait le dessin le rendrait illisible aux petites tailles. */
 .badge-rond::before {
   content: ""; position: absolute; z-index: -1;
   left: 14%; top: 8%; width: 52%; height: 38%;
@@ -3715,42 +3719,30 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   opacity: .92;
 }
 
-.badge-rond.commun {
-  --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c;
-}
-.badge-rond.rare {
-  --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40;
-}
-.badge-rond.epique {
-  --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47;
-}
-.badge-rond.legendaire {
-  --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000;
-}
+.badge-rond.commun     { --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c; }
+.badge-rond.rare       { --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40; }
+.badge-rond.epique     { --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47; }
+.badge-rond.legendaire { --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000; }
 
 /* Ce qu'on n'a pas encore ne se pare pas : la piece redevient un creux dans la
    carte. Le meme dessin, en negatif — c'est ce qui donne envie de le remplir. */
 .badge-rond.eteint,
 .badge-rond.eteint.commun, .badge-rond.eteint.rare,
 .badge-rond.eteint.epique, .badge-rond.eteint.legendaire {
-  background: var(--surface-2); color: var(--texte-3);
+  background: var(--surface-2); color: var(--texte-3); animation: none;
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, .38),
     inset 0 -1px 0 color-mix(in srgb, var(--bord-fort) 60%, transparent),
     0 0 0 1px var(--bord);
 }
-.badge-rond.eteint::before { display: none; }
+.badge-rond.eteint::before, .badge-rond.eteint::after { display: none; }
 .badge-rond.eteint > svg { filter: none; opacity: .75; }
 
 /* On la soupese du regard : la piece se leve quand on passe sur sa fiche. */
 .badge-fiche:hover .badge-rond:not(.eteint),
 .badge-item:hover .badge-rond:not(.eteint) {
   transform: translateY(-2px) scale(1.04);
-  box-shadow:
-    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
-    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 70%, transparent),
-    0 0 0 1px var(--cerne),
-    0 6px 14px rgba(0, 0, 0, .5);
+  --portee: 0 6px 14px rgba(0, 0, 0, .5);
 }
 @media (prefers-reduced-motion: reduce) {
   .badge-rond { transition: none; }
@@ -3758,18 +3750,79 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   .badge-item:hover .badge-rond:not(.eteint) { transform: none; }
 }
 
-/* Sur fond clair, la portee doit s'alleger : la meme ombre qu'en sombre y
-   ferait une tache grise autour de chaque piece. */
+/* Sur fond clair, la portee s'allege : la meme ombre qu'en sombre y ferait
+   une tache grise autour de chaque piece. */
 :root[data-theme="light"] .badge-rond {
-  box-shadow:
-    inset 0 1.5px 0 color-mix(in srgb, var(--metal) 30%, #fff),
-    inset 0 -2px 3px color-mix(in srgb, var(--cerne) 55%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--cerne) 65%, transparent),
-    0 1px 3px rgba(0, 0, 0, .22);
+  --creux:   color-mix(in srgb, var(--cerne) 55%, transparent);
+  --contour: color-mix(in srgb, var(--cerne) 65%, transparent);
+  --portee:  0 1px 3px rgba(0, 0, 0, .22);
+}
+:root[data-theme="light"] .badge-fiche:hover .badge-rond:not(.eteint),
+:root[data-theme="light"] .badge-item:hover .badge-rond:not(.eteint) {
+  --portee: 0 4px 10px rgba(0, 0, 0, .2);
 }
 :root[data-theme="light"] .badge-rond.eteint {
   background: var(--surface-2);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, .1), 0 0 0 1px var(--bord);
+}
+
+/*
+   LA RARETE, EN PLUS DE LA COULEUR.
+
+   La teinte distingue un commun d'un legendaire quand on les voit cote a
+   cote ; seule, une piece bleue ne dit pas qu'elle est rare. Chaque palier
+   gagne donc quelque chose que le precedent n'a pas :
+
+     rare        un anneau de la couleur de sa matiere ;
+     epique      l'anneau, et un halo ;
+     legendaire  l'anneau, le halo, un reflet qui balaie la piece toutes les
+                 six secondes, et une couronne de rayons qui tourne lentement
+                 derriere elle.
+
+   Seulement en grand, a partir de trente pixels. A dix-sept, a cote d'un
+   pseudo dans un fil, anneau et rayons feraient un point brillant illisible,
+   et un fil ou chaque nom scintille ne se lit plus : la couleur y suffit.
+*/
+.badge-rond.grand.rare       { --anneau: color-mix(in srgb, var(--metal) 45%, transparent); }
+.badge-rond.grand.epique     { --anneau: color-mix(in srgb, var(--metal) 60%, transparent);
+                               --halo: 0 0 12px color-mix(in srgb, var(--metal) 45%, transparent); }
+.badge-rond.grand.legendaire { --anneau: color-mix(in srgb, var(--metal) 75%, transparent);
+                               --halo: 0 0 16px color-mix(in srgb, var(--metal) 55%, transparent); }
+
+.badge-rond.grand.legendaire:not(.eteint) {
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .6) 50%, transparent 62%) no-repeat,
+    radial-gradient(circle at 32% 25%,
+      color-mix(in srgb, var(--metal) 45%, #fff) 0%, var(--metal) 42%, var(--metal-sombre) 100%);
+  background-size: 280% 100%, 100% 100%;
+  background-position: 170% 0, 0 0;
+  animation: reflet-or 6s ease-in-out infinite;
+}
+@keyframes reflet-or {
+  0%, 60% { background-position: 170% 0, 0 0; }
+  100%    { background-position: -70% 0, 0 0; }
+}
+/* Les rayons, derriere la piece. Un `::after` place sous son contenu passe
+   quand meme DEVANT le fond de la piece, qui est son propre contexte : d'ou
+   le masque qui les efface a l'interieur, et non un z-index. */
+.badge-rond.grand.legendaire:not(.eteint)::after {
+  content: ""; position: absolute; z-index: -1; inset: -26%;
+  border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(
+    color-mix(in srgb, var(--metal) 60%, transparent) 0deg 4deg, transparent 4deg 15deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 68%, #000 73%, #000 86%, transparent 100%);
+          mask: radial-gradient(circle closest-side, transparent 68%, #000 73%, #000 86%, transparent 100%);
+  animation: rayons 28s linear infinite;
+}
+@keyframes rayons { to { transform: rotate(1turn); } }
+
+/* La fiche d'un legendaire obtenu rayonne un peu, elle aussi. */
+.badge-fiche.legendaire:not(.eteint) {
+  box-shadow: 0 0 26px -10px color-mix(in srgb, var(--ambre) 60%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-rond.grand.legendaire:not(.eteint),
+  .badge-rond.grand.legendaire:not(.eteint)::after { animation: none; }
 }
 
 /* ------------------------------------------------- la piece, en volume */
@@ -3873,6 +3926,41 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 }
 :root[data-theme="light"] .scene-piece .socle {
   background: radial-gradient(closest-side, rgba(0,0,0,.22), transparent 78%);
+}
+
+/* La piece en grand porte sa rarete comme les pastilles : l'epique dans un
+   halo, le legendaire devant une couronne de rayons qui tourne, avec le meme
+   reflet qui balaie son avers. Le derriere est en `::before` de la scene,
+   isolee pour qu'il ne passe pas sous la carte qui la contient. */
+.scene-piece { isolation: isolate; }
+.scene-piece.epique:not(.eteint)::before,
+.scene-piece.legendaire:not(.eteint)::before {
+  content: ""; position: absolute; inset: -16%; z-index: -1;
+  border-radius: 50%; pointer-events: none;
+}
+.scene-piece.epique:not(.eteint)::before {
+  background: radial-gradient(circle closest-side,
+    color-mix(in srgb, var(--metal) 38%, transparent) 62%, transparent 100%);
+  filter: blur(10px);
+}
+.scene-piece.legendaire:not(.eteint)::before {
+  background: repeating-conic-gradient(
+    color-mix(in srgb, var(--metal) 50%, transparent) 0deg 3deg, transparent 3deg 11deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 70%, #000 76%, #000 90%, transparent 100%);
+          mask: radial-gradient(circle closest-side, transparent 70%, #000 76%, #000 90%, transparent 100%);
+  animation: rayons 40s linear infinite;
+}
+.scene-piece.legendaire:not(.eteint) .face {
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .42) 50%, transparent 62%) no-repeat,
+    radial-gradient(circle at 32% 24%,
+      color-mix(in srgb, var(--metal) 48%, #fff) 0%, var(--metal) 40%, var(--metal-sombre) 100%);
+  background-size: 280% 100%, 100% 100%;
+  animation: reflet-or 6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-piece.legendaire:not(.eteint)::before,
+  .scene-piece.legendaire:not(.eteint) .face { animation: none; }
 }
 
 .etiquette.rang { border-color: transparent; font-size: 9.5px; padding: 0 6px; letter-spacing: .04em; }

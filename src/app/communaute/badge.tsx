@@ -21,7 +21,7 @@ export function Badge({ forme, obtenu = true, taille = 44, titre, rang }:
     /** La rarete teinte la pastille : gris, bleu, violet, or. Sans elle, l'or par defaut. */
     rang?: Rang }) {
   return (
-    <span className={`badge-rond${obtenu ? "" : " eteint"}${rang ? " " + rang : ""}`}
+    <span className={`badge-rond${obtenu ? "" : " eteint"}${rang ? " " + rang : ""}${taille >= 30 ? " grand" : ""}`}
           style={{ width: taille, height: taille }}
           title={titre} aria-hidden={titre ? undefined : true}>
       <svg width={taille * 0.55} height={taille * 0.55} viewBox="0 0 20 20" fill="none"

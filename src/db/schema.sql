@@ -961,3 +961,14 @@ CREATE TABLE IF NOT EXISTS reaction (
   PRIMARY KEY (message_id, utilisateur_id, emoji)
 );
 CREATE INDEX IF NOT EXISTS reaction_message ON reaction(message_id);
+
+-- « Pilier de comptoir » (cent messages) s'appelle desormais « Bavard », et
+-- « Pilier de la commu » est un autre badge, a deux mille. La cle `pilier`
+-- n'est plus jamais posee par le code : ce renommage se rejoue sans effet.
+-- Un badge ne se perd pas — il change de nom, avec sa date d'obtention.
+UPDATE badge_obtenu o SET badge = 'bavard'
+ WHERE o.badge = 'pilier'
+   AND NOT EXISTS (SELECT 1 FROM badge_obtenu x
+                    WHERE x.utilisateur_id = o.utilisateur_id AND x.badge = 'bavard');
+DELETE FROM badge_obtenu WHERE badge = 'pilier';
+
