@@ -242,6 +242,33 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .demo-bandeau .long { display: none; }
   .demo-bandeau .bouton { width: 100%; }
 }
+
+/*
+  L'INVITATION AUX NOTIFICATIONS. Sous l'en-tete, comme le bandeau de la demo,
+  mais aux couleurs du theme : ce n'est pas un avertissement, c'est une offre.
+  Un filet rouge a gauche pour qu'on la voie ; vert une fois accepte. Au
+  telephone les boutons passent a la ligne, en pleine largeur : des cibles de
+  pouce.
+*/
+.invite-notifs {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; font-size: 13.5px; line-height: 1.4;
+  background: var(--surface-2); border-top: 1px solid var(--bord);
+  box-shadow: inset 3px 0 0 var(--rouge);
+}
+.invite-notifs > svg { flex: none; color: var(--rouge-vif); }
+.invite-notifs .dit { flex: 1; min-width: 220px; }
+.invite-notifs .dit b { font-weight: 700; }
+.invite-notifs .dit span { color: var(--texte-3); }
+.invite-notifs .dit a { color: var(--texte-2); text-decoration: underline; }
+.invite-notifs .actions { display: flex; gap: 8px; flex: none; }
+.invite-notifs.fait { box-shadow: inset 3px 0 0 var(--vert); }
+.invite-notifs.fait > svg { color: var(--vert); }
+@media (max-width: 560px) {
+  .invite-notifs { font-size: 13px; padding: 10px 14px; gap: 8px 10px; }
+  .invite-notifs .actions { width: 100%; }
+  .invite-notifs .actions .bouton { flex: 1; justify-content: center; }
+}
 @media (min-width: 980px) {
   .demo-bandeau { padding-left: calc(var(--rail) + 26px); padding-right: 26px; }
 }
@@ -1689,6 +1716,8 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 */
 .actions-cle { display: grid; gap: 10px; margin: 16px 0 4px; }
 @media (min-width: 760px) { .actions-cle { grid-template-columns: repeat(2, 1fr); } }
+/* Une seule porte : elle prend toute la largeur au lieu d'en laisser la moitie vide. */
+.actions-cle.une { grid-template-columns: 1fr; }
 .actions-cle a {
   display: flex; align-items: center; gap: 13px; padding: 14px 16px;
   border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
@@ -3362,8 +3391,8 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .messagerie .nouveau-salon { margin-bottom: 8px; }
 
 /* Le fil. */
-.fil { display: flex; flex-direction: column; min-height: calc(100svh - var(--entete-h, 58px) - 60px); }
-.fil .tete {
+.fil-salon { display: flex; flex-direction: column; min-height: calc(100svh - var(--entete-h, 58px) - 60px); }
+.fil-salon .tete {
   position: sticky; top: var(--entete-h, 58px); z-index: 5;
   display: flex; align-items: center; gap: 10px;
   padding: 10px 0; margin: 0 0 4px;
@@ -3371,26 +3400,26 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   backdrop-filter: saturate(150%) blur(10px);
   border-bottom: 1px solid var(--bord);
 }
-.fil .tete h1 { font-size: 18px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fil .tete h1 .diese { color: var(--texte-3); margin-right: 2px; }
-.fil .tete .sujet { font-size: 12.5px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fil-salon .tete h1 { font-size: 18px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fil-salon .tete h1 .diese { color: var(--texte-3); margin-right: 2px; }
+.fil-salon .tete .sujet { font-size: 12.5px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* SOUS LES BULLES, UNE SURFACE. Une trame de points, presque invisible — deux
    pour cent d'opacite —, qui donne au fil un sol au lieu d'un vide. Elle
    s'arrete au bord des cartes : on la voit sans la regarder, et c'est tout ce
    qu'on lui demande. */
-.fil .messages {
+.fil-salon .messages {
   flex: 1; padding: 8px 14px 12px; position: relative;
   border-radius: var(--r-l);
   background-image: radial-gradient(color-mix(in srgb, var(--texte) 7%, transparent) 1px, transparent 1px);
   background-size: 18px 18px; background-position: -9px -9px;
 }
-@media (max-width: 899px) { .fil .messages { padding-left: 6px; padding-right: 6px; } }
-.fil .jour {
+@media (max-width: 899px) { .fil-salon .messages { padding-left: 6px; padding-right: 6px; } }
+.fil-salon .jour {
   display: flex; align-items: center; gap: 12px; margin: 20px 0 8px;
   font-size: 11px; color: var(--texte-3); font-weight: 700;
   text-transform: uppercase; letter-spacing: .08em;
 }
-.fil .jour::before, .fil .jour::after { content: ""; flex: 1; height: 1px; background: var(--bord); }
+.fil-salon .jour::before, .fil-salon .jour::after { content: ""; flex: 1; height: 1px; background: var(--bord); }
 
 /*
    UN MESSAGE, EN BULLE.
@@ -3404,7 +3433,7 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
    premiere porte le nom. L'heure est dans chaque bulle, en bas a droite, la
    ou le pouce la cherche.
 */
-.fil .messages { display: flex; flex-direction: column; }
+.fil-salon .messages { display: flex; flex-direction: column; }
 .msg {
   display: flex; align-items: flex-end; gap: 8px;
   padding: 1px 0; position: relative; max-width: 100%;
@@ -3572,8 +3601,8 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 @media (max-width: 560px) { .msg .corps { max-width: 86%; } }
 
 /* Qui lit ici : le bouton dans la tete, et le panneau qui glisse dessous. */
-.fil .tete .bouton.qui { gap: 6px; padding: 0 10px; color: var(--texte-2); }
-.fil .tete .bouton.qui.actif { color: var(--texte); border-color: var(--texte-3); }
+.fil-salon .tete .bouton.qui { gap: 6px; padding: 0 10px; color: var(--texte-2); }
+.fil-salon .tete .bouton.qui.actif { color: var(--texte); border-color: var(--texte-3); }
 .qui-lit { margin: 8px 0 4px; }
 .lecteurs-liste { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .lecteur { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
@@ -3615,7 +3644,7 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
     max-height: calc(100svh - var(--entete-h, 58px)); overflow-y: auto;
     padding-right: 6px; border-right: 1px solid var(--bord);
   }
-  .fil .tete .retour { display: none; }
+  .fil-salon .tete .retour { display: none; }
   .composeur { bottom: 0; }
 }
 

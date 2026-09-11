@@ -4,14 +4,16 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
+import { clesVapid } from "@/lib/notifications";
+import InviteNotifications from "./invite-notifications";
 
 export type Page =
-  | "tableau" | "stock" | "reception" | "reassort"
+  | "tableau" | "analytiques" | "stock" | "reception" | "reassort"
   | "bornes" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo";
@@ -36,6 +38,10 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       // l'exploitant : une personne restreinte a une machine y serait renvoyee.
       // Autant ne pas lui montrer la porte.
       { cle: "tableau", nom: "Tableau de bord", icone: <IcoTableau />, vers: "/",
+        droit: (u) => u.bornes === null },
+      // Les graphes et les classements, sortis du tableau de bord pour qu'il
+      // reste lisible d'un coup d'oeil. Meme portee que lui.
+      { cle: "analytiques", nom: "Analytiques", icone: <IcoAnalyses />, vers: "/analytiques",
         droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "RedBox",  icone: <IcoBorne />,  vers: "/bornes" },
@@ -84,6 +90,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 
 /** La page ouverte, ramenee a l'onglet du pouce qui la contient. */
 const FAMILLE: Partial<Record<Page, Page>> = {
+  analytiques: "tableau",
   reception: "stock", reassort: "stock",
   catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
   sav: "reglages", notifications: "reglages",
@@ -91,6 +98,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
 
 const FIL: Record<Page, [string, string?]> = {
   tableau:    ["Tableau de bord"],
+  analytiques: ["Analytiques"],
   ventes:     ["Ventes"],
   bornes:     ["RedBox"],
   messages:   ["Messages"],
@@ -145,7 +153,9 @@ export async function Entete({ page, borne, fenetre, periode }:
 
   // Le selecteur n'a de sens que la ou les chiffres se filtrent. Ailleurs il
   // serait un bouton qui ne fait rien, ce qui est pire qu'un bouton absent.
-  const filtrable = page === "tableau" || page === "ventes";
+  const filtrable = page === "tableau" || page === "analytiques" || page === "ventes";
+  // La page vers laquelle le selecteur renvoie : la sienne, avec le meme filtre.
+  const baseFiltre = page === "ventes" ? "/ventes" : page === "analytiques" ? "/analytiques" : "/";
 
   // Ce que le selecteur doit remettre dans l'adresse pour ne pas perdre la
   // periode en cours. Une periode sur mesure gagne sur la fenetre : c'est elle
@@ -230,11 +240,11 @@ export async function Entete({ page, borne, fenetre, periode }:
             {machines.length > 0 ? (
               <>
                 <SelecteurBorne machines={machines} borne={borne} garde={garde}
-                                base={page === "ventes" ? "/ventes" : "/"} />
+                                base={baseFiltre} />
                 {/* Sans JavaScript, le vieux formulaire. Il recharge la page,
                     mais il choisit — et c'est tout ce qu'on lui demande. */}
                 <noscript>
-                  <form method="get" action={page === "ventes" ? "/ventes" : "/"}
+                  <form method="get" action={baseFiltre}
                         className="borne-chip nu">
                     {Object.entries(garde).map(([cle, v]) => (
                       <input key={cle} type="hidden" name={cle} value={v} />
@@ -308,6 +318,13 @@ export async function Entete({ page, borne, fenetre, periode }:
             <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>
           </div>
         ) : null}
+        {/* L'INVITATION AUX NOTIFICATIONS, sur chaque page tant que cet appareil
+            n'a jamais ete sollicite — sauf sur Reglages → Notifications, qui a
+            deja son bouton. Le composant decide seul, dans le navigateur : la
+            permission ne se lit pas depuis le serveur. */}
+        {u && page !== "notifications"
+          ? await clesVapid().then((k) => <InviteNotifications publique={k.publique} />).catch(() => null)
+          : null}
       </header>
     </>
   );

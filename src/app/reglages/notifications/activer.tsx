@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { demanderEtAbonner } from "./abonnement";
 
 type Etat =
   | "verif"          // on regarde ce que le navigateur sait faire
@@ -13,22 +14,6 @@ type Etat =
   | "actif"          // cet appareil recoit
   | "occupe";
 
-/** La cle VAPID, telle que `subscribe` la veut : des octets, pas du base64. */
-function cleEnOctets(base64url: string): ArrayBuffer {
-  const rempli = base64url + "=".repeat((4 - (base64url.length % 4)) % 4);
-  const brut = atob(rempli.replace(/-/g, "+").replace(/_/g, "/"));
-  const octets = new Uint8Array(new ArrayBuffer(brut.length));
-  for (let i = 0; i < brut.length; i++) octets[i] = brut.charCodeAt(i);
-  return octets.buffer;
-}
-
-async function declarer(sub: PushSubscription): Promise<boolean> {
-  const r = await fetch("/api/notifications/abonner", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(sub.toJSON()),
-  });
-  return r.ok;
-}
 
 /**
  * L'ETAT DE CET APPAREIL, ET LE BOUTON QUI LE CHANGE.
@@ -65,20 +50,12 @@ export default function Activer({ publique, connus }: { publique: string; connus
 
   async function activer() {
     poser("occupe");
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") return poser("refuse");
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true, applicationServerKey: cleEnOctets(publique),
-      });
-      if (!(await declarer(sub))) throw new Error("refus du serveur");
-      poser("actif");
-      router.push("/reglages/notifications?fait=abonne");
-      router.refresh();
-    } catch {
-      poser("sans");
-    }
+    const issue = await demanderEtAbonner(publique);
+    if (issue === "refuse") return poser("refuse");
+    if (issue === "echec") return poser("sans");
+    poser("actif");
+    router.push("/reglages/notifications?fait=abonne");
+    router.refresh();
   }
 
   async function desactiver() {
