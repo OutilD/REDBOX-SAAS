@@ -14,6 +14,8 @@ export const TRACES: Record<Forme, React.ReactNode> = {
   eclair:   <path d="M11.5 2.5 5 11h4.5l-1 6.5L15 9h-4.5z" />,
   etoile:   <path d="m10 2.8 2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L2.8 8.1l5-.7z" />,
   coeur:    <path d="M10 16.5s-6.5-4-6.5-8.3A3.4 3.4 0 0 1 10 6.3a3.4 3.4 0 0 1 6.5 1.9c0 4.3-6.5 8.3-6.5 8.3z" />,
+  cadeau:   <><rect x="3.5" y="9" width="13" height="8" rx="1.2" /><rect x="2.5" y="6" width="15" height="3" rx="1" />
+              <path d="M10 6v11M10 6C8.6 3.2 5.6 3.2 5.6 4.7 5.6 6 8 6 10 6zm0 0c1.4-2.8 4.4-2.8 4.4-1.3C14.4 6 12 6 10 6z" /></>,
 };
 
 export function Badge({ forme, obtenu = true, taille = 44, titre, rang }:

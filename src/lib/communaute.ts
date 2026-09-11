@@ -1,4 +1,4 @@
-import { q, q1 } from "@/db";
+import { q, q1, type PgClient } from "@/db";
 import { DOMAINE } from "./invente";
 
 /**
@@ -53,7 +53,7 @@ export function prochainGrade(bornes: number): { grade: Grade; manque: number } 
 
 // ------------------------------------------------------------------ badges
 
-export type Forme = "couronne" | "borne" | "sablier" | "medaille" | "bulle" | "eclair" | "etoile" | "coeur";
+export type Forme = "couronne" | "borne" | "sablier" | "medaille" | "bulle" | "eclair" | "etoile" | "coeur" | "cadeau";
 
 /**
  * `quoi` tient sur une ligne, sous le nom, dans une grille de dix-sept.
@@ -70,6 +70,10 @@ export type Badge = {
 
 /** Dans l'ordre ou la page les montre. */
 export const BADGES: Badge[] = [
+  // Le premier de la liste, parce que c'est le premier qu'on recoit.
+  { cle: "newbie", nom: "Newbie", quoi: "Bienvenue parmi les redboxers — offert à l’inscription", forme: "cadeau", points: 10,
+    patience: true,
+    comment: "Il est offert : vous l’avez reçu en créant votre compte, avant même d’avoir appairé une machine. C’est le seul badge que tout le monde possède ; tous les autres se méritent." },
   { cle: "pionnier", nom: "Pionnier", quoi: "Parmi les dix premiers redboxers", forme: "couronne", points: 500,
     patience: true,
     comment: "Il ne se gagne plus : il revient aux dix premiers comptes ouverts sur la console, et ces dix places sont prises. Si vous l’avez, vous étiez là au début — c’est tout ce qu’il dit, et c’est pour ça qu’il vaut cher." },
@@ -227,6 +231,8 @@ const SQL_FAITS = `
 /** Les badges que ces faits meritent. */
 function meritesPar(f: Faits): string[] {
   const out: string[] = [];
+  // Offert : tout le monde le merite, du seul fait d'etre la.
+  out.push("newbie");
   if (f.pionnier) out.push("pionnier");
   if (f.bornes >= 1) out.push("premiere");
   if (f.bornes >= 3) out.push("parc");
@@ -341,6 +347,21 @@ export async function evaluerBadges(utilisateur_id: number): Promise<Badge[]> {
     SELECT $1, b FROM unnest($2::text[]) AS b
     ON CONFLICT DO NOTHING RETURNING badge`, [utilisateur_id, merites]);
   return neufs.map((n) => BADGE_PAR_CLE.get(n.badge)!).filter(Boolean);
+}
+
+/**
+ * LE BADGE DE BIENVENUE, POSE A LA CREATION DU COMPTE. `meritesPar` le donne
+ * aussi a tout le monde, mais seulement a la prochaine evaluation — un message,
+ * une reaction, une visite de la Communaute. Pose ici, il est la des la premiere
+ * page : sur le profil, sur Mon compte, dans le compte de badges du classement.
+ * Un seul aller-retour, sans attendre les faits.
+ */
+export async function offrirBienvenue(utilisateur_id: number, c?: PgClient): Promise<void> {
+  // Dans la transaction qui cree le compte, et par SON client : par le pool,
+  // l'insertion ne verrait pas encore la personne, pas encore validee, la cle
+  // etrangere la refuserait — et c'est l'inscription entiere qui echouerait.
+  const sql = "INSERT INTO badge_obtenu (utilisateur_id, badge) VALUES ($1, 'newbie') ON CONFLICT DO NOTHING";
+  if (c) await c.query(sql, [utilisateur_id]); else await q(sql, [utilisateur_id]);
 }
 
 // ------------------------------------------------------------------ points

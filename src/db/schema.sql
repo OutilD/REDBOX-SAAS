@@ -1008,3 +1008,12 @@ DELETE FROM badge_obtenu WHERE badge = 'pilier';
 -- un badge debloque. A part des messages : on peut vouloir savoir qu'on vous a
 -- applaudi sans vouloir chaque phrase de #entrepreneurs.
 ALTER TABLE abonnement_push ADD COLUMN IF NOT EXISTS communaute BOOLEAN NOT NULL DEFAULT true;
+
+-- LE BADGE DE BIENVENUE. Offert a l'inscription ; ceux qui etaient deja la le
+-- recoivent aussi, date du jour de LEUR inscription — c'est ce qu'il celebre.
+-- Les personnes inventees par la demo n'en ont pas : elles ne sont pas de la
+-- communaute. Se rejoue sans effet.
+INSERT INTO badge_obtenu (utilisateur_id, badge, obtenu_le)
+SELECT u.id, 'newbie', u.cree_le FROM utilisateur u
+ WHERE u.email NOT LIKE '%@redbox.invalid'
+ON CONFLICT DO NOTHING;

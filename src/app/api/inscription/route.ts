@@ -1,6 +1,7 @@
 import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
 import { semerDemo } from "@/lib/demo";
+import { offrirBienvenue } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,9 @@ export async function POST(req: Request) {
     await c.query(
       "INSERT INTO membre (utilisateur_id, compte_id, role) VALUES ($1, $2, 'proprietaire')",
       [u.id, k.id]);
+    // Le badge de bienvenue, dans la meme transaction : le compte et son cadeau
+    // naissent ensemble, ou pas du tout.
+    await offrirBienvenue(u.id, c);
     // La reserve nait avec le compte : sans elle, la premiere reception n'aurait
     // nulle part ou entrer.
     await c.query("INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve')",

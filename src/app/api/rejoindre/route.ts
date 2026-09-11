@@ -1,5 +1,6 @@
 import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, utilisateurDe, versPage } from "@/lib/auth";
+import { offrirBienvenue } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,9 @@ export async function POST(req: Request) {
         "INSERT INTO utilisateur (compte_id, email, mdp, role) VALUES ($1,$2,$3,$4) RETURNING id",
         [inv.compte_id, inv.email, chiffrer(mdp), inv.role])).rows[0].id;
       neuf = true;
+      // Arriver par une invitation, c'est s'inscrire aussi : meme cadeau. Pas
+      // pour quelqu'un qui avait deja un compte — il l'a recu en le creant.
+      await offrirBienvenue(id, c);
     }
 
     await c.query(`INSERT INTO membre (utilisateur_id, compte_id, role) VALUES ($1,$2,$3)
