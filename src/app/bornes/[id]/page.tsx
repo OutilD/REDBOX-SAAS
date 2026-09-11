@@ -223,7 +223,7 @@ export default async function Detail({
         {/* Les accuses de reception, tous au meme endroit et de la meme forme.
             Ils etaient cinq cartes presque identiques semees dans la page. */}
         {charge ? (
-          <Avis titre={`${charge} unités envoyées sur ${nCanaux} canaux`}>
+          <Avis titre={`Réassort : ${charge} unités envoyées sur ${nCanaux} canaux`}>
             Elles quittent votre réserve maintenant. La RedBox les inscrira à sa prochaine
             synchronisation — d’ici une trentaine de secondes si elle est en ligne.
             {Number(refuses) > 0
@@ -368,9 +368,9 @@ export default async function Detail({
         */}
         {peutCharger(u) ? (
           <div className="rangee-actions" style={{ margin: "16px 0 4px" }}>
-            <Link href={`/bornes/${id}/charger`} className="bouton primaire">Charger</Link>
-            <Link href={`/reassort/fiche?b=${id}`} className="bouton">Fiche de réassort</Link>
-            <Link href={`/bornes/${id}/planogramme`} className="bouton">Planogramme</Link>
+            <Link href={`/bornes/${id}/charger`} className="bouton primaire">Réassort</Link>
+            <Link href={`/reassort/fiche?b=${id}`} className="bouton">Fiche d’approvisionnement</Link>
+            <Link href={`/bornes/${id}/planogramme`} className="bouton">Emplacements</Link>
             <Link href={`/bornes/${id}/affichage`} className="bouton">Affichage</Link>
             {/* LE PRIX EST UNE DECISION DE MACHINE, pas de catalogue : il se
                 prend en regardant celle-ci, et il vit donc a cote de ce qu'elle

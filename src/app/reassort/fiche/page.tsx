@@ -58,13 +58,13 @@ export default async function Fiche({
       <main className="ecran fiche">
         <div className="rangee sans-impression" style={{ marginTop: 18 }}>
           <Link href="/reassort" className="bouton petit">‹</Link>
-          <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche de réassort</h1></div>
+          <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche d’approvisionnement</h1></div>
           <Imprimer />
         </div>
 
         <header className="fiche-tete">
           <div>
-            <div className="fiche-titre">Réassort — {u.compte}</div>
+            <div className="fiche-titre">Approvisionnement — {u.compte}</div>
             <div className="fiche-date">{aujourdhui}</div>
           </div>
           <div className="fiche-chiffre">
@@ -195,7 +195,7 @@ export default async function Fiche({
                 </div>
                 <Link href={`/bornes/${b.id}/charger`} className="bouton large sans-impression"
                       style={{ marginTop: 12 }}>
-                  Saisir ce qui a été chargé sur {b.nom}
+                  Faire le réassort de {b.nom}
                 </Link>
               </section>
             ))}

@@ -64,7 +64,7 @@ export default async function Reassort({
       <Entete page="reassort" />
       <main className="ecran">
         <div className="rangee" style={{ marginTop: 18 }}>
-          <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche de réassort</h1></div>
+          <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche d’approvisionnement</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
           Cochez les RedBox de la tournée. La fiche dira quoi sortir de la réserve,

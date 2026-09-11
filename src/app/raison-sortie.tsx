@@ -180,7 +180,7 @@ export default function RaisonSortie() {
         </p>
         <button type="button" className="bouton primaire large" onClick={surClic}
                 disabled={bilan.canaux === 0}>
-          Valider le chargement
+          Valider le réassort
         </button>
       </div>
 
@@ -285,7 +285,7 @@ export default function RaisonSortie() {
       </dialog>
 
       <noscript>
-        <button className="bouton primaire large">Valider le chargement</button>
+        <button className="bouton primaire large">Valider le réassort</button>
         <div className="carte" style={{ marginTop: 12 }}>
           <div className="champ">
             <label htmlFor="motif-nu">Raison, si vous retirez de la marchandise</label>

@@ -61,7 +61,7 @@ export default async function Charger({ params, searchParams }:
           <Link href={`/bornes/${id}`} className="bouton petit retour"
                 aria-label="Retour à la fiche">‹</Link>
           <div className="qui">
-            <h1>Charger {borne.nom}</h1>
+            <h1>Réassort · {borne.nom}</h1>
             <div className="ou">relevé {depuis(borne.vue_le)}</div>
             <div className="etats">
               {vides > 0

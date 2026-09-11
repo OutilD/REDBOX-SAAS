@@ -105,7 +105,7 @@ const FIL: Record<Page, [string, string?]> = {
   communaute: ["Communauté"],
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
-  reassort:   ["Réassort", "Approvisionnement"],
+  reassort:   ["Fiche d’approvisionnement", "Approvisionnement"],
   reglages:   ["Réglages"],
   catalogue:  ["Catalogue", "Configuration"],
   categories: ["Catégories", "Configuration"],
@@ -312,7 +312,7 @@ export async function Entete({ page, borne, fenetre, periode }:
               <b>Mode démo · données fictives.</b>{" "}
               Les RedBox, les ventes, le stock et l’équipe affichés sont inventés pour
               vous faire découvrir la console. Vous pouvez tout manipuler
-              <span className="long"> — charger une RedBox, traiter un litige, changer un prix</span> :
+              <span className="long"> — faire un réassort, traiter un litige, changer un prix</span> :
               rien n’est réel, et tout sera effacé quand vous désactiverez ce mode.
             </div>
             <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>

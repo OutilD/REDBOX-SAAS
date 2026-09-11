@@ -25,7 +25,7 @@ type Ligne = {
  */
 const VUES = [
   { cle: "", nom: "Toutes" },
-  { cle: "charger", nom: "À charger" },
+  { cle: "charger", nom: "À réassortir" },
   { cle: "muettes", nom: "Hors ligne" },
   { cle: "version", nom: "À mettre à jour" },
   { cle: "appairer", nom: "À appairer" },
@@ -190,7 +190,7 @@ export default async function Bornes({ searchParams }:
                   </span>
                 </div>
                 <div className="mesure">
-                  <span className="etiquette">Machines à charger</span>
+                  <span className="etiquette">Machines à réassortir</span>
                   <span className="ligne-chiffre">
                     <span className={`chiffre num ${aCharger ? "attention" : ""}`}>{aCharger}</span>
                   </span>

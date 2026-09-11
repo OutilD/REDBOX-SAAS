@@ -153,8 +153,8 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         Recevoir
       </Link>
       <Link href={`/reassort?p=${p.id}`} className="bouton petit discret"
-            draggable={false} title={`Réassort des RedBox qui portent ${p.nom}`}>
-        Réassort
+            draggable={false} title={`Fiche d’approvisionnement des RedBox qui portent ${p.nom}`}>
+        Approvisionner
       </Link>
 
       {/* La fiche : ce que la borne montrera quand le client touchera le « i ».
