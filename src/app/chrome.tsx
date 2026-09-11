@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoSortir, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -266,9 +266,11 @@ export async function Entete({ page, borne, fenetre, periode }:
             <BasculeTheme depart={theme} retour={ici} />
 
             <div className="compte-chip">
-              {/* La pastille mene au profil : c'est la qu'on cherche son compte,
-                  et elle etait jusqu'ici un cul-de-sac. */}
-              <Link href="/profil" className="moi" title="Mon compte">
+              {/* La pastille mene a « Mon compte », ou l'on trouve aussi ses
+                  badges et son niveau. La deconnexion n'est plus ici : collee a
+                  la pastille, on la touchait en voulant ouvrir son compte. Elle
+                  est au pied de la page du compte, seule, en rouge. */}
+              <Link href="/profil" className="moi" title="Mon compte et mes badges">
                 {u?.image_id ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/image/${u.image_id}`} alt="" className="jeton photo" />
@@ -280,12 +282,6 @@ export async function Entete({ page, borne, fenetre, periode }:
                   <span>{u ? nomDuRole(u.role) : ""}</span>
                 </span>
               </Link>
-              <form method="post" action="/api/session/fin">
-                <button className="bouton icone" title="Se déconnecter" aria-label="Se déconnecter"
-                        style={{ width: 30, minHeight: 30, border: "none", background: "none" }}>
-                  <IcoSortir size={16} />
-                </button>
-              </form>
             </div>
           </div>
         </div>

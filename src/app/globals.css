@@ -4335,6 +4335,24 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   .feuillet.fin { justify-items: start; text-align: left; }
 }
 
+/* Mon niveau et mes badges, en tete de « Mon compte » : c'est la qu'on arrive
+   en touchant sa pastille en haut a droite. */
+.profil-jeu { margin-bottom: 14px; }
+.profil-jeu .tete-jeu { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.profil-jeu .barre-niveau { margin-top: 9px; }
+
+/* Le pied de « Mon compte » : la deconnexion, seule et en rouge, assez loin
+   d'« Enregistrer » pour ne jamais se toucher par erreur. `.bouton.danger`
+   ne colore que le texte partout ailleurs ; le fond et le filet rouges ne
+   valent qu'ici, d'ou le selecteur local plutot qu'une nouvelle definition. */
+.fin-de-session { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--bord); }
+.fin-de-session .bouton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord));
+  background: var(--rouge-fond); font-weight: 700;
+}
+.fin-de-session .bouton:hover { background: color-mix(in srgb, var(--rouge) 24%, transparent); }
+
 .couleurs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .couleur-choix { cursor: pointer; }
 .couleur-choix input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

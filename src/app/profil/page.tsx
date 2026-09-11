@@ -1,6 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
+import { BADGES, profilDe, rangDe } from "@/lib/communaute";
+import { Badge } from "../communaute/badge";
+import { AnneauNiveau, BarreNiveau } from "../communaute/niveau";
+import { IcoSortir } from "../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +25,7 @@ export default async function Profil({ searchParams }:
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { e, fait } = await searchParams;
+  const moi = await profilDe(u.id, u);
 
   const messages: Record<string, string> = {
     email: "Cette adresse n’est pas valide.",
@@ -37,6 +43,42 @@ export default async function Profil({ searchParams }:
         <p className="sous">
           Ce que voit votre équipe, et ce avec quoi vous vous connectez.
         </p>
+
+        {/* MES BADGES, EN TETE. C'est ici qu'on arrive en touchant sa pastille
+            en haut a droite ; les badges n'etaient accessibles que par la page
+            Communaute, qu'on ne pense pas a ouvrir pour se regarder soi. */}
+        {moi ? (
+          <section className="carte profil-jeu" aria-label="Mon niveau et mes badges">
+            <div className="tete-jeu">
+              <AnneauNiveau points={moi.points} taille={64} couleur={moi.couleur} />
+              <div className="pousse" style={{ minWidth: 200 }}>
+                <div className="rangee" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <span className="etiquette grade grand">{moi.grade.nom}</span>
+                  <span className="faible num" style={{ fontSize: 13 }}>
+                    {moi.points} pts · {moi.badges.length} badge{moi.badges.length > 1 ? "s" : ""} sur {BADGES.length}
+                  </span>
+                </div>
+                <BarreNiveau points={moi.points} />
+              </div>
+              <Link href="/communaute" className="bouton petit">Tous les badges ›</Link>
+            </div>
+            {moi.badges.length > 0 ? (
+              <div className="badges-rangee" style={{ marginTop: 14 }}>
+                {moi.badges.map((b) => (
+                  <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
+                        className="badge-item" title={`${b.nom} — ${b.quoi}`}>
+                    <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
+                    <span>{b.nom}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>
+                Pas encore de badge. <Link href="/communaute">Voir comment en gagner ›</Link>
+              </p>
+            )}
+          </section>
+        ) : null}
 
         {fait ? <p className="avis-ok">Profil enregistré.</p> : null}
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
@@ -117,6 +159,17 @@ export default async function Profil({ searchParams }:
           </div>
 
           <button className="bouton primaire large">Enregistrer</button>
+        </form>
+
+        {/* LA DECONNEXION, AU PIED DE LA PAGE. Dans l'en-tete, collee a la
+            pastille du compte, on la touchait en voulant ouvrir son compte.
+            Ici elle est seule, en rouge, loin de ce qu'on vient faire sur
+            cette page — et c'est un formulaire a part : elle ne peut jamais
+            partir avec « Enregistrer ». */}
+        <form method="post" action="/api/session/fin" className="fin-de-session">
+          <button className="bouton danger large">
+            <IcoSortir size={17} /> Se déconnecter
+          </button>
         </form>
       </main>
       <NavBasse page="profil" />
