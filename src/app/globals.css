@@ -204,6 +204,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
    navigateur ordinaire, ces marges valent zero. */
 .entete {
   position: sticky; top: 0; z-index: 30;
+  /* Meme decalage qu'en bas, par le haut : l'en-tete ne sort plus de l'ecran. */
+  translate: 0 var(--ecart-haut, 0px);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
   background: color-mix(in srgb, var(--fond) 90%, transparent);
   backdrop-filter: saturate(150%) blur(10px);
@@ -286,6 +288,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   --filet: var(--bleu); --teinte: var(--bleu-fond);
   position: fixed; z-index: 50;
   left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom));
+  translate: 0 var(--ecart-bas, 0px);
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 12px 14px; font-size: 13.5px; line-height: 1.4;
   background: linear-gradient(var(--teinte), var(--teinte)), var(--surface-2);
@@ -1228,9 +1231,15 @@ a.ligne:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
    l'ecran, dans Safari comme dans l'application installee. Le flou ne se
    voyait qu'a travers huit pour cent de transparence ; il ne valait pas une
    barre qui se decroche.
+
+   Ca n'a pas suffi : apres la fermeture du clavier, iOS garde une fenetre de
+   mise en page trop courte, et la barre se cale sur elle. `hauteur-ecran.tsx`
+   mesure l'ecart et le pose dans `--ecart-bas` ; tout ce qui est fixe en bas le
+   compense par `translate` (qui s'ajoute aux animations au lieu de les ecraser).
 */
 .nav-bas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  translate: 0 var(--ecart-bas, 0px);
   display: flex; background: var(--fond);
   border-top: 1px solid var(--bord);
   padding-bottom: env(safe-area-inset-bottom);
@@ -2714,6 +2723,7 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
 .notif {
   position: fixed; z-index: 90;
   left: 50%; bottom: calc(22px + env(safe-area-inset-bottom));
+  translate: 0 var(--ecart-bas, 0px);
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px;
   padding: 11px 16px; border-radius: 999px;
@@ -3479,6 +3489,7 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
   .emplacements .reglage:not([data-ouvert]) { display: none; }
   .emplacements .reglage[data-ouvert] {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 71; margin: 0;
+    translate: 0 var(--ecart-bas, 0px);
     max-height: 86dvh; overflow-y: auto; overscroll-behavior: contain;
     border-radius: 18px 18px 0 0; border-bottom: none;
     padding: 10px 16px calc(18px + env(safe-area-inset-bottom));
@@ -5639,4 +5650,23 @@ html.piece-tiree, html.piece-tiree * {
 .apercu-fond[data-fond="aucun"] {
   background-image: radial-gradient(color-mix(in srgb, var(--texte) 12%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
+}
+
+/* ================================================================== le menu
+   Le bouton qui replie le rail n'a rien a replier sous 980 px : le rail n'y
+   existe pas. Il restait dans l'en-tete du telephone, un bouton qui ne
+   faisait rien. C'est l'onglet « Menu » qui ouvre le plan, la. */
+@media (max-width: 979px) {
+  .entete .rail-bascule { display: none; }
+}
+/* Le compte des messages non lus, sur sa rangee du menu. */
+.rubrique .compte-menu {
+  display: inline-block; min-width: 24px; padding: 2px 8px; border-radius: 999px;
+  background: var(--rouge); color: #fff; font-size: 12px; font-weight: 800; text-align: center;
+}
+/* « Communauté » est le plus long des cinq onglets : sur un ecran de 320 px,
+   un cinquieme de largeur ne le tient plus. On serre la lettre et la marge,
+   jamais le mot. */
+@media (max-width: 340px) {
+  .nav-bas a { min-width: 0; padding-left: 1px; padding-right: 1px; font-size: 10px; letter-spacing: -.01em; }
 }

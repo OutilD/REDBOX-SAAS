@@ -113,6 +113,16 @@ export const IcoReglages = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Menu : quatre tuiles, le plan de toute la console. */
+export const IcoMenu = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="3" width="5.8" height="5.8" rx="1.4" />
+    <rect x="11.2" y="3" width="5.8" height="5.8" rx="1.4" />
+    <rect x="3" y="11.2" width="5.8" height="5.8" rx="1.4" />
+    <rect x="11.2" y="11.2" width="5.8" height="5.8" rx="1.4" />
+  </svg>
+);
+
 export const IcoSoleil = ({ size = 18 }: P) => (
   <svg {...base(size)}>
     <circle cx="10" cy="10" r="3.6" />

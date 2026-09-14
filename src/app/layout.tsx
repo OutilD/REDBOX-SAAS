@@ -5,6 +5,7 @@ import Occupe from "./occupe";
 import { Suspense } from "react";
 import Notif from "./notif";
 import Pwa from "./pwa";
+import HauteurEcran from "./hauteur-ecran";
 
 export const metadata: Metadata = {
   title: "RedBox",
@@ -78,6 +79,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <Occupe />
         <Pwa />
+        {/* iPhone : la barre du bas et l'en-tete restent a leur place apres le clavier. */}
+        <HauteurEcran />
       </body>
     </html>
   );

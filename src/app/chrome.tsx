@@ -5,7 +5,7 @@ import { q } from "@/db";
 import { nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub, IcoSav } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
@@ -16,7 +16,7 @@ export type Page =
   | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger"
   | "bornes" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
-  | "profil" | "demo";
+  | "profil" | "demo" | "menu";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -83,21 +83,40 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
   },
 ];
 
-/** Les cinq destinations du pouce. Les autres se rejoignent depuis celles-ci. */
+/** Le plan, reduit a ce que cette personne a le droit d'ouvrir : le rail et la page Menu. */
+export function planDe(u: Utilisateur): { titre: string; items: Item[] }[] {
+  return SECTIONS
+    .map((s) => ({ titre: s.titre, items: s.items.filter((i) => !i.droit || i.droit(u)) }))
+    .filter((s) => s.items.length > 0);
+}
+
+/**
+ * LES CINQ DESTINATIONS DU POUCE.
+ *
+ * Sur un telephone, le rail n'existe pas : la Communaute n'etait joignable
+ * qu'en devinant qu'il fallait toucher sa propre photo. Elle a maintenant son
+ * onglet. Le cinquieme, « Menu », ouvre le plan complet — Stock, Reception,
+ * Reassort, Messages, Analytiques, Reglages — c'est-a-dire le rail, en page :
+ * rien de la console n'est plus a plus de deux gestes.
+ */
 const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] = [
-  { cle: "tableau",  nom: "Tableau",  icone: <IcoTableau size={19} />,  vers: "/" },
-  { cle: "stock",    nom: "Stock",    icone: <IcoStock size={19} />,    vers: "/stock" },
-  { cle: "bornes",   nom: "RedBox",   icone: <IcoBorne size={19} />,    vers: "/bornes" },
-  { cle: "ventes",   nom: "Ventes",   icone: <IcoVentes size={19} />,   vers: "/ventes" },
-  { cle: "reglages", nom: "Réglages", icone: <IcoReglages size={19} />, vers: "/reglages" },
+  { cle: "tableau",    nom: "Tableau",    icone: <IcoTableau size={19} />,    vers: "/" },
+  { cle: "bornes",     nom: "RedBox",     icone: <IcoBorne size={19} />,      vers: "/bornes" },
+  { cle: "ventes",     nom: "Ventes",     icone: <IcoVentes size={19} />,     vers: "/ventes" },
+  { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute size={19} />, vers: "/communaute" },
+  { cle: "menu",       nom: "Menu",       icone: <IcoMenu size={19} />,       vers: "/menu" },
 ];
 
-/** La page ouverte, ramenee a l'onglet du pouce qui la contient. */
+/**
+ * La page ouverte, ramenee a l'onglet du pouce qui la contient. Tout ce qui
+ * n'a pas son onglet allume « Menu » : c'est par la qu'on y est venu, et par
+ * la qu'on en repart.
+ */
 const FAMILLE: Partial<Record<Page, Page>> = {
   analytiques: "tableau",
-  reception: "stock", reassort: "stock", charger: "stock",
-  catalogue: "reglages", categories: "reglages", equipe: "reglages", pub: "reglages",
-  sav: "reglages", notifications: "reglages",
+  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", messages: "menu",
+  reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
+  sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -120,6 +139,7 @@ const FIL: Record<Page, [string, string?]> = {
   notifications: ["Notifications", "Configuration"],
   profil:     ["Mon compte"],
   demo:       ["Mode démo", "Réglages"],
+  menu:       ["Menu"],
 };
 
 /**
