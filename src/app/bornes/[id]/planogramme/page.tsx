@@ -19,7 +19,6 @@ type Produit = {
 const VUES: { cle: Vue; nom: string }[] = [
   { cle: "grille", nom: "Grille" },
   { cle: "2d", nom: "2D" },
-  { cle: "3d", nom: "3D" },
 ];
 
 /**
@@ -33,8 +32,7 @@ const VUES: { cle: Vue; nom: string }[] = [
  * Les spirales sont maintenant a leur place. On touche une spirale, on regle
  * CELLE-LA — son produit, combien elle en tient, a partir de quand elle est
  * basse — et on enregistre. La grille est la vue ordinaire ; la machine se
- * dessine aussi en 2D, ou en 3D qu'on fait tourner, les produits dans leurs
- * spirales, a leur vrai nombre.
+ * dessine aussi en 2D, les produits dans leurs spirales, a leur vrai nombre.
  *
  * LE NOM DE LA MACHINE EST PARTOUT OU L'ON PEUT SE PERDRE : en titre de la
  * page, sur la plaque du caisson, en tete du reglage — qui couvre la page sur
@@ -44,7 +42,7 @@ const VUES: { cle: Vue; nom: string }[] = [
  * SUR UN TELEPHONE, LE REGLAGE MONTE DU BAS, et se ferme en touchant a cote.
  * La page ne saute plus en haut a chaque spirale touchee.
  *
- * Le reglage et la vue vivent dans l'adresse (`?s=203&vue=3d`) : ils s'ouvrent
+ * Le reglage et la vue vivent dans l'adresse (`?s=203&vue=2d`) : ils s'ouvrent
  * sans JavaScript, et le bouton retour du telephone ferme ce qu'on vient
  * d'ouvrir.
  */
@@ -60,7 +58,7 @@ export default async function Emplacements({ params, searchParams }: {
   if (!peutVoirBorne(u, id)) notFound();
   const sp = await searchParams;
   if (!peutConfigurer(u)) redirect(`/bornes/${id}`);
-  const vue: Vue = sp.vue === "2d" || sp.vue === "3d" ? sp.vue : "grille";
+  const vue: Vue = sp.vue === "2d" ? "2d" : "grille";
 
   // Le prix montre dans la liste est CELUI DE CETTE BORNE : on choisit ce
   // qu'une machine distribue, et lui rappeler un tarif qu'elle ne pratique pas
@@ -124,13 +122,22 @@ export default async function Emplacements({ params, searchParams }: {
     const aussi = ailleurs(c?.produit_id ?? null, p.code);
     const actif = choisie?.lane === p.lane ? "true" : undefined;
 
-    // LA GRILLE : la vue ordinaire, telle qu'elle etait.
+    const etat = !c ? "absente" : c.produit_id === null ? "libre"
+               : c.quantite === 0 ? "vide" : c.quantite <= c.seuil_bas ? "bas" : "garnie";
+
+    // LA GRILLE : la vue ordinaire.
+    //
+    // ELLE DIT CE QUI RESTE, PAS SEULEMENT CE QUI TIENT. La case n'affichait que
+    // la capacite : « en tient 10 » sur une spirale pleine comme sur une spirale
+    // a sec. Pour savoir laquelle etait epuisee, il fallait passer en 2D ou
+    // ouvrir le reassort. Le compte, la jauge et le mot disent l'etat d'un coup
+    // d'oeil — le mot, parce qu'une couleur seule ne se lit pas par tous.
     if (vue === "grille") {
       return (
         // `scroll={false}` : toucher la spirale 502 ne doit pas renvoyer en haut
         // de la page, loin de la spirale qu'on regardait.
         <Link href={ouvrir(p.lane)} scroll={false} className="spirale lien" aria-current={actif}
-              data-etat={!c ? "absente" : c.produit_id === null ? "libre" : "garnie"}>
+              data-etat={etat}>
           <div className="tete">
             <span className="code mono">{p.code}</span>
             {aussi.length > 0 ? <span className="double">aussi en {aussi.join(", ")}</span> : null}
@@ -141,7 +148,19 @@ export default async function Emplacements({ params, searchParams }: {
                 <Visuel image={c.image} icone={c.icone} nom={c.nom ?? ""} />
                 <span className="nom">{c.nom}</span>
               </div>
-              <div className="meta num">en tient {c.capacite}</div>
+              <div className="stock">
+                <div className="ligne-stock">
+                  <span className="compte num">
+                    <b>{c.quantite}</b><span className="sur"> / {c.capacite}</span>
+                  </span>
+                  {etat === "vide" ? <b className="mot">épuisée</b>
+                    : etat === "bas" ? <b className="mot">basse</b> : null}
+                </div>
+                <div className="jauge" data-etat={etat} aria-hidden="true">
+                  <span style={{ width: `${c.capacite > 0
+                    ? Math.min(100, Math.round((c.quantite / c.capacite) * 100)) : 0}%` }} />
+                </div>
+              </div>
             </>
           ) : (
             <p className="rien">{c ? "Libre — choisir un produit" : "Non utilisée — l’activer"}</p>
@@ -150,11 +169,9 @@ export default async function Emplacements({ params, searchParams }: {
       );
     }
 
-    // LA MACHINE, 2D ou 3D : la spirale en fil rouge — autant de tours que de
+    // LA MACHINE EN 2D : la spirale en fil rouge — autant de tours que de
     // places, autant de produits qu'en stock — dont la levre du plateau cache
     // le bas ; devant, l'etiquette posee sur la levre.
-    const etat = !c ? "absente" : c.produit_id === null ? "libre"
-               : c.quantite === 0 ? "vide" : c.quantite <= c.seuil_bas ? "bas" : "garnie";
     return (
       <Link href={ouvrir(p.lane)} scroll={false} className="spirale lien" data-etat={etat}
             aria-current={actif}>

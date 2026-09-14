@@ -59,13 +59,13 @@ export default async function Sav({
         {e ? <p className="erreur">{messages[e] ?? "Impossible."}</p> : null}
 
         <form method="post" action="/api/sav" className="carte">
-          <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
+          <div className="champs">
+            <div className="c-large">
               <label htmlFor="tel">Numéro à appeler</label>
               <input id="tel" name="tel" defaultValue={tel} maxLength={TEL_MAX}
                      inputMode="tel" placeholder="06 12 34 56 78" />
             </div>
-            <div style={{ flex: 2, minWidth: 240 }}>
+            <div className="c-large c-double">
               <label htmlFor="texte">La phrase qui l’accompagne</label>
               <input id="texte" name="texte" defaultValue={texte} maxLength={TEXTE_MAX}
                      placeholder={TEXTE_DEFAUT} />

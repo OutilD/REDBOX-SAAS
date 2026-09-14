@@ -54,14 +54,14 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
 
   return (
     <form method="post" action="/api/catalogue">
-      <div className="rangee" style={{ gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ width: 150 }}>
+      <div className="champs">
+        <div className="c-court">
           <label htmlFor="sku">SKU</label>
           <input id="sku" name="sku" autoCapitalize="characters" className="mono"
                  placeholder={propose || "auto"} value={sku}
                  aria-invalid={skuPris} onChange={(e) => poserSku(e.target.value)} />
         </div>
-        <div style={{ flex: 1, minWidth: 190 }}>
+        <div className="c-large">
           <label htmlFor="nom">Nom</label>
           <input id="nom" name="nom" required value={nom}
                  aria-invalid={nomPris} onChange={(e) => poserNom(e.target.value)} />
@@ -81,8 +81,8 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
         interdit, mais deux lignes identiques dans une fiche de réassort se confondent.</p>
       ) : null}
 
-      <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 140 }}>
+      <div className="champs" style={{ marginTop: 12 }}>
+        <div className="c-large">
           <label htmlFor="cat">Catégorie</label>
           <select id="cat" name="categorie_id" required value={cat}
                   onChange={(e) => poserCat(e.target.value)}>
@@ -90,11 +90,11 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
             {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
         </div>
-        <div style={{ width: 120 }}>
+        <div className="c-court">
           <label htmlFor="prix">Prix (€)</label>
           <input id="prix" name="prix" inputMode="decimal" defaultValue="0,00" />
         </div>
-        <div style={{ width: 130 }}>
+        <div className="c-court">
           <label htmlFor="age">Âge minimum</label>
           <select id="age" name="age_min" defaultValue="18">
             <option value="0">aucun</option><option value="18">18 ans</option>
@@ -105,8 +105,8 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
       {bornes.length > 0 ? (
         <fieldset className="cadre-choix">
           <legend>Où le poser</legend>
-          <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 230 }}>
+          <div className="champs">
+            <div className="c-large">
               <label htmlFor="place">Spire</label>
               <select id="place" name="place" value={place}
                       onChange={(e) => poserPlace(e.target.value)}>
@@ -126,12 +126,12 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
                 n'ont aucun effet et ne font que poser une question de plus. */}
             {nouvelleSpire ? (
               <>
-                <div style={{ width: 96 }}>
+                <div className="c-court etroit">
                   <label htmlFor="rangee">Rangée</label>
                   <input id="rangee" name="rangee" type="number" min={1} max={10}
                          required inputMode="numeric" defaultValue={1} />
                 </div>
-                <div style={{ width: 96 }}>
+                <div className="c-court etroit">
                   <label htmlFor="colonne">Colonne</label>
                   <input id="colonne" name="colonne" type="number" min={1} max={10}
                          required inputMode="numeric" defaultValue={1} />

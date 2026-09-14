@@ -217,23 +217,23 @@ export default async function Pub({
                 sujet au centre.
               </p>
             </div>
-            <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 14, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 180 }}>
+            <div className="champs" style={{ marginTop: 14 }}>
+              <div className="c-large">
                 <label htmlFor="nom">Nom de la playlist</label>
                 <input id="nom" name="nom" placeholder="Promo rentrée" />
               </div>
-              <div style={{ width: 160 }}>
+              <div className="c-court">
                 <label htmlFor="duree_s">Durée par image (s)</label>
                 <input id="duree_s" name="duree_s" type="number" min={2} max={60}
                        defaultValue={7} inputMode="numeric" />
               </div>
             </div>
-            <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 150 }}>
+            <div className="champs" style={{ marginTop: 12 }}>
+              <div className="c-large">
                 <label htmlFor="debut_le">Diffuser à partir du</label>
                 <input id="debut_le" name="debut_le" type="date" />
               </div>
-              <div style={{ flex: 1, minWidth: 150 }}>
+              <div className="c-large">
                 <label htmlFor="fin_le">Jusqu’au</label>
                 <input id="fin_le" name="fin_le" type="date" />
               </div>
@@ -280,8 +280,8 @@ export default async function Pub({
             </p>
             <ChoixFichier name="fichier" required multiple libelle="Choisir des visuels"
                           accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" />
-            <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 14 }}>
-              <div style={{ width: 160 }}>
+            <div className="champs" style={{ marginTop: 14 }}>
+              <div className="c-court">
                 <label htmlFor="duree_ajout">Durée par image (s)</label>
                 <input id="duree_ajout" name="duree_s" type="number" min={2} max={60}
                        defaultValue={7} inputMode="numeric" />
@@ -401,18 +401,18 @@ export default async function Pub({
                       </div>
                     ) : null}
 
-                    <div className="rangee" style={{ gap: 12, alignItems: "flex-end", marginTop: 14, flexWrap: "wrap" }}>
-                      <div style={{ width: 96 }}>
+                    <div className="champs" style={{ marginTop: 14 }}>
+                      <div className="c-court etroit">
                         <label htmlFor={`ordre_${l.id}`}>Ordre</label>
                         <input id={`ordre_${l.id}`} name={`ordre_${l.id}`} type="number" min={1} max={999}
                                defaultValue={l.ordre} inputMode="numeric" />
                       </div>
-                      <div style={{ flex: 1, minWidth: 140 }}>
+                      <div className="c-large">
                         <label htmlFor={`debut_${l.id}`}>Du</label>
                         <input id={`debut_${l.id}`} name={`debut_${l.id}`} type="date"
                                defaultValue={l.debut_le ?? ""} />
                       </div>
-                      <div style={{ flex: 1, minWidth: 140 }}>
+                      <div className="c-large">
                         <label htmlFor={`fin_${l.id}`}>Au</label>
                         <input id={`fin_${l.id}`} name={`fin_${l.id}`} type="date"
                                defaultValue={l.fin_le ?? ""} />

@@ -2,14 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { utilisateur } from "@/lib/auth";
-import { BADGES, badgesVus, classement, evaluerBadges, objectifs, prochainGrade, profilDe,
-         progresDe, rangDe, rareteDesBadges, NOM_RANG, type Classe } from "@/lib/communaute";
+import { badgesVus, classement, evaluerBadges, objectifs, profilDe,
+         rangDe, rareteDesBadges, type Classe } from "@/lib/communaute";
 import { salonsDe } from "@/lib/salons";
 import { Badge } from "./badge";
-import { AnneauNiveau, BarreNiveau } from "./niveau";
+import CarteMoi from "./carte-moi";
+import Collection from "./collection";
+import { vuesBadges } from "./vues-badges";
 import { Portrait } from "./vignette-personne";
+import { VoirPlus, aMontrer } from "../voir-plus";
 
 export const dynamic = "force-dynamic";
+
+/** Le palmares s'ouvre sur les vingt premiers, et s'allonge de vingt en vingt. */
+const PALMARES_PAR_PAGE = 20;
 
 /**
  * LA COMMUNAUTE.
@@ -23,7 +29,8 @@ export const dynamic = "force-dynamic";
  * Les badges sont reevalues a chaque ouverture : c'est ici qu'on vient voir
  * si l'on a gagne quelque chose, donc ici qu'on le calcule.
  */
-export default async function Communaute() {
+export default async function Communaute({ searchParams }:
+  { searchParams: Promise<{ n?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const neufs = await evaluerBadges(u.id);
@@ -36,10 +43,11 @@ export default async function Communaute() {
   if (!moi) redirect("/");
   const nouveaux = moi.badges.filter((b) => b.nouveau);
   if (nouveaux.length > 0) await badgesVus(u.id);
-  const suivant = prochainGrade(moi.bornes);
+  // Avant `badgesVus` : les nouveaux gardent leur marque, et leur revelation se joue.
+  const vues = vuesBadges(moi, rarete);
   const acquis = moi.badges.map((b) => b.cle);
   const vises = objectifs(moi.faits, acquis);
-  const HAUT = 20;
+  const HAUT = aMontrer((await searchParams).n, PALMARES_PAR_PAGE);
   const haut = tous.slice(0, HAUT);
   const monRang = tous.findIndex((c) => c.id === u.id) + 1;
   const maLigne = monRang > HAUT ? tous[monRang - 1] : null;
@@ -57,67 +65,8 @@ export default async function Communaute() {
           qui dit la taille de votre parc, des badges pour ce que vous avez traversé.
         </p>
 
-        {/* ---------------------------------------------------------- moi
-            OU J'EN SUIS, EN UNE CARTE. L'anneau porte le niveau et la part
-            parcourue ; la barre dit ce qui reste ; les trois chiffres disent
-            d'ou viennent les points. Le portrait passe DANS l'anneau : deux
-            ronds cote a cote se disputeraient le regard. */}
-        <div className="carte moi-carte" style={moi.couleur ? { borderColor: moi.couleur } : undefined}>
-          <div className="haut-moi">
-            <div className="face">
-              <AnneauNiveau points={moi.points} taille={104} couleur={moi.couleur} />
-              <span className="dans-anneau">
-                <Portrait image_id={moi.image_id} pseudo={moi.pseudo} couleur={moi.couleur} taille={72} />
-              </span>
-            </div>
-
-            <div className="pousse" style={{ minWidth: 220 }}>
-              <div className="nom-moi">
-                {moi.pseudo}{moi.editeur ? <span className="etiquette editeur">RedBox</span> : null}
-              </div>
-              <div className="rangee" style={{ gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                <span className="etiquette grade grand">{moi.grade.nom}</span>
-                <span className="faible" style={{ fontSize: 13 }}>
-                  {moi.compte}{moi.ville ? ` · ${moi.ville}` : ""}
-                </span>
-              </div>
-              <BarreNiveau points={moi.points} />
-              <p className="faible" style={{ fontSize: 13, margin: "9px 0 0" }}>
-                {moi.bornes} RedBox en service
-                {suivant ? ` — ${suivant.manque} de plus et vous êtes ${suivant.grade.nom}.` : " — le sommet."}
-                {monRang === 1 ? " En tête du classement."
-                  : monRang > 1 ? ` ${monRang}e au classement, ${ecart > 0 ? `à ${ecart} pts de` : "à égalité avec"} la place au-dessus.`
-                  : ""}
-              </p>
-            </div>
-
-            <div className="rangee actions-moi" style={{ gap: 8 }}>
-              <Link href={`/communaute/${u.id}`} className="bouton petit">Mon profil public</Link>
-              <Link href="/communaute/moi" className="bouton petit primaire">Personnaliser</Link>
-            </div>
-          </div>
-
-          {/* D'ou viennent les points. Sans ce compte, « 1109 » est un nombre
-              tombe du ciel, et on ne sait pas quoi faire pour l'augmenter. */}
-          <div className="mesures-moi">
-            <div><b className="num">{moi.points}</b><span>points</span></div>
-            <div><b className="num">{moi.badges.length}</b><span>badge{moi.badges.length > 1 ? "s" : ""} sur {BADGES.length}</span></div>
-            <div><b className="num">{moi.messages}</b><span>message{moi.messages > 1 ? "s" : ""}</span></div>
-            <div><b className="num">{moi.reactions}</b><span>réaction{moi.reactions > 1 ? "s" : ""} reçue{moi.reactions > 1 ? "s" : ""}</span></div>
-          </div>
-
-          {moi.badges.length > 0 ? (
-            <div className="badges-rangee" style={{ marginTop: 14 }}>
-              {moi.badges.map((b) => (
-                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
-                      className="badge-item" title={`${b.nom} — ${b.quoi}`}>
-                  <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
-                  <span>{b.nom}</span>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        {/* ---------------------------------------------------------- moi */}
+        <CarteMoi moi={moi} id={u.id} monRang={monRang} ecart={ecart} />
 
         {/* ------------------------------------------------------ objectifs
             LES TROIS BADGES LES PLUS PROCHES. C'est la difference entre une
@@ -131,7 +80,7 @@ export default async function Communaute() {
             </div>
             <div className="objectifs">
               {vises.map((b) => (
-                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
+                <Link key={b.cle} href={`/communaute/badges/${b.cle}`} data-badge={b.cle}
                       className={`objectif ${rangDe(b)}`}>
                   <Badge forme={b.forme} taille={40} rang={rangDe(b)} obtenu={false} />
                   <div className="quoi">
@@ -185,64 +134,14 @@ export default async function Communaute() {
             </>
           ) : null}
         </ol>
+        <VoirPlus href={`/communaute?n=${HAUT + PALMARES_PAR_PAGE}#r${HAUT + 1}`}
+                  montres={HAUT} total={tous.length} plus={tous.length > HAUT}
+                  pas={PALMARES_PAR_PAGE} unite={["redboxer", "redboxers"]} />
 
         {/* -------------------------------------------------------- badges
-            TOUT CE QUI EXISTE, obtenu en couleur, le reste en gris — avec ou
-            l'on en est quand ca se compte, et combien de gens l'ont deja.
-            « Obtenu par 4 % » vaut toutes les etiquettes de rarete : c'est la
-            rarete reelle, pas celle qu'on a decretee.
-
-            Les non-obtenus passent apres : la vitrine d'abord, la liste des
-            courses ensuite. */}
-        <div className="titre-section">
-          <h2>Les badges</h2>
-          <span className="faible num" style={{ fontSize: 12.5 }}>
-            {moi.badges.length} sur {BADGES.length}
-          </span>
-        </div>
-        <div className="badges-grille">
-          {[...BADGES]
-            .sort((x, z) => Number(acquis.includes(z.cle)) - Number(acquis.includes(x.cle)) || z.points - x.points)
-            .map((b) => {
-              const a = moi.badges.find((x) => x.cle === b.cle);
-              const rang = rangDe(b);
-              const p = a ? null : progresDe(moi.faits, b.cle);
-              const combien = rarete.get(b.cle);
-              return (
-                <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
-                      className={`badge-fiche ${rang}${a ? "" : " eteint"}`}>
-                  <Badge forme={b.forme} obtenu={Boolean(a)} taille={42} rang={rang} />
-                  <div className="dit">
-                    <div className="nom">
-                      {b.nom}
-                      <span className={`etiquette rang ${rang}`}>{NOM_RANG[rang]}</span>
-                    </div>
-                    <div className="faible quoi">{b.quoi}</div>
-
-                    {p && p.pct > 0 ? (
-                      <div className="avance">
-                        <div className="piste"><span style={{ width: `${p.pct}%` }} /></div>
-                        <span className="num">{p.n} / {p.sur}</span>
-                      </div>
-                    ) : null}
-
-                    <div className="pied num">
-                      {b.points > 0 ? <span className="gain">+{b.points} pts</span> : null}
-                      {combien && combien.n > 0
-                        ? <span className="faible">{combien.pct > 0 ? `${combien.pct} %` : "moins de 1 %"} des redboxers</span>
-                        : <span className="faible">personne ne l’a encore</span>}
-                      {a ? (
-                        <span className="faible">
-                          obtenu le {new Date(a.obtenu_le).toLocaleDateString("fr-FR",
-                            { timeZone: "Europe/Paris", day: "numeric", month: "short", year: "numeric" })}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-        </div>
+            TOUT CE QUI EXISTE, en tuiles : obtenu en couleur, le reste en
+            creux. Le detail de chacun est dans sa bulle. */}
+        <Collection vues={vues} />
 
         {/* -------------------------------------------------------- salons */}
         {communs.length > 0 ? (
@@ -279,7 +178,7 @@ function LignePalmares({ c, rang, moi, echelle }:
   const medaille = rang === 1 ? "or" : rang === 2 ? "argent" : rang === 3 ? "bronze" : "";
   const part = Math.max(0, Math.min(100, Math.round((c.points / echelle) * 100)));
   return (
-    <li className={[moi ? "moi" : "", medaille].filter(Boolean).join(" ")}>
+    <li id={`r${rang}`} className={[moi ? "moi" : "", medaille].filter(Boolean).join(" ")}>
       <Link href={`/communaute/${c.id}`} className="ligne">
         <span className="rang num">{rang}<sup>{rang === 1 ? "er" : "e"}</sup></span>
         <Portrait image_id={c.image_id} pseudo={c.pseudo} couleur={c.couleur} taille={44} />

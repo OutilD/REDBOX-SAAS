@@ -77,7 +77,7 @@ export default function Lignes({ produits, prerempli }:
                   <input name={`q_${l.id}`} type="number" inputMode="numeric" min={0}
                          value={n || ""} placeholder="0"
                          onChange={(e) => poserQ({ ...q, [l.id]: Math.max(0, Number(e.target.value) || 0) })}
-                         className="valeur num" style={{ width: 72, minHeight: 44 }}
+                         className="valeur num"
                          aria-label={`Quantité reçue de ${l.nom}`} />
                   <button type="button" aria-label={`Ajouter une unité de ${l.nom}`}
                           className={n > 0 ? "plein" : ""}

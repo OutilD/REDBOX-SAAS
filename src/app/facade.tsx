@@ -1,8 +1,7 @@
 import type { Position } from "@/lib/machine";
 import { PICTOS } from "@/lib/pictos";
-import Rotation3D from "./rotation-3d";
 
-export type Vue = "grille" | "2d" | "3d";
+export type Vue = "grille" | "2d";
 
 /** « RedBox — Le Duplex » se lit « Le Duplex » sous la marque : pas deux fois RedBox. */
 function sansMarque(nom: string): string {
@@ -12,15 +11,14 @@ function sansMarque(nom: string): string {
 /**
  * LES SPIRALES, A LEUR PLACE.
  *
- * Trois facons de les montrer, toujours dans l'ordre de la machine — la 101 en
+ * Deux facons de les montrer, toujours dans l'ordre de la machine — la 101 en
  * haut a gauche, la 502 en bas a droite :
  *
  *   - LA GRILLE, sobre, celle qu'on lit le plus vite ;
  *   - LA MACHINE EN 2D, telle qu'on la voit porte ouverte : un caisson noir qui
  *     porte son nom, une vitrine, cinq plateaux de tole ou courent les spirales
  *     rouges et leurs produits, le rail de la porte a droite, le bac de retrait
- *     et le boitier en bas ;
- *   - LA MEME EN 3D, avec ses flancs et son dessus, qu'on fait tourner du doigt.
+ *     et le boitier en bas.
  *
  * Chaque ecran decide de ce qu'il pose sur une spirale ; le dessin, lui, ne
  * change pas. Le caisson reste noir dans les deux themes : c'est un objet, et
@@ -47,13 +45,9 @@ export function Facade<T>({ rangs, colonnes, legende, rendre, vue = "grille", no
     );
   }
 
-  const machine = (
+  return (
     <div className="machine" role="group" aria-label={legende}>
       <div className="caisson">
-        {/* Les faces qu'on ne voit qu'en 3D : les deux flancs et le dessus. */}
-        <i className="flanc gauche" aria-hidden />
-        <i className="flanc droit" aria-hidden />
-        <i className="dessus" aria-hidden />
         {nom ? (
           <div className="plaque">
             <span className="marque" aria-hidden>REDBOX</span>
@@ -80,7 +74,6 @@ export function Facade<T>({ rangs, colonnes, legende, rendre, vue = "grille", no
       </div>
     </div>
   );
-  return vue === "3d" ? <Rotation3D>{machine}</Rotation3D> : machine;
 }
 
 /**

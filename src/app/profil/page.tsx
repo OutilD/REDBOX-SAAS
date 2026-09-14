@@ -2,9 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
-import { BADGES, profilDe, rangDe } from "@/lib/communaute";
-import { Badge } from "../communaute/badge";
-import { AnneauNiveau, BarreNiveau } from "../communaute/niveau";
+import { classement, evaluerBadges, profilDe, rareteDesBadges } from "@/lib/communaute";
+import CarteMoi from "../communaute/carte-moi";
+import Revelation from "../communaute/revelation";
+import { vuesBadges } from "../communaute/vues-badges";
 import { IcoSortir } from "../icones";
 import ChangerPhoto from "./changer-photo";
 
@@ -26,7 +27,16 @@ export default async function Profil({ searchParams }:
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { e, fait } = await searchParams;
-  const moi = await profilDe(u.id, u);
+  // Les badges sont reevalues ici aussi : c'est la page ou l'on se regarde, un
+  // badge gagne depuis la derniere visite a la Communaute doit s'y voir. Leur
+  // annonce « Nouveau badge ! » reste a la Communaute.
+  await evaluerBadges(u.id);
+  const [moi, tous, rarete] = await Promise.all([profilDe(u.id, u), classement(1000), rareteDesBadges()]);
+  // Toucher un badge de la carte le revele ici aussi. L'annonce des nouveaux
+  // reste a la Communaute, qui les marque vus : ici, elle se rejouerait a chaque visite.
+  const vues = moi ? vuesBadges(moi, rarete).map((v) => ({ ...v, nouveau: false })) : [];
+  const monRang = tous.findIndex((c) => c.id === u.id) + 1;
+  const ecart = monRang > 1 ? tous[monRang - 2].points - tous[monRang - 1].points : 0;
 
   const messages: Record<string, string> = {
     email: "Cette adresse n’est pas valide.",
@@ -45,40 +55,15 @@ export default async function Profil({ searchParams }:
           Ce que voit votre équipe, et ce avec quoi vous vous connectez.
         </p>
 
-        {/* MES BADGES, EN TETE. C'est ici qu'on arrive en touchant sa pastille
-            en haut a droite ; les badges n'etaient accessibles que par la page
-            Communaute, qu'on ne pense pas a ouvrir pour se regarder soi. */}
+        {/* MON NIVEAU ET MES BADGES, EN TETE. C'est ici qu'on arrive en touchant
+            sa pastille en haut a droite. La petite carte d'avant, anneau de 64 px
+            et badges en ligne, se lisait mal au telephone : on allait chercher
+            la grande sur la Communaute. C'est maintenant la meme. */}
         {moi ? (
-          <section className="carte profil-jeu" aria-label="Mon niveau et mes badges">
-            <div className="tete-jeu">
-              <AnneauNiveau points={moi.points} taille={64} couleur={moi.couleur} />
-              <div className="pousse" style={{ minWidth: 200 }}>
-                <div className="rangee" style={{ gap: 8, flexWrap: "wrap" }}>
-                  <span className="etiquette grade grand">{moi.grade.nom}</span>
-                  <span className="faible num" style={{ fontSize: 13 }}>
-                    {moi.points} pts · {moi.badges.length} badge{moi.badges.length > 1 ? "s" : ""} sur {BADGES.length}
-                  </span>
-                </div>
-                <BarreNiveau points={moi.points} />
-              </div>
-              <Link href="/communaute" className="bouton petit">Tous les badges ›</Link>
-            </div>
-            {moi.badges.length > 0 ? (
-              <div className="badges-rangee" style={{ marginTop: 14 }}>
-                {moi.badges.map((b) => (
-                  <Link key={b.cle} href={`/communaute/badges/${b.cle}`}
-                        className="badge-item" title={`${b.nom} — ${b.quoi}`}>
-                    <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
-                    <span>{b.nom}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>
-                Pas encore de badge. <Link href="/communaute">Voir comment en gagner ›</Link>
-              </p>
-            )}
-          </section>
+          <div style={{ marginBottom: 14 }}>
+            <CarteMoi moi={moi} id={u.id} monRang={monRang} ecart={ecart} lienBadges />
+            <Revelation badges={vues} />
+          </div>
         ) : null}
 
         {fait ? <p className="avis-ok">Profil enregistré.</p> : null}

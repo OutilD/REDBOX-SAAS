@@ -932,10 +932,15 @@ DELETE FROM salon n WHERE n.compte_id IS NULL
    AND NOT EXISTS (SELECT 1 FROM message m WHERE m.salon_id = n.id);
 UPDATE salon SET nom = 'futurs-redboxers',
                  sujet = 'Pas encore de RedBox ? Posez vos questions, les redboxers répondent'
- WHERE compte_id IS NULL AND nom = 'entrepreneurs';
+ WHERE compte_id IS NULL AND nom = 'entrepreneurs'
+   -- Si une version anterieure a recree #entrepreneurs apres le renommage, le
+   -- nom cible est deja pris : on ne renomme pas (l'index unique refuserait
+   -- toute la migration), le doublon s'archive plus bas.
+   AND NOT EXISTS (SELECT 1 FROM salon o WHERE o.compte_id IS NULL AND o.nom = 'futurs-redboxers');
 UPDATE salon SET nom = 'redboxers',
                  sujet = 'Entre redboxers : ce qui marche, ce qui casse, ce qui se vend'
- WHERE compte_id IS NULL AND nom = 'proprietaires';
+ WHERE compte_id IS NULL AND nom = 'proprietaires'
+   AND NOT EXISTS (SELECT 1 FROM salon o WHERE o.compte_id IS NULL AND o.nom = 'redboxers');
 UPDATE salon SET archive_le = now()
  WHERE compte_id IS NULL AND nom = 'prospects' AND archive_le IS NULL;
 
@@ -1017,3 +1022,19 @@ INSERT INTO badge_obtenu (utilisateur_id, badge, obtenu_le)
 SELECT u.id, 'newbie', u.cree_le FROM utilisateur u
  WHERE u.email NOT LIKE '%@redbox.invalid'
 ON CONFLICT DO NOTHING;
+
+-- LA COMMUNAUTE TIENT EN DEUX SALONS, PLUS UN POUR LES BUGS.
+-- #entrepreneurs et #proprietaires ont ete renommes en #futurs-redboxers et
+-- #redboxers (plus haut) ; une version anterieure encore en service les a
+-- recrees depuis. Ils s'archivent : leurs messages restent en base, rien ne
+-- s'efface, et l'index unique sur le nom empeche qu'on les recree encore.
+-- #developpeurs, lui, nait du code a la prochaine ouverture de la messagerie.
+UPDATE salon SET archive_le = now()
+ WHERE compte_id IS NULL AND nom IN ('entrepreneurs', 'proprietaires') AND archive_le IS NULL;
+
+-- LE FOND D'UN SALON. Sobre par defaut — la trame de points, immobile — ou
+-- anime, en gris ou en couleur, au choix de qui administre le salon.
+ALTER TABLE salon ADD COLUMN IF NOT EXISTS fond TEXT NOT NULL DEFAULT 'aucun';
+ALTER TABLE salon DROP CONSTRAINT IF EXISTS salon_fond_check;
+ALTER TABLE salon ADD CONSTRAINT salon_fond_check
+  CHECK (fond IN ('aucun', 'trame', 'brume', 'aurore', 'braises', 'neon'));

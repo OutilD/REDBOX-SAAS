@@ -379,7 +379,7 @@ export default async function Detail({
               ? <Link href={`/bornes/${id}/prix`} className="bouton">Prix</Link>
               : null}
             {peutConfigurer(u)
-              ? <Link href={`/bornes/${id}/fiche`} className="bouton">Modifier la fiche</Link>
+              ? <Link href={`/bornes/${id}/fiche`} className="bouton">Info</Link>
               : null}
             {/* Ce que la machine a ecrit, sans ouvrir la porte. */}
             <Link href={`/bornes/${id}/journal`} className="bouton">Journal</Link>

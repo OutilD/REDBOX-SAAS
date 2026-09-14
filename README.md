@@ -45,6 +45,10 @@ trois : le rail est sur chaque page, il n’a pas le droit d’en coûter trois.
 destinations qu’on atteint d’une main. Les autres se rejoignent depuis celles-ci —
 Réception s’allume sous Stock, Catalogue sous Réglages.
 
+Sur les trois pages qui se filtrent par machine — tableau de bord, analytiques,
+ventes —, le sélecteur de RedBox prend une seconde ligne de l’en-tête au
+téléphone, en pleine largeur : il n’est jamais caché.
+
 ## Catégories
 
 Une table, pas une chaîne libre posée sur le produit. Elles rangent le stock ici

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../chrome";
 import { estRestreint, peutConfigurer, type Utilisateur } from "@/lib/auth";
-import { assurerSalons, lecteursDe, marquerLu, messagesDe, peutEcrire, salonDe, salonsDe,
-         type Lecteurs, type Salon } from "@/lib/salons";
-import { Portrait } from "../communaute/vignette-personne";
+import { assurerSalons, FONDS, LECTEURS_PAR_PAGE, lecteursDe, marquerLu, messagesDe, peutEcrire,
+         peutReglerFond, salonDe, salonsDe, salonsFermes, SUPPORT,
+         type Lecteurs, type Salon, type SalonFerme } from "@/lib/salons";
+import { Personne, Portrait } from "../communaute/vignette-personne";
+import { VoirPlus } from "../voir-plus";
 import Fil from "./fil";
 import MesureEntete from "./mesure";
 
@@ -29,13 +31,17 @@ const ERREURS: Record<string, string> = {
  * Les salons se rangent en deux groupes : ceux de l'equipe, et ceux des
  * bornes — ou la machine parle la premiere.
  */
-export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
-  { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string; qui?: boolean }) {
+export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, lecteursN, fondOuvert }:
+  { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string; qui?: boolean;
+    /** Combien de lecteurs montrer dans le panneau « qui lit ici ». */
+    lecteursN?: number;
+    /** Le choix du fond est ouvert (`?fond=1`). */
+    fondOuvert?: boolean }) {
   await assurerSalons(u);
-  const salons = await salonsDe(u);
+  const [salons, fermes] = await Promise.all([salonsDe(u), salonsFermes(u)]);
   const salon = salon_id !== undefined ? await salonDe(u, salon_id) : null;
   const [messages, lecteurs] = salon
-    ? await Promise.all([messagesDe(salon.id, { limite: 80, moi: u.id }), lecteursDe(u, salon)])
+    ? await Promise.all([messagesDe(salon.id, { limite: 80, moi: u.id }), lecteursDe(u, salon, lecteursN)])
     : [[], null];
   if (salon && messages.length > 0) await marquerLu(u.id, salon.id, messages[messages.length - 1].id);
 
@@ -45,6 +51,11 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
   // « RedBox » : son SAV, et les annonces de l'editeur.
   const moi = (s: Salon) => Number(s.utilisateur_id) === Number(u.id);
   const redbox = salons.filter((s) => s.portee === "annonces" || (s.portee === "support" && moi(s)));
+  // Sans RedBox en service, ni SAV ni annonces : leurs portes se montrent
+  // fermees, avec la condition pour entrer — la raison d'appairer sa machine.
+  const fermesRedbox = fermes.filter((s) => s.portee === "annonces");
+  const fermesCommu = fermes.filter((s) => s.portee === "communaute");
+  const savFerme = !u.editeur && !salons.some((s) => s.portee === "support" && moi(s));
   const communaute = salons.filter((s) => s.portee === "communaute");
   // Pour l'editeur : le SAV de chaque personne, les plus recemment actifs en
   // premier.
@@ -87,10 +98,21 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
             {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
             {bornes.length > 0 ? <div className="section">Vos RedBox</div> : null}
             {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {redbox.length > 0 ? <div className="section">RedBox</div> : null}
+            {redbox.length + fermesRedbox.length > 0 || savFerme ? <div className="section">RedBox</div> : null}
             {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {communaute.length > 0 ? <div className="section">Communauté</div> : null}
-            {communaute.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
+            {fermesRedbox.map((s) => <Ferme key={s.id} s={s} />)}
+            {savFerme ? (
+              <Ferme s={{ id: 0, nom: SUPPORT.nom, sujet: null, portee: "support", groupe: "proprietaires", ordre: 90 }} />
+            ) : null}
+            {communaute.length + fermesCommu.length > 0 ? <div className="section">Communauté</div> : null}
+            {/* Ouverts et fermes melanges, dans l'ordre de la plateforme : le
+                cadenas dit ou l'on n'entre pas, la place reste la meme. */}
+            {[...communaute.map((s) => ({ ouvert: true as const, s })),
+              ...fermesCommu.map((s) => ({ ouvert: false as const, s }))]
+              .sort((a, z) => a.s.ordre - z.s.ordre || a.s.nom.localeCompare(z.s.nom))
+              .map((x) => x.ouvert
+                ? <Entree key={x.s.id} s={x.s} actif={salon?.id === x.s.id} />
+                : <Ferme key={x.s.id} s={x.s} />)}
             {comptes.length > 0 ? <div className="section">SAV</div> : null}
             {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id}
                                         etiquette={[s.personne, s.compte].filter(Boolean).join(" · ") || undefined} />)}
@@ -104,6 +126,9 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui }:
                           sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
                  initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)} retour="/messages"
                  raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit." : undefined}
+                 fond={salon.fond}
+                 reglageFond={peutReglerFond(u, salon)
+                   ? { ouvert: Boolean(fondOuvert), panneau: <ChoixFond salon={salon} /> } : undefined}
                  lecteurs={{ total: lecteurs?.total ?? 0, ouvert: Boolean(qui) }}
                  panneau={lecteurs ? <Qui salon={salon} l={lecteurs} erreur={erreur === "droit" ? ERREURS.droit : undefined} /> : null}
                  erreur={erreur && erreur !== "nom" && erreur !== "pris" && erreur !== "droit" ? ERREURS[erreur] : undefined} />
@@ -152,15 +177,24 @@ function Qui({ salon, l, erreur }: { salon: Salon; l: Lecteurs; erreur?: string 
           <button className="bouton petit">Enregistrer</button>
         </form>
       ) : (
-        <div className="lecteurs-liste">
-          {l.gens.map((p) => (
-            <Link key={p.id} href={`/communaute/${p.id}`} className="lecteur" title={p.pseudo}>
-              <Portrait image_id={p.image_id} pseudo={p.pseudo} couleur={p.couleur} taille={30} />
-              <span>{p.pseudo}</span>
-            </Link>
-          ))}
-          {l.total > l.gens.length ? <span className="faible" style={{ fontSize: 12.5 }}>et {l.total - l.gens.length} autres</span> : null}
-        </div>
+        // UNE LISTE, PAS UN NUAGE DE VISAGES. Les portraits se tassaient en
+        // vrac a la suite l'un de l'autre, et le salon de la communaute
+        // s'arretait sur « et 212 autres » sans qu'on puisse voir qui. Chacun a
+        // maintenant sa ligne — son portrait, son nom, l'etiquette RedBox — et
+        // la liste s'allonge par paquets.
+        <>
+          <div className="lecteurs-liste">
+            {l.gens.map((p, i) => (
+              <div key={p.id} id={`l${i + 1}`}>
+                <Personne id={p.id} image_id={p.image_id} pseudo={p.pseudo}
+                          couleur={p.couleur} editeur={p.editeur} />
+              </div>
+            ))}
+          </div>
+          <VoirPlus href={`/messages/${salon.id}?qui=1&n=${l.gens.length + LECTEURS_PAR_PAGE}#l${l.gens.length + 1}`}
+                    montres={l.gens.length} total={l.total} plus={l.plus}
+                    pas={LECTEURS_PAR_PAGE} unite={["personne", "personnes"]} />
+        </>
       )}
     </div>
   );
@@ -179,5 +213,73 @@ function Entree({ s, actif, etiquette }: { s: Salon; actif: boolean; etiquette?:
       </span>
       {s.non_lus > 0 ? <span className="badge num">{s.non_lus > 99 ? "99+" : s.non_lus}</span> : null}
     </Link>
+  );
+}
+
+/**
+ * UN SALON DONT LA PORTE EST FERMEE. Ni lien ni compteur : on ne peut rien y
+ * lire. Mais son nom, son sujet et la condition pour y entrer se lisent — c'est
+ * tout l'interet de le montrer.
+ */
+function Ferme({ s }: { s: SalonFerme }) {
+  const condition = s.groupe === "proprietaires"
+    ? "Réservé aux redboxers : appairez votre première RedBox pour entrer"
+    : s.groupe === "prospects" ? "Réservé à ceux qui n’ont pas encore de RedBox"
+    : "Accès réservé";
+  return (
+    <div className="salon ferme" aria-disabled="true" title={condition}>
+      <span className="diese" aria-hidden>
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="9" width="12" height="8.5" rx="2" /><path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+        </svg>
+      </span>
+      <span className="nom">
+        {s.nom}
+        <span className="sujet">{condition}</span>
+      </span>
+      <span className="sr">fermé</span>
+    </div>
+  );
+}
+
+/**
+ * LE CHOIX DU FOND. Des tuiles qui montrent le fond en mouvement plutot que
+ * son nom : « Aurore » ne dit rien avant de l'avoir vue. Sans couleur d'abord,
+ * en couleur ensuite — la question qu'on se pose en premier.
+ */
+function ChoixFond({ salon }: { salon: Salon }) {
+  const groupes = [
+    { titre: "Sans couleur", liste: FONDS.filter((f) => !f.couleur) },
+    { titre: "En couleur", liste: FONDS.filter((f) => f.couleur) },
+  ];
+  return (
+    <form method="post" action="/api/salons/fond" className="carte plate choix-fond">
+      <input type="hidden" name="salon_id" value={salon.id} />
+      <div style={{ fontWeight: 700, fontSize: 14 }}>Fond du salon</div>
+      <p className="faible" style={{ margin: "4px 0 0", fontSize: 13 }}>
+        Tous ceux qui lisent #{salon.nom} le voient. Il reste immobile pour qui a demandé
+        moins d’animations sur son appareil.
+      </p>
+      {groupes.map((g) => (
+        <fieldset key={g.titre}>
+          <legend>{g.titre}</legend>
+          <div className="tuiles-fond">
+            {g.liste.map((f) => (
+              <label key={f.cle} className="tuile-fond">
+                <input type="radio" name="fond" value={f.cle} defaultChecked={salon.fond === f.cle} />
+                <span className="apercu-fond" data-fond={f.cle} aria-hidden="true" />
+                <span className="nom">{f.nom}</span>
+                <span className="quoi">{f.quoi}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+      <div className="rangee" style={{ marginTop: 12, gap: 8 }}>
+        <button className="bouton petit primaire">Appliquer</button>
+        <Link href={`/messages/${salon.id}`} className="bouton petit discret">Fermer</Link>
+      </div>
+    </form>
   );
 }

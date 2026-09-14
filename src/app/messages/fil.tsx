@@ -15,7 +15,16 @@ type Salon = {
 };
 
 /** Un message tel que le fil le tient : celui du serveur, ou un envoi pas encore confirme. */
-type Ligne = Message & { envoi?: boolean; echec?: boolean };
+type Ligne = Message & {
+  envoi?: boolean; echec?: boolean;
+  /** Pourquoi l'envoi a rate, dit en clair sous la bulle. */
+  raison?: string;
+  /** Vrai si l'echec tient au reseau ou au serveur : le retour du reseau le relance. */
+  relancable?: boolean;
+};
+
+/** Au-dela, un envoi sans reponse est tenu pour rate : la bulle le dit, et on peut reessayer. */
+const DELAI_ENVOI_MS = 20_000;
 
 const CADENCE_MS = 3000;
 /** Deux messages du meme auteur a moins de cinq minutes ne repetent pas son nom. */
@@ -40,6 +49,32 @@ function etiquetteJour(jour: string): string {
 /** « RedBox — Le Duplex » se dit « Le Duplex » dans un fil. */
 const court = (nom: string) => nom.replace(/^\s*redbox\s*[—–-]\s*/i, "").trim() || nom;
 
+/** Un refus du serveur, avec son statut et le code d'erreur qu'il a donne. */
+class Refus extends Error {
+  constructor(readonly statut: number, readonly code?: string) { super(code ?? String(statut)); }
+}
+
+/**
+ * LA CAUSE D'UN ENVOI RATE, EN CLAIR. « Non envoye » seul laisse deviner s'il
+ * faut reessayer, reecrire, ou se reconnecter. Les codes sont ceux de
+ * `POST /api/messages`.
+ */
+function raisonDe(e: unknown): { raison: string; relancable: boolean } {
+  if (e instanceof Refus) {
+    if (e.statut === 401) return { raison: "session expirée, reconnectez-vous", relancable: false };
+    if (e.code === "long") return { raison: "message trop long", relancable: false };
+    if (e.code === "lecture") return { raison: "vous ne pouvez plus écrire ici", relancable: false };
+    if (e.code === "salon") return { raison: "salon introuvable", relancable: false };
+    if (e.statut >= 500) return { raison: "erreur du serveur", relancable: true };
+    return { raison: "refusé par le serveur", relancable: false };
+  }
+  if (e instanceof DOMException && e.name === "AbortError") {
+    return { raison: "le serveur ne répond pas", relancable: true };
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) return { raison: "pas de réseau", relancable: true };
+  return { raison: "problème de connexion", relancable: true };
+}
+
 /**
  * LE FIL D'UN SALON.
  *
@@ -56,7 +91,8 @@ const court = (nom: string) => nom.replace(/^\s*redbox\s*[—–-]\s*/i, "").tri
  * nomme qu'une fois par serie, et le jour ne s'ecrit qu'a son changement.
  * La machine parle dans la meme colonne que les gens — c'est le point.
  */
-export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau }: {
+export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau,
+                              fond = "aucun", reglageFond }: {
   salon: Salon; initial: Message[]; moi: number; peutEcrire: boolean; retour: string; erreur?: string;
   /** Ce qu'on dit a la place du composeur quand on ne peut pas ecrire ici. */
   raisonMuet?: string;
@@ -64,12 +100,24 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   lecteurs: { total: number; ouvert: boolean };
   /** Le panneau « qui lit ici », rendu par le serveur, glisse sous la tete. */
   panneau?: React.ReactNode;
+  /** Le fond du fil, choisi par qui administre le salon. */
+  fond?: string;
+  /** Present seulement pour qui peut choisir le fond : le bouton, et le panneau rendu par le serveur. */
+  reglageFond?: { ouvert: boolean; panneau: React.ReactNode };
 }) {
   const [messages, poser] = useState<Ligne[]>(initial);
   const [texte, ecrire] = useState("");
   const enBas = useRef(true);
   const zone = useRef<HTMLTextAreaElement>(null);
   const provisoires = useRef(0);
+  // Les envois partent l'un apres l'autre : trois messages tapes vite
+  // arrivent dans l'ordre ou on les a ecrits, pas dans celui ou la base a
+  // fini de les enregistrer.
+  const file = useRef<Promise<void>>(Promise.resolve());
+  // Le fil tel qu'il est, pour le retour du reseau — qui ne doit pas se
+  // reabonner a chaque message.
+  const lignes = useRef<Ligne[]>(initial);
+  lignes.current = messages;
   // Le plus grand identifiant CONNU DU SERVEUR. Un envoi en cours porte un
   // identifiant provisoire negatif, qui ne doit pas servir de repere au
   // rafraichissement : il redemanderait tout le fil depuis le debut.
@@ -131,8 +179,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   }, [rafraichir]);
 
   /**
-   * ENVOYER NE FAIT PLUS ATTENDRE. La bulle part a l'ecran tout de suite, en
-   * pale, et le champ se vide : on ecrit la phrase suivante pendant que la base
+   * ENVOYER NE FAIT PLUS ATTENDRE. La bulle part a l'ecran tout de suite, telle
+   * qu'elle restera, et le champ se vide : on ecrit la phrase suivante pendant que la base
    * enregistre la premiere. Quand le serveur repond, sa version prend la place
    * de la provisoire ; s'il ne repond pas, la bulle reste avec « Non envoye ·
    * Reessayer », et le texte n'est jamais perdu.
@@ -141,7 +189,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
    * base — une a deux secondes, quatre a froid — et l'on croyait que rien ne
    * partait.
    */
-  async function soumettre(e: React.FormEvent<HTMLFormElement>) {
+  function soumettre(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const propre = texte.trim();
     if (!propre) return;
@@ -155,27 +203,64 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     ecrire("");
     enBas.current = true;
     zone.current?.focus();
-    await expedier(provisoire);
+    envoyer(provisoire);
+  }
+
+  /** Met un envoi dans la file — le premier comme une nouvelle tentative. */
+  function envoyer(p: Ligne) {
+    poser((m) => m.map((x) => (x.id === p.id
+      ? { ...x, envoi: true, echec: false, raison: undefined, relancable: undefined } : x)));
+    file.current = file.current.then(() => expedier(p));
   }
 
   async function expedier(p: Ligne) {
-    poser((m) => m.map((x) => (x.id === p.id ? { ...x, envoi: true, echec: false } : x)));
+    // Un envoi qui ne revient jamais ne doit pas rester « en cours » pour
+    // toujours : passe le delai, il est rate, et on le dit.
+    const coupe = new AbortController();
+    const minuterie = window.setTimeout(() => coupe.abort(), DELAI_ENVOI_MS);
     try {
       const r = await fetch("/api/messages", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ salon_id: salon.id, texte: p.texte }),
+        // Le salon de la bulle, pas celui qu'on regarde : une relance peut
+        // partir apres qu'on a change de salon.
+        body: JSON.stringify({ salon_id: p.salon_id, texte: p.texte }),
+        signal: coupe.signal,
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        const { erreur } = await r.json().catch(() => ({})) as { erreur?: string };
+        throw new Refus(r.status, erreur);
+      }
       const { message } = await r.json() as { message: Message };
       // A sa place dans le fil ; si le rafraichissement l'a deja apporte, la
       // provisoire s'efface simplement.
       poser((m) => m.some((x) => x.id === message.id)
         ? m.filter((x) => x.id !== p.id)
         : m.map((x) => (x.id === p.id ? message : x)));
-    } catch {
-      poser((m) => m.map((x) => (x.id === p.id ? { ...x, envoi: false, echec: true } : x)));
+    } catch (e) {
+      const { raison, relancable } = raisonDe(e);
+      poser((m) => m.map((x) => (x.id === p.id
+        ? { ...x, envoi: false, echec: true, raison, relancable } : x)));
+    } finally {
+      window.clearTimeout(minuterie);
     }
   }
+
+  /** Un envoi rate qu'on ne veut plus : il quitte le fil, il n'a jamais existe ailleurs. */
+  function abandonner(id: number) {
+    poser((m) => m.filter((x) => x.id !== id));
+  }
+
+  // LE RESEAU REVIENT : ce qui n'etait parti que faute de reseau repart seul,
+  // comme dans toute messagerie. Un refus du serveur, lui, attend qu'on decide.
+  useEffect(() => {
+    const reprendre = () => {
+      for (const x of lignes.current) if (x.echec && x.relancable) envoyer(x);
+    };
+    window.addEventListener("online", reprendre);
+    return () => window.removeEventListener("online", reprendre);
+    // `envoyer` ne lit que des references stables : pas de reabonnement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Poser ou retirer une reaction. La pastille bouge tout de suite — c'est un
@@ -231,12 +316,13 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
       && new Date(m.cree_le).getTime() - new Date(precedent.cree_le).getTime() < REGROUPE_MS;
     rendu.push(<Bulle key={m.id} m={m} salon={salon} suite={suite} mien={m.utilisateur_id === moi}
                       oter={oter} reagir={peutEcrire ? reagir : undefined}
-                      reessayer={m.echec ? () => { void expedier(m); } : undefined} />);
+                      reessayer={m.echec ? () => envoyer(m) : undefined}
+                      abandonner={m.echec ? () => abandonner(m.id) : undefined} />);
     precedent = m;
   }
 
   return (
-    <div className="fil-salon">
+    <div className="fil-salon" data-fond={fond}>
       <div className="tete">
         <Link href={retour} className="bouton petit retour" aria-label="Tous les salons">‹</Link>
         <div className="pousse" style={{ minWidth: 0 }}>
@@ -255,8 +341,20 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
           </svg>
           <span className="num">{lecteurs.total}</span>
         </Link>
+        {reglageFond ? (
+          <Link href={reglageFond.ouvert ? `/messages/${salon.id}` : `/messages/${salon.id}?fond=1`}
+                className={`bouton petit fond${reglageFond.ouvert ? " actif" : ""}`}
+                title="Fond du salon" aria-label="Fond du salon" aria-expanded={reglageFond.ouvert}>
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+                 strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10 2.5a7.5 7.5 0 1 0 0 15c1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1.1 0-.9.7-1.6 1.6-1.6h1.9a3.6 3.6 0 0 0 3.6-3.6C17.9 5.6 14.4 2.5 10 2.5z" />
+              <circle cx="6" cy="9.5" r="1" /><circle cx="8.5" cy="6" r="1" /><circle cx="12.5" cy="6" r="1" />
+            </svg>
+          </Link>
+        ) : null}
       </div>
       {lecteurs.ouvert ? panneau : null}
+      {reglageFond?.ouvert ? reglageFond.panneau : null}
 
       <div className="messages">
         {messages.length === 0 ? (
@@ -291,12 +389,14 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
   );
 }
 
-function Bulle({ m, salon, suite, mien, oter, reagir, reessayer }: {
+function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
   m: Ligne; salon: Salon; suite: boolean; mien: boolean; oter: (id: number) => void;
   /** Absent quand on ne peut pas ecrire ici : on ne repond pas non plus par un pouce. */
   reagir?: (id: number, emoji: string) => void;
   /** Present seulement quand l'envoi a echoue. */
   reessayer?: () => void;
+  /** Retirer du fil un envoi rate qu'on ne veut plus envoyer. */
+  abandonner?: () => void;
 }) {
   // Le choix s'ouvre la ou il y a de la place : sous le bouton d'ordinaire,
   // au-dessus quand il tomberait sous le composeur. Ouvert toujours vers le
@@ -331,7 +431,7 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer }: {
   const [premiere, ...reste] = m.texte.split("\n");
   const teinte = m.couleur ? { background: m.couleur } : undefined;
   return (
-    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}${m.envoi ? " envoi" : ""}`}>
+    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}${m.envoi ? " envoi" : ""}${m.echec ? " echec" : ""}`}>
       {/* Les autres ont leur portrait a gauche de la premiere bulle d'une
           serie ; les miennes n'en ont pas — c'est le cote qui dit qui parle. */}
       {mien ? null : (
@@ -371,11 +471,17 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer }: {
           ) : (
             <div className="texte">{m.texte}</div>
           )}
-          <time dateTime={m.cree_le}>{m.envoi ? "envoi…" : heure(m.cree_le)}</time>
+          <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
         </div>
         {reessayer ? (
           <div className="pas-parti" role="alert">
-            Non envoyé · <button type="button" onClick={reessayer}>Réessayer</button>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                 strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <circle cx="10" cy="10" r="8" /><path d="M10 5.8v5" /><path d="M10 14.2h.01" strokeWidth="2.4" />
+            </svg>
+            <span>Non envoyé{m.raison ? ` — ${m.raison}` : ""}</span>
+            <button type="button" onClick={reessayer}>Réessayer</button>
+            {abandonner ? <button type="button" onClick={abandonner}>Supprimer</button> : null}
           </div>
         ) : null}
 

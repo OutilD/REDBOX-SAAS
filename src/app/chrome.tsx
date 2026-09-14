@@ -315,14 +315,22 @@ export async function Entete({ page, borne, fenetre, periode }:
         {u?.demo ? (
           <div className="demo-bandeau" role="note">
             <IcoAlerte size={18} />
+            {/* Deux longueurs de phrase, et le CSS choisit : au telephone, le
+                bandeau colle en haut de chaque page tient sur UNE rangee. */}
             <div className="dit">
               <b>Mode démo · données fictives.</b>{" "}
-              Les RedBox, les ventes, le stock et l’équipe affichés sont inventés pour
-              vous faire découvrir la console. Vous pouvez tout manipuler
-              <span className="long"> — faire un réassort, traiter un litige, changer un prix</span> :
-              rien n’est réel, et tout sera effacé quand vous désactiverez ce mode.
+              <span className="entier">
+                Les RedBox, les ventes, le stock et l’équipe affichés sont inventés pour
+                vous faire découvrir la console. Vous pouvez tout manipuler — faire un
+                réassort, traiter un litige, changer un prix : rien n’est réel, et tout
+                sera effacé quand vous désactiverez ce mode.
+              </span>
+              <span className="bref">Rien n’est réel.</span>
             </div>
-            <Link href="/demo" className="bouton petit">Désactiver le mode démo</Link>
+            <Link href="/demo" className="bouton petit" aria-label="Désactiver le mode démo">
+              <span className="entier">Désactiver le mode démo</span>
+              <span className="bref">Quitter</span>
+            </Link>
           </div>
         ) : null}
       </header>

@@ -6,10 +6,14 @@ import { leJour } from "@/db";
 import { BADGES, NOM_RANG, badgeDe, porteursDe, profilDe, progresDe, rangDe, rareteDesBadges }
   from "@/lib/communaute";
 import { Badge } from "../../badge";
-import { Piece } from "../../piece";
+import PieceVivante from "../../piece3d/piece-vivante";
 import { Personne } from "../../vignette-personne";
+import { VoirPlus, aMontrer } from "../../../voir-plus";
 
 export const dynamic = "force-dynamic";
+
+/** Les porteurs d'un badge, par paquets de vingt-quatre — quatre rangees de six. */
+const PORTEURS_PAR_PAGE = 24;
 
 /**
  * UN BADGE, ET COMMENT ON L'OBTIENT.
@@ -25,17 +29,23 @@ export const dynamic = "force-dynamic";
  * une preuve, pas une consigne : quelqu'un l'a fait, donc c'est faisable, et
  * on peut aller lui demander comment.
  */
-export default async function PageBadge({ params }: { params: Promise<{ cle: string }> }) {
+export default async function PageBadge({ params, searchParams }: {
+  params: Promise<{ cle: string }>; searchParams: Promise<{ n?: string }>;
+}) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { cle } = await params;
+  const n = aMontrer((await searchParams).n, PORTEURS_PAR_PAGE);
   const b = badgeDe(cle);
   if (!b) notFound();
 
   const [moi, porteurs, rarete] = await Promise.all([
-    profilDe(u.id, u), porteursDe(cle), rareteDesBadges(),
+    // Un de plus que ce qu'on montre : c'est lui qui dit s'il reste une suite.
+    profilDe(u.id, u), porteursDe(cle, n + 1), rareteDesBadges(),
   ]);
   if (!moi) redirect("/");
+  const encore = porteurs.length > n;
+  const visibles = porteurs.slice(0, n);
 
   const rang = rangDe(b);
   const a = moi.badges.find((x) => x.cle === b.cle) ?? null;
@@ -55,9 +65,11 @@ export default async function PageBadge({ params }: { params: Promise<{ cle: str
 
         <div className={`carte fiche-badge ${rang}${a ? "" : " eteint"}`}>
           <div className="presentoir">
-            <Piece forme={b.forme} rang={rang} nom={b.nom} points={b.points}
-                   obtenu={Boolean(a)} taille={260} />
-            <p className="indice">Faites-la tourner — au doigt, à la souris, ou aux flèches.</p>
+            <PieceVivante taille={280} elan={a ? 9 : 0}
+                          libelle={`Pièce du badge ${b.nom}, ${NOM_RANG[rang]}. Faites-la tourner au doigt, à la souris ou aux flèches.`}
+                          options={{ image: `/badges/${b.forme}.png`, rang, obtenu: Boolean(a), nom: b.nom,
+                                     distinction: NOM_RANG[rang], date: a ? leJour(a.obtenu_le) : null, points: b.points }} />
+            <p className="indice">Faites-la tourner — au doigt, à la souris, ou aux flèches. Le revers est gravé.</p>
           </div>
 
           <div className="dit">
@@ -66,6 +78,7 @@ export default async function PageBadge({ params }: { params: Promise<{ cle: str
               {b.points > 0 ? <span className="etiquette">+{b.points} pts</span> : null}
               {a ? <span className="etiquette grade">obtenu</span> : null}
             </div>
+            <p className="devise">« {b.devise} »</p>
             <p className="quoi">{b.quoi}</p>
 
             {/* OU J'EN SUIS. La reponse la plus attendue de la page : avant de
@@ -118,8 +131,8 @@ export default async function PageBadge({ params }: { params: Promise<{ cle: str
             </div>
             <div className="carte plate">
               <div className="porteurs">
-                {porteurs.map((x) => (
-                  <div key={x.id} className="porteur">
+                {visibles.map((x, i) => (
+                  <div key={x.id} id={`p${i + 1}`} className="porteur">
                     <Personne id={x.id} image_id={x.image_id} pseudo={x.pseudo}
                               couleur={x.couleur} editeur={x.editeur}
                               sous={`depuis le ${leJour(x.obtenu_le)}`} />
@@ -127,6 +140,9 @@ export default async function PageBadge({ params }: { params: Promise<{ cle: str
                 ))}
               </div>
             </div>
+            <VoirPlus href={`/communaute/badges/${cle}?n=${n + PORTEURS_PAR_PAGE}#p${n + 1}`}
+                      montres={n} total={Math.max(combien?.n ?? 0, porteurs.length)} plus={encore}
+                      pas={PORTEURS_PAR_PAGE} unite={["redboxer", "redboxers"]} />
           </>
         ) : (
           <p className="vide" style={{ padding: 20 }}>

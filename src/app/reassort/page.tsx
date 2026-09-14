@@ -104,7 +104,7 @@ export default async function Reassort({
                         {" "}{enLigne(b.vue_le) ? "en ligne" : `vue ${depuis(b.vue_le)}`}
                       </div>
                     </div>
-                    <div className="fin" style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <div className="fin etats-borne">
                       {b.vides > 0
                         ? <span className="pilule mal"><i />{b.vides} vide{b.vides > 1 ? "s" : ""}</span>
                         : null}
@@ -113,7 +113,7 @@ export default async function Reassort({
                         : null}
                       {!urgent ? <span className="pilule ok"><i />pleine</span> : null}
                     </div>
-                    <div className="fin num" style={{ width: 74, fontWeight: 700 }}>
+                    <div className="fin num a-charger">
                       {b.manquant > 0 ? `${b.manquant} u.` : "—"}
                     </div>
                   </label>

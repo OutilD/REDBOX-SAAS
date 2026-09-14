@@ -16,11 +16,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!peutVoirBorne(u, id)) return versPage(req, "/bornes");
 
   const f = await req.formData();
-  // On revient sur la vue qu'on avait choisie — grille, 2D ou 3D. Seules les
-  // deux valeurs connues passent : ce champ finit dans une adresse.
+  // On revient sur la vue qu'on avait choisie — grille ou 2D. Seule la valeur
+  // connue passe : ce champ finit dans une adresse.
   const vue = String(f.get("vue") ?? "");
   const ici = (param: string) =>
-    `/bornes/${id}/planogramme?${param}${vue === "2d" || vue === "3d" ? `&vue=${vue}` : ""}`;
+    `/bornes/${id}/planogramme?${param}${vue === "2d" ? "&vue=2d" : ""}`;
 
   // ── Activer une spirale que le SaaS ne connait pas encore ─────────────────
   //

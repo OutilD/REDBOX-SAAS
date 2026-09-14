@@ -317,8 +317,8 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
  * l'auteur, qui sait ce qu'il vient de dire. L'audience depend de la portee :
  *
  *   compte       les membres du compte, restreints a la borne du salon s'il en a une
- *   support      la personne dont c'est le SAV, et les membres de l'editeur
- *   annonces     tout le monde — sujet « annonces », a part des messages
+ *   support      la personne dont c'est le SAV si elle est redboxer, et l'editeur
+ *   annonces     les redboxers et l'editeur — sujet « annonces », a part des messages
  *   communaute   tout le monde pour « tous », sinon les comptes du groupe
  *
  * Le tag est celui du salon : trois messages de suite font une ligne, mise a
@@ -345,13 +345,21 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
     cibles = await q<Abonnement>(`
       SELECT ${colonnes} FROM abonnement_push a
        WHERE a.messages AND a.utilisateur_id <> $2
-         AND (a.utilisateur_id = $1
+         AND ((a.utilisateur_id = $1
+               AND EXISTS (SELECT 1 FROM membre mb JOIN borne b ON b.compte_id = mb.compte_id
+                            WHERE mb.utilisateur_id = a.utilisateur_id
+                              AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))
               OR EXISTS (SELECT 1 FROM membre mb JOIN compte k ON k.id = mb.compte_id
                           WHERE mb.utilisateur_id = a.utilisateur_id AND k.editeur))`,
       [salon.utilisateur_id, m.utilisateur_id]);
   } else if (salon.portee === "annonces") {
     cibles = await q<Abonnement>(`
-      SELECT ${colonnes} FROM abonnement_push a WHERE a.annonces AND a.utilisateur_id <> $1`,
+      SELECT DISTINCT ${colonnes} FROM abonnement_push a
+        JOIN membre mb ON mb.utilisateur_id = a.utilisateur_id
+        JOIN compte k ON k.id = mb.compte_id
+       WHERE a.annonces AND a.utilisateur_id <> $1
+         AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
+                                     AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`,
       [m.utilisateur_id]);
   } else {
     // La communaute : « tous », ou les comptes du groupe — proprietaires

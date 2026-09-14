@@ -69,12 +69,12 @@ export default async function Categories({
 
         <form method="post" action="/api/categories" className="carte">
           <input type="hidden" name="action" value="ajouter" />
-          <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 180 }}>
+          <div className="champs">
+            <div className="c-large">
               <label htmlFor="nom">Nouvelle catégorie</label>
               <input id="nom" name="nom" required placeholder="Boissons" />
             </div>
-            <div style={{ width: 110 }}>
+            <div className="c-court etroit">
               <label htmlFor="ordre">Ordre</label>
               <input id="ordre" name="ordre" type="number" min={1} max={999}
                      defaultValue={(cats.at(-1)?.ordre ?? 0) + 10} inputMode="numeric" />

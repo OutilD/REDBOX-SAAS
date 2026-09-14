@@ -84,13 +84,13 @@ export default async function Reception({ searchParams }:
         ) : (
           <form method="post" action="/api/reception">
             <div className="carte" style={{ marginBottom: 12 }}>
-              <div className="rangee" style={{ gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 190 }}>
+              <div className="champs">
+                <div className="c-large">
                   <label htmlFor="reference">Référence</label>
                   <input id="reference" name="reference"
                          placeholder="Bon de livraison, facture — facultatif" />
                 </div>
-                <div style={{ width: 180 }}>
+                <div className="c-moyen">
                   <label htmlFor="fournisseur">Fournisseur</label>
                   <input id="fournisseur" name="fournisseur" placeholder="facultatif" />
                 </div>

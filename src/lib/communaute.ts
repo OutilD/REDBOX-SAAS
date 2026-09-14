@@ -53,16 +53,23 @@ export function prochainGrade(bornes: number): { grade: Grade; manque: number } 
 
 // ------------------------------------------------------------------ badges
 
-export type Forme = "couronne" | "borne" | "sablier" | "medaille" | "bulle" | "eclair" | "etoile" | "coeur" | "cadeau";
+/** Un dessin par badge : dans la collection, deux tuiles pareilles se confondent. */
+export type Forme =
+  | "cadeau" | "couronne" | "borne" | "parc" | "reseau" | "calendrier" | "sablier" | "medaille"
+  | "bulle" | "bulles" | "megaphone" | "pilier" | "lune" | "etoile" | "pieces" | "cible"
+  | "engrenage" | "eclair" | "trophee" | "enveloppe" | "pouce" | "coeur" | "flamme" | "bouclier";
 
 /**
- * `quoi` tient sur une ligne, sous le nom, dans une grille de dix-sept.
+ * `quoi` tient sur une ligne : c'est la phrase de la bulle, au survol d'une
+ * tuile de la collection.
  * `comment` est ce qu'on lit quand on ouvre le badge : la manoeuvre, en
  * clair, avec l'endroit ou elle se fait. « Cent messages » n'apprend rien a
  * qui cherche par ou commencer.
  */
 export type Badge = {
   cle: string; nom: string; quoi: string; comment: string;
+  /** L'inspiration : une ligne a lire comme la legende d'une carte a jouer. */
+  devise: string;
   forme: Forme; points: number;
   /** Vrai pour ce qui ne se decide pas : l'anciennete, un tirage ferme. */
   patience?: boolean;
@@ -71,55 +78,55 @@ export type Badge = {
 /** Dans l'ordre ou la page les montre. */
 export const BADGES: Badge[] = [
   // Le premier de la liste, parce que c'est le premier qu'on recoit.
-  { cle: "newbie", nom: "Newbie", quoi: "Bienvenue parmi les redboxers — offert à l’inscription", forme: "cadeau", points: 10,
+  { cle: "newbie", nom: "Newbie", quoi: "Bienvenue parmi les redboxers — offert à l’inscription", devise: "Toute légende commence par une porte qu’on ose pousser.", forme: "cadeau", points: 10,
     patience: true,
     comment: "Il est offert : vous l’avez reçu en créant votre compte, avant même d’avoir appairé une machine. C’est le seul badge que tout le monde possède ; tous les autres se méritent." },
-  { cle: "pionnier", nom: "Pionnier", quoi: "Parmi les dix premiers redboxers", forme: "couronne", points: 500,
+  { cle: "pionnier", nom: "Pionnier", quoi: "Parmi les dix premiers redboxers", devise: "Avant les routes, il y a ceux qui les ont tracées.", forme: "couronne", points: 500,
     patience: true,
     comment: "Il ne se gagne plus : il revient aux dix premiers comptes ouverts sur la console, et ces dix places sont prises. Si vous l’avez, vous étiez là au début — c’est tout ce qu’il dit, et c’est pour ça qu’il vaut cher." },
-  { cle: "premiere", nom: "Première RedBox", quoi: "Une première machine appairée", forme: "borne", points: 200,
+  { cle: "premiere", nom: "Première RedBox", quoi: "Une première machine appairée", devise: "Le premier néon rouge qui s’allume ne s’oublie jamais.", forme: "borne", points: 200,
     comment: "Sur la machine : Maintenance → SaaS → Demander l’appairage. Elle affiche un code de six caractères. Dans la console, RedBox → Ajouter une RedBox, saisissez ce code. Le badge tombe à l’ouverture suivante de la communauté." },
-  { cle: "parc", nom: "Parc", quoi: "Trois RedBox en service", forme: "borne", points: 300,
+  { cle: "parc", nom: "Parc", quoi: "Trois RedBox en service", devise: "Trois lumières dans la ville, et toutes vous répondent.", forme: "parc", points: 300,
     comment: "Trois machines appairées et vivantes sur le même compte, comptées ensemble. Les RedBox de la démonstration ne comptent pas : on ne devient pas exploitant en ouvrant un compte d’essai." },
-  { cle: "reseau", nom: "Réseau", quoi: "Dix RedBox en service", forme: "couronne", points: 1000,
+  { cle: "reseau", nom: "Réseau", quoi: "Dix RedBox en service", devise: "Dix feux allumés : la ville vous connaît par vos machines.", forme: "reseau", points: 1000,
     comment: "Dix machines appairées sur le compte. C’est le badge le plus cher de la console, et le seul qui donne le grade de Baron du réseau." },
-  { cle: "mois", nom: "Premier mois", quoi: "Un mois de RedBox", forme: "sablier", points: 50, patience: true,
+  { cle: "mois", nom: "Premier mois", quoi: "Un mois de RedBox", devise: "Trente nuits de garde. La machine a appris votre nom.", forme: "calendrier", points: 50, patience: true,
     comment: "Trente jours après l’ouverture de votre compte. Rien à faire : il arrive tout seul." },
-  { cle: "semestre", nom: "Six mois", quoi: "Six mois de RedBox", forme: "sablier", points: 150, patience: true,
+  { cle: "semestre", nom: "Six mois", quoi: "Six mois de RedBox", devise: "Ce qui tient six mois tient longtemps.", forme: "sablier", points: 150, patience: true,
     comment: "Cent quatre-vingt-deux jours après l’ouverture de votre compte. Rien à faire non plus — sinon rester." },
-  { cle: "an", nom: "Un an", quoi: "Un an de RedBox", forme: "medaille", points: 400, patience: true,
+  { cle: "an", nom: "Un an", quoi: "Un an de RedBox", devise: "Une année entière, et la flamme n’a pas vacillé.", forme: "medaille", points: 400, patience: true,
     comment: "Trois cent soixante-cinq jours de compte. Le seul badge que personne ne peut accélérer." },
-  { cle: "voix", nom: "Premier pas", quoi: "Un premier message dans un salon", forme: "bulle", points: 20,
+  { cle: "voix", nom: "Premier pas", quoi: "Un premier message dans un salon", devise: "Un mot lancé dans le salon, et le silence recule.", forme: "bulle", points: 20,
     comment: "Écrivez une fois, n’importe où : #futurs-redboxers pour vous présenter, #general pour votre équipe, ou votre #sav avec l’équipe RedBox. Les salons d’un compte de démonstration ne comptent pas." },
-  { cle: "bavard", nom: "Bavard", quoi: "Cent messages", forme: "bulle", points: 150,
+  { cle: "bavard", nom: "Bavard", quoi: "Cent messages", devise: "On vous reconnaît avant même de lire votre nom.", forme: "bulles", points: 150,
     comment: "Cent messages écrits, tous salons confondus. Il vient vite à qui répond aux questions des autres dans #futurs-redboxers." },
-  { cle: "actif", nom: "Actif", quoi: "Cinq cents messages", forme: "bulle", points: 300,
+  { cle: "actif", nom: "Actif", quoi: "Cinq cents messages", devise: "Votre voix porte d’un salon à l’autre.", forme: "megaphone", points: 300,
     comment: "Cinq cents messages. À ce stade on ne découvre plus la communauté : on la fait vivre." },
-  { cle: "pilier_commu", nom: "Pilier de la commu", quoi: "Deux mille messages", forme: "bulle", points: 700,
+  { cle: "pilier_commu", nom: "Pilier de la commu", quoi: "Deux mille messages", devise: "Les salons tiennent debout parce que vous y êtes.", forme: "pilier", points: 700,
     comment: "Deux mille messages. Le badge des gens qu’on finit par reconnaître à leur façon d’écrire — il n’y en a jamais beaucoup." },
-  { cle: "noctambule", nom: "Noctambule", quoi: "Une vente entre trois et cinq heures du matin", forme: "eclair", points: 80,
+  { cle: "noctambule", nom: "Noctambule", quoi: "Une vente entre trois et cinq heures du matin", devise: "Entre trois et cinq heures, la ville dort. Pas vous.", forme: "lune", points: 80,
     comment: "Une seule vente distribuée entre 3 h et 5 h, heure de Paris. Il ne se force pas : il récompense un emplacement qui vit la nuit — une boîte, un hôpital, une gare." },
-  { cle: "dizaine", nom: "Première dizaine", quoi: "Dix ventes distribuées", forme: "etoile", points: 30,
+  { cle: "dizaine", nom: "Première dizaine", quoi: "Dix ventes distribuées", devise: "Dix fois le bac a sonné : le début d’une musique.", forme: "etoile", points: 30,
     comment: "Dix produits réellement tombés dans le bac, sur l’ensemble de vos machines. Le premier signe qu’un emplacement fonctionne." },
-  { cle: "cinquantaine", nom: "Cinquantaine", quoi: "Cinquante ventes distribuées", forme: "etoile", points: 80,
+  { cle: "cinquantaine", nom: "Cinquantaine", quoi: "Cinquante ventes distribuées", devise: "Les pièces tombent, et ce n’est plus de la chance.", forme: "pieces", points: 80,
     comment: "Cinquante produits distribués. Ce n’est plus un coup de chance : c’est une clientèle." },
-  { cle: "centaine", nom: "La centaine", quoi: "Cent ventes distribuées", forme: "etoile", points: 200,
+  { cle: "centaine", nom: "La centaine", quoi: "Cent ventes distribuées", devise: "Cent fois dans le mille : l’emplacement est juste.", forme: "cible", points: 200,
     comment: "Cent produits réellement tombés dans le bac, sur l’ensemble de vos machines. Les ventes encaissées mais non distribuées ne comptent pas — c’est le produit livré qui fait la vente." },
-  { cle: "rode", nom: "Rodé", quoi: "Deux cent cinquante ventes distribuées", forme: "etoile", points: 300,
+  { cle: "rode", nom: "Rodé", quoi: "Deux cent cinquante ventes distribuées", devise: "La machine tourne comme une horloge bien huilée.", forme: "engrenage", points: 300,
     comment: "Deux cent cinquante produits distribués. L’emplacement est trouvé et le réassort suit : la machine tourne." },
-  { cle: "cinq_cents", nom: "Grand débit", quoi: "Cinq cents ventes distribuées", forme: "etoile", points: 450,
+  { cle: "cinq_cents", nom: "Grand débit", quoi: "Cinq cents ventes distribuées", devise: "Le débit d’une rivière en crue.", forme: "eclair", points: 450,
     comment: "Cinq cents produits distribués. Un seul très bon emplacement y arrive ; plusieurs bons, plus vite." },
-  { cle: "millier", nom: "Le millier", quoi: "Mille ventes distribuées", forme: "etoile", points: 600,
+  { cle: "millier", nom: "Le millier", quoi: "Mille ventes distribuées", devise: "Mille fois servi. Le trophée des bâtisseurs.", forme: "trophee", points: 600,
     comment: "Mille produits distribués. Un bon emplacement y arrive en quelques mois ; deux bons emplacements, plus vite." },
-  { cle: "ambassadeur", nom: "Ambassadeur", quoi: "Quelqu’un a rejoint le compte sur votre invitation", forme: "coeur", points: 120,
+  { cle: "ambassadeur", nom: "Ambassadeur", quoi: "Quelqu’un a rejoint le compte sur votre invitation", devise: "Vous avez ouvert la porte à quelqu’un d’autre.", forme: "enveloppe", points: 120,
     comment: "Équipe → Inviter quelqu’un, envoyez le lien, et attendez qu’il s’en serve. Le badge tombe quand l’invitation est utilisée, pas quand elle est envoyée." },
-  { cle: "applaudi", nom: "Applaudi", quoi: "Vingt-cinq réactions reçues sur vos messages", forme: "etoile", points: 250,
+  { cle: "applaudi", nom: "Applaudi", quoi: "Vingt-cinq réactions reçues sur vos messages", devise: "Vingt-cinq mains levées pour ce que vous avez dit.", forme: "pouce", points: 250,
     comment: "Vingt-cinq réactions posées par d’autres sur ce que vous avez écrit. Il ne s’achète pas : les vôtres sur vos propres messages sont refusées. Le moyen le plus sûr est d’écrire des choses utiles dans #redboxers." },
-  { cle: "genereux", nom: "Généreux", quoi: "Cinquante réactions offertes aux autres", forme: "coeur", points: 100,
+  { cle: "genereux", nom: "Généreux", quoi: "Cinquante réactions offertes aux autres", devise: "Donner de l’élan aux autres, c’est déjà gagner.", forme: "coeur", points: 100,
     comment: "Cinquante réactions posées sur les messages des autres. Passez sur une bulle, appuyez sur le rond souriant, choisissez. C’est le badge le plus facile de la console, et le seul qui ne demande qu’à lire." },
-  { cle: "habitue", nom: "Habitué", quoi: "Trente journées différentes à prendre la parole", forme: "sablier", points: 200,
+  { cle: "habitue", nom: "Habitué", quoi: "Trente journées différentes à prendre la parole", devise: "La flamme de ceux qui reviennent.", forme: "flamme", points: 200,
     comment: "Trente journées DIFFÉRENTES où vous avez écrit au moins un message. Trente messages le même jour ne valent qu’une journée : ce badge récompense le fait de revenir, pas de parler." },
-  { cle: "equipe", nom: "Équipe RedBox", quoi: "Membre de l’éditeur", forme: "medaille", points: 0, patience: true,
+  { cle: "equipe", nom: "Équipe RedBox", quoi: "Membre de l’éditeur", devise: "Ceux qui forgent les machines portent ce blason.", forme: "bouclier", points: 0, patience: true,
     comment: "Il appartient aux comptes de l’éditeur. Il ne rapporte aucun point — on ne se recrute pas — et c’est pourtant le plus rare de tous." },
 ];
 
@@ -131,17 +138,28 @@ export const BADGES: Badge[] = [
  * Une exception, `equipe` : on ne se recrute pas, il ne vaut aucun point, et
  * c'est pourtant le plus rare de tous.
  */
-export type Rang = "commun" | "rare" | "epique" | "legendaire";
+export type Rang = "commun" | "rare" | "epique" | "legendaire" | "mythique";
+
+/** Du plus courant au plus rare : l'ordre des pips sous une tuile. */
+export const RANGS: Rang[] = ["commun", "rare", "epique", "legendaire", "mythique"];
+
+/**
+ * CINQ PALIERS, EN PYRAMIDE : six communs, sept rares, quatre epiques, quatre
+ * legendaires, trois mythiques. Le mythique ne s'achete pas en points : il
+ * revient a ce qui ne se reproduit pas — les dix premiers comptes, l'equipe
+ * de l'editeur — et au sommet du parc, dix RedBox.
+ */
+const MYTHIQUES = new Set(["equipe", "pionnier", "reseau"]);
 
 export function rangDe(b: Badge): Rang {
-  if (b.cle === "equipe") return "legendaire";
-  return b.points >= 500 ? "legendaire"
+  if (MYTHIQUES.has(b.cle)) return "mythique";
+  return b.points >= 400 ? "legendaire"
        : b.points >= 250 ? "epique"
        : b.points >= 100 ? "rare" : "commun";
 }
 
 export const NOM_RANG: Record<Rang, string> = {
-  commun: "Commun", rare: "Rare", epique: "Épique", legendaire: "Légendaire",
+  commun: "Commun", rare: "Rare", epique: "Épique", legendaire: "Légendaire", mythique: "Mythique",
 };
 
 const BADGE_PAR_CLE = new Map(BADGES.map((b) => [b.cle, b]));

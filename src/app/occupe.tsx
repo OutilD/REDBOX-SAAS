@@ -36,10 +36,21 @@ export default function Occupe() {
       window.setTimeout(() => liberer(el), LEVEE_MS);
     };
 
+    // UN FORMULAIRE QUE LE SCRIPT GERE LUI-MEME N'ATTEND RIEN.
+    //
+    // On ecoute en capture, donc AVANT le gestionnaire React : a cet instant on
+    // ne sait pas encore s'il va empecher l'envoi. On regarde juste apres, au
+    // tour suivant. Un envoi empeche ne remplace pas la page — la messagerie
+    // envoie en arriere-plan —, et marquer son bouton le laissait tourner,
+    // inerte, pendant quinze secondes : aucune page suivante ne venait le
+    // liberer, et le deuxieme message ne partait plus.
     const surEnvoi = (e: Event) => {
       const forme = e.target as HTMLFormElement;
       const sub = (e as SubmitEvent).submitter;
-      marquer(sub ?? forme.querySelector("button[type=submit], button:not([type])"));
+      window.setTimeout(() => {
+        if (e.defaultPrevented) return;
+        marquer(sub ?? forme.querySelector("button[type=submit], button:not([type])"));
+      }, 0);
     };
 
     // Un lien de navigation peut lui aussi mettre une seconde a repondre.

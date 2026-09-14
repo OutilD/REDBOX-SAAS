@@ -12,11 +12,12 @@ import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
  * repond dessous. C'est la meme idee que le journal d'une borne, en lisible,
  * et avec des gens dedans.
  *
- * Et au-dela du compte, la communaute : les ANNONCES de l'editeur, que tout
- * le monde lit ; les salons de COMMUNAUTE, par groupe — #futurs-redboxers pour
- * tous, #redboxers pour qui a au moins une vraie borne ; et le SAV, une
- * conversation PRIVEE par personne entre elle et l'editeur. Pas par compte :
- * ce qu'on confie au SAV, son equipe ne le lit pas.
+ * Et au-dela du compte, la communaute : les ANNONCES de l'editeur, que lisent
+ * les redboxers ; les salons de COMMUNAUTE, par groupe — #futurs-redboxers pour
+ * tous, #redboxers pour qui a au moins une vraie borne, #developpeurs pour
+ * signaler un bug a l'equipe technique ; et le SAV, une conversation PRIVEE
+ * par personne entre elle et l'editeur, reservee elle aussi aux redboxers.
+ * Pas par compte : ce qu'on confie au SAV, son equipe ne le lit pas.
  *
  * Trois regles :
  *
@@ -44,6 +45,8 @@ export type Salon = {
   /** Le SAV est a une personne : elle, et son nom pour l'editeur. */
   utilisateur_id: number | null; personne: string | null;
   non_lus: number; dernier_le: Date | null;
+  /** Le fond du fil : `aucun`, ou l'un des fonds animes de FONDS. */
+  fond: string;
 };
 
 export type { Reaction };
@@ -73,6 +76,12 @@ const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe |
     sujet: "Pas encore de RedBox ? Posez vos questions, les redboxers répondent" },
   { nom: "redboxers", portee: "communaute", groupe: "proprietaires", ordre: 2,
     sujet: "Entre redboxers : ce qui marche, ce qui casse, ce qui se vend" },
+  // UN BUG SE SIGNALE LA OU L'EQUIPE TECHNIQUE LE LIT. Il se perdait dans
+  // #redboxers entre deux conseils de vente, ou restait prive au SAV alors que
+  // dix autres comptes le vivaient. Ouvert a tous : un futur redboxer qui
+  // essaie la console trouve aussi des bugs.
+  { nom: "developpeurs", portee: "communaute", groupe: "tous", ordre: 3,
+    sujet: "Un bug dans la console ou sur une RedBox ? Décrivez-le, l’équipe technique répond" },
 ];
 
 /**
@@ -98,14 +107,19 @@ export function slug(nom: string): string {
  * `salon` ; $1 le compte, $2 ses bornes (nul = toutes), $3 si elle est de
  * l'editeur, $4 le groupe de son compte. Chaque parametre est lu au moins
  * une fois : Postgres refuse un parametre dont il ne peut pas deviner le type.
+ *
+ * LE SAV ET LES ANNONCES SONT AUX REDBOXERS : il faut au moins une vraie
+ * RedBox en service sur le compte. Qui n'en a pas encore pose ses questions
+ * dans #futurs-redboxers. Un SAV ouvert avant cette regle garde ses messages
+ * en base ; il reapparait des que le compte appaire sa premiere machine.
  */
 const VISIBLE = `s.archive_le IS NULL AND (
      (s.portee = 'compte' AND s.compte_id = $1
         AND (s.borne_id IS NULL OR $2::bigint[] IS NULL OR s.borne_id = ANY($2))
         AND (NOT EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id)
              OR EXISTS (SELECT 1 FROM salon_membre sm WHERE sm.salon_id = s.id AND sm.utilisateur_id = $5::bigint)))
-  OR (s.portee = 'support' AND (s.utilisateur_id = $5::bigint OR $3::boolean))
-  OR  s.portee = 'annonces'
+  OR (s.portee = 'support' AND ((s.utilisateur_id = $5::bigint AND $4::text = 'proprietaires') OR $3::boolean))
+  OR (s.portee = 'annonces' AND ($4::text = 'proprietaires' OR $3::boolean))
   OR (s.portee = 'communaute' AND (s.groupe = 'tous' OR s.groupe = $4::text OR $3::boolean)))`;
 
 /**
@@ -139,6 +153,57 @@ export function peutEcrire(u: Utilisateur, s: Salon): boolean {
 }
 
 /**
+ * LES FONDS D'UN FIL. Sobre par defaut ; anime sur decision de qui administre
+ * le salon. Les cles sont aussi dans la contrainte `salon_fond_check`.
+ */
+export const FONDS = [
+  { cle: "aucun",   nom: "Sobre",   couleur: false, quoi: "La trame de points, immobile" },
+  { cle: "trame",   nom: "Trame",   couleur: false, quoi: "Les points glissent lentement" },
+  { cle: "brume",   nom: "Brume",   couleur: false, quoi: "Des nappes grises qui dérivent" },
+  { cle: "aurore",  nom: "Aurore",  couleur: true,  quoi: "Rouge, violet et ambre en voiles lents" },
+  { cle: "braises", nom: "Braises", couleur: true,  quoi: "Une lueur chaude, des étincelles qui montent" },
+  { cle: "neon",    nom: "Néon",    couleur: true,  quoi: "Une grille rouge qui respire" },
+] as const;
+export type Fond = (typeof FONDS)[number]["cle"];
+
+/**
+ * QUI CHOISIT LE FOND. Les salons de la plateforme — communaute, annonces,
+ * SAV — sont a l'editeur. Un salon d'equipe est au proprietaire ou au gerant
+ * du compte, s'il voit tout le parc : les memes qui creent les salons.
+ */
+export function peutReglerFond(u: Utilisateur, s: Salon): boolean {
+  if (s.portee !== "compte") return u.editeur;
+  return Number(s.compte_id) === Number(u.compte_id)
+      && (u.role === "proprietaire" || u.role === "gerant") && u.bornes === null;
+}
+
+export async function reglerFond(salon_id: number, fond: Fond): Promise<void> {
+  await q("UPDATE salon SET fond = $1 WHERE id = $2", [fond, salon_id]);
+}
+
+/** Un salon de la communaute qu'on voit dans la liste sans pouvoir y entrer. */
+export type SalonFerme = { id: number; nom: string; sujet: string | null; portee: Portee; groupe: Groupe | null; ordre: number };
+
+/**
+ * LES PORTES FERMEES. Tout le monde voit la liste entiere des salons de la
+ * communaute : #redboxers cache a un futur redboxer, c'etait une piece dont
+ * il ignorait l'existence — et la raison d'appairer sa premiere machine. Il le
+ * voit maintenant, avec un cadenas. L'acces, lui, ne change pas : `salonDe`
+ * passe toujours par VISIBLE, et une adresse tapee a la main tombe sur 404.
+ *
+ * Les annonces aussi : fermees a qui n'a pas de RedBox, elles se montrent avec
+ * la meme condition que #redboxers.
+ */
+export async function salonsFermes(u: Utilisateur): Promise<SalonFerme[]> {
+  return q<SalonFerme>(`
+    SELECT s.id, s.nom, s.sujet, s.portee,
+           CASE WHEN s.portee = 'annonces' THEN 'proprietaires' ELSE s.groupe END AS groupe, s.ordre
+      FROM salon s
+     WHERE s.archive_le IS NULL AND s.portee IN ('communaute', 'annonces') AND NOT (${VISIBLE})
+     ORDER BY s.ordre, s.nom`, await portee(u));
+}
+
+/**
  * LE COMPTE A SES SALONS. « general » d'abord ; puis un par borne qui n'en a
  * pas encore, nomme d'apres elle. Deux bornes au meme nom : la seconde prend
  * son numero. Idempotent, appele a chaque ouverture de la messagerie — une
@@ -150,10 +215,11 @@ export async function assurerSalons(u: Utilisateur): Promise<void> {
     INSERT INTO salon (compte_id, nom, sujet, ordre)
     VALUES ($1, 'general', 'Toute l’équipe, pour tout le reste', 0)
     ON CONFLICT (compte_id, nom) DO NOTHING`, [compte_id]);
-  // Son SAV — sauf pour l'editeur, qui EST le SAV — et les salons de la
+  // Son SAV — sauf pour l'editeur, qui EST le SAV, et seulement pour un
+  // redboxer : sans RedBox en service, pas de SAV — puis les salons de la
   // plateforme. Rattache au compte ou il a ete ouvert, mais il suit la
   // personne : VISIBLE le lit par `utilisateur_id`.
-  if (!u.editeur) {
+  if (!u.editeur && (await groupeGarde(u.compte_id)) === "proprietaires") {
     await q(`
       INSERT INTO salon (compte_id, nom, sujet, portee, ordre, utilisateur_id)
       SELECT $1, $2 || '-' || $3::bigint, $4, 'support', 90, $3::bigint
@@ -191,7 +257,7 @@ export async function assurerSalons(u: Utilisateur): Promise<void> {
 const COLONNES_SALON = `
   s.id, CASE WHEN s.portee = 'support' THEN '${SUPPORT.nom}' ELSE s.nom END AS nom,
   s.sujet, s.borne_id, b.nom AS borne, s.ordre,
-  s.portee, s.groupe, s.compte_id, k.nom AS compte, s.utilisateur_id,
+  s.portee, s.groupe, s.compte_id, k.nom AS compte, s.utilisateur_id, s.fond,
   COALESCE(NULLIF(TRIM(p.nom), ''), NULLIF(TRIM(p.pseudo), ''), split_part(p.email, '@', 1)) AS personne`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
@@ -436,6 +502,8 @@ export type Lecteurs = {
   regle: string;
   /** Combien de personnes en tout, et les premieres d'entre elles. */
   total: number; gens: Lecteur[];
+  /** Vrai s'il reste des personnes a montrer au-dela de `gens`. */
+  plus: boolean;
   /** Vrai si `u` peut choisir qui lit : un salon d'equipe, sans borne, par un gerant. */
   reglable: boolean;
   /** Pour un salon reglable : tout le compte, a cocher, avec ceux qui lisent deja. */
@@ -452,8 +520,12 @@ const COLONNES_LECTEUR = `
  * demande « qui a ce salon ». Pour la communaute, ce sont des comptes
  * entiers ; on nomme les premieres personnes et on compte le reste.
  */
-export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
-  const LIMITE = 40;
+/** Les lecteurs d'un salon se montrent par paquets : le panneau s'allonge. */
+export const LECTEURS_PAR_PAGE = 24;
+
+export async function lecteursDe(u: Utilisateur, s: Salon,
+                                 limite = LECTEURS_PAR_PAGE): Promise<Lecteurs> {
+  const LIMITE = Math.max(1, Math.min(1000, Math.floor(limite)));
   let regle: string; let gens: Lecteur[]; let total: number;
   const equipe: Lecteur[] = [];
   const reglable = s.portee === "compte" && s.borne_id === null && s.nom !== "general"
@@ -487,12 +559,17 @@ export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
       ? "Vous et le SAV RedBox. Personne d’autre, pas même votre équipe."
       : `${s.personne ?? "Cette personne"} et le SAV RedBox. Personne d’autre, pas même son équipe.`;
   } else if (s.portee === "annonces") {
-    const n = await q1<{ n: number }>("SELECT COUNT(*)::int AS n FROM utilisateur WHERE email NOT LIKE '%@redbox.invalid'");
+    const n = await q1<{ n: number }>(`
+      SELECT COUNT(DISTINCT x.id)::int AS n
+        FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
+       WHERE x.email NOT LIKE '%@redbox.invalid'
+         AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
+                                     AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`);
     total = n?.n ?? 0;
     gens = await q<Lecteur>(`
       SELECT ${COLONNES_LECTEUR}, false AS choisi FROM utilisateur x JOIN compte k ON k.id = x.compte_id
        WHERE k.editeur AND x.email NOT LIKE '%@redbox.invalid' ORDER BY pseudo`);
-    regle = "Tout le monde lit ; seule l’équipe RedBox écrit.";
+    regle = "Les redboxers lisent — les comptes qui ont au moins une vraie RedBox en service ; seule l’équipe RedBox écrit.";
   } else {
     const groupe = s.groupe ?? "tous";
     const r = await q<Lecteur & { total: number }>(`
@@ -511,7 +588,10 @@ export async function lecteursDe(u: Utilisateur, s: Salon): Promise<Lecteurs> {
           : groupe === "proprietaires" ? "Les comptes qui ont au moins une vraie RedBox en service, et l’équipe RedBox."
           : "Les comptes qui n’ont pas encore de RedBox, et l’équipe RedBox.";
   }
-  return { regle, total, gens: gens.slice(0, LIMITE), reglable, equipe };
+  // Les annonces comptent tout le monde mais ne nomment que l'equipe RedBox :
+  // il n'y a pas de suite a charger, seulement un total.
+  const plus = s.portee !== "annonces" && total > LIMITE;
+  return { regle, total, gens: gens.slice(0, LIMITE), plus, reglable, equipe };
 }
 
 /**

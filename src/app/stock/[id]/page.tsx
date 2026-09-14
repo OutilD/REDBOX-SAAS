@@ -166,7 +166,7 @@ export default async function Produit({
             <Link href="/charger">
               <span className="rond"><IcoBorne /></span>
               <span>
-                <span className="titre">Réassortir une RedBox</span>
+                <span className="titre">Remplir une RedBox</span>
                 <span className="quoi">Passer du stock en machine</span>
               </span>
               <span className="fleche"><IcoFleche /></span>

@@ -72,10 +72,10 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
                 </div>
               </div>
               {m.role !== "proprietaire" && m.id !== u.id ? (
-                <div className="fin" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <form method="post" action="/api/equipe/role" style={{ display: "flex", gap: 6 }}>
+                <div className="fin actions-membre">
+                  <form method="post" action="/api/equipe/role">
                     <input type="hidden" name="id" value={m.id} />
-                    <select name="role" defaultValue={m.role} style={{ width: 150, minHeight: 40 }}>
+                    <select name="role" defaultValue={m.role}>
                       {ROLES.map((r) => <option key={r.cle} value={r.cle}>{r.nom}</option>)}
                     </select>
                     <button className="bouton petit">OK</button>

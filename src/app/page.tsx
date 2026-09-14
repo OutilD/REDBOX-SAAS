@@ -123,7 +123,7 @@ export default async function Tableau(
       cle: "vides", niveau: "moyen" as const, n: tete.canaux_vides,
       quoi: `canal${tete.canaux_vides > 1 ? "aux" : ""} vide${tete.canaux_vides > 1 ? "s" : ""}`,
       pourquoi: "de la place qui ne rapporte rien tant qu’elle reste vide",
-      vers: "/charger", faire: "Réassortir",
+      vers: "/charger", faire: "Remplir",
     },
     // Le detail — autonomie, quantite a commander — est sur la page des
     // analytiques ; ici on ne dit que le nombre, et ou aller.
@@ -343,9 +343,9 @@ function PremiersPas({ a }: { a: Avancement }) {
     { fait: a.bornes > 0 && a.appairees > 0, nom: "Appairer une RedBox",
       quoi: "La machine affiche un code ; vous le portez ici depuis votre téléphone.",
       cta: "Appairer", vers: "/bornes/ajouter" },
-    { fait: a.chargees > 0, nom: "Réassortir la RedBox",
+    { fait: a.chargees > 0, nom: "Remplir une RedBox",
       quoi: "Vous indiquez ce que vous ajoutez ; la machine confirme à sa prochaine synchro.",
-      cta: "Réassortir", vers: "/charger" },
+      cta: "Remplir", vers: "/charger" },
   ];
   const suivante = etapes.findIndex((e) => !e.fait);
 

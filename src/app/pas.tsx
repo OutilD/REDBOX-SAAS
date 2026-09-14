@@ -74,7 +74,6 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
       <input ref={champ} name={nom} type="number" inputMode="numeric" min={min} max={max}
              value={n} onChange={(e) => poser(borne(Number(e.target.value)))}
              className={`valeur num ${n < 0 ? "retrait" : ""}`}
-             style={{ width: 76, minHeight: 48 }}
              data-etiquette={etiquette} data-canal={canal} />
       <button type="button" aria-label="Ajouter un" className={n > 0 ? "plein" : ""}
               onClick={() => poser(borne(n + 1))} disabled={n >= max}>+</button>

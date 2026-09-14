@@ -197,8 +197,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
    le theme et le compte. C'est la ou l'on va quand on cherche « ou suis-je » et
    « qui suis-je », et ces deux questions ne se rangent pas dans un menu.
 */
+/* Installee sur l'ecran d'accueil d'un iPhone, la page passe SOUS la barre
+   d'etat (`black-translucent`) : l'heure et la batterie tombaient sur le logo et
+   les boutons. L'en-tete prend a sa charge la hauteur de l'encoche — son fond
+   floute passe derriere l'heure — et, en paysage, les bords arrondis. Dans un
+   navigateur ordinaire, ces marges valent zero. */
 .entete {
   position: sticky; top: 0; z-index: 30;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
   background: color-mix(in srgb, var(--fond) 90%, transparent);
   backdrop-filter: saturate(150%) blur(10px);
   border-bottom: 1px solid var(--bord);
@@ -207,7 +213,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
   max-width: 1180px; margin: 0 auto; height: 54px;
   padding: 0 16px; display: flex; align-items: center; gap: 12px;
 }
-.entete .fil { font-size: 14px; font-weight: 650; letter-spacing: -.01em; }
+/* Le fil tient sur UNE ligne et se coupe plutot que de pousser les boutons :
+   « Configuration · Écran d'accueil » faisait deux lignes dans un en-tete de
+   54 px, et le nom de la page passait sous la barre. */
+.entete .fil {
+  font-size: 14px; font-weight: 650; letter-spacing: -.01em;
+  /* Base zero : un titre long ne doit jamais pousser la pastille du compte a
+     la ligne, il se coupe. */
+  flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .entete .fil .parent { color: var(--texte-3); font-weight: 500; }
 .entete .logo-mobile img { height: 26px; width: auto; display: block; }
 
@@ -220,8 +234,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   texte sombre quel que soit le theme : c'est la seule surface de la console
   qui ne suit pas les jetons de couleur, parce qu'elle doit trancher sur tout.
 
-  Au telephone, la phrase se raccourcit (`.long` disparait) et le bouton passe
-  a la ligne, en pleine largeur : il reste une cible de pouce.
+  AU TELEPHONE, UNE SEULE RANGEE. La phrase entiere faisait sept lignes sous
+  l'en-tete, et comme le bandeau colle, elle mangeait un tiers de l'ecran sur
+  chaque page, pour toujours. Il ne garde que ce qui doit rester sous les yeux
+  — « donnees fictives, rien n'est reel » — et un bouton court a sa droite ;
+  l'explication complete est sur la page du mode demo, ou mene le bouton.
 */
 .demo-bandeau {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -237,10 +254,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
   flex: none; background: #141416; border-color: #141416; color: #fff; font-weight: 700;
 }
 .demo-bandeau .bouton:hover { background: #26262b; border-color: #26262b; }
-@media (max-width: 560px) {
-  .demo-bandeau { font-size: 13px; padding: 9px 14px; gap: 8px 10px; }
-  .demo-bandeau .long { display: none; }
-  .demo-bandeau .bouton { width: 100%; }
+.demo-bandeau .bref { display: none; }
+@media (max-width: 760px) {
+  .demo-bandeau {
+    flex-wrap: nowrap; gap: 10px; padding: 6px 8px 6px 14px;
+    font-size: 12.5px; line-height: 1.3;
+  }
+  .demo-bandeau > svg { width: 16px; height: 16px; }
+  .demo-bandeau .dit { min-width: 0; }
+  .demo-bandeau .dit b { letter-spacing: .03em; }
+  .demo-bandeau .entier { display: none; }
+  .demo-bandeau .bref { display: inline; }
+  .demo-bandeau .bouton { padding: 0 14px; }
 }
 
 /*
@@ -404,7 +429,32 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border: none; background: var(--surface-2); color: var(--texte-3); cursor: pointer;
 }
 
-@media (max-width: 700px) { .borne-chip { display: none; } }
+/*
+  AU TELEPHONE, LE SELECTEUR DESCEND SUR SA PROPRE LIGNE.
+
+  Il etait simplement cache sous 700 px : on ne pouvait donc plus filtrer le
+  tableau de bord, les analytiques ni les ventes par machine depuis un
+  telephone — c'est-a-dire depuis l'endroit ou l'on regarde ses chiffres le
+  plus souvent. L'en-tete accepte une seconde rangee, et la pastille y prend
+  toute la largeur : une cible de pouce, sous le fil.
+
+  `.droite` passe en `display: contents` pour que ses enfants deviennent des
+  enfants directs de la rangee et puissent se replier ; sans cela, la pastille
+  resterait prisonniere d'une boite calee a droite.
+*/
+@media (max-width: 700px) {
+  .entete > .dedans {
+    flex-wrap: wrap; height: auto; min-height: 54px;
+    padding-top: 7px; padding-bottom: 7px; row-gap: 7px;
+  }
+  .entete .droite { display: contents; }
+  .borne-chip { order: 20; flex: 1 1 100%; }
+  .borne-chip .declencheur { width: 100%; max-width: none; min-height: 40px; font-size: 13.5px; }
+  .borne-chip .menu { left: 0; right: 0; width: auto; max-width: none; }
+  .borne-chip .chercher input { font-size: 16px; }   /* 16 : iOS ne zoome pas */
+  .borne-chip.nu { max-width: none; }
+  .borne-chip.nu select { max-width: none; flex: 1; min-height: 34px; font-size: 16px; }
+}
 
 /*
   LA FICHE D'UNE BORNE : sa photo, et le formulaire replie qui la modifie.
@@ -610,8 +660,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rail .pied-comptes select { flex: 1; min-width: 0; min-height: 34px; font-size: 12.5px; }
 .rail .pied-comptes .bouton { min-height: 34px; padding: 0 10px; }
 :root[data-rail="ferme"] .rail .pied-comptes { display: none; }
-.rail-bascule { display: none; }
-@media (min-width: 980px) { .rail-bascule { display: inline-grid; } }
+/* Deux classes, pas une : `.bouton.icone` pose son propre `display` et gagnait
+   sur `.rail-bascule` seul — le bouton qui replie un menu absent s'affichait
+   donc sur chaque telephone, a cote du logo. */
+.bouton.icone.rail-bascule { display: none; }
+@media (min-width: 980px) { .bouton.icone.rail-bascule { display: inline-grid; } }
 
 h1 { font-size: 24px; letter-spacing: -.035em; margin: 0 0 3px; font-weight: 750; }
 h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
@@ -702,14 +755,27 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
   les chiffres en dessous : quatre boutons separes se lisent comme quatre
   actions differentes, un segment se lit comme les quatre etats d'un reglage.
 */
+/*
+  LE SEGMENT NE DEBORDE JAMAIS DE L'ECRAN.
+
+  Cinq filtres avec leur compteur font quatre cent cinquante pixels : sur un
+  telephone, le segment poussait la page entiere en defilement horizontal — la
+  liste des RedBox et les canaux d'une machine se lisaient en glissant de cote.
+  Il se borne a la largeur disponible et defile DANS son cadre, sans barre :
+  c'est le geste attendu d'une rangee d'onglets au pouce, et chaque bouton
+  garde sa largeur au lieu de se casser en deux lignes.
+*/
 .periodes {
-  display: inline-flex; flex: none; padding: 3px; gap: 2px;
+  display: flex; flex: 0 1 auto; max-width: 100%; min-width: 0; padding: 3px; gap: 2px;
   background: var(--surface-2); border: 1px solid var(--bord); border-radius: 10px;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
+.periodes::-webkit-scrollbar { display: none; }
 /* Des BOUTONS aussi, pas seulement des liens : le filtre des canaux masque au
    lieu de recharger, sinon on perdrait les quantites deja saisies. */
 .periodes a, .periodes button {
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
   border: none; background: none; font: inherit; cursor: pointer;
   min-height: 34px; padding: 0 13px; border-radius: 7px; white-space: nowrap;
   font-size: 13.5px; font-weight: 600; color: var(--texte-2);
@@ -744,8 +810,11 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 .periode-perso > summary:hover { color: var(--texte); }
 .periode-perso > summary:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 
+/* Ouvert, le bloc prend la largeur du segment au-dessus : replie sur la largeur
+   de son seul titre, il laissait ses deux champs deborder a droite de l'ecran. */
+.periode-perso[open] { width: 100%; }
 .periode-perso form {
-  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px;
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; justify-content: flex-end;
   margin-top: 8px; padding: 10px 11px;
   border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2);
 }
@@ -1152,11 +1221,17 @@ a.ligne:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 /*
    En bas, la ou se trouve le pouce. Elle disparait sur grand ecran, ou la
    navigation remonte dans l'en-tete.
+
+   OPAQUE, SANS FLOU. Le `backdrop-filter` isolait la barre dans sa propre
+   couche de composition, et iOS 26 cesse parfois de la replacer quand la
+   hauteur de la fenetre change en defilant : elle restait figee au milieu de
+   l'ecran, dans Safari comme dans l'application installee. Le flou ne se
+   voyait qu'a travers huit pour cent de transparence ; il ne valait pas une
+   barre qui se decroche.
 */
 .nav-bas {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  display: flex; background: color-mix(in srgb, var(--fond) 92%, transparent);
-  backdrop-filter: saturate(140%) blur(14px);
+  display: flex; background: var(--fond);
   border-top: 1px solid var(--bord);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -1473,7 +1548,8 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 }
 
 .titre-section {
-  display: flex; align-items: baseline; gap: 12px; margin: 28px 0 11px;
+  display: flex; align-items: baseline; gap: 10px 12px; margin: 28px 0 11px;
+  flex-wrap: wrap; min-width: 0;
 }
 .titre-section h2 { margin: 0; }
 .titre-section .lien {
@@ -1885,7 +1961,10 @@ a.produit-ligne .fleche { color: var(--texte-3); display: flex; }
 /* L'apercu garde la forme de la dalle. Une largeur PLAFONNEE, sinon le rapport
    9/14 le fait grandir avec la colonne : sur un ecran large, il occuperait trois
    mille pixels de haut pour montrer six tuiles. */
-.apercu-borne { position: sticky; top: 74px; max-width: 300px; margin: 0 auto; width: 100%; }
+.apercu-borne { max-width: 300px; margin: 0 auto; width: 100%; }
+/* Collant seulement quand il a une colonne a lui : sous la liste, un apercu
+   qui colle suit le doigt et cache ce qu'on range. */
+@media (min-width: 1000px) { .apercu-borne { position: sticky; top: 74px; } }
 .titre-apercu {
   font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
   color: var(--texte-3); font-weight: 700; margin-bottom: 9px;
@@ -2533,7 +2612,9 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
      mesure. */
   .modale, .modale.etroite {
     left: 0; right: 0; width: auto; max-width: none;
-    margin: auto 0 0; max-height: 92dvh;
+    /* Jamais sous l'heure : sur un iPhone installe en application, 8 % de
+       hauteur ne suffisent pas toujours a degager la barre d'etat. */
+    margin: auto 0 0; max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - 12px));
     border-radius: 16px 16px 0 0; border-bottom: none;
   }
   .modale-tete { padding: 14px 16px; }
@@ -3316,56 +3397,6 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .machine .visuel svg { width: 20px; height: 20px; }
 .machine .visuel .initiale { font-size: 14px; }
 
-/* ── La vue en 3D ─────────────────────────────────────────────────────────
-   Le meme caisson, pose dans l'espace : ses deux flancs et son dessus
-   s'ouvrent vers l'arriere, et on le fait tourner autour de son axe. */
-.flanc, .dessus { display: none; }
-.bloc-3d { display: grid; gap: 12px; }
-.scene-3d {
-  perspective: 1500px; padding: 12px 0 4px;
-  touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
-}
-.scene-3d[data-glisse] { cursor: grabbing; }
-.scene-3d .caisson {
-  --profondeur: 96px;
-  transform-style: preserve-3d;
-  transform: rotateX(-7deg) rotateY(var(--ry, -24deg));
-  transition: transform .5s cubic-bezier(.2, .8, .2, 1);
-}
-.scene-3d[data-glisse] .caisson { transition: none; }
-.scene-3d .caisson::after { display: none; }
-.scene-3d .flanc, .scene-3d .dessus { display: block; position: absolute; pointer-events: none; }
-.scene-3d .flanc {
-  top: 0; bottom: 0; width: var(--profondeur);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.06), transparent 8%, transparent 92%, rgba(0,0,0,.4)),
-    linear-gradient(90deg, #08080a, #1d1d23 55%, #111115);
-  border: 1px solid #2c2c33;
-}
-.scene-3d .flanc.gauche {
-  left: 0; transform-origin: left center; transform: rotateY(90deg);
-  border-radius: 28px 0 0 28px; box-shadow: inset 0 0 0 1px rgba(255,42,48,.3);
-}
-.scene-3d .flanc.droit {
-  right: 0; transform-origin: right center; transform: rotateY(-90deg);
-  border-radius: 0 28px 28px 0; box-shadow: inset 0 0 0 1px rgba(255,42,48,.3);
-}
-.scene-3d .dessus {
-  left: 24px; right: 24px; top: 0; height: var(--profondeur);
-  transform-origin: center top; transform: rotateX(-90deg);
-  background: linear-gradient(180deg, #2a2a30, #101013); border: 1px solid #2c2c33;
-}
-/* Le reflet rouge au sol, sous la machine. */
-.scene-3d::after {
-  content: ""; display: block; width: 72%; height: 26px; margin: 4px auto 0;
-  background: radial-gradient(closest-side, rgba(215,0,5,.45), transparent);
-  filter: blur(4px);
-}
-.commandes-3d { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
-.commandes-3d .bouton[aria-pressed="true"] { border-color: var(--rouge); color: var(--texte); }
-.commandes-3d .aide-3d { font-size: 12px; color: var(--texte-3); }
-@media (prefers-reduced-motion: reduce) { .scene-3d .caisson { transition: none; } }
-
 /* ── La grille : la vue ordinaire ───────────────────────────────────────── */
 .facade {
   display: grid; padding: 4px 8px;
@@ -3400,6 +3431,19 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 }
 .facade .spirale .rien { margin: 0; font-size: 12.5px; }
 .facade .spirale .meta { font-size: 12px; color: var(--texte-3); }
+/* Ce qui reste dans la spirale, pose en bas de la case : les cases d'un meme
+   plateau alignent leur jauge meme quand un nom tient sur deux lignes. L'etat
+   passe par le bord, le chiffre ET le mot — la couleur ne porte jamais seule. */
+.facade .spirale .stock { margin-top: auto; }
+.facade .spirale .ligne-stock { display: flex; align-items: baseline; gap: 8px; }
+.facade .spirale .compte { font-size: 12.5px; color: var(--texte-3); }
+.facade .spirale .compte b { font-size: 15px; font-weight: 750; color: var(--texte); }
+.facade .spirale .ligne-stock .mot { margin-left: auto; font-size: 12px; font-weight: 700; }
+.facade .spirale .jauge { max-width: none; height: 5px; margin-top: 6px; }
+.facade .spirale[data-etat="vide"] { border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord)); }
+.facade .spirale[data-etat="bas"]  { border-color: color-mix(in srgb, var(--ambre) 55%, var(--bord)); }
+.facade .spirale[data-etat="vide"] :is(.compte b, .mot) { color: var(--rouge-vif); }
+.facade .spirale[data-etat="bas"]  :is(.compte b, .mot) { color: var(--ambre); }
 .facade a.spirale.lien:hover { border-color: var(--texte-3); }
 .facade a.spirale.lien:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .facade a.spirale.lien[aria-current] {
@@ -4143,15 +4187,40 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 }
 .msg .choix-emoji button:hover { background: var(--surface-2); transform: scale(1.15); }
 
-/* Un envoi pas encore confirme : pale, « envoi… » a la place de l'heure. Un
-   envoi qui a echoue le dit sous la bulle, avec de quoi recommencer. */
 .msg .choix-emoji.haut { top: auto; bottom: calc(100% + 6px); }
-.msg.envoi .bulle { opacity: .6; }
-.msg .pas-parti { margin: 4px 6px 0 0; font-size: 12px; font-weight: 650; color: var(--rouge-vif); }
-.msg .pas-parti button {
-  padding: 0; border: 0; background: none; font: inherit; color: inherit;
-  text-decoration: underline; cursor: pointer;
+/*
+  UN ENVOI EN COURS NE SE VOIT PAS. La bulle etait pale, et « envoi… »
+  remplacait l'heure : chaque message avait l'air de charger, alors qu'il part
+  en une seconde. Elle s'affiche maintenant telle qu'elle restera. La mention
+  n'apparait que si le serveur tarde plus de trois secondes — un delai
+  d'animation, pas une minuterie : rien a nettoyer quand la reponse arrive.
+*/
+.msg.envoi time::after {
+  content: " · envoi…"; opacity: 0;
+  animation: envoi-lent 0s linear 3s forwards;
 }
+@keyframes envoi-lent { to { opacity: 1; } }
+/* UN ENVOI RATE SE DIT SUR LE MESSAGE, comme dans toute messagerie : le bord
+   de la bulle, la cause en clair, et les deux gestes — recommencer ou
+   abandonner. */
+/* Mes bulles sont deja rouges : un bord rouge ne s'y verrait pas. Ratee, la
+   bulle perd son aplat et garde le bord — elle n'a plus l'air partie. */
+.msg.echec .bulle, .msg.mien.echec .bulle {
+  background: var(--surface-2); color: var(--texte);
+  box-shadow: inset 0 0 0 1.5px var(--rouge-vif);
+}
+.msg.mien.echec .bulle time { color: var(--texte-3); }
+.msg .pas-parti {
+  display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap;
+  margin: 5px 6px 0 0; font-size: 12px; font-weight: 650; color: var(--rouge-vif);
+}
+.msg.mien .pas-parti { justify-content: flex-end; }
+.msg .pas-parti svg { flex: none; }
+.msg .pas-parti button {
+  min-height: 28px; padding: 0 4px; border: 0; background: none;
+  font: inherit; color: inherit; text-decoration: underline; cursor: pointer;
+}
+.msg .pas-parti button + button { color: var(--texte-3); }
 @media (prefers-reduced-motion: reduce) {
   .msg .reaction, .msg .choix-emoji button { transition: none; }
   .msg .reaction:active:not(:disabled), .msg .choix-emoji button:hover { transform: none; }
@@ -4166,7 +4235,9 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .fil-salon .tete .bouton.qui { gap: 6px; padding: 0 10px; color: var(--texte-2); }
 .fil-salon .tete .bouton.qui.actif { color: var(--texte); border-color: var(--texte-3); }
 .qui-lit { margin: 8px 0 4px; }
-.lecteurs-liste { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+/* Une ligne par lecteur, sur autant de colonnes que la largeur en tient. */
+.lecteurs-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 18px; }
+.lecteurs-liste > * { min-width: 0; }
 .lecteur { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .lecteur:hover span { text-decoration: underline; }
 .lecteurs-choix { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; }
@@ -4245,320 +4316,549 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 
 /* ------------------------------------------------------ badges et rarete */
 /*
-   LA RARETE SE VOIT AVANT DE SE LIRE. Quatre teintes, du gris a l'or, posees
-   sur la pastille et rappelees sur l'etiquette : un badge a mille points ne
-   doit pas avoir la meme allure qu'un badge a vingt. Eteint, tout retombe en
-   gris — ce qu'on n'a pas ne se pare pas.
+   LE BADGE EST UN OBJET EN 3D — une image (`badge.tsx`, `public/badges`). La
+   matiere de l'objet dit deja le palier ; ici, on ajoute ce qui l'entoure :
+   une aura de sa couleur, des rayons qui tournent derriere les legendaires et
+   les mythiques, une ombre portee, et l'objet qui se leve au survol.
+
+   Eteint, l'objet passe en gris sombre : sa silhouette reste lisible, sa
+   matiere disparait.
 */
-/*
-   UN BADGE EST UN OBJET, PAS UNE ETIQUETTE.
+.embleme {
+  position: relative; display: inline-grid; place-items: center; flex: none; line-height: 0;
+  isolation: isolate; --lueur: #c9ced8;
+}
+.embleme.rare       { --lueur: #63a0ff; }
+.embleme.epique     { --lueur: #b58cff; }
+.embleme.legendaire { --lueur: #f7cd5c; }
+.embleme.mythique   { --lueur: #ff4a50; }
+.embleme > img {
+  position: relative; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 3px 4px rgba(0,0,0,.45));
+  transition: transform .2s cubic-bezier(.22,.7,.3,1), filter .2s ease;
+  -webkit-user-drag: none; -webkit-user-select: none; user-select: none;
+}
+.embleme:not(.grand) > img { filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+.embleme.eteint:not(.piece) > img { filter: grayscale(1) brightness(.42) contrast(1.1); opacity: .85; }
+.embleme.piece > img { filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+.embleme.piece:not(.grand) > img { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45)); }
+:root[data-theme="light"] .embleme > img { filter: drop-shadow(0 2px 3px rgba(0,0,0,.2)); }
+:root[data-theme="light"] .embleme.eteint:not(.piece) > img { filter: grayscale(1) brightness(.9) contrast(.85); opacity: .5; }
 
-   Le reste de cette feuille se tient a des filets d'un pixel et refuse les
-   ombres portees — l'ombre generalisee fait flotter chaque bloc et donne cet
-   aspect « tout est une carte » qu'on voit sur les maquettes sans auteur. Ici,
-   et ICI SEULEMENT, on fait l'inverse, et c'est delibere : une recompense doit
-   se ramasser du regard comme une piece qu'on prend dans la main.
-
-   Le relief tient en quatre couches, sans une image : la matiere (un degrade
-   radial, la lumiere en haut a gauche comme partout ailleurs), le biseau (un
-   lisere clair en haut, un creux sombre en bas), l'eclat (une tache blanche
-   en `::before`, SOUS le glyphe) et la portee sous la piece.
-
-   Ces couches sont des variables : le survol, le theme clair et les paliers
-   n'en changent qu'une au lieu de recopier toute la liste. Trois copies d'une
-   ombre a six couches finissent toujours par diverger.
-*/
-.badge-rond {
-  position: relative; isolation: isolate;
-  display: inline-grid; place-items: center; border-radius: 50%; flex: none;
-  /* Valeurs par defaut : l'or. Chaque palier ne redefinit que ses teintes. */
-  --metal:        #f2c14b;
-  --metal-sombre: #9a6a05;
-  --cerne:        #7a5504;
-  --encre:        #2a1d00;
-  --lisere:  color-mix(in srgb, var(--metal) 30%, #fff);
-  --creux:   color-mix(in srgb, var(--cerne) 70%, transparent);
-  --contour: var(--cerne);
-  --anneau:  transparent;
-  --halo:    0 0 0 0 transparent;
-  --portee:  0 2px 5px rgba(0, 0, 0, .45);
+.embleme-aura {
+  position: absolute; inset: -18%; z-index: 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lueur) 42%, transparent), transparent 72%);
+}
+.embleme.commun .embleme-aura { opacity: .4; }
+.embleme:is(.legendaire, .mythique) .embleme-aura {
+  inset: -32%;
   background:
-    radial-gradient(circle at 32% 25%,
-      color-mix(in srgb, var(--metal) 45%, #fff) 0%,
-      var(--metal) 42%,
-      var(--metal-sombre) 100%);
-  color: var(--encre);
-  border: 0;
-  box-shadow:
-    inset 0 1.5px 0 var(--lisere),
-    inset 0 -2px 3px var(--creux),
-    0 0 0 1px var(--contour),
-    0 0 0 3px var(--anneau),
-    var(--halo),
-    var(--portee);
-  transition: transform .16s cubic-bezier(.22,.7,.3,1), box-shadow .16s ease;
+    radial-gradient(closest-side, color-mix(in srgb, var(--lueur) 50%, transparent) 30%, transparent 70%),
+    repeating-conic-gradient(color-mix(in srgb, var(--lueur) 38%, transparent) 0deg 4deg, transparent 4deg 15deg);
+  -webkit-mask: radial-gradient(closest-side, #000 35%, transparent 100%);
+          mask: radial-gradient(closest-side, #000 35%, transparent 100%);
+  animation: rayons 26s linear infinite;
 }
-.badge-rond::before {
-  content: ""; position: absolute; z-index: -1;
-  left: 14%; top: 8%; width: 52%; height: 38%;
-  border-radius: 50%;
-  background: linear-gradient(160deg, rgba(255,255,255,.72), rgba(255,255,255,0));
-  filter: blur(1px);
-}
-.badge-rond > svg {
-  filter: drop-shadow(0 1px 0 color-mix(in srgb, var(--metal) 55%, #fff));
-  opacity: .92;
-}
-
-.badge-rond.commun     { --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c; }
-.badge-rond.rare       { --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40; }
-.badge-rond.epique     { --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47; }
-.badge-rond.legendaire { --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000; }
-
-/* Ce qu'on n'a pas encore ne se pare pas : la piece redevient un creux dans la
-   carte. Le meme dessin, en negatif — c'est ce qui donne envie de le remplir. */
-.badge-rond.eteint,
-.badge-rond.eteint.commun, .badge-rond.eteint.rare,
-.badge-rond.eteint.epique, .badge-rond.eteint.legendaire {
-  background: var(--surface-2); color: var(--texte-3); animation: none;
-  box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, .38),
-    inset 0 -1px 0 color-mix(in srgb, var(--bord-fort) 60%, transparent),
-    0 0 0 1px var(--bord);
-}
-.badge-rond.eteint::before, .badge-rond.eteint::after { display: none; }
-.badge-rond.eteint > svg { filter: none; opacity: .75; }
-
-/* On la soupese du regard : la piece se leve quand on passe sur sa fiche. */
-.badge-fiche:hover .badge-rond:not(.eteint),
-.badge-item:hover .badge-rond:not(.eteint) {
-  transform: translateY(-2px) scale(1.04);
-  --portee: 0 6px 14px rgba(0, 0, 0, .5);
-}
-@media (prefers-reduced-motion: reduce) {
-  .badge-rond { transition: none; }
-  .badge-fiche:hover .badge-rond:not(.eteint),
-  .badge-item:hover .badge-rond:not(.eteint) { transform: none; }
-}
-
-/* Sur fond clair, la portee s'allege : la meme ombre qu'en sombre y ferait
-   une tache grise autour de chaque piece. */
-:root[data-theme="light"] .badge-rond {
-  --creux:   color-mix(in srgb, var(--cerne) 55%, transparent);
-  --contour: color-mix(in srgb, var(--cerne) 65%, transparent);
-  --portee:  0 1px 3px rgba(0, 0, 0, .22);
-}
-:root[data-theme="light"] .badge-fiche:hover .badge-rond:not(.eteint),
-:root[data-theme="light"] .badge-item:hover .badge-rond:not(.eteint) {
-  --portee: 0 4px 10px rgba(0, 0, 0, .2);
-}
-:root[data-theme="light"] .badge-rond.eteint {
-  background: var(--surface-2);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .1), 0 0 0 1px var(--bord);
-}
-
-/*
-   LA RARETE, EN PLUS DE LA COULEUR.
-
-   La teinte distingue un commun d'un legendaire quand on les voit cote a
-   cote ; seule, une piece bleue ne dit pas qu'elle est rare. Chaque palier
-   gagne donc quelque chose que le precedent n'a pas :
-
-     rare        un anneau de la couleur de sa matiere ;
-     epique      l'anneau, et un halo ;
-     legendaire  l'anneau, le halo, un reflet qui balaie la piece toutes les
-                 six secondes, et une couronne de rayons qui tourne lentement
-                 derriere elle.
-
-   Seulement en grand, a partir de trente pixels. A dix-sept, a cote d'un
-   pseudo dans un fil, anneau et rayons feraient un point brillant illisible,
-   et un fil ou chaque nom scintille ne se lit plus : la couleur y suffit.
-*/
-.badge-rond.grand.rare       { --anneau: color-mix(in srgb, var(--metal) 45%, transparent); }
-.badge-rond.grand.epique     { --anneau: color-mix(in srgb, var(--metal) 60%, transparent);
-                               --halo: 0 0 12px color-mix(in srgb, var(--metal) 45%, transparent); }
-.badge-rond.grand.legendaire { --anneau: color-mix(in srgb, var(--metal) 75%, transparent);
-                               --halo: 0 0 16px color-mix(in srgb, var(--metal) 55%, transparent); }
-
-.badge-rond.grand.legendaire:not(.eteint) {
+.embleme.mythique .embleme-aura {
   background:
-    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .6) 50%, transparent 62%) no-repeat,
-    radial-gradient(circle at 32% 25%,
-      color-mix(in srgb, var(--metal) 45%, #fff) 0%, var(--metal) 42%, var(--metal-sombre) 100%);
-  background-size: 280% 100%, 100% 100%;
-  background-position: 170% 0, 0 0;
-  animation: reflet-or 6s ease-in-out infinite;
-}
-@keyframes reflet-or {
-  0%, 60% { background-position: 170% 0, 0 0; }
-  100%    { background-position: -70% 0, 0 0; }
-}
-/* Les rayons, derriere la piece. Un `::after` place sous son contenu passe
-   quand meme DEVANT le fond de la piece, qui est son propre contexte : d'ou
-   le masque qui les efface a l'interieur, et non un z-index. */
-.badge-rond.grand.legendaire:not(.eteint)::after {
-  content: ""; position: absolute; z-index: -1; inset: -26%;
-  border-radius: 50%; pointer-events: none;
-  background: repeating-conic-gradient(
-    color-mix(in srgb, var(--metal) 60%, transparent) 0deg 4deg, transparent 4deg 15deg);
-  -webkit-mask: radial-gradient(circle closest-side, transparent 68%, #000 73%, #000 86%, transparent 100%);
-          mask: radial-gradient(circle closest-side, transparent 68%, #000 73%, #000 86%, transparent 100%);
-  animation: rayons 28s linear infinite;
+    radial-gradient(closest-side, rgba(255,74,80,.55) 30%, transparent 70%),
+    repeating-conic-gradient(#ff4a50 0deg 3deg, transparent 3deg 10deg, #ffd166 10deg 12deg, transparent 12deg 20deg);
+  animation-duration: 14s;
 }
 @keyframes rayons { to { transform: rotate(1turn); } }
 
-/* La fiche d'un legendaire obtenu rayonne un peu, elle aussi. */
+.badge-fiche:hover .embleme:not(.eteint) > img,
+.badge-item:hover .embleme:not(.eteint) > img { transform: translateY(-2px) scale(1.08); }
+
 .badge-fiche.legendaire:not(.eteint) {
   box-shadow: 0 0 26px -10px color-mix(in srgb, var(--ambre) 60%, transparent);
 }
+.badge-fiche.mythique:not(.eteint) {
+  box-shadow: 0 0 30px -10px color-mix(in srgb, var(--rouge-vif) 65%, transparent);
+}
 @media (prefers-reduced-motion: reduce) {
-  .badge-rond.grand.legendaire:not(.eteint),
-  .badge-rond.grand.legendaire:not(.eteint)::after { animation: none; }
+  .embleme-aura { animation: none !important; }
+  .embleme > img { transition: none; }
 }
 
-/* ------------------------------------------------- la piece, en volume */
+/* ------------------------------------------------- la collection de badges */
 /*
-   LE CYLINDRE. Deux faces a plus et moins la demi-epaisseur, et une tranche
-   faite de lamelles rangees en couronne. La perspective est posee sur la
-   scene, jamais sur le volume : `perspective` sur l'element qui tourne
-   deformerait chaque face separement au lieu de regarder l'objet entier.
+   UNE TUILE PAR BADGE. Gagne : un cadre teinte de sa rarete, la piece en
+   couleur, une coche d'or. Pas encore : un creux, la piece en negatif, un
+   cadenas. Le compte et sa barre en tete, les filtres a cote.
 
-   Les teintes viennent des memes variables que les pastilles — une seule
-   definition de l'or, du saphir, de l'amethyste et de l'acier pour toute la
-   console.
+   Les colonnes sont FIXEES par largeur (4, 6, 8) plutot qu'en `auto-fill` :
+   c'est ce qui permet de caler la bulle des tuiles du bord vers l'interieur,
+   au lieu de la laisser deborder de l'ecran.
 */
-.scene-piece {
-  position: relative; flex: none;
-  perspective: 1100px; perspective-origin: 50% 42%;
-  --metal:        #f2c14b;
-  --metal-sombre: #9a6a05;
-  --cerne:        #7a5504;
-  --encre:        #2a1d00;
+.collection { margin-top: 28px; padding: 18px; }
+.collection-tete {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-bottom: 18px;
 }
-.scene-piece.commun     { --metal: #9aa0ad; --metal-sombre: #4e535e; --cerne: #3a3e47; --encre: #23262c; }
-.scene-piece.rare       { --metal: #63a0ff; --metal-sombre: #1f4fae; --cerne: #163b85; --encre: #0a1c40; }
-.scene-piece.epique     { --metal: #b58cff; --metal-sombre: #6a32c4; --cerne: #4d2093; --encre: #240b47; }
-.scene-piece.legendaire { --metal: #f7cd5c; --metal-sombre: #a2700a; --cerne: #7d5603; --encre: #2e2000; }
-/* Ce qu'on n'a pas encore est une piece de plomb : le meme volume, sans
-   lumiere. On la manipule quand meme — voir ce qu'on n'a pas est le but. */
-.scene-piece.eteint { --metal: #4a4a54; --metal-sombre: #26262c; --cerne: #1c1c20; --encre: #14141a; }
-
-.scene-piece .prise {
-  width: 100%; height: 100%; cursor: grab; touch-action: none;
-  border-radius: 50%; outline-offset: 6px;
+.collection-tete h2 { margin: 0; flex: 1 1 100%; }
+.collection-compte { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; min-width: 0; }
+.collection-compte .num { font-size: 22px; font-weight: 750; letter-spacing: -.02em; color: var(--texte-3); }
+.collection-compte .num b { color: var(--texte); font-weight: 800; }
+.collection-compte .mot {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-3);
 }
-.scene-piece .prise:active { cursor: grabbing; }
-.scene-piece .prise:focus-visible { outline: 2px solid var(--rouge); }
-
-.scene-piece .volume {
-  width: 100%; height: 100%; position: relative;
-  transform-style: preserve-3d; will-change: transform;
+.piste-collection {
+  flex: 1; min-width: 60px; height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--surface-3); box-shadow: inset 0 1px 2px rgba(0,0,0,.35);
+}
+.piste-collection > span {
+  display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, var(--rouge-sourd), var(--rouge-vif));
 }
 
-.scene-piece .face {
-  position: absolute; inset: 0; border-radius: 50%;
-  display: grid; place-items: center; backface-visibility: hidden;
-  color: var(--encre);
+/* Les filtres : le segment des periodes, porte par des boutons radio. */
+.filtres-collection label {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none;
+  min-height: 30px; padding: 0 11px; border-radius: 7px; white-space: nowrap; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--texte-2);
+  transition: color .15s ease, background .15s ease;
+}
+.filtres-collection label:hover { color: var(--texte); background: var(--surface-3); }
+.filtres-collection label:has(input:checked) { background: var(--rouge); color: #fff; font-weight: 700; }
+.filtres-collection label:has(input:checked) .compte { background: rgba(255,255,255,.22); color: #fff; }
+.filtres-collection label:has(input:focus-visible) { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.filtres-collection input,
+.collection .masque {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+.collection:has(input[value="debloques"]:checked) .tuile[data-etat="verrouille"],
+.collection:has(input[value="verrouilles"]:checked) .tuile[data-etat="debloque"] { display: none; }
+.collection-vide { display: none; margin: 4px 0 0; font-size: 13px; color: var(--texte-3); }
+.collection:has(input[value="debloques"]:checked):not(:has(.tuile[data-etat="debloque"])) .vide-debloques,
+.collection:has(input[value="verrouilles"]:checked):not(:has(.tuile[data-etat="verrouille"])) .vide-verrouilles {
+  display: block;
+}
+
+.tuiles {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 12px 10px; grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (min-width: 560px)  { .tuiles { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .tuiles { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+
+.tuile { position: relative; --teinte: #9aa0ad; }
+.tuile.rare       { --teinte: #63a0ff; }
+.tuile.epique     { --teinte: #b58cff; }
+.tuile.legendaire { --teinte: #f7cd5c; }
+.tuile.mythique   { --teinte: #ff4a50; }
+
+.tuile-lien {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: inherit; text-decoration: none; border-radius: 12px;
+}
+.tuile-lien:focus-visible { outline: none; }
+.tuile-lien:focus-visible .tuile-cadre { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+.tuile-cadre {
+  position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1;
+  border-radius: 12px;
   background:
-    radial-gradient(circle at 32% 24%,
-      color-mix(in srgb, var(--metal) 48%, #fff) 0%,
-      var(--metal) 40%,
-      var(--metal-sombre) 100%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cerne) 80%, transparent);
-}
-/* Le listel : le petit anneau en relief au bord d'une piece frappee. */
-.scene-piece .cerne {
-  position: absolute; inset: 7%; border-radius: 50%;
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--teinte) 30%, transparent), transparent 68%),
+    linear-gradient(180deg, color-mix(in srgb, var(--teinte) 14%, var(--surface-2)), var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--teinte) 45%, var(--bord-fort));
   box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--cerne) 45%, transparent),
-    inset 0 2px 0 color-mix(in srgb, var(--metal) 40%, #fff);
+    inset 0 0 0 3px var(--surface),
+    inset 0 0 0 4px color-mix(in srgb, var(--teinte) 22%, transparent),
+    0 2px 6px rgba(0,0,0,.3);
+  transform: perspective(520px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .16s cubic-bezier(.22,.7,.3,1), border-color .16s ease, box-shadow .16s ease;
 }
-.scene-piece .face > svg {
-  position: relative;
-  filter: drop-shadow(0 1.5px 0 color-mix(in srgb, var(--metal) 60%, #fff))
-          drop-shadow(0 -1px 0 color-mix(in srgb, var(--cerne) 60%, transparent));
+.tuile:is(.legendaire, .mythique)[data-etat="debloque"] .tuile-cadre {
+  box-shadow:
+    inset 0 0 0 3px var(--surface),
+    inset 0 0 0 4px color-mix(in srgb, var(--teinte) 30%, transparent),
+    0 0 22px -8px color-mix(in srgb, var(--teinte) 70%, transparent);
 }
-.scene-piece .revers .grave {
-  position: relative; display: grid; gap: 5px; text-align: center; padding: 0 16%;
+.tuile[data-etat="verrouille"] .tuile-cadre {
+  background: var(--surface-2); border-color: var(--bord);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.35);
 }
-.scene-piece .revers b {
-  font-size: 17px; font-weight: 800; letter-spacing: -.01em; line-height: 1.15;
-  text-shadow: 0 1.5px 0 color-mix(in srgb, var(--metal) 60%, #fff);
-}
-.scene-piece .revers i {
-  font-style: normal; font-size: 12px; font-weight: 700; opacity: .72;
-  letter-spacing: .04em; text-transform: uppercase;
-}
+.tuile[data-etat="verrouille"] .embleme { opacity: .8; }
 
-.scene-piece .lamelle {
-  position: absolute; left: 50%; top: 50%;
-  background: linear-gradient(180deg,
-    color-mix(in srgb, var(--metal) 35%, #fff) 0%,
-    var(--metal) 34%,
-    var(--metal-sombre) 100%);
+.tuile-sceau {
+  position: absolute; right: 7%; bottom: 7%;
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
 }
+.tuile[data-etat="debloque"] .tuile-sceau {
+  color: #231800;
+  background: radial-gradient(circle at 35% 30%, #ffe590, #e0a500 58%, #9a6a05);
+  box-shadow: 0 0 0 2px var(--surface), 0 1px 3px rgba(0,0,0,.5);
+}
+.tuile[data-etat="verrouille"] .tuile-sceau {
+  color: var(--texte-3); background: var(--surface-3); box-shadow: 0 0 0 2px var(--surface);
+}
+/* Ou l'on en est, pour ce qui se compte : un filet au pied de la tuile. */
+.tuile-avance {
+  position: absolute; left: 12%; right: 38%; bottom: 13%; height: 3px;
+  border-radius: 2px; background: var(--surface-3); overflow: hidden;
+}
+.tuile-avance > span { display: block; height: 100%; background: var(--texte-3); }
 
-/* L'ECLAT NE TOURNE PAS. Il est pose sur la scene, pas sur le volume : c'est
-   ce qui fait qu'on lit du metal et non un jeton peint. */
-.scene-piece .eclat {
-  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(38% 30% at 30% 22%,
-    rgba(255,255,255,.5) 0%, rgba(255,255,255,.12) 45%, transparent 72%);
-  mix-blend-mode: screen;
+.tuile-nom {
+  font-size: 11.5px; font-weight: 600; line-height: 1.2; text-align: center; color: var(--texte-2);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
-.scene-piece.eteint .eclat { opacity: .25; }
+.tuile[data-etat="verrouille"] .tuile-nom { color: var(--texte-3); }
 
-/* Une ombre au sol : sans elle la piece flotte dans le noir. */
-.scene-piece .socle {
-  position: absolute; left: 12%; right: 12%; bottom: -7%; height: 12%;
-  border-radius: 50%; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent 78%);
-  filter: blur(5px);
+/* LE PREMIUM DE LA TUILE : les pips du palier, un reflet qui suit la souris,
+   un holographique sur le mythique et une bordure irisee qui tourne autour. */
+.tuile-pips { position: absolute; left: 9%; top: 9%; display: flex; gap: 3px; }
+.tuile-pips i {
+  width: 5px; height: 5px; border-radius: 1px; transform: rotate(45deg);
+  background: var(--teinte); box-shadow: 0 0 5px color-mix(in srgb, var(--teinte) 70%, transparent);
 }
-:root[data-theme="light"] .scene-piece .socle {
-  background: radial-gradient(closest-side, rgba(0,0,0,.22), transparent 78%);
-}
+.tuile[data-etat="verrouille"] .tuile-pips i { background: var(--texte-3); box-shadow: none; opacity: .55; }
 
-/* La piece en grand porte sa rarete comme les pastilles : l'epique dans un
-   halo, le legendaire devant une couronne de rayons qui tourne, avec le meme
-   reflet qui balaie son avers. Le derriere est en `::before` de la scene,
-   isolee pour qu'il ne passe pas sous la carte qui la contient. */
-.scene-piece { isolation: isolate; }
-.scene-piece.epique:not(.eteint)::before,
-.scene-piece.legendaire:not(.eteint)::before {
-  content: ""; position: absolute; inset: -16%; z-index: -1;
-  border-radius: 50%; pointer-events: none;
+.tuile-foil {
+  position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 30%), rgba(255,255,255,.26), transparent 48%);
+  mix-blend-mode: screen; transition: opacity .2s ease;
 }
-.scene-piece.epique:not(.eteint)::before {
-  background: radial-gradient(circle closest-side,
-    color-mix(in srgb, var(--metal) 38%, transparent) 62%, transparent 100%);
-  filter: blur(10px);
-}
-.scene-piece.legendaire:not(.eteint)::before {
-  background: repeating-conic-gradient(
-    color-mix(in srgb, var(--metal) 50%, transparent) 0deg 3deg, transparent 3deg 11deg);
-  -webkit-mask: radial-gradient(circle closest-side, transparent 70%, #000 76%, #000 90%, transparent 100%);
-          mask: radial-gradient(circle closest-side, transparent 70%, #000 76%, #000 90%, transparent 100%);
-  animation: rayons 40s linear infinite;
-}
-.scene-piece.legendaire:not(.eteint) .face {
+.tuile-lien:hover .tuile-foil { opacity: 1; }
+.tuile[data-etat="verrouille"] .tuile-foil { display: none; }
+.tuile.mythique[data-etat="debloque"] .tuile-foil {
+  opacity: .7;
   background:
-    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .42) 50%, transparent 62%) no-repeat,
-    radial-gradient(circle at 32% 24%,
-      color-mix(in srgb, var(--metal) 48%, #fff) 0%, var(--metal) 40%, var(--metal-sombre) 100%);
-  background-size: 280% 100%, 100% 100%;
-  animation: reflet-or 6s ease-in-out infinite;
+    radial-gradient(circle at var(--mx, 50%) var(--my, 30%), rgba(255,255,255,.28), transparent 48%),
+    linear-gradient(125deg, transparent 18%, rgba(255,77,109,.2) 34%, rgba(255,209,102,.2) 44%,
+                    rgba(94,234,212,.2) 54%, rgba(129,140,248,.2) 64%, transparent 80%);
+  background-size: 100% 100%, 260% 260%;
+  animation: holo 6s linear infinite;
 }
+@keyframes holo { to { background-position: 0 0, 260% 260%; } }
+
+@property --angle-bord { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.tuile.mythique[data-etat="debloque"] .tuile-cadre::before {
+  content: ""; position: absolute; inset: -1px; z-index: 3; border-radius: inherit; padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--angle-bord), #ff4a50, #ffd166, #5eead4, #818cf8, #f472b6, #ff4a50);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: bordure 4s linear infinite;
+}
+@keyframes bordure { to { --angle-bord: 360deg; } }
+
+.collection-raretes {
+  list-style: none; margin: 0; padding: 0; flex: 1 1 100%;
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+}
+.rarete-puce { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 650; color: var(--texte-2); }
+.rarete-puce i {
+  width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg);
+  background: var(--teinte); box-shadow: 0 0 6px color-mix(in srgb, var(--teinte) 60%, transparent);
+}
+.rarete-puce .num { color: var(--texte-3); font-weight: 600; }
+.rarete-puce.commun     { --teinte: #9aa0ad; }
+.rarete-puce.rare       { --teinte: #63a0ff; }
+.rarete-puce.epique     { --teinte: #b58cff; }
+.rarete-puce.legendaire { --teinte: #f7cd5c; }
+.rarete-puce.mythique   { --teinte: #ff4a50; }
 @media (prefers-reduced-motion: reduce) {
-  .scene-piece.legendaire:not(.eteint)::before,
-  .scene-piece.legendaire:not(.eteint) .face { animation: none; }
+  .tuile.mythique[data-etat="debloque"] .tuile-foil,
+  .tuile.mythique[data-etat="debloque"] .tuile-cadre::before { animation: none; }
 }
+
+/* La bulle n'existe qu'avec un survol : au doigt, on touche et on ouvre la fiche. */
+.bulle-badge { display: none; }
+@media (hover: hover) {
+  .tuile-nom { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tuile-lien:hover .tuile-cadre { transform: perspective(520px) translateY(-3px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); border-color: color-mix(in srgb, var(--teinte) 70%, var(--bord-fort)); }
+  .tuile[data-etat="verrouille"] .tuile-lien:hover .tuile-cadre { border-color: var(--bord-fort); }
+
+  .tuile { --ancre: 50%; --decale: -50%; --fleche: 50%; }
+  .bulle-badge {
+    display: grid; gap: 5px; position: absolute; z-index: 20;
+    left: var(--ancre); bottom: calc(100% + 10px);
+    width: max-content; max-width: 250px; padding: 10px 12px;
+    border-radius: var(--r-l); background: var(--surface-3); border: 1px solid var(--bord-fort);
+    box-shadow: 0 14px 30px rgba(0,0,0,.45);
+    font-size: 12.5px; line-height: 1.4; color: var(--texte-2); text-align: left;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transform: translate(var(--decale), 4px);
+    transition: opacity .14s ease, transform .14s ease, visibility 0s linear .14s;
+  }
+  .bulle-badge::after {
+    content: ""; position: absolute; top: 100%; left: var(--fleche); margin-left: -6px;
+    border: 6px solid transparent; border-top-color: var(--surface-3);
+  }
+  .tuile:hover .bulle-badge,
+  .tuile:focus-within .bulle-badge {
+    opacity: 1; visibility: visible; transform: translate(var(--decale), 0); transition-delay: 0s;
+  }
+  /* Les tuiles du bord ouvrent leur bulle vers l'interieur. */
+  .tuile:nth-child(4n+1) { --ancre: 0%; --decale: 0%; --fleche: 30px; }
+  .tuile:nth-child(4n)   { --ancre: 100%; --decale: -100%; --fleche: calc(100% - 30px); }
+}
+@media (hover: hover) and (min-width: 560px) {
+  .tuile:nth-child(4n+1), .tuile:nth-child(4n) { --ancre: 50%; --decale: -50%; --fleche: 50%; }
+  .tuile:nth-child(6n+1) { --ancre: 0%; --decale: 0%; --fleche: 30px; }
+  .tuile:nth-child(6n)   { --ancre: 100%; --decale: -100%; --fleche: calc(100% - 30px); }
+}
+@media (hover: hover) and (min-width: 1100px) {
+  .tuile:nth-child(6n+1), .tuile:nth-child(6n) { --ancre: 50%; --decale: -50%; --fleche: 50%; }
+  .tuile:nth-child(8n+1) { --ancre: 0%; --decale: 0%; --fleche: 30px; }
+  .tuile:nth-child(8n)   { --ancre: 100%; --decale: -100%; --fleche: calc(100% - 30px); }
+}
+.bulle-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bulle-tete b { color: var(--texte); font-size: 13.5px; }
+.bulle-devise { font-style: italic; color: color-mix(in srgb, var(--teinte) 35%, var(--texte)); }
+.bulle-quoi { color: var(--texte-2); }
+.bulle-pied { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--texte-3); }
+.bulle-pied .gain { color: var(--vert); font-weight: 750; }
+
+:root[data-theme="light"] .tuile-cadre { box-shadow: inset 0 0 0 3px var(--surface), 0 1px 3px rgba(0,0,0,.12); }
+:root[data-theme="light"] .tuile[data-etat="verrouille"] .tuile-cadre { box-shadow: inset 0 2px 5px rgba(0,0,0,.08); }
+:root[data-theme="light"] .bulle-badge { box-shadow: 0 10px 24px rgba(0,0,0,.18); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tuile-cadre, .bulle-badge { transition: none; }
+  .tuile-lien:hover .tuile-cadre { transform: none; }
+}
+
+/* ----------------------------------------------- la revelation d'un badge */
+/*
+   LA SCENE. Toujours sombre, quel que soit le theme : c'est un plateau de jeu,
+   la lumiere vient du badge. La chronologie, en secondes :
+
+     0     l'energie se concentre au centre (rev-charge)
+     0,55  eclair blanc, onde de choc — doublee a partir du legendaire
+     0,6   la piece tombe en tournoyant, les etincelles partent
+     1,05  la banniere du palier, puis le nom, la devise, les chiffres
+     1,35  les points defilent (compteur en JavaScript)
+
+   La couleur de tout vient de `--lueur`, posee par palier : un seul endroit
+   pour dire qu'un epique brille violet.
+*/
+html.revelation-ouverte { overflow: hidden; }
+.revelation {
+  --lueur: #c9ced8;
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  margin: 0; border: 0; background: transparent; color: #f5f5f6; overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+.revelation[open] { display: grid; place-items: center; }
+.revelation::backdrop { background: rgba(4,4,6,.93); backdrop-filter: blur(6px); animation: rev-fondu .35s ease both; }
+.revelation.rare       { --lueur: #63a0ff; }
+.revelation.epique     { --lueur: #b58cff; }
+.revelation.legendaire { --lueur: #f7cd5c; }
+.revelation.mythique   { --lueur: #ff4a50; }
+.revelation.verrouille { --lueur: #6b6b75; }
+
+.rev-scene { position: relative; width: min(440px, 100%); display: grid; justify-items: center; text-align: center; padding: 8px 0 4px; }
+.revelation:is(.legendaire, .mythique):not(.verrouille) .rev-scene { animation: rev-secousse .32s .6s ease-in-out both; }
+.revelation.mythique:not(.verrouille) .rev-scene { animation-duration: .5s; }
+
+.rev-fermer {
+  position: absolute; top: 0; right: 0; z-index: 3; width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #fff;
+  font-size: 15px; cursor: pointer;
+}
+.rev-fermer:hover { background: rgba(255,255,255,.14); }
+
+/* Le theatre est un point : le centre de la piece. Tout s'y ancre. */
+.rev-theatre { position: absolute; left: 50%; top: 153px; width: 0; height: 0; pointer-events: none; }
+.rev-theatre > span { position: absolute; border-radius: 50%; }
+.rev-halo {
+  left: -220px; top: -220px; width: 440px; height: 440px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lueur) 50%, transparent), transparent 72%);
+  filter: blur(10px); animation: rev-halo 1.2s .45s ease-out both;
+}
+.rev-rayons {
+  left: -270px; top: -270px; width: 540px; height: 540px;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--lueur) 32%, transparent) 0deg 5deg, transparent 5deg 18deg);
+  -webkit-mask: radial-gradient(closest-side, #000 12%, transparent 76%);
+          mask: radial-gradient(closest-side, #000 12%, transparent 76%);
+  animation: rev-luit .8s .6s ease-out both, rayons 30s linear infinite;
+}
+.revelation.mythique .rev-rayons {
+  background: repeating-conic-gradient(#ff4a50 0deg 4deg, transparent 4deg 11deg, #ffd166 11deg 13deg, transparent 13deg 22deg);
+  opacity: .5; animation: rev-luit .8s .6s ease-out both, rayons 14s linear infinite;
+}
+.revelation:is(.commun, .verrouille) .rev-rayons { display: none; }
+.rev-charge {
+  left: -45px; top: -45px; width: 90px; height: 90px;
+  background: radial-gradient(closest-side, #fff, var(--lueur) 45%, transparent 76%);
+  animation: rev-charge .62s ease-in both;
+}
+.rev-flash {
+  left: -320px; top: -320px; width: 640px; height: 640px; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255,255,255,.95), color-mix(in srgb, var(--lueur) 55%, transparent) 30%, transparent 70%);
+  animation: rev-flash .75s .55s ease-out both;
+}
+.rev-onde {
+  left: -100px; top: -100px; width: 200px; height: 200px; opacity: 0;
+  border: 3px solid var(--lueur); box-shadow: 0 0 24px var(--lueur), inset 0 0 18px var(--lueur);
+  animation: rev-onde .9s .6s ease-out both;
+}
+.rev-onde.deux { border-width: 2px; animation-delay: .82s; }
+.rev-etincelles { position: absolute; left: 0; top: 0; }
+.rev-etincelles i {
+  position: absolute; left: 0; top: 0; width: var(--s); height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%;
+  background: #fff; box-shadow: 0 0 8px 2px var(--lueur); opacity: 0;
+  animation: rev-etincelle 1.15s calc(.6s + var(--t)) cubic-bezier(.15,.7,.3,1) both;
+}
+/* Du legendaire au mythique, un tiers des etincelles sont des eclats. */
+.revelation:is(.legendaire, .mythique) .rev-etincelles i:nth-child(3n) {
+  border-radius: 1px; width: calc(var(--s) * .6); height: calc(var(--s) * 2.6);
+  background: linear-gradient(#fff, var(--lueur));
+}
+
+.rev-piece {
+  position: relative; z-index: 1; margin-top: 30px; padding: 0; border: 0; background: none;
+  cursor: pointer; perspective: 800px; border-radius: 50%; color: inherit;
+}
+.rev-piece:focus-visible { outline: 2px solid var(--lueur); outline-offset: 10px; }
+.rev-piece .piece-vivante { animation: rev-piece 1.05s .55s cubic-bezier(.2,.9,.25,1.15) both; }
+.rev-piece .piece-vivante > canvas { animation: rev-flotte 4s 1.8s ease-in-out infinite; }
+.revelation.verrouille .rev-piece .piece-vivante { animation: rev-leve .8s .1s ease-out both; }
+.revelation.verrouille .rev-halo { animation-delay: 0s; opacity: .45; }
+.rev-cadenas {
+  position: absolute; right: 16px; bottom: 16px; width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center; background: #26262b; color: #a6a6ae;
+  box-shadow: 0 0 0 3px #0a0a0b, 0 6px 14px rgba(0,0,0,.5);
+  animation: rev-monte .45s .7s ease-out both;
+}
+
+.rev-texte { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; margin-top: 22px; width: 100%; }
+.rev-texte > * { animation: rev-monte .5s ease-out both; }
+.rev-annonce {
+  animation-delay: 1s; font-size: 11px; font-weight: 800; letter-spacing: .28em;
+  text-transform: uppercase; color: var(--lueur);
+}
+.rev-palier { animation-delay: 1.1s; display: flex; align-items: center; gap: 10px; }
+.rev-pips { display: flex; gap: 5px; }
+.rev-pips i { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: rgba(255,255,255,.14); }
+.rev-pips i[data-plein] { background: var(--lueur); box-shadow: 0 0 8px var(--lueur); }
+.rev-rang {
+  font-size: 13px; font-weight: 900; letter-spacing: .34em; text-transform: uppercase;
+  background: linear-gradient(90deg, #fff, var(--lueur) 35%, #fff 50%, var(--lueur) 65%, #fff);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: rev-lettres .9s 1.1s cubic-bezier(.2,.8,.2,1) both, rev-dore 3.2s 2s linear infinite;
+}
+.rev-nom {
+  animation-delay: 1.22s; margin: 4px 0 0; font-size: 30px; font-weight: 850; letter-spacing: -.02em;
+  line-height: 1.1; color: #fff; text-shadow: 0 2px 20px color-mix(in srgb, var(--lueur) 55%, transparent);
+}
+.rev-devise {
+  animation-delay: 1.32s; margin: 2px 0 0; max-width: 34ch; font-style: italic; font-size: 15px;
+  line-height: 1.45; color: color-mix(in srgb, var(--lueur) 40%, #fff);
+}
+.rev-quoi { animation-delay: 1.4s; margin: 0; font-size: 13px; color: #a6a6ae; }
+.rev-chiffres { animation-delay: 1.48s; display: grid; justify-items: center; gap: 4px; margin-top: 10px; }
+.rev-points { font-size: 15px; font-weight: 800; color: var(--vert); }
+.rev-points b { font-size: 34px; letter-spacing: -.03em; }
+.rev-meta { font-size: 12px; color: #8a8a93; }
+.rev-verrou { font-size: 13.5px; font-weight: 700; color: #a6a6ae; }
+.rev-avance { display: grid; justify-items: center; gap: 6px; font-size: 13px; color: #a6a6ae; }
+.rev-avance b { color: #fff; font-size: 18px; }
+.rev-avance .piste { width: 220px; height: 8px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
+.rev-avance .piste > span {
+  display: block; height: 100%; width: var(--pct); border-radius: inherit;
+  background: linear-gradient(90deg, var(--rouge-sourd), var(--rouge-vif));
+  animation: rev-remplit 1s .7s cubic-bezier(.2,.8,.2,1) both;
+}
+.rev-actions { animation-delay: 1.58s; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
+.revelation.verrouille .rev-texte > * { animation-delay: .3s; }
+.revelation.verrouille .rev-rang { animation-delay: .3s, 1.2s; }
+
+@keyframes rev-fondu    { from { opacity: 0; } }
+@keyframes rev-luit     { from { opacity: 0; } }
+@keyframes rev-halo     { from { opacity: 0; transform: scale(.4); } }
+@keyframes rev-charge   { 0% { opacity: 0; transform: scale(.1); } 70% { opacity: 1; transform: scale(1.35); } 100% { opacity: 0; transform: scale(.15); } }
+@keyframes rev-flash    { 0% { opacity: 0; transform: scale(.2); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes rev-onde     { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(2.7); } }
+@keyframes rev-etincelle {
+  0%   { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(.3); }
+}
+@keyframes rev-piece {
+  0%   { opacity: 0; transform: scale(.2) rotateY(900deg); }
+  55%  { opacity: 1; transform: scale(1.14) rotateY(40deg); }
+  78%  { transform: scale(.96) rotateY(-10deg); }
+  100% { transform: scale(1) rotateY(0); }
+}
+@keyframes rev-leve     { from { opacity: 0; transform: translateY(24px) scale(.9); filter: blur(6px); } }
+@keyframes rev-flotte   { 50% { transform: translateY(-6px); } }
+@keyframes rev-monte    { from { opacity: 0; transform: translateY(12px); } }
+@keyframes rev-lettres  { from { opacity: 0; letter-spacing: 1.1em; filter: blur(4px); } }
+@keyframes rev-dore     { to { background-position: -200% 0; } }
+@keyframes rev-remplit  { from { width: 0; } }
+@keyframes rev-secousse {
+  0%, 100% { transform: none; }
+  20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); }
+  60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -2px); }
+}
+@media (max-width: 420px) { .rev-nom { font-size: 25px; } }
+@media (prefers-reduced-motion: reduce) {
+  .revelation *, .revelation::backdrop {
+    animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+  }
+  .rev-charge, .rev-flash, .rev-onde, .rev-etincelles { display: none; }
+}
+
+/* --------------------------------------------- la piece qu'on fait tourner */
+/*
+   LA PIECE VIVANTE (`piece3d/piece-vivante.tsx`) : un canvas WebGL, un halo de
+   la couleur du palier derriere, une ombre au sol. L'objet du badge patiente a
+   sa place le temps que Three.js se charge et que la piece soit frappee, puis
+   la piece apparait en fondu.
+*/
+/* Une piece se prend en main, elle ne se lit pas : rien n'y est selectionnable,
+   et pendant qu'on la tire, rien de la page non plus (`piece-tiree`). */
+html.piece-tiree, html.piece-tiree * {
+  -webkit-user-select: none !important; user-select: none !important; cursor: grabbing !important;
+}
+.piece-vivante {
+  position: relative; flex: none; isolation: isolate;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  --lueur: #c9ced8;
+}
+.piece-vivante.rare       { --lueur: #63a0ff; }
+.piece-vivante.epique     { --lueur: #b58cff; }
+.piece-vivante.legendaire { --lueur: #f7cd5c; }
+.piece-vivante.mythique   { --lueur: #ff4a50; }
+.piece-vivante.eteinte    { --lueur: #4a4a54; }
+.piece-vivante::before {
+  content: ""; position: absolute; inset: 4%; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lueur) 42%, transparent), transparent 72%);
+  filter: blur(12px); opacity: 0; transition: opacity .6s ease;
+}
+.piece-vivante.prete::before { opacity: 1; }
+.piece-vivante::after {
+  content: ""; position: absolute; left: 22%; right: 22%; bottom: 0; height: 9%; z-index: -1;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(0,0,0,.55), transparent 75%); filter: blur(6px);
+}
+:root[data-theme="light"] .piece-vivante::after { background: radial-gradient(closest-side, rgba(0,0,0,.2), transparent 75%); }
+.piece-vivante > canvas {
+  position: relative; display: block; cursor: grab; touch-action: none;
+  border-radius: 50%; outline-offset: 6px; opacity: 0; transition: opacity .5s ease;
+}
+.piece-vivante.prete > canvas { opacity: 1; }
+.piece-vivante > canvas:active { cursor: grabbing; }
+.piece-vivante > canvas:focus-visible { outline: 2px solid var(--rouge); }
+.piece-attente {
+  position: absolute; left: 15%; top: 15%; width: 70%; height: 70%; object-fit: contain; pointer-events: none;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); animation: piece-attend 1.6s ease-in-out infinite;
+}
+.piece-vivante.eteinte .piece-attente { filter: grayscale(1) brightness(.45); }
+@keyframes piece-attend { 50% { opacity: .55; transform: scale(.95); } }
+@media (prefers-reduced-motion: reduce) { .piece-attente { animation: none; } }
 
 .etiquette.rang { border-color: transparent; font-size: 9.5px; padding: 0 6px; letter-spacing: .04em; }
 .etiquette.rang.commun     { background: var(--surface-3); color: var(--texte-3); }
 .etiquette.rang.rare       { background: var(--bleu-fond); color: var(--bleu); }
 .etiquette.rang.epique     { background: var(--violet-fond); color: var(--violet); }
 .etiquette.rang.legendaire { background: var(--ambre-fond); color: var(--ambre); }
+.etiquette.rang.mythique   { background: var(--rouge-fond); color: var(--rouge-vif); }
 
 .badges-rangee { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 .badge-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
@@ -4596,7 +4896,8 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .badge-item { color: inherit; text-decoration: none; border-radius: var(--r-m); }
 .badge-item:hover { color: var(--texte); }
 .badge-fiche.eteint,
-.badge-fiche.eteint.legendaire, .badge-fiche.eteint.epique { border-color: var(--bord); }
+.badge-fiche.mythique { --lavis: color-mix(in srgb, var(--rouge) 14%, transparent); }
+.badge-fiche.eteint.mythique, .badge-fiche.eteint.legendaire, .badge-fiche.eteint.epique { border-color: var(--bord); }
 .badge-fiche .dit { min-width: 0; flex: 1; }
 .badge-fiche .nom {
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
@@ -4825,6 +5126,7 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .objectif.rare       { --lavis: color-mix(in srgb, var(--bleu) 13%, transparent); }
 .objectif.epique     { --lavis: color-mix(in srgb, var(--violet) 15%, transparent);
                        border-color: color-mix(in srgb, var(--violet) 32%, var(--bord)); }
+.objectif.mythique { --lavis: color-mix(in srgb, var(--rouge) 15%, transparent); }
 .objectif.legendaire { --lavis: color-mix(in srgb, var(--ambre) 15%, transparent);
                        border-color: color-mix(in srgb, var(--ambre) 35%, var(--bord)); }
 .objectif .quoi { min-width: 0; }
@@ -4844,7 +5146,7 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .objectif .chiffres .gain { color: var(--vert); font-weight: 750; }
 
 /* Le badge le plus rare, colle au pseudo dans le palmares et dans un fil. */
-.palmares .nom .badge-rond, .msg .entete-msg .badge-rond { flex: none; }
+.palmares .nom .embleme, .msg .entete-msg .embleme { flex: none; }
 
 @media (max-width: 620px) {
   .moi-carte .mesures-moi { grid-template-columns: repeat(2, 1fr); gap: 12px 1px; }
@@ -4870,14 +5172,16 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .fiche-badge.rare       { --lavis: color-mix(in srgb, var(--bleu) 12%, transparent); }
 .fiche-badge.epique     { --lavis: color-mix(in srgb, var(--violet) 14%, transparent); }
 .fiche-badge.legendaire { --lavis: color-mix(in srgb, var(--ambre) 14%, transparent); }
+.fiche-badge.mythique   { --lavis: color-mix(in srgb, var(--rouge) 16%, transparent); }
 .fiche-badge.eteint     { --lavis: transparent; }
 
-.fiche-badge .presentoir { display: grid; justify-items: center; gap: 22px; padding: 12px 0 4px; }
+.fiche-badge .presentoir { -webkit-user-select: none; user-select: none; display: grid; justify-items: center; gap: 22px; padding: 12px 0 4px; }
 .fiche-badge .indice {
   margin: 0; font-size: 12px; color: var(--texte-3); text-align: center;
 }
 .fiche-badge .dit > h2 { margin: 20px 0 7px; }
-.fiche-badge .quoi { margin: 11px 0 0; font-size: 15.5px; line-height: 1.5; }
+.fiche-badge .devise { margin: 12px 0 0; font-size: 17px; font-style: italic; line-height: 1.45; color: var(--texte); }
+.fiche-badge .quoi { margin: 6px 0 0; font-size: 15.5px; line-height: 1.5; color: var(--texte-2); }
 .fiche-badge .comment { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--texte-2); max-width: 62ch; }
 
 .fiche-badge .etat { margin: 14px 0 0; }
@@ -4906,6 +5210,25 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 
 .porteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 18px; }
 
+/* ------------------------------------------------------------ voir plus
+   Sous une liste de personnes : ou l'on en est, et le paquet suivant. Au
+   telephone le bouton prend la largeur — c'est le geste qu'on refait dix fois
+   en descendant, il doit tomber sous le pouce sans viser. */
+.voir-plus {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 14px; flex-wrap: wrap; margin-top: 12px;
+}
+.voir-plus .combien { font-size: 12.5px; color: var(--texte-3); }
+.voir-plus .bouton { flex: none; }
+@media (max-width: 620px) {
+  .voir-plus .bouton { flex: 1 1 100%; justify-content: center; }
+}
+/* Sans JavaScript, l'ancre pose la premiere personne ajoutee en haut de
+   l'ecran : sous l'en-tete collant, pas derriere lui. */
+.palmares > li[id], .porteurs > [id], .lecteurs-liste > [id] {
+  scroll-margin-top: calc(var(--entete-h, 58px) + 16px);
+}
+
 /* Feuilleter le catalogue sans repasser par la grille. */
 .feuillets { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; }
 .feuillet {
@@ -4925,12 +5248,6 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
   .feuillets { flex-direction: column; }
   .feuillet.fin { justify-items: start; text-align: left; }
 }
-
-/* Mon niveau et mes badges, en tete de « Mon compte » : c'est la qu'on arrive
-   en touchant sa pastille en haut a droite. */
-.profil-jeu { margin-bottom: 14px; }
-.profil-jeu .tete-jeu { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.profil-jeu .barre-niveau { margin-top: 9px; }
 
 /* Le pied de « Mon compte » : la deconnexion, seule et en rouge, assez loin
    d'« Enregistrer » pour ne jamais se toucher par erreur. `.bouton.danger`
@@ -4954,3 +5271,372 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .pastille-couleur.aucune { background: var(--surface-2); border-color: var(--bord); }
 .couleur-choix input:checked + .pastille-couleur { border-color: var(--texte); box-shadow: 0 0 0 2px var(--fond), 0 0 0 4px var(--texte); }
 .couleur-choix input:focus-visible + .pastille-couleur { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA PASSE « TELEPHONE D'ABORD »
+
+   Tout ce qui suit a ete ecrit en regardant chaque ecran a 390 puis 360 px de
+   large, une main sur le telephone. Les regles de base valent pour le
+   telephone ; ce qui n'a de sens qu'avec un pointeur fin ou une colonne de
+   plus vient APRES, dans une requete `min-width` ou `pointer: fine`.
+
+   Quatre familles de defauts, et une regle par famille :
+
+     1. ce qui DEBORDE — un segment de filtres, une rangee d'actions, une
+        pastille d'etat — se replie ou defile dans son cadre ;
+     2. ce qui ECRASE le texte — une ligne ou six boutons se disputent la
+        largeur avec le nom — passe les gestes sous le nom ;
+     3. ce qu'on VISE au pouce fait au moins quarante pixels ;
+     4. ce qu'on TAPE fait seize pixels, sinon iOS zoome et la page saute.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ------------------------------------------------------ une rangee de champs
+   Un seul nom pour toutes les rangees « libelle + champ » des formulaires, a la
+   place de largeurs fixes posees en style en ligne. Au telephone, un champ
+   large prend la rangee, deux champs courts se partagent une rangee, et le
+   bouton qui les suit prend toute la largeur : c'est la seule disposition qui
+   ne laisse jamais un champ de quarante pixels au bout d'une ligne. */
+.champs { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.champs + .champs { margin-top: 12px; }
+.champs > .c-large  { flex: 1 1 100%; min-width: 0; }
+.champs > .c-moyen  { flex: 1 1 calc(50% - 6px); min-width: 0; }
+.champs > .c-court  { flex: 1 1 calc(50% - 6px); min-width: 0; }
+.champs > .bouton   { flex: 1 1 100%; }
+.champs > .coche    { flex: 1 1 100%; }
+@media (min-width: 620px) {
+  .champs > .c-large  { flex: 1 1 180px; }
+  .champs > .c-large.c-double { flex-grow: 2; flex-basis: 240px; }
+  .champs > .c-moyen  { flex: 1 1 140px; }
+  .champs > .c-court  { flex: 0 0 auto; width: 130px; }
+  .champs > .c-court.etroit { width: 100px; }
+  .champs > .bouton, .champs > .coche { flex: none; }
+}
+
+/* ------------------------------------------------- le segment et les onglets
+   Une rangee qui defile ne dit pas qu'elle continue : un fondu sur son bord
+   droit le suggere, et disparait quand tout tient. Pas de JavaScript — le
+   fondu est un masque, et il ne coute rien la ou la rangee tient. */
+.titre-section .periodes, .barre-outils .periodes, .rangee-actions .periodes { max-width: 100%; }
+
+/* ----------------------------------------------------- les rangees d'actions
+   Sur un telephone, les boutons d'une rangee se partagent la largeur deux par
+   deux au lieu de finir en escalier : la meme rangee de huit gestes tient en
+   quatre lignes nettes, chaque bouton assez large pour son mot. */
+@media (max-width: 620px) {
+  .rangee-actions > .bouton, .rangee-actions > form > .bouton { flex: 1 1 calc(50% - 5px); }
+  .rangee-actions > form { flex: 1 1 calc(50% - 5px); display: flex; }
+  .rangee-actions > form > .bouton { flex: 1; }
+  /* Un seul bouton dans une rangee prend toute la largeur : une moitie vide
+     a droite se lit comme une cible manquante. */
+  .rangee-actions > .bouton:only-child { flex-basis: 100%; }
+}
+
+/* ------------------------------------------------ une ligne, et ses gestes
+   Quand la fin d'une ligne porte des commandes — un menu de role, deux
+   boutons, trois pastilles — elle descend SOUS le nom au telephone. Le nom
+   est ce qu'on lit ; on ne le reduit pas a une lettre pour garder les
+   boutons sur sa ligne. */
+.ligne .actions-membre { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ligne .actions-membre form { display: flex; gap: 6px; }
+.ligne .actions-membre select { min-height: 40px; width: 160px; }
+.ligne .etats-borne { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ligne .a-charger { width: 74px; font-weight: 700; }
+@media (max-width: 620px) {
+  .ligne:has(.actions-membre), .ligne.choix { flex-wrap: wrap; gap: 10px 12px; }
+  .ligne .actions-membre { flex-basis: 100%; }
+  .ligne .actions-membre form:first-child { flex: 1; }
+  .ligne .actions-membre select { flex: 1; width: auto; min-width: 0; }
+  /* La fiche d'approvisionnement : la case, le nom et le compte sur la
+     premiere ligne ; les pastilles d'etat dessous, calees sous le nom. */
+  .ligne.choix .corps { flex: 1 1 0; }
+  .ligne.choix .a-charger { order: 1; width: auto; min-width: 56px; }
+  .ligne.choix .etats-borne { order: 2; flex-basis: 100%; justify-content: flex-start; padding-left: 32px; }
+}
+
+/* ---------------------------------------------------- l'avis et son bouton
+   Un avis avec un bouton a droite laissait au texte une colonne de douze
+   caracteres. Le bouton passe dessous, en pleine largeur. */
+@media (max-width: 560px) {
+  .avis { flex-wrap: wrap; }
+  .avis a.bouton { flex: 1 1 100%; }
+}
+
+/* --------------------------------------------- ranger : catalogue, categories
+   La ligne d'un produit porte huit choses — poignee, rang, image, nom, prix,
+   trois gestes, une croix. A trois cent soixante pixels il restait quatorze
+   pixels au champ du nom, et l'on rangeait des produits sans pouvoir les lire.
+
+   Au telephone : la premiere ligne garde ce qui IDENTIFIE — poignee, rang,
+   image, nom, et la croix au bout ; les gestes descendent sur les lignes
+   suivantes, a leur largeur. L'ordre est pose par `order`, pas par le DOM :
+   le formulaire, lui, ne change pas. */
+/* Jusqu'a 1400 px : avec le rail et l'apercu, la colonne des produits fait
+   moins de sept cents pixels, et huit choses n'y tiennent pas sur une ligne. */
+@media (max-width: 1399px) {
+  .rangeable { padding: 10px 12px; gap: 8px 10px; }
+  /* La base du nom est « tout sauf la place de l'image et de la croix » : c'est
+     ce qui envoie prix et gestes a la ligne suivante, quelle que soit la largeur. */
+  .rangeable .corps { flex: 1 1 calc(100% - 160px); order: 0; }
+  .rangeable .bouton.oter { order: 1; }
+  .rangeable .prix-champ, .rangeable .fleches,
+  .rangeable > .bouton:not(.oter), .rangeable > a.bouton { order: 2; }
+  .rangeable .fiche-produit, .rangeable .confirme-oter { order: 3; }
+  .rangeable .prix-champ { margin-right: auto; }
+  .rangeable .prix-champ input { width: 84px; }
+  .rangeable .meta { white-space: normal; }
+  .rangeable .fleches { margin-left: auto; }
+  .ranger-duo { gap: 22px; }
+}
+/* La poignee de glisser-deposer n'a de sens qu'avec une souris. */
+@media (pointer: coarse) { .rangeable .poignee { display: none; } }
+
+/* ------------------------------------------------------- les cibles du pouce
+   Quarante pixels au moins pour ce qu'on touche au doigt. Les tailles fines
+   restent sur ordinateur, ou elles sont voulues. */
+@media (pointer: coarse) {
+  .periodes a, .periodes button { min-height: 40px; }
+  .periodes.petites a, .periodes.petites button { min-height: 38px; }
+  .onglet { min-height: 38px; padding: 6px 12px; }
+  .rangeable .fleches button { width: 40px; height: 40px; font-size: 15px; }
+  .bouton.oter { width: 40px; min-height: 40px; }
+  .modale-tete .fermeture { width: 40px; min-height: 40px; }
+  .bouton.icone { min-height: 40px; width: 40px; }
+  .compte-chip { min-height: 40px; padding: 4px; }
+  .compte-chip .jeton { width: 32px; height: 32px; }
+  .entete .logo-mobile { display: flex; align-items: center; min-height: 40px; }
+  .titre-section .lien, .chiffres-cle .mesure .voir { min-height: 36px; align-items: center; }
+  .msg .poser .ajout { width: 36px; height: 30px; opacity: 1; }
+  .msg .reaction { min-height: 30px; }
+  .vignette-item .oter-image { width: 24px; height: 24px; top: -8px; right: -8px; font-size: 12px; }
+  .prix-aligner { min-height: 38px; }
+  .changer-produit .changer { min-height: 38px; }
+  .periode-perso > summary { min-height: 36px; display: flex; align-items: center; }
+  .coche { min-height: 40px; }
+  .ligne.choix input[type="checkbox"], .tableau-fiche .case input,
+  .coche input[type="checkbox"], .borne-carte input { width: 22px; height: 22px; }
+}
+
+/* --------------------------------------------------------- iOS ne zoome pas
+   Seize pixels dans tout champ de saisie que le pouce peut viser : en dessous,
+   Safari agrandit la page a la premiere touche, et il faut la remettre a
+   l'echelle avant de continuer. */
+@media (pointer: coarse) {
+  .periode-perso input[type="datetime-local"], .nom-modifiable,
+  .fiche-produit textarea, .rail .pied-comptes select, .journal-recherche input,
+  .prix-champ input, .compteur input { font-size: 16px; }
+}
+.nom-modifiable { font-size: 16px; }
+
+/* ------------------------------------------------------------ les tableaux
+   Les deux vrais tableaux — ce qui se vend, la fiche d'approvisionnement — se
+   resserrent avant de defiler : sur trois cent soixante pixels, quatre
+   colonnes tiennent si les marges cedent d'abord. */
+@media (max-width: 620px) {
+  .tableau { font-size: 13px; }
+  .tableau th, .tableau td { padding: 9px 7px; }
+  .tableau-fiche { font-size: 13px; }
+  .tableau-fiche th { padding: 0 5px 6px; }
+  .tableau-fiche td { padding: 8px 5px; }
+  .tableau-fiche .gros { font-size: 17px; }
+  .tableau-fiche .canal { width: 44px; font-size: 14px; }
+  .tableau-fiche .case { width: 26px; }
+  .tableau-fiche .ref { display: none; }
+}
+
+/* ----------------------------------------------- les petites tetes de page
+   La fleche de retour et le titre : la fleche reste une cible de pouce, le
+   titre se coupe plutot que de pousser la page. */
+.tete-borne .qui h1, .tete-borne .qui .ou { overflow-wrap: anywhere; }
+
+/* Le fil d'Ariane perd son parent sur un petit ecran : « Configuration · »
+   coute la moitie de la place du nom, et la barre du bas le dit deja. */
+@media (max-width: 560px) { .entete .fil .parent { display: none; } }
+
+/* Les deux boutons d'accueil d'une liste (« + Réception », « Remplir… »)
+   ne laissent plus un vide a droite : la rangee remplit sa ligne. */
+@media (max-width: 620px) {
+  .rangee { flex-wrap: wrap; }
+}
+
+/* L'espace sous la page laisse voir la derniere ligne au-dessus de la barre du
+   pouce ET de l'invitation qui flotte au-dessus d'elle. */
+@media (max-width: 979px) {
+  .ecran { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* Le champ du compteur : sa largeur vivait en style en ligne, hors de portee
+   de toute requete media. Ici, et plus etroit sur les petits telephones — a
+   360 px, le « + » de la reception sortait de l'ecran. */
+.pas input.valeur { width: 76px; min-height: 48px; }
+.ligne-recu .pas input.valeur { width: 72px; min-height: 44px; }
+.ligne-recu { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 400px) {
+  .pas { gap: 6px; }
+  .pas input.valeur { width: 60px; }
+  .ligne-recu { padding: 12px 12px; gap: 10px 8px; }
+  .ligne-recu .pas input.valeur { width: 54px; }
+  .ligne-recu .prix-achat input { width: 84px; }
+  .canal-charge { padding: 11px 10px; }
+}
+/* Sur les plus petits telephones, le rang d'un produit cede sa place au nom :
+   « Puff 600 · Menthe » se lisait « Puff 600 · Menth ». L'ordre des categories,
+   lui, reste affiche — c'est celui de l'ecran de la machine. */
+@media (max-width: 400px) { .rangeable.produit .rang { display: none; } }
+/* Dans le pied d'une boite, l'action principale garde les deux tiers de la
+   largeur : partagee moitie-moitie avec « Annuler », « Enregistrer la sortie »
+   se cassait en deux lignes a 360 px. */
+@media (max-width: 620px) {
+  .modale-pied .rangee-actions > .bouton.primaire { flex: 1 1 62%; }
+  .modale-pied .rangee-actions > .bouton:not(.primaire) { flex: 1 1 auto; }
+}
+
+/* ============================================================ salons fermes
+   Un salon de la communaute qu'on voit sans pouvoir y entrer : meme place que
+   les autres, grise, un cadenas a la place du diese, et la condition pour
+   entrer a la place du sujet. Rien ne reagit au survol — ce n'est pas un lien. */
+.messagerie .salon.ferme { cursor: not-allowed; color: var(--texte-3); }
+.messagerie .salon.ferme:hover { background: none; color: var(--texte-3); }
+.messagerie .salon.ferme .diese svg { display: block; margin: 0 auto; }
+.messagerie .salon.ferme .nom { color: var(--texte-3); }
+
+/* Le bouton du fond, a cote de « qui lit ici ». */
+.fil-salon .tete .bouton.fond { padding: 0 10px; color: var(--texte-2); }
+.fil-salon .tete .bouton.fond.actif { color: var(--texte); border-color: var(--texte-3); }
+
+/* ============================================================ fonds animes
+   LE FOND D'UN SALON, EN MOUVEMENT.
+
+   Deux couches au plus, en pseudo-elements, qui ne bougent QUE par transform et
+   opacity : le navigateur les compose sans repeindre, et le telephone ne
+   chauffe pas. Dans le fil elles sont FIXES — le fond ne defile pas avec les
+   messages, comme un papier peint derriere une vitre — et `clip-path` les
+   borne au fil : elles ne debordent ni sur la liste des salons ni sur la page.
+   Dans une tuile d'apercu, les memes couches sont simplement absolues.
+
+   Les couleurs passent par `color-mix` sur les jetons : le gris du theme clair
+   reste lisible, le rouge reste celui de la marque. Qui a demande moins de
+   mouvement a son appareil voit le fond, immobile. */
+.fil-salon[data-fond]:not([data-fond="aucun"]) { isolation: isolate; clip-path: inset(0); }
+.fil-salon[data-fond]:not([data-fond="aucun"]) .messages { background-image: none; }
+
+:is(.fil-salon, .apercu-fond)[data-fond]:not([data-fond="aucun"])::before,
+:is(.fil-salon, .apercu-fond)[data-fond]:not([data-fond="aucun"])::after {
+  content: ""; inset: -25%; z-index: -1; pointer-events: none; will-change: transform;
+}
+.fil-salon[data-fond]:not([data-fond="aucun"])::before,
+.fil-salon[data-fond]:not([data-fond="aucun"])::after { position: fixed; }
+.apercu-fond::before, .apercu-fond::after { position: absolute; }
+/* Un flou de trente pixels noie une tuile de soixante-douze : l'apercu floute
+   au tiers de ce que floute le fil. */
+.apercu-fond { --echelle-flou: .3; }
+
+/* Trame : la trame de points du fond sobre, qui glisse d'une maille en boucle. */
+:is(.fil-salon, .apercu-fond)[data-fond="trame"]::before {
+  inset: -36px 0 0 -36px;
+  background-image: radial-gradient(color-mix(in srgb, var(--texte) 13%, transparent) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+  animation: fond-glisse 5s linear infinite;
+}
+:is(.fil-salon, .apercu-fond)[data-fond="trame"]::after { content: none; }
+
+/* Brume : des nappes grises, larges et floues, qui derivent. */
+:is(.fil-salon, .apercu-fond)[data-fond="brume"]::before {
+  background:
+    radial-gradient(32% 26% at 28% 32%, color-mix(in srgb, var(--texte) 13%, transparent), transparent 70%),
+    radial-gradient(30% 24% at 72% 26%, color-mix(in srgb, var(--texte) 9%, transparent), transparent 70%),
+    radial-gradient(36% 30% at 55% 74%, color-mix(in srgb, var(--texte) 11%, transparent), transparent 70%);
+  filter: blur(calc(28px * var(--echelle-flou, 1)));
+  animation: fond-derive 34s ease-in-out infinite alternate;
+}
+:is(.fil-salon, .apercu-fond)[data-fond="brume"]::after { content: none; }
+
+/* Aurore : trois voiles de couleur — le rouge de la marque, un violet, un ambre. */
+:is(.fil-salon, .apercu-fond)[data-fond="aurore"]::before {
+  background:
+    radial-gradient(30% 25% at 30% 35%, color-mix(in srgb, var(--rouge) 55%, transparent), transparent 70%),
+    radial-gradient(28% 24% at 72% 28%, color-mix(in srgb, #7c3aed 48%, transparent), transparent 70%),
+    radial-gradient(34% 28% at 55% 72%, color-mix(in srgb, #f59e0b 34%, transparent), transparent 70%);
+  filter: blur(calc(34px * var(--echelle-flou, 1)));
+  animation: fond-derive 24s ease-in-out infinite alternate;
+}
+:is(.fil-salon, .apercu-fond)[data-fond="aurore"]::after { content: none; }
+
+/* Braises : une lueur chaude au pied du fil, et des etincelles qui montent.
+   Le motif monte d'un multiple exact de ses mailles (140 et 70 px), si bien
+   que la boucle ne saute jamais. */
+:is(.fil-salon, .apercu-fond)[data-fond="braises"]::before {
+  background:
+    radial-gradient(60% 40% at 50% 100%, color-mix(in srgb, #ff5a1f 46%, transparent), transparent 70%),
+    radial-gradient(40% 30% at 18% 92%, color-mix(in srgb, var(--rouge) 42%, transparent), transparent 70%);
+  filter: blur(calc(26px * var(--echelle-flou, 1)));
+  animation: fond-respire 6s ease-in-out infinite alternate;
+}
+:is(.fil-salon, .apercu-fond)[data-fond="braises"]::after {
+  inset: 0 0 -1120px 0;
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, #ffb347 75%, transparent) 1px, transparent 1.7px),
+    radial-gradient(circle, color-mix(in srgb, #ff5a1f 60%, transparent) 1.2px, transparent 2px);
+  background-size: 140px 140px, 70px 70px;
+  background-position: 0 0, 35px 50px;
+  opacity: .55;
+  animation: fond-monte 22s linear infinite;
+}
+
+/* Neon : une grille rouge qui defile vers le bas, eteinte sur les bords, et un
+   halo au centre qui respire. */
+:is(.fil-salon, .apercu-fond)[data-fond="neon"]::before {
+  inset: -48px 0 0 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--rouge) 30%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--rouge) 30%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 60%, #000, transparent 80%);
+          mask-image: radial-gradient(70% 60% at 50% 60%, #000, transparent 80%);
+  animation: fond-defile 8s linear infinite;
+}
+:is(.fil-salon, .apercu-fond)[data-fond="neon"]::after {
+  background: radial-gradient(40% 32% at 50% 55%, color-mix(in srgb, var(--rouge) 34%, transparent), transparent 70%);
+  filter: blur(calc(30px * var(--echelle-flou, 1)));
+  animation: fond-respire 5s ease-in-out infinite alternate;
+}
+
+@keyframes fond-glisse  { to { transform: translate3d(18px, 18px, 0); } }
+@keyframes fond-defile  { to { transform: translate3d(0, 48px, 0); } }
+@keyframes fond-monte   { to { transform: translate3d(0, -1120px, 0); } }
+@keyframes fond-respire { from { opacity: .6; transform: scale(1); } to { opacity: 1; transform: scale(1.07); } }
+@keyframes fond-derive {
+  0%   { transform: translate3d(-4%, -3%, 0) rotate(0deg)  scale(1); }
+  50%  { transform: translate3d(5%, 2%, 0)   rotate(8deg)  scale(1.08); }
+  100% { transform: translate3d(-2%, 5%, 0)  rotate(-6deg) scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.fil-salon, .apercu-fond)[data-fond]::before,
+  :is(.fil-salon, .apercu-fond)[data-fond]::after { animation: none; }
+}
+
+/* Le choix : des tuiles qui montrent chaque fond en mouvement. */
+.choix-fond { margin: 8px 0 4px; }
+.choix-fond fieldset { border: 0; padding: 0; margin: 14px 0 0; min-width: 0; }
+.choix-fond legend {
+  padding: 0; margin-bottom: 8px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--texte-3);
+}
+.tuiles-fond { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tuile-fond {
+  position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: 6px; border: 1px solid var(--bord); border-radius: var(--r-l); cursor: pointer;
+}
+.tuile-fond:hover { border-color: var(--bord-fort); }
+.tuile-fond input { position: absolute; opacity: 0; pointer-events: none; }
+.tuile-fond:has(input:checked) { border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.tuile-fond:has(input:focus-visible) { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.tuile-fond .nom { padding: 4px 3px 0; font-weight: 700; font-size: 13.5px; }
+.tuile-fond .quoi { padding: 0 3px 2px; font-size: 11.5px; line-height: 1.3; color: var(--texte-3); }
+.apercu-fond {
+  display: block; position: relative; overflow: hidden; isolation: isolate;
+  height: 72px; border-radius: var(--r-m); background: var(--fond);
+}
+.apercu-fond[data-fond="aucun"] {
+  background-image: radial-gradient(color-mix(in srgb, var(--texte) 12%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
