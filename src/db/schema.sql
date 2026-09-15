@@ -1102,3 +1102,74 @@ UPDATE borne SET situee_pour = NULL, latitude = NULL, longitude = NULL
 UPDATE salon SET groupe = 'proprietaires',
        sujet = 'Accès direct au développeur RedBox pour vos idées, nouveautés, améliorations, bugs et questions sur la RedBox et son logiciel'
  WHERE compte_id IS NULL AND nom = 'developpeurs';
+
+-- LA REDBOX ACADEMY. Tout ce qu'il faut savoir pour installer, vendre et faire
+-- tourner une RedBox : la machine, ses certificats, le contrat type avec un
+-- bar, le pitch, les astuces du terrain. Des MODULES, qui rangent des LECONS,
+-- faites de BLOCS — un texte, une video, un fichier a telecharger, une astuce.
+--
+-- DEUX PORTES. `acces = 'tous'` s'ouvre a qui a un compte, y compris le futur
+-- redboxer qui n'a pas encore de machine ; `acces = 'redboxers'` demande une
+-- vraie RedBox appairee — la meme regle que #redboxers. Une lecon ne peut
+-- qu'etre plus fermee que son module : la porte effective est la plus stricte.
+--
+-- Rien n'est visible avant `publie` : l'equipe RedBox ecrit, relit, puis ouvre.
+CREATE TABLE IF NOT EXISTS academie_module (
+  id          BIGSERIAL PRIMARY KEY,
+  titre       TEXT NOT NULL,
+  resume      TEXT,
+  icone       TEXT NOT NULL DEFAULT 'borne',
+  acces       TEXT NOT NULL DEFAULT 'tous' CHECK (acces IN ('tous', 'redboxers')),
+  ordre       INT  NOT NULL DEFAULT 0,
+  publie      BOOLEAN NOT NULL DEFAULT false,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS academie_lecon (
+  id          BIGSERIAL PRIMARY KEY,
+  module_id   BIGINT NOT NULL REFERENCES academie_module(id) ON DELETE CASCADE,
+  titre       TEXT NOT NULL,
+  resume      TEXT,
+  duree       INT,   -- en minutes, ce qu'annonce la lecon
+  acces       TEXT NOT NULL DEFAULT 'tous' CHECK (acces IN ('tous', 'redboxers')),
+  ordre       INT  NOT NULL DEFAULT 0,
+  publie      BOOLEAN NOT NULL DEFAULT false,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS academie_lecon_module ON academie_lecon (module_id, ordre);
+
+-- Les fichiers de l'academie : certificats, contrats, plaquettes, photos. A
+-- part de `image`, qui est rangee par compte et ne prend que des photos.
+CREATE TABLE IF NOT EXISTS academie_fichier (
+  id          BIGSERIAL PRIMARY KEY,
+  nom         TEXT NOT NULL,
+  type_mime   TEXT NOT NULL,
+  octets      BYTEA NOT NULL,
+  taille      INT NOT NULL,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS academie_bloc (
+  id          BIGSERIAL PRIMARY KEY,
+  lecon_id    BIGINT NOT NULL REFERENCES academie_lecon(id) ON DELETE CASCADE,
+  genre       TEXT NOT NULL CHECK (genre IN
+                ('texte', 'video', 'fichier', 'image', 'astuce', 'attention', 'script', 'fiche')),
+  ordre       INT NOT NULL DEFAULT 0,
+  titre       TEXT,
+  texte       TEXT,
+  url         TEXT,
+  fichier_id  BIGINT REFERENCES academie_fichier(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS academie_bloc_lecon ON academie_bloc (lecon_id, ordre);
+
+-- Ou en est chacun : ouverte une fois (`vu_le`, pour « reprendre »), terminee
+-- quand on le dit (`fini_le`).
+CREATE TABLE IF NOT EXISTS academie_suivi (
+  utilisateur_id BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  lecon_id       BIGINT NOT NULL REFERENCES academie_lecon(id) ON DELETE CASCADE,
+  vu_le          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fini_le        TIMESTAMPTZ,
+  PRIMARY KEY (utilisateur_id, lecon_id)
+);

@@ -5,7 +5,7 @@ import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
@@ -17,6 +17,7 @@ export type Page =
   | "bornes" | "carte" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo" | "menu"
+  | "academie" | "academie_editer"
   | "admin" | "admin_comptes";
 
 type Item = {
@@ -50,6 +51,9 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       { cle: "carte",   nom: "Carte",   icone: <IcoCarte />,  vers: "/carte" },
       { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
       { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
+      // La formation : la machine, le pitch, les contrats. Ouverte a tous — un
+      // futur redboxer y apprend ce qu'il vendra —, plus large pour qui en a une.
+      { cle: "academie",   nom: "Académie",   icone: <IcoAcademie />,   vers: "/academie" },
     ],
   },
   {
@@ -133,6 +137,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_comptes: "menu",
+  academie: "menu", academie_editer: "menu",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -159,6 +164,8 @@ const FIL: Record<Page, [string, string?]> = {
   menu:       ["Menu"],
   admin:      ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
+  academie:   ["Académie"],
+  academie_editer: ["Édition", "Académie"],
 };
 
 /**
@@ -395,6 +402,7 @@ function cheminDe(page: Page): string {
   for (const s of SECTIONS) for (const i of s.items) if (i.cle === page) return i.vers;
   // La fiche d'approvisionnement n'a plus d'entree au menu, mais une adresse.
   if (page === "reassort") return "/reassort";
+  if (page === "academie_editer") return "/academie/editer";
   return "/reglages";
 }
 

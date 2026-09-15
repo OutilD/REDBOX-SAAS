@@ -255,3 +255,136 @@ export const IcoPente = ({ size = 11, bas = false }: P & { bas?: boolean }) => (
     <path d="M10 16.5v-13M10 3.5 4.5 9M10 3.5 15.5 9" />
   </svg>
 );
+
+/* ---------------------------------------------------------------- academie */
+
+/** Academie : le mortier du diplome. */
+export const IcoAcademie = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 3.5 2.5 7.2 10 11l7.5-3.8L10 3.5Z" />
+    <path d="M5.5 8.9v3.8c0 1.2 2 2.3 4.5 2.3s4.5-1.1 4.5-2.3V8.9" />
+    <path d="M17.5 7.2v4.6" />
+  </svg>
+);
+
+/** Cadenas : reserve aux redboxers. */
+export const IcoCadenas = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <rect x="4.5" y="9" width="11" height="8.5" rx="1.6" />
+    <path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
+    <path d="M10 12.4v2" />
+  </svg>
+);
+
+/** Lecture : un triangle dans son cercle. */
+export const IcoLecture = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="M8.5 7.3v5.4l4.3-2.7-4.3-2.7Z" />
+  </svg>
+);
+
+/** Document : une page au coin replie. */
+export const IcoDocument = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5.5 2.5h6L15 6v11.5H5.5z" />
+    <path d="M11.5 2.5V6H15" />
+    <path d="M8 10h4.5M8 13h4.5" />
+  </svg>
+);
+
+/** Telecharger : la fleche qui tombe dans le bac. */
+export const IcoTelecharger = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 3v9.5M6 8.8l4 4 4-4" />
+    <path d="M3.5 14.5v2h13v-2" />
+  </svg>
+);
+
+/** Astuce : l'ampoule. */
+export const IcoAstuce = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M7.3 14.3c0-1.9-2.3-3-2.3-5.7a5 5 0 0 1 10 0c0 2.7-2.3 3.8-2.3 5.7z" />
+    <path d="M8 16.8h4M8.8 18.6h2.4" />
+  </svg>
+);
+
+/** Certificat : le sceau et ses rubans. */
+export const IcoCertificat = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="8" r="4.8" />
+    <path d="M7.2 11.8 6 17.5l4-2 4 2-1.2-5.7" />
+    <path d="m8 8 1.4 1.4 2.6-2.8" />
+  </svg>
+);
+
+/** Contrat : la page et sa signature. */
+export const IcoContrat = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5 2.5h7l3 3v12H5z" />
+    <path d="M7.5 7h5M7.5 9.8h5" />
+    <path d="M7.5 14.3c.8-1 1.4-1 1.8 0s1 .9 1.6 0 1.1-.6 1.6.2" />
+  </svg>
+);
+
+/** Pitch : le porte-voix. */
+export const IcoPitch = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 8.2v3.6h2.5l6.5 3.7V4.5L5.5 8.2H3Z" />
+    <path d="M14.5 7.5a3.5 3.5 0 0 1 0 5" />
+    <path d="M6.2 12v3.8" />
+  </svg>
+);
+
+/** Oeil : voir comme un autre. */
+export const IcoOeil = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M1.8 10S4.8 4.5 10 4.5 18.2 10 18.2 10 15.2 15.5 10 15.5 1.8 10 1.8 10Z" />
+    <circle cx="10" cy="10" r="2.5" />
+  </svg>
+);
+
+/** Texte : des lignes, la derniere plus courte. */
+export const IcoTexte = ({ size = 20 }: P) => (
+  <svg {...base(size)}><path d="M4 5h12M4 8.5h12M4 12h12M4 15.5h7" /></svg>
+);
+
+/** Image : un paysage dans son cadre. */
+export const IcoImage = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="4" width="15" height="12" rx="1.5" />
+    <circle cx="7" cy="8.3" r="1.4" />
+    <path d="m3 14.5 4.2-4 3 2.8 2.3-2 4.5 4" />
+  </svg>
+);
+
+/** Fiche technique : la regle graduee. */
+export const IcoFiche = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="6" width="15" height="8" rx="1" />
+    <path d="M5.5 6v2.5M8.5 6v3.5M11.5 6v2.5M14.5 6v3.5" />
+  </svg>
+);
+
+/** Script : les guillemets de ce qu'on dit. */
+export const IcoScript = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z" />
+    <path d="M7 8.3h6M7 10.8h4" />
+  </svg>
+);
+
+/** Monter, descendre : l'ordre d'une liste. */
+export const IcoHaut = ({ size = 20 }: P) => (
+  <svg {...base(size)}><path d="M10 16V4M5.5 8.5 10 4l4.5 4.5" /></svg>
+);
+export const IcoBas = ({ size = 20 }: P) => (
+  <svg {...base(size)}><path d="M10 4v12M5.5 11.5 10 16l4.5-4.5" /></svg>
+);
+
+/** Corbeille. */
+export const IcoCorbeille = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3.5 5.5h13M8 5.5v-2h4v2M5.5 5.5l.8 11h7.4l.8-11" />
+  </svg>
+);
