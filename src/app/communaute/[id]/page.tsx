@@ -91,6 +91,29 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
             <div><div className="faible" style={{ fontSize: 12 }}>Badges</div>
                  <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{p.badges.length} / {BADGES.length}</div></div>
           </div>
+
+          {/* LES BADGES DANS LA CARTE, en rangee, comme sur la carte de soi : une
+              piece et un nom, qui menent chacun a la page du badge — comment
+              l'obtenir, qui le porte. La grille de fiches qui suivait la carte
+              redisait la meme chose sur un ecran entier. */}
+          {p.badges.length > 0 ? (
+            <div className="badges-rangee" style={{ marginTop: 14 }}>
+              {p.badges.map((b) => (
+                <Link key={b.cle} href={`/communaute/badges/${b.cle}`} data-badge={b.cle}
+                      className="badge-item" title={`${b.nom} — ${b.quoi}`}>
+                  <Badge forme={b.forme} taille={34} rang={rangDe(b)} />
+                  <span>{b.nom}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="faible" style={{ margin: "14px 0 0", fontSize: 13 }}>Aucun badge encore.</p>
+          )}
+          {p.moi ? (
+            <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>
+              <Link href="/communaute">Tous les badges et comment les gagner ›</Link>
+            </p>
+          ) : null}
         </div>
 
         {vises.length > 0 ? (
@@ -120,37 +143,6 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
           </>
         ) : null}
 
-        <div className="titre-section">
-          <h2>Badges</h2>
-          <span className="faible num" style={{ fontSize: 12.5 }}>{p.badges.length} sur {BADGES.length}</span>
-          {p.moi ? <Link href="/communaute" className="faible" style={{ fontSize: 12.5, marginLeft: "auto" }}>Tous les badges ›</Link> : null}
-        </div>
-        <div className="carte plate">
-          {p.badges.length === 0 ? (
-            <p className="vide" style={{ padding: 20 }}>Aucun badge encore.</p>
-          ) : (
-            <div className="badges-grille">
-              {/* CHAQUE BADGE MENE A SA PAGE. Voir celui d'un autre donne envie de
-                  l'avoir ; la page dit comment, ou j'en suis moi, et montre la
-                  piece en volume. Une page plutot qu'une fenetre par-dessus :
-                  elle a une adresse qu'on partage, et le retour arriere y ramene. */}
-              {p.badges.map((b) => (
-                <Link key={b.cle} href={`/communaute/badges/${b.cle}`} className={`badge-fiche ${rangDe(b)}`}
-                      title={`${b.nom} — comment l’obtenir`}>
-                  <Badge forme={b.forme} taille={44} rang={rangDe(b)} />
-                  <div className="dit">
-                    <div className="nom">{b.nom}</div>
-                    <div className="faible quoi">{b.quoi}</div>
-                    <div className="pied num">
-                      <span className="faible">obtenu le {leJour(b.obtenu_le)}</span>
-                      <span style={{ color: "var(--rouge-vif)", fontWeight: 650 }}>Comment l’obtenir ›</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
       </main>
       <NavBasse page="communaute" />
     </>

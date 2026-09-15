@@ -97,7 +97,8 @@ export default async function PageBadge({ params, searchParams }: {
               </div>
             ) : (
               <p className="etat faible">
-                {b.patience ? "Il ne se compte pas : il arrive, ou il est déjà passé."
+                {b.manuel ? "Il ne se gagne pas dans la console : l’équipe RedBox le remet à ceux qui étaient là."
+                  : b.patience ? "Il ne se compte pas : il arrive, ou il est déjà passé."
                             : "Vous ne l’avez pas encore. Il tombe d’un coup, sans étape intermédiaire."}
               </p>
             )}

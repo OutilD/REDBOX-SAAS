@@ -57,7 +57,8 @@ export function prochainGrade(bornes: number): { grade: Grade; manque: number } 
 export type Forme =
   | "cadeau" | "couronne" | "borne" | "parc" | "reseau" | "calendrier" | "sablier" | "medaille"
   | "bulle" | "bulles" | "megaphone" | "pilier" | "lune" | "etoile" | "pieces" | "cible"
-  | "engrenage" | "eclair" | "trophee" | "enveloppe" | "pouce" | "coeur" | "flamme" | "bouclier";
+  | "engrenage" | "eclair" | "trophee" | "enveloppe" | "pouce" | "coeur" | "flamme" | "bouclier"
+  | "billets" | "graphique" | "horloge" | "soleil" | "drapeau";
 
 /**
  * `quoi` tient sur une ligne : c'est la phrase de la bulle, au survol d'une
@@ -73,6 +74,10 @@ export type Badge = {
   forme: Forme; points: number;
   /** Vrai pour ce qui ne se decide pas : l'anciennete, un tirage ferme. */
   patience?: boolean;
+  /** Remis a la main par l'equipe RedBox, depuis /admin/comptes : aucun fait
+   *  de la console ne prouve qu'on etait a un evenement. `meritesPar` ne le
+   *  donne jamais, et l'evaluation ne le retire pas. */
+  manuel?: boolean;
 };
 
 /** Dans l'ordre ou la page les montre. */
@@ -106,6 +111,25 @@ export const BADGES: Badge[] = [
     comment: "Deux mille messages. Le badge des gens qu’on finit par reconnaître à leur façon d’écrire — il n’y en a jamais beaucoup." },
   { cle: "noctambule", nom: "Noctambule", quoi: "Une vente entre trois et cinq heures du matin", devise: "Entre trois et cinq heures, la ville dort. Pas vous.", forme: "lune", points: 80,
     comment: "Une seule vente distribuée entre 3 h et 5 h, heure de Paris. Il ne se force pas : il récompense un emplacement qui vit la nuit — une boîte, un hôpital, une gare." },
+  // LES NIVEAUX D'UN MEME BADGE. Meme dessin, meme nom suivi de « niv. 2 » : la
+  // piece change de metal avec le palier, et c'est ce qui les distingue dans
+  // la collection.
+  { cle: "noctambule_2", nom: "Noctambule niv. 2", quoi: "Vingt-cinq ventes entre trois et cinq heures du matin", devise: "La nuit n’est plus un hasard : c’est votre quart.", forme: "lune", points: 250,
+    comment: "Vingt-cinq ventes distribuées entre 3 h et 5 h, heure de Paris, sur l’ensemble de vos machines. Une nuit ne suffit pas : il faut un emplacement que la nuit fréquente." },
+  { cle: "noctambule_3", nom: "Noctambule niv. 3", quoi: "Cent ventes entre trois et cinq heures du matin", devise: "Quand la ville se réveille, vous avez déjà fait votre journée.", forme: "lune", points: 450,
+    comment: "Cent ventes distribuées entre 3 h et 5 h, heure de Paris. Le badge des machines de boîte de nuit, d’urgences et de gares qui ne ferment jamais." },
+  { cle: "cendrillon", nom: "Cendrillon", quoi: "Une vente entre vingt-trois heures et minuit", devise: "Juste avant que les douze coups ne sonnent.", forme: "horloge", points: 40,
+    comment: "Une vente distribuée entre 23 h et minuit, heure de Paris. Le dernier verre, la dernière envie : la machine était là." },
+  { cle: "cendrillon_2", nom: "Cendrillon niv. 2", quoi: "Vingt-cinq ventes entre vingt-trois heures et minuit", devise: "Chaque soir, le carrosse attend devant votre machine.", forme: "horloge", points: 200,
+    comment: "Vingt-cinq ventes distribuées entre 23 h et minuit, heure de Paris, sur l’ensemble de vos machines." },
+  { cle: "cendrillon_3", nom: "Cendrillon niv. 3", quoi: "Cent ventes entre vingt-trois heures et minuit", devise: "Minuit peut sonner : la fête, c’est chez vous.", forme: "horloge", points: 400,
+    comment: "Cent ventes distribuées entre 23 h et minuit, heure de Paris. Un emplacement qui vit le soir, et un réassort qui suit." },
+  { cle: "leve_tot", nom: "Lève-tôt", quoi: "Une vente entre six et huit heures du matin", devise: "Le premier café de la ville, c’est vous qui l’avez servi.", forme: "soleil", points: 40,
+    comment: "Une vente distribuée entre 6 h et 8 h, heure de Paris. Le matin appartient aux machines de gare, d’hôpital et de chantier." },
+  { cle: "leve_tot_2", nom: "Lève-tôt niv. 2", quoi: "Vingt-cinq ventes entre six et huit heures du matin", devise: "Vos machines se lèvent avant le soleil.", forme: "soleil", points: 200,
+    comment: "Vingt-cinq ventes distribuées entre 6 h et 8 h, heure de Paris, sur l’ensemble de vos machines." },
+  { cle: "leve_tot_3", nom: "Lève-tôt niv. 3", quoi: "Cent ventes entre six et huit heures du matin", devise: "L’aube a pris l’habitude de passer vous voir.", forme: "soleil", points: 400,
+    comment: "Cent ventes distribuées entre 6 h et 8 h, heure de Paris. Un emplacement de passage du matin, bien trouvé." },
   { cle: "dizaine", nom: "Première dizaine", quoi: "Dix ventes distribuées", devise: "Dix fois le bac a sonné : le début d’une musique.", forme: "etoile", points: 30,
     comment: "Dix produits réellement tombés dans le bac, sur l’ensemble de vos machines. Le premier signe qu’un emplacement fonctionne." },
   { cle: "cinquantaine", nom: "Cinquantaine", quoi: "Cinquante ventes distribuées", devise: "Les pièces tombent, et ce n’est plus de la chance.", forme: "pieces", points: 80,
@@ -118,6 +142,22 @@ export const BADGES: Badge[] = [
     comment: "Cinq cents produits distribués. Un seul très bon emplacement y arrive ; plusieurs bons, plus vite." },
   { cle: "millier", nom: "Le millier", quoi: "Mille ventes distribuées", devise: "Mille fois servi. Le trophée des bâtisseurs.", forme: "trophee", points: 600,
     comment: "Mille produits distribués. Un bon emplacement y arrive en quelques mois ; deux bons emplacements, plus vite." },
+  // LE CHIFFRE D'AFFAIRES, SUR UN MOIS CIVIL, heure de Paris : du 1er au dernier
+  // jour, pas trente jours glissants — « septembre » se retrouve sur la page
+  // Ventes, « du 16 aout au 15 septembre » ne se retrouve nulle part. Le meilleur
+  // mois compte, meme passe : un badge ne se retire pas.
+  { cle: "machine_1", nom: "Machine rentable", quoi: "Une de vos machines a fait 500 € en un mois", devise: "Une machine qui paie son loyer, et un peu plus.", forme: "billets", points: 150,
+    comment: "Une seule machine, 500 € de ventes distribuées dans le même mois civil (du 1er au dernier jour, heure de Paris). Les ventes non distribuées ne comptent pas. Le meilleur mois de chaque machine est retenu, même s’il est passé." },
+  { cle: "machine_2", nom: "Machine rentable niv. 2", quoi: "Une de vos machines a fait 1 500 € en un mois", devise: "Le néon rouge brille, et la caisse aussi.", forme: "billets", points: 300,
+    comment: "Une seule machine, 1 500 € de ventes distribuées dans le même mois civil. C’est l’emplacement qui fait ce badge : un bon passage, un bon assortiment, un réassort qui ne laisse pas de spire vide." },
+  { cle: "machine_3", nom: "Machine rentable niv. 3", quoi: "Une de vos machines a fait 3 000 € en un mois", devise: "Il y a des emplacements, et il y a LE sien.", forme: "billets", points: 500,
+    comment: "Une seule machine, 3 000 € de ventes distribuées dans le même mois civil. Peu de machines y arrivent : quand l’une y arrive, les autres redboxers voudront savoir où elle est." },
+  { cle: "parc_1", nom: "Parc rentable", quoi: "Votre parc a fait 1 000 € en un mois", devise: "Toutes vos machines tirent dans le même sens.", forme: "graphique", points: 200,
+    comment: "1 000 € de ventes distribuées dans le même mois civil, toutes vos machines additionnées — sur tous les comptes dont vous êtes membre. Les machines de démonstration ne comptent pas." },
+  { cle: "parc_2", nom: "Parc rentable niv. 2", quoi: "Votre parc a fait 5 000 € en un mois", devise: "Ce n’est plus un complément : c’est une affaire.", forme: "graphique", points: 450,
+    comment: "5 000 € de ventes distribuées dans le même mois civil, toutes machines additionnées. Il se gagne avec plusieurs bons emplacements plutôt qu’avec un seul exceptionnel." },
+  { cle: "parc_3", nom: "Parc rentable niv. 3", quoi: "Votre parc a fait 15 000 € en un mois", devise: "La courbe ne monte plus : elle décolle.", forme: "graphique", points: 800,
+    comment: "15 000 € de ventes distribuées dans le même mois civil, toutes machines additionnées. Le sommet des badges de chiffre : un vrai réseau, bien tenu." },
   { cle: "ambassadeur", nom: "Ambassadeur", quoi: "Quelqu’un a rejoint le compte sur votre invitation", devise: "Vous avez ouvert la porte à quelqu’un d’autre.", forme: "enveloppe", points: 120,
     comment: "Équipe → Inviter quelqu’un, envoyez le lien, et attendez qu’il s’en serve. Le badge tombe quand l’invitation est utilisée, pas quand elle est envoyée." },
   { cle: "applaudi", nom: "Applaudi", quoi: "Vingt-cinq réactions reçues sur vos messages", devise: "Vingt-cinq mains levées pour ce que vous avez dit.", forme: "pouce", points: 250,
@@ -126,6 +166,9 @@ export const BADGES: Badge[] = [
     comment: "Cinquante réactions posées sur les messages des autres. Passez sur une bulle, appuyez sur le rond souriant, choisissez. C’est le badge le plus facile de la console, et le seul qui ne demande qu’à lire." },
   { cle: "habitue", nom: "Habitué", quoi: "Trente journées différentes à prendre la parole", devise: "La flamme de ceux qui reviennent.", forme: "flamme", points: 200,
     comment: "Trente journées DIFFÉRENTES où vous avez écrit au moins un message. Trente messages le même jour ne valent qu’une journée : ce badge récompense le fait de revenir, pas de parler." },
+  { cle: "evenement", nom: "J’y étais", quoi: "Présent à un événement RedBox", devise: "Certaines choses ne se vivent pas derrière un écran.", forme: "drapeau", points: 150,
+    manuel: true,
+    comment: "Venez à un événement RedBox — salon, rencontre de redboxers, soirée de lancement. L’équipe RedBox vous le remet sur place : il ne se gagne pas dans la console." },
   { cle: "equipe", nom: "Équipe RedBox", quoi: "Membre de l’éditeur", devise: "Ceux qui forgent les machines portent ce blason.", forme: "bouclier", points: 0, patience: true,
     comment: "Il appartient aux comptes de l’éditeur. Il ne rapporte aucun point — on ne se recrute pas — et c’est pourtant le plus rare de tous." },
 ];
@@ -144,12 +187,12 @@ export type Rang = "commun" | "rare" | "epique" | "legendaire" | "mythique";
 export const RANGS: Rang[] = ["commun", "rare", "epique", "legendaire", "mythique"];
 
 /**
- * CINQ PALIERS, EN PYRAMIDE : six communs, sept rares, quatre epiques, quatre
- * legendaires, trois mythiques. Le mythique ne s'achete pas en points : il
+ * CINQ PALIERS, EN PYRAMIDE. Le mythique ne s'achete pas en points : il
  * revient a ce qui ne se reproduit pas — les dix premiers comptes, l'equipe
- * de l'editeur — et au sommet du parc, dix RedBox.
+ * de l'editeur — et au sommet de chaque echelle : dix RedBox, mille ventes,
+ * quinze mille euros en un mois.
  */
-const MYTHIQUES = new Set(["equipe", "pionnier", "reseau"]);
+const MYTHIQUES = new Set(["equipe", "pionnier", "reseau", "millier", "parc_3"]);
 
 export function rangDe(b: Badge): Rang {
   if (MYTHIQUES.has(b.cle)) return "mythique";
@@ -176,7 +219,11 @@ export type Faits = {
   reactions: number; reactions_donnees: number;
   /** Le nombre de journees DIFFERENTES ou elle a pris la parole. */
   jours_actifs: number;
-  pionnier: boolean; noctambule: boolean; ambassadeur: boolean; equipe: boolean;
+  /** Ventes distribuees par tranche horaire, heure de Paris : 3-5 h, 23-24 h, 6-8 h. */
+  ventes_nuit: number; ventes_soir: number; ventes_matin: number;
+  /** En euros : le meilleur mois civil d'une seule machine, et de tout le parc. */
+  ca_machine_mois: number; ca_parc_mois: number;
+  pionnier: boolean; ambassadeur: boolean; equipe: boolean;
 };
 
 /** Les vraies bornes de tous les comptes ou la personne est membre. */
@@ -226,25 +273,41 @@ const SQL_COMPTES = `
   ${SQL_MESSAGES} AS messages,
   ${SQL_REACTIONS} AS reactions`;
 
+/** Les ventes distribuees par les vraies machines de tous ses comptes. */
+const VRAIES_VENTES = `
+  FROM vente v JOIN borne b ON b.id = v.borne_id
+  JOIN membre m ON m.compte_id = b.compte_id AND m.utilisateur_id = u.id
+ WHERE v.statut = 'distribue' AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'`;
+
 const SQL_FAITS = `
   SELECT
     ${SQL_COMPTES},
     ${SQL_REACTIONS_DONNEES} AS reactions_donnees,
     ${SQL_JOURS_ACTIFS} AS jours_actifs,
-    (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
-       JOIN membre m ON m.compte_id = b.compte_id AND m.utilisateur_id = u.id
-      WHERE v.statut = 'distribue' AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%') AS ventes,
+    vx.ventes, vx.ventes_nuit, vx.ventes_soir, vx.ventes_matin,
+    -- Le meilleur mois civil, par machine puis pour tout le parc. En euros entiers.
+    (SELECT (COALESCE(MAX(t.s), 0) / 100)::int FROM (
+       SELECT SUM(v.prix_c) AS s ${VRAIES_VENTES}
+        GROUP BY v.borne_id, date_trunc('month', v.faite_le AT TIME ZONE 'Europe/Paris')) t) AS ca_machine_mois,
+    (SELECT (COALESCE(MAX(t.s), 0) / 100)::int FROM (
+       SELECT SUM(v.prix_c) AS s ${VRAIES_VENTES}
+        GROUP BY date_trunc('month', v.faite_le AT TIME ZONE 'Europe/Paris')) t) AS ca_parc_mois,
     -- Les dix premiers, hors personnes inventees par la demo.
     ((SELECT COUNT(*) FROM utilisateur x
        WHERE x.email NOT LIKE '%@' || $2 AND (x.cree_le, x.id) < (u.cree_le, u.id)) < 10) AS pionnier,
-    EXISTS (SELECT 1 FROM vente v JOIN borne b ON b.id = v.borne_id
-              JOIN membre m ON m.compte_id = b.compte_id AND m.utilisateur_id = u.id
-             WHERE v.statut = 'distribue' AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'
-               AND EXTRACT(HOUR FROM v.faite_le AT TIME ZONE 'Europe/Paris') BETWEEN 3 AND 4) AS noctambule,
     EXISTS (SELECT 1 FROM invitation i WHERE i.par = u.email AND i.utilisee_le IS NOT NULL) AS ambassadeur,
     EXISTS (SELECT 1 FROM membre m JOIN compte c ON c.id = m.compte_id
              WHERE m.utilisateur_id = u.id AND c.editeur) AS equipe
-  FROM utilisateur u WHERE u.id = $1`;
+  FROM utilisateur u
+  -- Toutes les ventes en une lecture, reparties par heure de Paris.
+  CROSS JOIN LATERAL (
+    SELECT COUNT(*)::int AS ventes,
+           COUNT(*) FILTER (WHERE t.h BETWEEN 3 AND 4)::int AS ventes_nuit,
+           COUNT(*) FILTER (WHERE t.h = 23)::int AS ventes_soir,
+           COUNT(*) FILTER (WHERE t.h BETWEEN 6 AND 7)::int AS ventes_matin
+      FROM (SELECT EXTRACT(HOUR FROM v.faite_le AT TIME ZONE 'Europe/Paris') AS h ${VRAIES_VENTES}) t
+  ) vx
+  WHERE u.id = $1`;
 
 /** Les badges que ces faits meritent. */
 function meritesPar(f: Faits): string[] {
@@ -262,13 +325,27 @@ function meritesPar(f: Faits): string[] {
   if (f.messages >= 100) out.push("bavard");
   if (f.messages >= 500) out.push("actif");
   if (f.messages >= 2000) out.push("pilier_commu");
-  if (f.noctambule) out.push("noctambule");
+  if (f.ventes_nuit >= 1) out.push("noctambule");
+  if (f.ventes_nuit >= 25) out.push("noctambule_2");
+  if (f.ventes_nuit >= 100) out.push("noctambule_3");
+  if (f.ventes_soir >= 1) out.push("cendrillon");
+  if (f.ventes_soir >= 25) out.push("cendrillon_2");
+  if (f.ventes_soir >= 100) out.push("cendrillon_3");
+  if (f.ventes_matin >= 1) out.push("leve_tot");
+  if (f.ventes_matin >= 25) out.push("leve_tot_2");
+  if (f.ventes_matin >= 100) out.push("leve_tot_3");
   if (f.ventes >= 10) out.push("dizaine");
   if (f.ventes >= 50) out.push("cinquantaine");
   if (f.ventes >= 100) out.push("centaine");
   if (f.ventes >= 250) out.push("rode");
   if (f.ventes >= 500) out.push("cinq_cents");
   if (f.ventes >= 1000) out.push("millier");
+  if (f.ca_machine_mois >= 500) out.push("machine_1");
+  if (f.ca_machine_mois >= 1500) out.push("machine_2");
+  if (f.ca_machine_mois >= 3000) out.push("machine_3");
+  if (f.ca_parc_mois >= 1000) out.push("parc_1");
+  if (f.ca_parc_mois >= 5000) out.push("parc_2");
+  if (f.ca_parc_mois >= 15000) out.push("parc_3");
   if (f.ambassadeur) out.push("ambassadeur");
   if (f.reactions >= 25) out.push("applaudi");
   if (f.reactions_donnees >= 50) out.push("genereux");
@@ -304,6 +381,20 @@ const PROGRES: Record<string, (f: Faits) => { n: number; sur: number }> = {
   rode:         (f) => ({ n: f.ventes, sur: 250 }),
   cinq_cents:   (f) => ({ n: f.ventes, sur: 500 }),
   millier:  (f) => ({ n: f.ventes, sur: 1000 }),
+  noctambule_2: (f) => ({ n: f.ventes_nuit, sur: 25 }),
+  noctambule_3: (f) => ({ n: f.ventes_nuit, sur: 100 }),
+  cendrillon:   (f) => ({ n: f.ventes_soir, sur: 1 }),
+  cendrillon_2: (f) => ({ n: f.ventes_soir, sur: 25 }),
+  cendrillon_3: (f) => ({ n: f.ventes_soir, sur: 100 }),
+  leve_tot:     (f) => ({ n: f.ventes_matin, sur: 1 }),
+  leve_tot_2:   (f) => ({ n: f.ventes_matin, sur: 25 }),
+  leve_tot_3:   (f) => ({ n: f.ventes_matin, sur: 100 }),
+  machine_1: (f) => ({ n: f.ca_machine_mois, sur: 500 }),
+  machine_2: (f) => ({ n: f.ca_machine_mois, sur: 1500 }),
+  machine_3: (f) => ({ n: f.ca_machine_mois, sur: 3000 }),
+  parc_1:    (f) => ({ n: f.ca_parc_mois, sur: 1000 }),
+  parc_2:    (f) => ({ n: f.ca_parc_mois, sur: 5000 }),
+  parc_3:    (f) => ({ n: f.ca_parc_mois, sur: 15000 }),
   applaudi: (f) => ({ n: f.reactions, sur: 25 }),
   genereux: (f) => ({ n: f.reactions_donnees, sur: 50 }),
   habitue:  (f) => ({ n: f.jours_actifs, sur: 30 }),
@@ -413,6 +504,9 @@ export function niveauProgres(points: number): { niveau: number; dans: number; r
   return { niveau: niveauDe(points), dans, reste: PAS_NIVEAU - dans,
            pct: Math.round((dans / PAS_NIVEAU) * 100) };
 }
+
+/** Les badges que l'equipe remet a la main. */
+export const BADGES_MANUELS = BADGES.filter((b) => b.manuel);
 
 /** Un badge par sa cle, ou rien si la cle n'existe pas. */
 export function badgeDe(cle: string): Badge | null {

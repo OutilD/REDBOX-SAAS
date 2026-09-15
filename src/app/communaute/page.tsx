@@ -30,7 +30,7 @@ const PALMARES_PAR_PAGE = 20;
  * si l'on a gagne quelque chose, donc ici qu'on le calcule.
  */
 export default async function Communaute({ searchParams }:
-  { searchParams: Promise<{ n?: string }> }) {
+  { searchParams: Promise<{ n?: string; classement?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const neufs = await evaluerBadges(u.id);
@@ -47,7 +47,11 @@ export default async function Communaute({ searchParams }:
   const vues = vuesBadges(moi, rarete);
   const acquis = moi.badges.map((b) => b.cle);
   const vises = objectifs(moi.faits, acquis);
-  const HAUT = aMontrer((await searchParams).n, PALMARES_PAR_PAGE);
+  const sp = await searchParams;
+  // Sur un telephone le palmares est replie sur ma seule ligne ; il s'ouvre
+  // par l'adresse, pour que le retour le retrouve ouvert.
+  const ouvert = sp.classement === "tout";
+  const HAUT = aMontrer(sp.n, PALMARES_PAR_PAGE);
   const haut = tous.slice(0, HAUT);
   const monRang = tous.findIndex((c) => c.id === u.id) + 1;
   const maLigne = monRang > HAUT ? tous[monRang - 1] : null;
@@ -117,13 +121,13 @@ export default async function Communaute({ searchParams }:
         ) : null}
 
         {/* ---------------------------------------------------- classement */}
-        <div className="titre-section">
+        <div className="titre-section" id="classement">
           <h2>Classement</h2>
           <span className="faible num" style={{ fontSize: 12.5 }}>
             {tous.length} redboxer{tous.length > 1 ? "s" : ""} · par points
           </span>
         </div>
-        <ol className="palmares">
+        <ol className={ouvert ? "palmares ouvert" : "palmares"}>
           {haut.map((c, i) => (
             <LignePalmares key={c.id} c={c} rang={i + 1} moi={c.id === u.id} echelle={echelle} />
           ))}
@@ -134,9 +138,16 @@ export default async function Communaute({ searchParams }:
             </>
           ) : null}
         </ol>
-        <VoirPlus href={`/communaute?n=${HAUT + PALMARES_PAR_PAGE}#r${HAUT + 1}`}
-                  montres={HAUT} total={tous.length} plus={tous.length > HAUT}
-                  pas={PALMARES_PAR_PAGE} unite={["redboxer", "redboxers"]} />
+        {!ouvert && tous.length > 1 ? (
+          <Link href="/communaute?classement=tout#classement" scroll={false} className="palmares-tout">
+            Voir tout le classement ›
+          </Link>
+        ) : null}
+        <div className={ouvert ? "palmares-suite" : "palmares-suite ferme"}>
+          <VoirPlus href={`/communaute?n=${HAUT + PALMARES_PAR_PAGE}${ouvert ? "&classement=tout" : ""}#r${HAUT + 1}`}
+                    montres={HAUT} total={tous.length} plus={tous.length > HAUT}
+                    pas={PALMARES_PAR_PAGE} unite={["redboxer", "redboxers"]} />
+        </div>
 
         {/* -------------------------------------------------------- badges
             TOUT CE QUI EXISTE, en tuiles : obtenu en couleur, le reste en

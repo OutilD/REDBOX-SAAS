@@ -5046,6 +5046,23 @@ html.piece-tiree, html.piece-tiree * {
   .palmares .qui .compte { display: none; }
 }
 
+/* LE PALMARES REPLIE. Sur un telephone, vingt lignes de quatre-vingts pixels
+   font trois ecrans pour une question dont la reponse tient en une : ou suis-je.
+   Replie, il ne garde que ma ligne — a son vrai rang — et un lien discret pour
+   le reste. Ouvert (`?classement=tout`), il redevient la liste entiere. Sur un
+   ordinateur rien ne change : la liste tient a cote du reste. */
+.palmares-tout { display: none; }
+.titre-section#classement { scroll-margin-top: calc(var(--entete-h, 58px) + 16px); }
+@media (max-width: 700px) {
+  .palmares:not(.ouvert) > li:not(.moi) { display: none; }
+  .palmares-suite.ferme { display: none; }
+  .palmares-tout {
+    display: block; width: fit-content; margin: 8px 0 0 auto; padding: 4px 2px;
+    font-size: 13px; font-weight: 600; color: var(--texte-3);
+  }
+  .palmares-tout:hover { color: var(--texte); text-decoration: underline; }
+}
+
 /* --------------------------------------------------- ou j'en suis, et apres */
 /*
    LA CARTE DE SOI. Le portrait est POSE DANS l'anneau du niveau : deux ronds
