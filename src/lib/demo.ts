@@ -147,11 +147,11 @@ const PLAN: { rangee: number; colonne: number; sku: string; capacite: number }[]
  * borne y est mise hors service, mais elle parle toujours.
  */
 const MACHINES = [
-  { nom: "RedBox — Le Duplex",     adresse: "Paris 11e", cadence: 1,
+  { nom: "RedBox — Le Duplex",     adresse: "Paris 11e", cadence: 1, lat: 48.859, lng: 2.380, ville: "Paris",
     description: "Au fond à gauche, derrière le flipper. Le patron ouvre à 17 h." },
-  { nom: "RedBox — Le Sous-Marin", adresse: "Montreuil", cadence: 0.55,
+  { nom: "RedBox — Le Sous-Marin", adresse: "Montreuil", cadence: 0.55, lat: 48.861, lng: 2.443, ville: "Montreuil",
     description: "Dans le couloir des toilettes. Prise derrière le comptoir." },
-  { nom: "RedBox — Chez Marcel",   adresse: "Lyon 7e",   cadence: 0.4,
+  { nom: "RedBox — Chez Marcel",   adresse: "Lyon 7e",   cadence: 0.4, lat: 45.745, lng: 4.842, ville: "Lyon",
     description: "À droite de l’entrée. Fermé le lundi.",
     horsService: "Réouverture lundi — le bar est fermé pour travaux", fermeeDepuisJ: 2 },
 ];
@@ -515,13 +515,15 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
       INSERT INTO borne (compte_id, lieu_id, nom, adresse, description, jeton, machine,
                          appairee_le, vue_le, version, sante,
                          maintenance_pin, maintenance_pin_le, maintenance_vu,
-                         hors_service, hors_service_texte, hors_service_le)
+                         hors_service, hors_service_texte, hors_service_le,
+                         latitude, longitude, ville, situee_pour)
       SELECT $1, l.id, m.nom, m.adresse, m.description, m.jeton, m.machine,
              $3, now(), '5.13', m.sante::jsonb, m.pin, now(), m.pin,
-             m.hs IS NOT NULL, m.hs, m.hs_le
+             m.hs IS NOT NULL, m.hs, m.hs_le,
+             m.lat, m.lng, m.ville, m.adresse
         FROM unnest($2::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[],
-                    $9::text[], $10::text[], $11::timestamptz[]) WITH ORDINALITY
-             AS m(nom, adresse, description, jeton, machine, sante, pin, hs, hs_le, o)
+                    $9::text[], $10::text[], $11::timestamptz[], $17::float8[], $18::float8[], $19::text[]) WITH ORDINALITY
+             AS m(nom, adresse, description, jeton, machine, sante, pin, hs, hs_le, lat, lng, ville, o)
         JOIN l ON l.nom = m.nom
       RETURNING id, lieu_id, nom),
     k AS (
@@ -544,7 +546,10 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
      MACHINES.map((m) => m.horsService ?? null),
      MACHINES.map((m) => (m.horsService ? instant(m.fermeeDepuisJ ?? 0, 18, 30) : null)),
      PLAN.map((s) => laneDe(s.rangee, s.colonne)), PLAN.map((s) => s.rangee), PLAN.map((s) => s.colonne),
-     PLAN.map((s) => s.sku), PLAN.map((s) => s.capacite)])).rows
+     PLAN.map((s) => s.sku), PLAN.map((s) => s.capacite),
+     // Leur place sur la carte, sans passer par le geocodeur : la demo doit
+     // marcher hors ligne, et « Paris 11e » n'a pas besoin d'etre cherche.
+     MACHINES.map((m) => m.lat), MACHINES.map((m) => m.lng), MACHINES.map((m) => m.ville)])).rows
     .map((b, i) => ({ id: b.id, lieu: b.lieu, cadence: MACHINES[i].cadence,
                       fermeeDepuisJ: MACHINES[i].fermeeDepuisJ ?? -1 }));
 

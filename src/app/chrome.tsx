@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
-import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -14,7 +14,7 @@ import InviteNotifications from "./invite-notifications";
 
 export type Page =
   | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger"
-  | "bornes" | "ventes" | "messages" | "communaute"
+  | "bornes" | "carte" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo" | "menu"
   | "admin" | "admin_comptes";
@@ -46,6 +46,8 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "RedBox",  icone: <IcoBorne />,  vers: "/bornes" },
+      // Le meme parc, pose sur la carte de France : ou sont-elles, laquelle va mal.
+      { cle: "carte",   nom: "Carte",   icone: <IcoCarte />,  vers: "/carte" },
       { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
       { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
     ],
@@ -125,6 +127,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
  * la qu'on en repart.
  */
 const FAMILLE: Partial<Record<Page, Page>> = {
+  carte: "bornes",
   analytiques: "tableau",
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", messages: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
@@ -137,6 +140,7 @@ const FIL: Record<Page, [string, string?]> = {
   analytiques: ["Analytiques"],
   ventes:     ["Ventes"],
   bornes:     ["RedBox"],
+  carte:      ["Carte", "RedBox"],
   messages:   ["Messages"],
   communaute: ["Communauté"],
   stock:      ["Mon stock", "Approvisionnement"],

@@ -3,6 +3,7 @@ import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/au
 import { reveiller } from "@/lib/borne";
 import { balayerImages, rangerImage } from "@/lib/image";
 import { normaliserTel, telPlausible, TEXTE_MAX } from "@/lib/sav";
+import { situerBorne } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await balayerImages(c, u.compte_id);
   });
 
+  // L'adresse a peut-etre change : la place sur la carte suit.
+  await situerBorne(id);
   await reveiller(id, "fiche modifiée");
   return versPage(req, `/bornes/${id}?fiche=${refus ? "refus" : "ok"}`);
 }

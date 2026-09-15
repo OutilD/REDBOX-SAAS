@@ -107,7 +107,10 @@ export default async function FicheBorne({ params, searchParams }:
             </div>
 
             <div className="champ">
-              <label htmlFor="adresse">Adresse</label>
+              <div className="rangee" style={{ justifyContent: "space-between", gap: 8 }}>
+                <label htmlFor="adresse">Adresse</label>
+                <Link href={`/carte/situer/${b.id}?r=fiche`} className="faible" style={{ fontSize: 12.5 }}>Situer sur la carte ›</Link>
+              </div>
               <input id="adresse" name="adresse" defaultValue={b.adresse ?? ""}
                      maxLength={160} placeholder="12 rue des Lilas, Paris 11ᵉ" />
               <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>

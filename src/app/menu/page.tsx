@@ -13,6 +13,7 @@ const QUOI: Record<string, string> = {
   analytiques: "Graphes et classements",
   ventes: "Chaque vente, et les litiges à traiter",
   bornes: "Vos machines et leur état",
+  carte: "Vos RedBox sur la carte de France",
   messages: "L’équipe, vos RedBox, le SAV",
   communaute: "Redboxers, badges et classement",
   stock: "Ce qui reste au dépôt",

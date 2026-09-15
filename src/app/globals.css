@@ -5688,6 +5688,26 @@ html.piece-tiree, html.piece-tiree * {
   .nav-bas a { min-width: 0; padding-left: 1px; padding-right: 1px; font-size: 10px; letter-spacing: -.01em; }
 }
 
+/* ------------------------------------------------------------------ carte
+   Le parc sur une carte Leaflet (voir `.carte-maps` plus bas) : un carre
+   rouge par ville de loin, par machine de pres. */
+.carte-france { background: var(--surface); border: 1px solid var(--bord); border-radius: var(--r-l); padding: 14px; }
+.legende-carte { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.legende-carte .pilule[data-etat="ok"]      { background: var(--vert-fond);  color: var(--vert);      border-color: transparent; }
+.legende-carte .pilule[data-etat="mal"]     { background: var(--rouge-fond); color: var(--rouge-vif); border-color: transparent; }
+.legende-carte .pilule[data-etat="hs"]      { background: var(--ambre-fond); color: var(--ambre);     border-color: transparent; }
+.legende-carte .pilule[data-etat="attente"] { color: var(--texte-3); }
+.legende-carte .pilule b { font-weight: 800; }
+/* Sous la carte : celles qu'on n'a pas su placer, et le bouton qui y remedie. */
+.liste-a-situer { list-style: none; margin: 0; padding: 0; }
+.liste-a-situer li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--bord); flex-wrap: wrap; }
+.liste-a-situer li:first-child { border-top: 0; padding-top: 0; }
+.liste-a-situer .nom { font-weight: 650; }
+.liste-a-situer .ou { font-size: 12.5px; color: var(--texte-3); }
+@media (max-width: 640px) {
+  .carte-france { padding: 8px; }
+}
+
 /* ------------------------------------------------------------------ parc (editeur)
    Cinq colonnes, une par stade, et des cartes qu'on glisse de l'une a l'autre.
    Sur un telephone les colonnes se suivent en hauteur ; le formulaire replie
@@ -5729,3 +5749,140 @@ html.piece-tiree, html.piece-tiree * {
 .tableau td.mal { color: var(--rouge-vif); font-weight: 700; }
 .choix-attendue legend { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
 .choix-attendue .coche { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+/* Les grandes villes en repere, et le chiffre dans un rond de ville. */
+.pilule[data-etat="ok"]      { background: var(--vert-fond);  color: var(--vert);      border-color: transparent; }
+.pilule[data-etat="mal"]     { background: var(--rouge-fond); color: var(--rouge-vif); border-color: transparent; }
+.pilule[data-etat="hs"]      { background: var(--ambre-fond); color: var(--ambre);     border-color: transparent; }
+.pilule[data-etat="bientot"] { background: var(--bleu-fond);  color: var(--bleu);      border-color: transparent; }
+.pilule[data-etat="attente"] { color: var(--texte-3); }
+.par-ville { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); margin-top: 12px; }
+.par-ville .ville h3 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; scroll-margin-top: 80px; }
+.par-ville .ville h3 .compte {
+  display: inline-block; min-width: 22px; padding: 1px 7px; border-radius: 999px;
+  background: var(--surface-3); color: var(--texte-2); font-size: 12px; font-weight: 700; text-align: center;
+}
+.par-ville .ville:target { border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.liste-a-situer a.nom { text-decoration: none; color: inherit; }
+.liste-a-situer a.nom:hover { text-decoration: underline; }
+/* La carte Leaflet : les tuiles d'OpenStreetMap, assombries quand la console l'est. */
+.carte-maps { height: min(72svh, 720px); min-height: 360px; border-radius: var(--r-m); overflow: hidden; background: var(--surface-2); isolation: isolate; }
+:root[data-theme="dark"] .carte-maps .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.9) saturate(.5); }
+.carte-maps .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.75); color: #333; }
+.carte-maps .leaflet-control-attribution a { color: #333; }
+.carte-maps .leaflet-bar a { background: var(--surface); color: var(--texte); border-color: var(--bord); }
+.carte-maps .leaflet-bar a:hover { background: var(--surface-2); }
+/* Le carre rouge d'une RedBox — d'une ville quand il porte un chiffre. L'etat
+   est dans la pastille au coin, cerclee de blanc pour se lire meme en rouge
+   sur rouge. */
+.marqueur-redbox { background: none; border: 0; }
+.carre-redbox {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: var(--t); height: var(--t); border-radius: 5px;
+  background: var(--rouge); border: 2px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,.45);
+  color: #fff; font-weight: 800; font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.carre-redbox > i {
+  position: absolute; top: -5px; right: -5px; width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid #fff; background: var(--texte-3);
+}
+.carre-redbox > i[data-etat="ok"]      { background: var(--vert); }
+.carre-redbox > i[data-etat="mal"]     { background: var(--rouge-vif); }
+.carre-redbox > i[data-etat="hs"]      { background: var(--ambre); }
+.carre-redbox > i[data-etat="bientot"] { background: var(--bleu); }
+.etiquette-ville.leaflet-tooltip {
+  background: var(--surface); color: var(--texte); border: 1px solid var(--bord);
+  border-radius: 999px; padding: 2px 9px; font-size: 12.5px; font-weight: 650; box-shadow: none;
+}
+.etiquette-ville.leaflet-tooltip::before { display: none; }
+.carte-maps .leaflet-popup-content-wrapper { background: var(--surface); color: var(--texte); border-radius: var(--r-m); border: 1px solid var(--bord); }
+.carte-maps .leaflet-popup-tip { background: var(--surface); }
+.carte-maps .leaflet-popup-content { margin: 12px 14px; font: inherit; font-size: 13.5px; line-height: 1.4; }
+.carte-maps .leaflet-popup-close-button { color: var(--texte-3); }
+.ville-bulle { font-size: 14.5px; }
+.machines-bulle { list-style: none; margin: 8px 0 0; padding: 0; }
+.machines-bulle li { padding: 6px 0; border-top: 1px solid var(--bord); }
+.machines-bulle li a { font-weight: 650; color: inherit; text-decoration: none; margin-right: 8px; }
+.machines-bulle li a:hover { text-decoration: underline; }
+.machines-bulle .ou { font-size: 12px; color: var(--texte-3); margin-top: 2px; }
+.machines-bulle a.resituer { display: inline-block; margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--rouge-vif); }
+.machines-bulle.seule { margin-top: 0; }
+.machines-bulle.seule li { border-top: 0; padding-top: 0; }
+
+/* LE STADE A SA COULEUR, de l'usine au bar : violet en production, vert libre
+   a l'achat, ambre commandee, bleu bientot installee, rouge installee — le
+   rouge de la machine, pour celles qui tournent. Le carre de la carte, la
+   pilule, la colonne du parc et ses cartes la lisent dans `--stade`. */
+:root {
+  --stade-production: var(--violet); --stade-libre: var(--vert); --stade-commandee: var(--ambre);
+  --stade-bientot: var(--bleu); --stade-installee: var(--rouge);
+}
+[data-stade="production"] { --stade: var(--stade-production); }
+[data-stade="libre"]      { --stade: var(--stade-libre); }
+[data-stade="commandee"]  { --stade: var(--stade-commandee); }
+[data-stade="bientot"]    { --stade: var(--stade-bientot); }
+[data-stade="installee"]  { --stade: var(--stade-installee); }
+.carre-redbox { text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+.carre-redbox[data-stade] { background: var(--stade); }
+.pilule.stade { background: color-mix(in srgb, var(--stade) 14%, transparent); color: var(--stade); border-color: transparent; }
+.pilule.stade[data-stade="installee"] { color: var(--rouge-vif); }
+.pilule.stade b { font-weight: 800; }
+.point[data-stade] { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 2px; background: var(--stade); }
+.legende-carte .separe { align-self: stretch; width: 1px; margin: 2px 4px; background: var(--bord); }
+
+/* La fiche du survol : ce qu'est la machine, et ce qu'elle rapporte. */
+.carte-maps .survol-redbox.leaflet-tooltip {
+  min-width: 220px; max-width: 300px; padding: 10px 12px; white-space: normal;
+  background: var(--surface); color: var(--texte); border: 1px solid var(--bord-fort);
+  border-radius: var(--r-m); box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  font-size: 13px; line-height: 1.4;
+}
+.carte-maps .survol-redbox.leaflet-tooltip-top::before { border-top-color: var(--bord-fort); }
+.survol-redbox .survol-nom { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 14px; }
+.survol-redbox .survol-nom .combien { font-weight: 500; font-size: 12.5px; color: var(--texte-3); }
+.survol-redbox .survol-etats { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.survol-redbox .ou { margin-top: 6px; font-size: 12px; color: var(--texte-3); }
+.survol-redbox dl {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+  margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--bord);
+}
+.survol-redbox dt { font-size: 12px; color: var(--texte-3); }
+.survol-redbox dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.survol-redbox ul { list-style: none; display: grid; gap: 4px; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--bord); }
+.survol-redbox li { display: flex; align-items: center; gap: 7px; }
+.survol-redbox li .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.survol-redbox li .num { font-weight: 600; }
+
+/* Le parc : la couleur du stade en tete de colonne et au bord de chaque carte,
+   et les pages d'une colonne trop longue. */
+.kanban .colonne header h3::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--stade, var(--texte-3)); }
+.kanban .machine { border-left: 3px solid var(--stade, var(--bord)); }
+.kanban .pages-colonne { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; font-size: 12px; color: var(--texte-3); }
+.kanban .pages-colonne .bouton { min-width: 34px; justify-content: center; }
+.kanban .pages-colonne .bouton:disabled { opacity: .4; cursor: default; }
+
+.tete-borne .ou a.situer { color: var(--texte-2); white-space: nowrap; }
+.tete-borne .ou a.situer:hover { color: var(--rouge-vif); }
+
+/* SITUER UNE MACHINE. Le champ d'adresse et sa liste de suggestions, la carte
+   ou l'on touche, les boutons. La liste passe au-dessus de la carte : celle-ci
+   est isolee (`isolation`), ses calques ne peuvent pas la recouvrir. */
+.choisir-place { display: grid; gap: 12px; }
+.choisir-place .recherche { position: relative; }
+.choisir-place .suggestions {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px);
+  list-style: none; margin: 0; padding: 4px; max-height: 300px; overflow: auto;
+  background: var(--surface); border: 1px solid var(--bord-fort); border-radius: var(--r-m);
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+}
+.choisir-place .suggestions li { padding: 10px; border-radius: 6px; cursor: pointer; font-size: 14px; line-height: 1.3; }
+.choisir-place .suggestions li:hover,
+.choisir-place .suggestions li[aria-selected="true"] { background: var(--surface-2); }
+.choisir-place .consigne { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.choisir-place .consigne p { margin: 0; font-size: 13px; }
+.choisir-place .carte-maps { height: min(56svh, 520px); min-height: 300px; cursor: crosshair; }
+.choisir-place .proposee { margin: 0; font-size: 13px; color: var(--texte-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.choisir-place .avis-place { margin: 0; font-size: 13px; }
+.choisir-place .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .choisir-place .actions .bouton { flex: 1 1 0; justify-content: center; }
+}

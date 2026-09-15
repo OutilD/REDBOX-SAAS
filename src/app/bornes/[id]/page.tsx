@@ -201,7 +201,10 @@ export default async function Detail({
           ) : null}
           <div className="qui">
             <h1>{b.nom}</h1>
-            <div className="ou">{b.adresse ?? "lieu non renseigné"}</div>
+            <div className="ou">
+              {b.adresse ?? "lieu non renseigné"}
+              {peutConfigurer(u) ? <> · <Link href={`/carte/situer/${b.id}?r=borne`} className="situer">Situer sur la carte ›</Link></> : null}
+            </div>
             {b.description ? <p className="quoi">{b.description}</p> : null}
             <div className="etats">
               <span className={`pilule ${!b.jeton ? "attente" : vivante ? "ok" : "mal"}`}>

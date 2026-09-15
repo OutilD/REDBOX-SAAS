@@ -63,6 +63,14 @@ export const IcoBorne = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Carte : une epingle posee sur le sol. */
+export const IcoCarte = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 17.5s-5-4.6-5-8.5a5 5 0 0 1 10 0c0 3.9-5 8.5-5 8.5Z" />
+    <circle cx="10" cy="9" r="1.8" />
+  </svg>
+);
+
 /** Stock : des cartons empiles. */
 export const IcoStock = ({ size = 20 }: P) => (
   <svg {...base(size)}>

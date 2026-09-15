@@ -330,6 +330,36 @@ dossier lisible sur le serveur.
 `REDBOX_SANS_DEMO=1` dans l’environnement ouvre les comptes vides, comme avant.
 Tout est dans `src/lib/demo.ts`.
 
+## Carte
+
+`/carte` pose les RedBox du compte sur une vraie carte : Leaflet et les tuiles
+d'OpenStreetMap (assombries en thème sombre), dans `src/app/carte/carte-maps.tsx`.
+**Un carré par ville** de loin, un par machine à partir du zoom de la rue ;
+on le touche, la bulle liste les machines. Au survol, une fiche dit le stade,
+l'état, l'adresse, le CA sur 30 jours et au total, la dernière vente (et, pour
+l'éditeur, le compte, le numéro de série, la note). Sous la carte, la liste
+par ville dit la même chose sans JavaScript.
+
+La carte d'un compte **se regarde, elle ne se modifie pas** : une machine se
+situe depuis sa page (« Situer sur la carte », propriétaire et gérants),
+`/carte/situer/[id]`. Seul le super-admin déplace depuis la carte, sur `/admin`.
+
+Les coordonnées viennent de l'adresse, par la **Base Adresse Nationale**
+(`api-adresse.data.gouv.fr`, publique, sans clé) : à l'ouverture de la carte,
+au plus huit machines sans place sont situées ; les autres le seront à
+l'ouverture suivante. `borne.situee_pour` retient l'adresse qui a servi — si
+elle change, on recommence ; si elle est introuvable, on le dit sous la carte
+plutôt que de redemander à chaque fois. Le géocodeur doit renvoyer une **ville**
+et un score d'au moins 0,5 — « TEST » tombait sur un lieu-dit. Une machine
+sans adresse y est listée avec le bouton qui l'y mettra ; côté éditeur, le
+champ d'adresse est directement sous la carte (`/api/admin/parc/adresse`).
+
+Le carré a **la couleur du stade** : violet en production, vert libre, ambre
+commandée, bleu bientôt installée, rouge installée ; une ville qui en mêle
+plusieurs est rayée à proportion. La pastille au coin dit la santé d'une
+installée : vert en ligne, rouge silencieuse, ambre hors service, gris à
+appairer.
+
 ## Le parc et le super-admin
 
 Une borne n'existait qu'à partir de l'appairage. La machine, elle, existe bien

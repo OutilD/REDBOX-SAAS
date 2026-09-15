@@ -132,6 +132,7 @@ export default async function Bornes({ searchParams }:
           {bornes.length > 0 ? (
             <div className="rangee-actions">
               <Link href="/bornes/ajouter" className="bouton primaire">+ Ajouter une RedBox</Link>
+              <Link href="/carte" className="bouton">Voir sur la carte</Link>
               <form method="post" action="/api/bornes/reveiller">
                 <input type="hidden" name="retour" value="/bornes" />
                 <button className="bouton">Tout synchroniser</button>
