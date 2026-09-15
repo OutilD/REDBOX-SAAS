@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 type Ligne = {
   id: number; nom: string; adresse: string | null; vue_le: Date | null;
-  jeton: string | null; version: string | null;
+  jeton: string | null; version: string | null; statut: string;
   canaux: number; affectes: number; vides: number; bas: number;
   unites: number; capacite: number; en_route: number;
 };
@@ -66,7 +66,7 @@ export default async function Bornes({ searchParams }:
   };
 
   const bornes = await q<Ligne>(`
-    SELECT b.id, b.nom, b.adresse, b.vue_le, b.jeton, b.version,
+    SELECT b.id, b.nom, b.adresse, b.vue_le, b.jeton, b.version, b.statut,
            COUNT(c.id)::int         AS canaux,
            COUNT(c.produit_id)::int AS affectes,
            -- UN CANAL SANS PRODUIT N'EST PAS UN CANAL VIDE. On comptait toutes
@@ -307,7 +307,8 @@ function CarteBorne({ b }: { b: Ligne }) {
 
       <div className="etats">
         <span className={`pilule ${!b.jeton ? "attente" : vivante ? "ok" : "mal"}`}>
-          <i />{!b.jeton ? "à appairer" : vivante ? "en ligne" : `vue ${depuis(b.vue_le)}`}
+          <i />{!b.jeton ? (b.statut === "installee" ? "à appairer" : "bientôt installée")
+                : vivante ? "en ligne" : `vue ${depuis(b.vue_le)}`}
         </span>
         {b.vides > 0
           ? <span className="pilule mal">

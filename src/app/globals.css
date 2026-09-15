@@ -5687,3 +5687,45 @@ html.piece-tiree, html.piece-tiree * {
 @media (max-width: 340px) {
   .nav-bas a { min-width: 0; padding-left: 1px; padding-right: 1px; font-size: 10px; letter-spacing: -.01em; }
 }
+
+/* ------------------------------------------------------------------ parc (editeur)
+   Cinq colonnes, une par stade, et des cartes qu'on glisse de l'une a l'autre.
+   Sur un telephone les colonnes se suivent en hauteur ; le formulaire replie
+   dans chaque carte fait le meme travail que le glisser, au doigt. */
+.chiffres-cle .mesures.cinq { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 900px) { .chiffres-cle .mesures.cinq { grid-template-columns: repeat(2, 1fr); } }
+.chiffres-cle a.mesure { text-decoration: none; color: inherit; }
+.chiffres-cle a.mesure:hover { background: var(--surface-2); }
+.kanban { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; align-items: start; }
+@media (max-width: 1100px) { .kanban { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); overflow: visible; } }
+.kanban .colonne {
+  background: var(--surface); border: 1px solid var(--bord); border-radius: var(--r-l);
+  padding: 10px; min-height: 160px; display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .12s, background .12s;
+}
+.kanban .colonne[data-survol] { border-color: var(--rouge); background: var(--rouge-fond); }
+.kanban .colonne header h3 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.kanban .colonne header h3 .compte {
+  display: inline-block; min-width: 22px; padding: 1px 7px; border-radius: 999px;
+  background: var(--surface-3); color: var(--texte-2); font-size: 12px; font-weight: 700; text-align: center;
+}
+.kanban .colonne header p { margin: 4px 0 0; font-size: 12px; color: var(--texte-3); line-height: 1.4; }
+.kanban .vide { margin: 0; font-size: 12.5px; color: var(--texte-3); font-style: italic; }
+.kanban .machine {
+  background: var(--surface-2); border: 1px solid var(--bord); border-radius: var(--r-m);
+  padding: 10px 12px; cursor: grab; scroll-margin-top: 80px;
+}
+.kanban .machine:active { cursor: grabbing; }
+.kanban .machine[data-tenue] { opacity: .45; }
+.kanban .machine:target { border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.kanban .machine .nom { font-weight: 650; font-size: 14px; }
+.kanban .machine .ou { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; }
+.kanban .machine .etats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.kanban .machine details { margin-top: 8px; }
+.kanban .machine summary { cursor: pointer; font-size: 12.5px; color: var(--texte-2); user-select: none; }
+.kanban .machine details form { margin-top: 8px; }
+.kanban .machine details .champ + .champ { margin-top: 8px; }
+.kanban .machine details label { font-size: 12px; }
+.tableau td.mal { color: var(--rouge-vif); font-weight: 700; }
+.choix-attendue legend { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+.choix-attendue .coche { display: flex; gap: 10px; align-items: center; padding: 8px 0; }

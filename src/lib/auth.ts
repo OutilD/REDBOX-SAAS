@@ -51,6 +51,8 @@ export type Utilisateur = {
    * et portent la marque dans la communaute.
    */
   editeur: boolean;
+  /** Voit tout le parc et tous les comptes : une personne de l'editeur, pas un compte. */
+  superAdmin: boolean;
 };
 
 const DUREE = 30 * 24 * 3600 * 1000;
@@ -100,8 +102,9 @@ export function enTeteBiscuit(jeton: string | null): string {
 async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
   if (!jeton) return null;
   const l = await q1<{ id: number; email: string; origine: number; expire_le: Date;
-                       actif: number | null; nom: string | null; image_id: number | null }>(`
-    SELECT u.id, u.email, u.compte_id AS origine, u.nom, u.image_id,
+                       actif: number | null; nom: string | null; image_id: number | null;
+                       super_admin: boolean }>(`
+    SELECT u.id, u.email, u.compte_id AS origine, u.nom, u.image_id, u.super_admin,
            s.expire_le, s.compte_id AS actif
       FROM session s
       JOIN utilisateur u ON u.id = s.utilisateur_id
@@ -172,6 +175,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     nom: l.nom, image_id: l.image_id,
     demo: choisi.demo,
     editeur: choisi.editeur,
+    superAdmin: l.super_admin,
   };
 }
 
@@ -236,6 +240,10 @@ export function peutConfigurer(u: Utilisateur): boolean {
 }
 export function peutGererEquipe(u: Utilisateur): boolean {
   return u.role === "proprietaire";
+}
+/** L'editeur : tout le parc, tous les comptes, leurs chiffres. */
+export function estSuperAdmin(u: Utilisateur): boolean {
+  return u.superAdmin;
 }
 
 /** Retour a une page apres un formulaire : 303, donc rechargement en GET. */

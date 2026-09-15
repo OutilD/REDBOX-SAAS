@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { q } from "@/db";
-import { nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
+import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu } from "./icones";
@@ -16,7 +16,8 @@ export type Page =
   | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger"
   | "bornes" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
-  | "profil" | "demo" | "menu";
+  | "profil" | "demo" | "menu"
+  | "admin" | "admin_comptes";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -81,6 +82,17 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       { cle: "notifications", nom: "Notifications", icone: <IcoCloche />, vers: "/reglages/notifications" },
     ],
   },
+  {
+    // L'editeur seul : le parc entier et tous les comptes. Une personne, pas un
+    // compte — le drapeau est sur l'utilisateur.
+    titre: "Plateforme",
+    items: [
+      { cle: "admin",         nom: "Parc",    icone: <IcoBorne />,  vers: "/admin",
+        droit: estSuperAdmin },
+      { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
+        droit: estSuperAdmin },
+    ],
+  },
 ];
 
 /** Le plan, reduit a ce que cette personne a le droit d'ouvrir : le rail et la page Menu. */
@@ -117,6 +129,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", messages: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
+  admin: "menu", admin_comptes: "menu",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -140,6 +153,8 @@ const FIL: Record<Page, [string, string?]> = {
   profil:     ["Mon compte"],
   demo:       ["Mode démo", "Réglages"],
   menu:       ["Menu"],
+  admin:      ["Parc", "Plateforme"],
+  admin_comptes: ["Comptes", "Plateforme"],
 };
 
 /**

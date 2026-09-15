@@ -329,3 +329,37 @@ dossier lisible sur le serveur.
 
 `REDBOX_SANS_DEMO=1` dans l’environnement ouvre les comptes vides, comme avant.
 Tout est dans `src/lib/demo.ts`.
+
+## Le parc et le super-admin
+
+Une borne n'existait qu'à partir de l'appairage. La machine, elle, existe bien
+avant : `borne.statut` suit sa vie — `production`, `libre` (en stock, sans
+compte), `commandee`, `bientot` (attribuée, adresse connue), `installee`
+(appairée). Les bornes existantes sont `installee`. `borne.numero` est le
+numéro de série, posé par l'éditeur ; `note_editeur` ce qu'il note pour lui.
+
+**Le super-admin est une personne, pas un compte** : `utilisateur.super_admin`.
+Les propriétaires et gérants du compte éditeur le sont d'office à chaque
+migration ; le drapeau se donne et se retire sur `/admin/comptes`, jamais à
+soi-même.
+
+`/admin` : les cinq compteurs, la carte de tout le parc (toute machine située,
+quel que soit son stade, tous comptes), et un tableau en cinq colonnes où l'on
+**glisse une carte** d'un stade à l'autre (`POST /api/admin/parc/statut`).
+Chaque colonne se tourne par pages de six. Chaque carte
+porte aussi un formulaire complet — stade, compte, numéro, nom, adresse, note —
+qui marche au doigt et sans JavaScript (`/api/admin/parc/modifier`). Une
+machine libre n'a pas de compte ; en attribuer un la fait passer en commandée,
+le lui retirer la rend libre. Le compte d'une machine appairée ne se change pas
+d'ici : il faut la désappairer. On n'efface qu'une machine sans jeton et sans
+vente. Les bornes de la démo ne font pas partie du parc.
+
+`/admin/comptes` : tous les comptes avec leurs chiffres — personnes, RedBox
+installées et en ligne, à venir, ventes et chiffre d'affaires sur trente jours
+et depuis le début, dernière vente — et, par compte, ses membres.
+
+**L'appairage reconnaît une machine attendue.** Si le compte a des machines
+attribuées pas encore posées, la page « Ajouter une RedBox » demande laquelle
+on appaire : la ligne existante reçoit le jeton et passe `installee`, avec son
+lieu, sa place sur la carte et son historique. « Une autre RedBox » crée une
+ligne comme avant.

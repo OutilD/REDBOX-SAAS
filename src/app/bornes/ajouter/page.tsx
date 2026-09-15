@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q1 } from "@/db";
+import { q, q1 } from "@/db";
 import { peutConfigurer, utilisateur } from "@/lib/auth";
 import { IcoAlerte } from "../../icones";
 
@@ -27,6 +27,13 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
   const attente = await q1<{ n: number }>(
     "SELECT COUNT(*)::int n FROM appairage WHERE borne_id IS NULL AND expire_le > now()");
 
+  // Les machines que l'editeur a deja attribuees a ce compte, pas encore posees :
+  // si c'est l'une d'elles qu'on appaire, elle garde sa place et son histoire.
+  const attendues = await q<{ id: number; nom: string; numero: string | null; adresse: string | null }>(`
+    SELECT id, nom, numero, adresse FROM borne
+     WHERE compte_id = $1 AND jeton IS NULL AND statut IN ('production', 'commandee', 'bientot')
+     ORDER BY statut_le DESC`, [u.compte_id]);
+
   const messages: Record<string, string> = {
     code: "Code inconnu ou expiré. La RedBox en affiche un nouveau toutes les vingt minutes.",
     nom: "Donnez un nom à la RedBox.",
@@ -35,6 +42,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
     deja: "Cette RedBox est déjà rattachée à un compte. Une machine ne peut appartenir "
         + "qu’à un seul SaaS à la fois : faites-la désappairer depuis le compte qui la "
         + "détient, puis recommencez. Son catalogue et ses visuels seront repris ici.",
+    attendue: "Cette RedBox attendue n’existe plus, ou a déjà été appairée.",
   };
 
   return (
@@ -84,9 +92,29 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
                    style={{ fontSize: 26, letterSpacing: ".22em", textAlign: "center",
                             textTransform: "uppercase", minHeight: 62 }} />
           </div>
+          {attendues.length > 0 ? (
+            <fieldset className="champ choix-attendue">
+              <legend>Quelle RedBox appairez-vous ?</legend>
+              {attendues.map((a, i) => (
+                <label key={a.id} className="coche">
+                  <input type="radio" name="borne" value={a.id} defaultChecked={i === 0} />
+                  <span>{a.nom}{a.numero ? ` · n° ${a.numero}` : ""}{a.adresse ? ` · ${a.adresse}` : ""}</span>
+                </label>
+              ))}
+              <label className="coche">
+                <input type="radio" name="borne" value="" />
+                <span>Une autre RedBox</span>
+              </label>
+              <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
+                Ces machines vous sont déjà attribuées : en choisir une la fait passer
+                d’« à venir » à installée, avec sa place sur la carte.
+              </p>
+            </fieldset>
+          ) : null}
           <div className="champ">
             <label htmlFor="nom">Nom de la RedBox</label>
-            <input id="nom" name="nom" required placeholder="RedBox — Le Duplex" />
+            <input id="nom" name="nom" required={attendues.length === 0}
+                   placeholder={attendues.length > 0 ? "laissez vide pour garder son nom" : "RedBox — Le Duplex"} />
           </div>
           <div className="champ">
             <label htmlFor="adresse">Où elle se trouve</label>

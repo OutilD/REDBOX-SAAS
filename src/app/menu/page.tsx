@@ -24,6 +24,8 @@ const QUOI: Record<string, string> = {
   sav: "Le numéro d’assistance des machines",
   equipe: "Qui a accès, et à quoi",
   notifications: "Ce qui sonne sur cet appareil",
+  admin: "Toutes les machines, de l’usine au bar",
+  admin_comptes: "Tous les comptes et leurs chiffres",
 };
 
 /**

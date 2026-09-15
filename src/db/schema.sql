@@ -1039,6 +1039,63 @@ ALTER TABLE salon DROP CONSTRAINT IF EXISTS salon_fond_check;
 ALTER TABLE salon ADD CONSTRAINT salon_fond_check
   CHECK (fond IN ('aucun', 'trame', 'brume', 'aurore', 'braises', 'neon'));
 
+-- OU EST LA MACHINE, SUR UNE CARTE. L'adresse est un texte libre, ecrit pour
+-- l'ecran d'assistance ; pour la poser sur la carte de France il faut deux
+-- nombres. Ils se deduisent de l'adresse par la Base Adresse Nationale, et
+-- `situee_pour` retient POUR QUELLE adresse : si elle change, les coordonnees
+-- ne valent plus rien et se recalculent. Une adresse cherchee et introuvable
+-- laisse `situee_pour` rempli et les coordonnees vides — on ne la redemande
+-- pas a chaque ouverture de la carte, on la signale.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS latitude    DOUBLE PRECISION;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS longitude   DOUBLE PRECISION;
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS situee_pour TEXT;
+
+-- LE CYCLE DE VIE D'UNE MACHINE, AVANT ET APRES L'APPAIRAGE.
+--
+-- Une borne n'existait qu'a partir du moment ou un client l'adoptait. Or la
+-- machine existe bien avant : commandee, en cours de production, en stock et
+-- libre a l'achat, puis attribuee a un client et bientot installee. L'editeur
+-- doit voir ce parc en entier, et le client doit voir la sienne sur sa carte
+-- avant qu'elle soit posee. Une seule table, un statut :
+--
+--   production   en cours de fabrication, pour un client ou pour le stock
+--   libre        en stock, libre a l'achat — aucun compte
+--   commandee    un client l'a commandee, elle n'a pas encore d'adresse
+--   bientot      attribuee a un client, adresse connue, pose imminente
+--   installee    appairee, elle vend
+--
+-- Les lignes existantes ont ete creees a l'appairage : elles sont installees.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS statut    TEXT NOT NULL DEFAULT 'installee';
+ALTER TABLE borne DROP CONSTRAINT IF EXISTS borne_statut_check;
+ALTER TABLE borne ADD CONSTRAINT borne_statut_check
+  CHECK (statut IN ('production', 'libre', 'commandee', 'bientot', 'installee'));
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS statut_le TIMESTAMPTZ NOT NULL DEFAULT now();
+-- Le numero de serie, pose par l'editeur : c'est lui qui identifie une machine
+-- qui n'a encore ni compte, ni jeton, ni nom choisi par un client.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS numero TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS borne_numero_unique ON borne (numero) WHERE numero IS NOT NULL;
+-- Ce que l'editeur note pour lui : le transporteur, la date promise, un souci.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS note_editeur TEXT;
+
+-- LE SUPER-ADMIN VOIT TOUT : le parc entier, tous les comptes, leurs chiffres.
+-- C'est une personne, pas un compte : le drapeau est sur l'utilisateur. Les
+-- proprietaires et gerants du compte editeur le sont d'office, et le restent —
+-- c'est par eux que le premier super-admin existe sans passer par la base.
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS super_admin BOOLEAN NOT NULL DEFAULT false;
+UPDATE utilisateur u SET super_admin = true
+  FROM membre m JOIN compte c ON c.id = m.compte_id
+ WHERE m.utilisateur_id = u.id AND c.editeur AND m.role IN ('proprietaire', 'gerant')
+   AND NOT u.super_admin;
+
+-- LA VILLE, A PART DE L'ADRESSE. La carte regroupe les machines par ville :
+-- il faut la connaitre sans la deviner dans un texte libre. Elle vient du
+-- geocodeur avec les coordonnees. Les machines situees sans ville l'ont ete
+-- par une version qui ne la demandait pas, ou sur un faux positif trop
+-- indulgent (« TEST » tombait sur un lieu-dit) : on les recherche.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS ville TEXT;
+UPDATE borne SET situee_pour = NULL, latitude = NULL, longitude = NULL
+ WHERE situee_pour IS NOT NULL AND ville IS NULL;
+
 -- #DEVELOPPEURS EST AUX REDBOXERS. C'est l'acces direct au developpeur, plus
 -- un guichet ouvert a tous. Le code ne cree le salon qu'une fois (ON CONFLICT
 -- DO NOTHING) : son sujet et son groupe se corrigent ici.
