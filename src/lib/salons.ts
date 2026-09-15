@@ -14,8 +14,8 @@ import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
  *
  * Et au-dela du compte, la communaute : les ANNONCES de l'editeur, que lisent
  * les redboxers ; les salons de COMMUNAUTE, par groupe — #futurs-redboxers pour
- * tous, #redboxers pour qui a au moins une vraie borne, #developpeurs pour
- * signaler un bug a l'equipe technique ; et le SAV, une conversation PRIVEE
+ * tous, #redboxers et #developpeurs — la ligne directe avec le developpeur —
+ * pour qui a au moins une vraie borne ; et le SAV, une conversation PRIVEE
  * par personne entre elle et l'editeur, reservee elle aussi aux redboxers.
  * Pas par compte : ce qu'on confie au SAV, son equipe ne le lit pas.
  *
@@ -78,10 +78,10 @@ const PLATEFORME: { nom: string; sujet: string; portee: Portee; groupe: Groupe |
     sujet: "Entre redboxers : ce qui marche, ce qui casse, ce qui se vend" },
   // UN BUG SE SIGNALE LA OU L'EQUIPE TECHNIQUE LE LIT. Il se perdait dans
   // #redboxers entre deux conseils de vente, ou restait prive au SAV alors que
-  // dix autres comptes le vivaient. Ouvert a tous : un futur redboxer qui
-  // essaie la console trouve aussi des bugs.
-  { nom: "developpeurs", portee: "communaute", groupe: "tous", ordre: 3,
-    sujet: "Un bug dans la console ou sur une RedBox ? Décrivez-le, l’équipe technique répond" },
+  // dix autres comptes le vivaient. Reserve aux redboxers : c'est l'acces
+  // direct au developpeur, pas un guichet d'avant-vente.
+  { nom: "developpeurs", portee: "communaute", groupe: "proprietaires", ordre: 3,
+    sujet: "Accès direct au développeur RedBox pour vos idées, nouveautés, améliorations, bugs et questions sur la RedBox et son logiciel" },
 ];
 
 /**

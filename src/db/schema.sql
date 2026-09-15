@@ -1038,3 +1038,10 @@ ALTER TABLE salon ADD COLUMN IF NOT EXISTS fond TEXT NOT NULL DEFAULT 'aucun';
 ALTER TABLE salon DROP CONSTRAINT IF EXISTS salon_fond_check;
 ALTER TABLE salon ADD CONSTRAINT salon_fond_check
   CHECK (fond IN ('aucun', 'trame', 'brume', 'aurore', 'braises', 'neon'));
+
+-- #DEVELOPPEURS EST AUX REDBOXERS. C'est l'acces direct au developpeur, plus
+-- un guichet ouvert a tous. Le code ne cree le salon qu'une fois (ON CONFLICT
+-- DO NOTHING) : son sujet et son groupe se corrigent ici.
+UPDATE salon SET groupe = 'proprietaires',
+       sujet = 'Accès direct au développeur RedBox pour vos idées, nouveautés, améliorations, bugs et questions sur la RedBox et son logiciel'
+ WHERE compte_id IS NULL AND nom = 'developpeurs';
