@@ -465,3 +465,25 @@ export const IcoTrophee = ({ size = 20 }: P) => (
     <path d="M6 5H3.5v1.2A2.8 2.8 0 0 0 6.3 9M14 5h2.5v1.2A2.8 2.8 0 0 1 13.7 9M10 11.7v2.8M6.8 17h6.4M7.8 17l.6-2.5h3.2l.6 2.5" />
   </svg>
 );
+
+/** Ajouter. */
+export const IcoPlus = ({ size = 18 }: P) => (
+  <svg {...base(size)}><path d="M10 4.5v11M4.5 10h11" /></svg>
+);
+
+/** Envoyer : l'avion en papier. */
+export const IcoEnvoyer = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M17.5 2.5 8.6 11.4" />
+    <path d="M17.5 2.5 12 17.5l-3.4-6.1L2.5 8l15-5.5Z" />
+  </svg>
+);
+
+/** Reagir : un sourire. */
+export const IcoSourire = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="7.2" />
+    <path d="M7.4 11.8a3.2 3.2 0 0 0 5.2 0" />
+    <path d="M7.6 8h.01M12.4 8h.01" strokeWidth="2.2" />
+  </svg>
+);

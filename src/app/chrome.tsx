@@ -286,7 +286,7 @@ export async function Entete({ page, borne, fenetre, periode }:
           <Link href="/" className="logo-mobile">
             <Image src="/logo-redbox.png" alt="RedBox" width={155} height={100} priority />
           </Link>
-          <BasculeRail depart={rail} retour={ici} focus={page === "academie"} />
+          <BasculeRail depart={rail} retour={ici} focus={page === "academie" || page === "messages"} />
           <div className="fil">
             {parent ? <span className="parent">{parent} · </span> : null}{titre}
           </div>

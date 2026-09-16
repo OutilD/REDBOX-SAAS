@@ -8,6 +8,9 @@ import { Personne, Portrait } from "../communaute/vignette-personne";
 import { VoirPlus } from "../voir-plus";
 import Fil from "./fil";
 import MesureEntete from "./mesure";
+import RechercheSalons from "./recherche-salons";
+import { FUSEAU } from "@/lib/fuseau";
+import { IcoBorne, IcoBulle, IcoCommunaute, IcoEquipe, IcoPlus, IcoPub, IcoSav } from "../icones";
 
 const ERREURS: Record<string, string> = {
   vide:    "Le message est vide.",
@@ -63,19 +66,24 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
     .sort((a, z) => (z.non_lus - a.non_lus)
       || ((z.dernier_le ? +new Date(z.dernier_le) : 0) - (a.dernier_le ? +new Date(a.dernier_le) : 0)));
   const peutCreer = peutConfigurer(u) && !estRestreint(u);
+  const totalNonLus = salons.reduce((t, x) => t + x.non_lus, 0);
 
   return (
     <>
       <Entete page="messages" />
       <MesureEntete />
-      <main className="ecran messagerie" data-vue={salon ? "fil" : "liste"}>
+      <main className="ecran messagerie rail-focus" data-vue={salon ? "fil" : "liste"}>
         <aside className="salons">
           <div className="tete">
-            <h1 style={{ margin: 0, fontSize: 20 }}>Messages</h1>
+            <div className="titre-messages">
+              <h1>Messages</h1>
+              {totalNonLus > 0 ? <span className="non-lus-total num">{totalNonLus > 99 ? "99+" : totalNonLus} non lu{totalNonLus > 1 ? "s" : ""}</span> : null}
+            </div>
             {peutCreer ? (
-              <Link href="/messages?nouveau=1" className="bouton petit" title="Nouveau salon" aria-label="Nouveau salon">＋</Link>
+              <Link href="/messages?nouveau=1" className="bouton icone" title="Nouveau salon" aria-label="Nouveau salon"><IcoPlus /></Link>
             ) : null}
           </div>
+          <RechercheSalons />
           {nouveau && peutCreer ? (
             <form method="post" action="/api/salons" className="carte plate nouveau-salon">
               <div className="champ">
@@ -94,28 +102,34 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
             </form>
           ) : null}
           <nav aria-label="Salons">
-            <div className="section">Équipe</div>
-            {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {bornes.length > 0 ? <div className="section">Vos RedBox</div> : null}
-            {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {redbox.length + fermesRedbox.length > 0 || savFerme ? <div className="section">RedBox</div> : null}
-            {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} />)}
-            {fermesRedbox.map((s) => <Ferme key={s.id} s={s} />)}
-            {savFerme ? (
-              <Ferme s={{ id: 0, nom: SUPPORT.nom, sujet: null, portee: "support", groupe: "proprietaires", ordre: 90 }} />
-            ) : null}
-            {communaute.length + fermesCommu.length > 0 ? <div className="section">Communauté</div> : null}
-            {/* Ouverts et fermes melanges, dans l'ordre de la plateforme : le
-                cadenas dit ou l'on n'entre pas, la place reste la meme. */}
-            {[...communaute.map((s) => ({ ouvert: true as const, s })),
-              ...fermesCommu.map((s) => ({ ouvert: false as const, s }))]
-              .sort((a, z) => a.s.ordre - z.s.ordre || a.s.nom.localeCompare(z.s.nom))
-              .map((x) => x.ouvert
-                ? <Entree key={x.s.id} s={x.s} actif={salon?.id === x.s.id} />
-                : <Ferme key={x.s.id} s={x.s} />)}
-            {comptes.length > 0 ? <div className="section">SAV</div> : null}
-            {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id}
-                                        etiquette={[s.personne, s.compte].filter(Boolean).join(" · ") || undefined} />)}
+            <Groupe titre="Équipe" liste={equipe}>
+              {equipe.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} genre="equipe" />)}
+            </Groupe>
+            <Groupe titre="Vos RedBox" liste={bornes}>
+              {bornes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} genre="borne" />)}
+            </Groupe>
+            <Groupe titre="RedBox" liste={redbox} fermes={fermesRedbox.length + (savFerme ? 1 : 0)}>
+              {redbox.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} genre={s.portee === "annonces" ? "annonces" : "support"} />)}
+              {fermesRedbox.map((s) => <Ferme key={s.id} s={s} />)}
+              {savFerme ? (
+                <Ferme s={{ id: 0, nom: SUPPORT.nom, sujet: null, portee: "support", groupe: "proprietaires", ordre: 90 }} />
+              ) : null}
+            </Groupe>
+            <Groupe titre="Communauté" liste={communaute} fermes={fermesCommu.length}>
+              {/* Ouverts et fermes melanges, dans l'ordre de la plateforme : le
+                  cadenas dit ou l'on n'entre pas, la place reste la meme. */}
+              {[...communaute.map((s) => ({ ouvert: true as const, s })),
+                ...fermesCommu.map((s) => ({ ouvert: false as const, s }))]
+                .sort((a, z) => a.s.ordre - z.s.ordre || a.s.nom.localeCompare(z.s.nom))
+                .map((x) => x.ouvert
+                  ? <Entree key={x.s.id} s={x.s} actif={salon?.id === x.s.id} genre="communaute" />
+                  : <Ferme key={x.s.id} s={x.s} />)}
+            </Groupe>
+            <Groupe titre="SAV" liste={comptes}>
+              {comptes.map((s) => <Entree key={s.id} s={s} actif={salon?.id === s.id} genre="support"
+                                          etiquette={[s.personne, s.compte].filter(Boolean).join(" · ") || undefined} />)}
+            </Groupe>
+            <p className="aucun-salon" hidden>Aucun salon ne porte ce nom.</p>
           </nav>
         </aside>
 
@@ -133,9 +147,15 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
                  panneau={lecteurs ? <Qui salon={salon} l={lecteurs} erreur={erreur === "droit" ? ERREURS.droit : undefined} /> : null}
                  erreur={erreur && erreur !== "nom" && erreur !== "pris" && erreur !== "droit" ? ERREURS[erreur] : undefined} />
           ) : (
-            <div className="vide" style={{ paddingTop: 80 }}>
-              <span className="grand">#</span>
-              Choisissez un salon pour lire ce qui s’y dit.
+            <div className="messagerie-accueil">
+              <span className="halo" aria-hidden="true"><IcoBulle size={34} /></span>
+              <h2>Vos conversations</h2>
+              <p>Choisissez un salon à gauche : l’équipe, vos RedBox qui écrivent d’elles-mêmes, la communauté des redboxers.</p>
+              <ul className="astuces">
+                <li><kbd>/</kbd> chercher un salon</li>
+                <li><kbd>Entrée</kbd> envoyer</li>
+                <li><kbd>Maj</kbd> + <kbd>Entrée</kbd> aller à la ligne</li>
+              </ul>
             </div>
           )}
         </section>
@@ -200,18 +220,71 @@ function Qui({ salon, l, erreur }: { salon: Salon; l: Lecteurs; erreur?: string 
   );
 }
 
-function Entree({ s, actif, etiquette }: { s: Salon; actif: boolean; etiquette?: string }) {
+type Genre = "equipe" | "borne" | "annonces" | "support" | "communaute";
+
+/** L'icone d'un salon, selon qui y parle. */
+function IconeSalon({ genre }: { genre: Genre }) {
+  switch (genre) {
+    case "borne": return <IcoBorne size={16} />;
+    case "annonces": return <IcoPub size={16} />;
+    case "support": return <IcoSav size={16} />;
+    case "communaute": return <IcoCommunaute size={16} />;
+    default: return <IcoEquipe size={16} />;
+  }
+}
+
+/** L'heure du dernier message : l'heure aujourd'hui, « hier », puis la date. */
+function quand(d: Date | null): string {
+  if (!d) return "";
+  const jour = (x: Date) => x.toLocaleDateString("en-CA", { timeZone: FUSEAU });
+  const ici = new Date(d);
+  if (jour(ici) === jour(new Date())) {
+    return ici.toLocaleTimeString("fr-FR", { timeZone: FUSEAU, hour: "2-digit", minute: "2-digit" });
+  }
+  if (jour(ici) === jour(new Date(Date.now() - 86400e3))) return "hier";
+  return ici.toLocaleDateString("fr-FR", { timeZone: FUSEAU, day: "2-digit", month: "2-digit" });
+}
+
+/**
+ * UNE SECTION DE LA LISTE, QUI SE REPLIE. Ouverte par defaut ; le nombre de
+ * non-lus qu'elle contient reste visible repliee — c'est ce qu'on cherche.
+ */
+function Groupe({ titre, liste, fermes = 0, children }: {
+  titre: string; liste: Salon[]; fermes?: number; children: React.ReactNode;
+}) {
+  if (liste.length + fermes === 0) return null;
+  const n = liste.reduce((t, x) => t + x.non_lus, 0);
   return (
-    <Link href={`/messages/${s.id}`}
+    <details className="groupe-salons" open>
+      <summary>
+        <span className="titre">{titre}</span>
+        {n > 0 ? <span className="n num">{n > 99 ? "99+" : n}</span> : null}
+      </summary>
+      <div className="liste">{children}</div>
+    </details>
+  );
+}
+
+function Entree({ s, actif, etiquette, genre }: { s: Salon; actif: boolean; etiquette?: string; genre: Genre }) {
+  const nom = etiquette ?? s.nom;
+  const apercu = s.apercu
+    ? `${s.apercu_mien ? "Vous" : s.apercu_de ?? (s.borne ? "La machine" : "RedBox")} : ${s.apercu}`
+    : etiquette ? `#${s.nom}` : s.sujet;
+  return (
+    <Link href={`/messages/${s.id}`} data-cherche={`${nom} ${s.nom} ${s.sujet ?? ""}`}
           className={`salon${actif ? " actif" : ""}${s.non_lus > 0 ? " non-lu" : ""}`}
-          aria-current={actif ? "page" : undefined}>
-      <span className="diese" aria-hidden>#</span>
+          data-genre={genre} aria-current={actif ? "page" : undefined}>
+      <span className="icone-salon" aria-hidden><IconeSalon genre={genre} /></span>
       <span className="nom">
-        {etiquette ?? s.nom}
-        {etiquette ? <span className="sujet">#{s.nom}</span>
-         : s.sujet ? <span className="sujet">{s.sujet}</span> : null}
+        <span className="ligne-haut">
+          <span className="libelle">{genre === "equipe" || genre === "communaute" ? <span className="diese">#</span> : null}{nom}</span>
+          {s.dernier_le ? <time className="quand" suppressHydrationWarning>{quand(s.dernier_le)}</time> : null}
+        </span>
+        <span className="ligne-bas">
+          {apercu ? <span className="sujet">{apercu}</span> : <span className="sujet vide-apercu">Aucun message</span>}
+          {s.non_lus > 0 ? <span className="badge num" aria-label={`${s.non_lus} non lus`}>{s.non_lus > 99 ? "99+" : s.non_lus}</span> : null}
+        </span>
       </span>
-      {s.non_lus > 0 ? <span className="badge num">{s.non_lus > 99 ? "99+" : s.non_lus}</span> : null}
     </Link>
   );
 }
@@ -227,16 +300,16 @@ function Ferme({ s }: { s: SalonFerme }) {
     : s.groupe === "prospects" ? "Réservé à ceux qui n’ont pas encore de RedBox"
     : "Accès réservé";
   return (
-    <div className="salon ferme" aria-disabled="true" title={condition}>
-      <span className="diese" aria-hidden>
-        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+    <div className="salon ferme" aria-disabled="true" title={condition} data-cherche={`${s.nom} ${s.sujet ?? ""}`}>
+      <span className="icone-salon" aria-hidden>
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor"
              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <rect x="4" y="9" width="12" height="8.5" rx="2" /><path d="M7 9V6.5a3 3 0 0 1 6 0V9" />
         </svg>
       </span>
       <span className="nom">
-        {s.nom}
-        <span className="sujet">{condition}</span>
+        <span className="ligne-haut"><span className="libelle">{s.nom}</span></span>
+        <span className="ligne-bas"><span className="sujet">{condition}</span></span>
       </span>
       <span className="sr">fermé</span>
     </div>

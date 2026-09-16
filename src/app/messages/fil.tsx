@@ -7,6 +7,7 @@ import { EMOJIS, type Reaction } from "@/lib/reactions";
 import { initiales } from "@/lib/personnes";
 import { Badge } from "../communaute/badge";
 import { FUSEAU } from "@/lib/fuseau";
+import { IcoBas, IcoBorne, IcoCoche, IcoCorbeille, IcoEnvoyer, IcoHorloge, IcoSourire } from "../icones";
 
 type Salon = {
   id: number; nom: string; sujet: string | null; borne: string | null;
@@ -27,6 +28,25 @@ type Ligne = Message & {
 const DELAI_ENVOI_MS = 20_000;
 
 const CADENCE_MS = 3000;
+/** Le plafond du texte d'un message ; le compteur apparait en approchant. */
+const LONGUEUR_MAX = 2000;
+const COMPTEUR_DES = 1600;
+
+/** Les adresses d'un message deviennent des liens, sans jamais injecter de HTML. */
+const LIEN = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/g;
+function avecLiens(texte: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  let dernier = 0;
+  for (const m of texte.matchAll(LIEN)) {
+    const i = m.index ?? 0;
+    if (i > dernier) out.push(texte.slice(dernier, i));
+    out.push(<a key={i} href={m[0]} target="_blank" rel="noopener noreferrer nofollow">{m[0]}</a>);
+    dernier = i + m[0].length;
+  }
+  if (dernier < texte.length) out.push(texte.slice(dernier));
+  return out;
+}
+
 /** Deux messages du meme auteur a moins de cinq minutes ne repetent pas son nom. */
 const REGROUPE_MS = 5 * 60 * 1000;
 
@@ -125,18 +145,43 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
 
   // Le fil s'ouvre en bas, la ou ca se passe ; et y reste tant qu'on n'est
   // pas remonte lire plus haut.
+  // Remonte lire plus haut : la pastille « nouveaux messages » compte ce qui
+  // arrive en bas pendant ce temps, et y ramene d'un geste.
+  const [loin, poserLoin] = useState(false);
+  const [arrives, poserArrives] = useState(0);
+  const combien = useRef(initial.length);
   useLayoutEffect(() => { window.scrollTo(0, document.documentElement.scrollHeight); }, []);
   useEffect(() => {
     const suivre = () => {
       const reste = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
       enBas.current = reste < 120;
+      poserLoin(reste > 480);
+      if (enBas.current) poserArrives(0);
     };
     window.addEventListener("scroll", suivre, { passive: true });
     return () => window.removeEventListener("scroll", suivre);
   }, []);
   useEffect(() => {
-    if (enBas.current) window.scrollTo(0, document.documentElement.scrollHeight);
+    const neufs = messages.length - combien.current;
+    combien.current = messages.length;
+    if (enBas.current) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+    else if (neufs > 0 && messages[messages.length - 1]?.utilisateur_id !== moi) poserArrives((n) => n + neufs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
+
+  function descendre() {
+    enBas.current = true;
+    poserArrives(0);
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  }
+
+  // Le champ grandit avec le texte, jusqu'a une dizaine de lignes.
+  useLayoutEffect(() => {
+    const z = zone.current;
+    if (!z) return;
+    z.style.height = "auto";
+    z.style.height = `${Math.min(z.scrollHeight, 220)}px`;
+  }, [texte]);
 
   // Ce qui est a l'ecran, sans refaire un rendu a chaque tour : le rafraichit
   // le lit pour demander les reactions de ces messages-la.
@@ -325,8 +370,9 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
     <div className="fil-salon" data-fond={fond}>
       <div className="tete">
         <Link href={retour} className="bouton petit retour" aria-label="Tous les salons">‹</Link>
+        <span className="icone-fil" aria-hidden="true">{salon.borne ? <IcoBorne size={18} /> : "#"}</span>
         <div className="pousse" style={{ minWidth: 0 }}>
-          <h1><span className="diese">#</span>{salon.nom}</h1>
+          <h1>{salon.nom}</h1>
           {salon.sujet ? <div className="sujet">{salon.sujet}</div> : null}
         </div>
         {/* Qui lit ici. Un lien, pas un bouton : le panneau est une page
@@ -358,30 +404,50 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
 
       <div className="messages">
         {messages.length === 0 ? (
-          <p className="vide">Rien n’a encore été dit ici. {salon.borne ? "La machine écrira dès qu’il lui arrivera quelque chose." : "À vous."}</p>
+          <div className="fil-vide">
+            <span className="halo" aria-hidden="true">{salon.borne ? <IcoBorne size={28} /> : <span className="diese">#</span>}</span>
+            <b>Bienvenue dans #{salon.nom}</b>
+            <p>Rien n’a encore été dit ici. {salon.borne ? "La machine écrira dès qu’il lui arrivera quelque chose." : peutEcrire ? "Lancez la conversation." : ""}</p>
+          </div>
         ) : rendu}
         <div id="fin" />
       </div>
 
+      {loin || arrives > 0 ? (
+        <button type="button" className="vers-le-bas" onClick={descendre}
+                aria-label={arrives > 0 ? `${arrives} nouveaux messages, descendre` : "Revenir aux derniers messages"}>
+          {arrives > 0 ? <span className="num">{arrives} nouveau{arrives > 1 ? "x" : ""}</span> : null}
+          <IcoBas size={16} />
+        </button>
+      ) : null}
+
       {peutEcrire ? (
         <div className="composeur">
           {erreur ? <p className="erreur" style={{ margin: "0 0 8px" }}>{erreur}</p> : null}
-          <form method="post" action="/api/messages" onSubmit={soumettre}>
+          <form method="post" action="/api/messages" onSubmit={soumettre} className="boite-composeur">
             <input type="hidden" name="salon_id" value={salon.id} />
-            <textarea ref={zone} name="texte" rows={1} required maxLength={2000}
+            <textarea ref={zone} name="texte" rows={1} required maxLength={LONGUEUR_MAX}
                       placeholder={`Écrire dans #${salon.nom}`} aria-label="Message"
                       value={texte} onChange={(e) => ecrire(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           e.currentTarget.form?.requestSubmit();
                         }
                       }} />
-            <button className="bouton primaire" aria-label="Envoyer">Envoyer</button>
+            <button className="envoyer" aria-label="Envoyer" title="Envoyer (Entrée)" disabled={!texte.trim()}>
+              <IcoEnvoyer size={18} />
+            </button>
           </form>
+          <div className="aide-composeur" aria-hidden="true">
+            <span><kbd>Entrée</kbd> envoyer · <kbd>Maj</kbd>+<kbd>Entrée</kbd> nouvelle ligne</span>
+            {texte.length >= COMPTEUR_DES ? (
+              <span className={`compteur num${texte.length >= LONGUEUR_MAX ? " plein" : ""}`}>{texte.length}/{LONGUEUR_MAX}</span>
+            ) : null}
+          </div>
         </div>
       ) : (
-        <p className="faible" style={{ fontSize: 13, textAlign: "center", padding: 12 }}>
+        <p className="composeur-muet">
           {raisonMuet ?? "Votre rôle ne permet que de lire."}
         </p>
       )}
@@ -402,18 +468,18 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
   // au-dessus quand il tomberait sous le composeur. Ouvert toujours vers le
   // bas, il se glissait sous la zone d'ecriture sur les derniers messages du
   // fil — ceux auxquels on reagit — et c'est le composeur qui recevait le doigt.
-  const [choisir, ouvrir] = useState<false | "haut" | "bas">(false);
+  const [choixOuvert, ouvrir] = useState<false | "haut" | "bas">(false);
   const bouton = useRef<HTMLButtonElement>(null);
   const zonePoser = useRef<HTMLSpanElement>(null);
   function basculer() {
-    if (choisir) { ouvrir(false); return; }
+    if (choixOuvert) { ouvrir(false); return; }
     const r = bouton.current?.getBoundingClientRect();
     const plancher = document.querySelector(".composeur")?.getBoundingClientRect().top ?? window.innerHeight;
     ouvrir(r && r.bottom + 64 > plancher ? "haut" : "bas");
   }
   // Toucher ailleurs, ou Echap, referme le choix.
   useEffect(() => {
-    if (!choisir) return;
+    if (!choixOuvert) return;
     const dehors = (e: PointerEvent) => {
       if (!zonePoser.current?.contains(e.target as Node)) ouvrir(false);
     };
@@ -424,14 +490,31 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
       document.removeEventListener("pointerdown", dehors);
       document.removeEventListener("keydown", echap);
     };
-  }, [choisir]);
+  }, [choixOuvert]);
+  // Au doigt, pas de survol : toucher la bulle montre ses gestes, toucher
+  // ailleurs les range.
+  const [choisi, choisir] = useState(false);
+  const ligne = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!choisi) return;
+    const dehors = (e: PointerEvent) => { if (!ligne.current?.contains(e.target as Node)) choisir(false); };
+    document.addEventListener("pointerdown", dehors);
+    return () => document.removeEventListener("pointerdown", dehors);
+  }, [choisi]);
+  function toucher(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest("a, button")) return;
+    if (window.matchMedia("(hover: none)").matches) choisir((c) => !c);
+  }
+
   const machine = m.utilisateur_id === null;
   const nom = machine ? (salon.borne ? court(salon.borne) : "RedBox") : (m.auteur ?? "quelqu’un");
   // La machine ecrit son sujet en premiere ligne, le detail en dessous.
   const [premiere, ...reste] = m.texte.split("\n");
   const teinte = m.couleur ? { background: m.couleur } : undefined;
+  const gestes = !m.supprime && m.id > 0 && ((reagir && !mien) || mien);
   return (
-    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}${m.envoi ? " envoi" : ""}${m.echec ? " echec" : ""}`}>
+    <div className={`msg${suite ? " suite" : " debut"}${machine ? " machine" : ""}${mien ? " mien" : ""}${m.envoi ? " envoi" : ""}${m.echec ? " echec" : ""}`}
+         data-choisi={choisi ? "" : undefined}>
       {/* Les autres ont leur portrait a gauche de la premiere bulle d'une
           serie ; les miennes n'en ont pas — c'est le cote qui dit qui parle. */}
       {mien ? null : (
@@ -449,8 +532,6 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
               <Link href={`/communaute/${m.utilisateur_id}`} className="auteur"
                     style={m.couleur ? { color: m.couleur } : undefined}><b>{nom}</b></Link>
             )}
-            {/* D'ou il parle, quand le salon traverse les comptes : la marque
-                de l'editeur, le grade, et le nom de son exploitation. */}
             {/* Le badge le plus rare qu'il porte, juste apres son nom : c'est
                 ce qui donne un visage a quelqu'un qu'on n'a jamais vu. */}
             {!machine && m.badge ? (
@@ -463,16 +544,58 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
             {!machine && salon.traverse && m.compte && !m.editeur ? <span className="dou">{m.compte}</span> : null}
           </div>
         )}
-        <div className="bulle">
-          {m.supprime ? (
-            <div className="texte retire">message retiré</div>
-          ) : machine && reste.length > 0 ? (
-            <div className="texte"><b>{premiere}</b>{"\n" + reste.join("\n")}</div>
-          ) : (
-            <div className="texte">{m.texte}</div>
-          )}
-          <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
+        <div className="bulle-ligne" ref={ligne}>
+          <div className="bulle" onClick={toucher}>
+            {m.supprime ? (
+              <div className="texte retire">message retiré</div>
+            ) : machine && reste.length > 0 ? (
+              <div className="texte"><b>{premiere}</b>{"\n"}{avecLiens(reste.join("\n"))}</div>
+            ) : (
+              <div className="texte">{avecLiens(m.texte)}</div>
+            )}
+            <span className="meta">
+              <time dateTime={m.cree_le}>{heure(m.cree_le)}</time>
+              {mien && !m.supprime ? (
+                m.envoi ? <span className="etat-envoi" title="Envoi en cours" aria-label="Envoi en cours"><IcoHorloge size={12} /></span>
+                : m.id > 0 ? <span className="etat-envoi parti" title="Envoyé" aria-label="Envoyé"><IcoCoche size={12} /></span>
+                : null
+              ) : null}
+            </span>
+          </div>
+
+          {gestes ? (
+            <div className="actions-msg" role="toolbar" aria-label="Gestes sur ce message">
+              {reagir && !mien ? (
+                <span className="poser" ref={zonePoser}>
+                  <button type="button" ref={bouton} className={`geste${choixOuvert ? " actif" : ""}`}
+                          onClick={basculer} aria-expanded={Boolean(choixOuvert)}
+                          aria-label="Réagir à ce message" title="Réagir">
+                    <IcoSourire size={16} />
+                  </button>
+                  {choixOuvert ? (
+                    <span className={`choix-emoji ${choixOuvert}`} role="menu">
+                      {EMOJIS.map((e) => (
+                        <button key={e} type="button" role="menuitem" title={e}
+                                onClick={() => { reagir(m.id, e); ouvrir(false); choisir(false); }}>{e}</button>
+                      ))}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {mien ? (
+                <form method="post" action="/api/messages/retirer" className="oter"
+                      onSubmit={(e) => { e.preventDefault(); oter(m.id); }}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <input type="hidden" name="salon_id" value={salon.id} />
+                  <button className="geste danger" title="Retirer ce message" aria-label="Retirer ce message">
+                    <IcoCorbeille size={15} />
+                  </button>
+                </form>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+
         {reessayer ? (
           <div className="pas-parti" role="alert">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor"
@@ -485,12 +608,11 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
           </div>
         ) : null}
 
-        {/* CE QU'ON REPOND SANS ECRIRE. Un pouce coute moins qu'une phrase et
-            dit la meme chose ; dans un metier ou l'on se croise peu, c'est le
-            geste le plus frequent qu'on puisse offrir. On ne s'applaudit pas
-            soi-meme — la barre reste, en lecture seule, sous ses propres
-            messages. */}
-        {m.supprime || m.id < 0 || (m.reactions.length === 0 && !(reagir && !mien)) ? null : (
+        {/* CE QU'ON REPOND SANS ECRIRE. Les pastilles comptees sous la bulle ;
+            on ajoute la sienne depuis les gestes de la bulle. On ne
+            s'applaudit pas soi-meme — sous ses propres messages, la barre est
+            en lecture seule. */}
+        {m.supprime || m.id < 0 || m.reactions.length === 0 ? null : (
           <div className="reactions">
             {m.reactions.map((r) => (
               <button key={r.emoji} type="button"
@@ -502,38 +624,9 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
                 <span className="e" aria-hidden>{r.emoji}</span><span className="num">{r.n}</span>
               </button>
             ))}
-            {reagir && !mien ? (
-              <span className="poser" ref={zonePoser}>
-                <button type="button" ref={bouton} className={`ajout${choisir ? " actif" : ""}`}
-                        onClick={basculer}
-                        aria-expanded={Boolean(choisir)} aria-label="Réagir à ce message">
-                  <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-                       strokeWidth="1.6" strokeLinecap="round" aria-hidden>
-                    <circle cx="10" cy="10" r="7.2" /><path d="M7.4 11.6a3.2 3.2 0 0 0 5.2 0" />
-                    <path d="M7.6 8h.01M12.4 8h.01" strokeWidth="2.2" />
-                  </svg>
-                </button>
-                {choisir ? (
-                  <span className={`choix-emoji ${choisir}`} role="menu">
-                    {EMOJIS.map((e) => (
-                      <button key={e} type="button" role="menuitem" title={e}
-                              onClick={() => { reagir(m.id, e); ouvrir(false); }}>{e}</button>
-                    ))}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
           </div>
         )}
       </div>
-      {mien && !m.supprime && m.id > 0 ? (
-        <form method="post" action="/api/messages/retirer" className="oter"
-              onSubmit={(e) => { e.preventDefault(); oter(m.id); }}>
-          <input type="hidden" name="id" value={m.id} />
-          <input type="hidden" name="salon_id" value={salon.id} />
-          <button className="bouton petit discret" title="Retirer ce message" aria-label="Retirer ce message">×</button>
-        </form>
-      ) : null}
     </div>
   );
 }

@@ -45,6 +45,8 @@ export type Salon = {
   /** Le SAV est a une personne : elle, et son nom pour l'editeur. */
   utilisateur_id: number | null; personne: string | null;
   non_lus: number; dernier_le: Date | null;
+  /** Le dernier message du salon, pour la liste : ses premiers mots, et qui l'a ecrit (nul : la machine). */
+  apercu: string | null; apercu_de: string | null; apercu_mien: boolean;
   /** Le fond du fil : `aucun`, ou l'un des fonds animes de FONDS. */
   fond: string;
 };
@@ -267,8 +269,17 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
              WHERE m.salon_id = s.id AND m.supprime_le IS NULL
                AND m.id > COALESCE(l.dernier_id, 0)
                AND m.utilisateur_id IS DISTINCT FROM $5::bigint) AS non_lus,
-           (SELECT MAX(m.cree_le) FROM message m WHERE m.salon_id = s.id) AS dernier_le
+           (SELECT MAX(m.cree_le) FROM message m WHERE m.salon_id = s.id) AS dernier_le,
+           d.apercu, d.apercu_de, COALESCE(d.apercu_mien, false) AS apercu_mien
       FROM salon s
+      LEFT JOIN LATERAL (
+        SELECT left(regexp_replace(m.texte, '[[:space:]]+', ' ', 'g'), 90) AS apercu,
+               CASE WHEN m.utilisateur_id IS NULL THEN NULL
+                    ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS apercu_de,
+               (m.utilisateur_id = $5::bigint) AS apercu_mien
+          FROM message m LEFT JOIN utilisateur x ON x.id = m.utilisateur_id
+         WHERE m.salon_id = s.id AND m.supprime_le IS NULL
+         ORDER BY m.id DESC LIMIT 1) d ON true
       LEFT JOIN borne b ON b.id = s.borne_id
       LEFT JOIN compte k ON k.id = s.compte_id
       LEFT JOIN utilisateur p ON p.id = s.utilisateur_id
@@ -280,7 +291,8 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
 /** Un salon, s'il est a elle. */
 export async function salonDe(u: Utilisateur, id: number): Promise<Salon | null> {
   return q1<Salon>(`
-    SELECT ${COLONNES_SALON}, 0 AS non_lus, NULL AS dernier_le
+    SELECT ${COLONNES_SALON}, 0 AS non_lus, NULL AS dernier_le,
+           NULL AS apercu, NULL AS apercu_de, false AS apercu_mien
       FROM salon s LEFT JOIN borne b ON b.id = s.borne_id LEFT JOIN compte k ON k.id = s.compte_id
       LEFT JOIN utilisateur p ON p.id = s.utilisateur_id
      WHERE ${VISIBLE} AND s.id = $6`, [...await portee(u), id]);

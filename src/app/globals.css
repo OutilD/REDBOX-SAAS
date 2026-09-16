@@ -639,18 +639,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
    un biscuit et se rend cote serveur — il survit au rechargement, et il n'y a
    rien a hydrater. */
 :root { --rail: 236px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) { --rail: 62px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail { width: 62px; padding-left: 8px; padding-right: 8px; align-items: stretch; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .logo img { width: 40px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .logo { padding: 0 3px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .section { font-size: 0; padding: 12px 0 4px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .section::after {
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) { --rail: 62px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail { width: 62px; padding-left: 8px; padding-right: 8px; align-items: stretch; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .logo img { width: 40px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .logo { padding: 0 3px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .section { font-size: 0; padding: 12px 0 4px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .section::after {
   content: ""; display: block; height: 1px; background: var(--bord); margin: 0 6px;
 }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail a.item { justify-content: center; padding: 8px 0; font-size: 0; gap: 0; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail a.item .glyphe { font-size: 15px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail a.item.actif::before { left: -8px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .pied { font-size: 0; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail a.item { justify-content: center; padding: 8px 0; font-size: 0; gap: 0; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail a.item .glyphe { font-size: 15px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail a.item.actif::before { left: -8px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .pied { font-size: 0; }
 
 /*
   LE SELECTEUR DE COMPTE, AU PIED DU RAIL.
@@ -662,7 +662,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rail .pied-comptes { display: flex; gap: 6px; align-items: center; }
 .rail .pied-comptes select { flex: 1; min-width: 0; min-height: 34px; font-size: 12.5px; }
 .rail .pied-comptes .bouton { min-height: 34px; padding: 0 10px; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main.aca-focus)) .rail .pied-comptes { display: none; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .pied-comptes { display: none; }
 /* Deux classes, pas une : `.bouton.icone` pose son propre `display` et gagnait
    sur `.rail-bascule` seul — le bouton qui replie un menu absent s'affichait
    donc sur chaque telephone, a cote du logo. */
@@ -7026,3 +7026,270 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
 .parc-fenetre footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--bord); }
 .parc-mesure { box-shadow: inset 0 3px 0 var(--stade); }
 .parc-mesure .etiquette { display: inline-flex; align-items: center; gap: 6px; }
+
+/* =============================================================================
+   LA MESSAGERIE, VERSION SOIGNEE
+   =============================================================================
+
+   Le rail de la console se replie en icones (`main.rail-focus`) : la place va
+   aux conversations. A gauche, une liste qu'on parcourt comme une boite de
+   reception — icone du genre de salon, dernier message, heure, non-lus. A
+   droite, le fil : des bulles qui se suivent en series, les gestes (reagir,
+   retirer) qui apparaissent au survol ou au toucher de la bulle, l'etat
+   d'envoi des siennes, et un composeur en carte qui grandit avec le texte.
+   Un seul accent, le rouge ; tout le reste en nuances de la surface.
+   ========================================================================== */
+
+.messagerie kbd {
+  display: inline-block; min-width: 18px; padding: 0 5px; text-align: center;
+  font: 600 10.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--texte-2); background: var(--surface-2);
+  border: 1px solid var(--bord-fort); border-bottom-width: 2px; border-radius: 5px;
+}
+
+/* ----------------------------------------------------------------- la liste */
+.messagerie .salons .tete { padding: 2px 2px 12px; }
+.messagerie .titre-messages { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.messagerie .titre-messages h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+.messagerie .non-lus-total {
+  padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 750;
+  background: var(--rouge-fond); color: var(--rouge-vif);
+}
+.messagerie .salons .tete .bouton.icone { cursor: pointer; }
+
+.recherche-salons { position: relative; display: flex; align-items: center; margin: 0 0 8px; }
+.recherche-salons > svg { position: absolute; left: 11px; color: var(--texte-3); pointer-events: none; }
+.recherche-salons input {
+  width: 100%; min-height: 40px; padding: 0 36px 0 34px; font-size: 14px;
+  border-radius: 11px; background: var(--surface-2); border: 1px solid transparent;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.recherche-salons input:focus { outline: none; border-color: var(--bord-fort); background: var(--surface); }
+.recherche-salons kbd { position: absolute; right: 9px; pointer-events: none; }
+.recherche-salons input:focus + kbd, .recherche-salons input:not(:placeholder-shown) + kbd { display: none; }
+@media (hover: none) { .recherche-salons kbd { display: none; } }
+
+details.groupe-salons { margin-top: 6px; }
+details.groupe-salons > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  min-height: 32px; padding: 0 8px; border-radius: 8px; user-select: none;
+  font-size: 10.5px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-3);
+}
+details.groupe-salons > summary::-webkit-details-marker { display: none; }
+details.groupe-salons > summary::before {
+  content: ""; width: 6px; height: 6px; flex: none;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform .18s ease;
+}
+details.groupe-salons[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+details.groupe-salons > summary:hover { color: var(--texte-2); }
+details.groupe-salons > summary:focus-visible { outline: 2px solid var(--rouge); outline-offset: -2px; }
+details.groupe-salons > summary .titre { flex: 1; }
+details.groupe-salons > summary .n {
+  padding: 0 6px; border-radius: 999px; background: var(--rouge); color: #fff;
+  font-size: 10.5px; letter-spacing: 0; line-height: 1.6;
+}
+details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
+
+.messagerie .salon {
+  position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 11px; align-items: center;
+  min-height: 60px; padding: 9px 10px; border-radius: 12px; color: var(--texte-2);
+  transition: background-color .15s ease, color .15s ease;
+}
+.messagerie a.salon { cursor: pointer; }
+.messagerie a.salon:focus-visible { outline: 2px solid var(--rouge); outline-offset: -2px; }
+.messagerie .salon.actif {
+  background: linear-gradient(90deg, var(--rouge-fond), transparent 85%), var(--surface-2);
+  color: var(--texte);
+}
+.messagerie .salon.actif::before {
+  content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--rouge);
+}
+.messagerie .salon .icone-salon {
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--surface-2); border: 1px solid var(--bord); color: var(--texte-2);
+  --teinte: var(--texte-2);
+}
+.messagerie .salon[data-genre] .icone-salon {
+  color: var(--teinte); border-color: color-mix(in srgb, var(--teinte) 22%, var(--bord));
+  background: color-mix(in srgb, var(--teinte) 11%, var(--surface));
+}
+.messagerie .salon[data-genre="borne"]      .icone-salon { --teinte: var(--rouge-vif); }
+.messagerie .salon[data-genre="annonces"]   .icone-salon { --teinte: var(--ambre); }
+.messagerie .salon[data-genre="support"]    .icone-salon { --teinte: var(--bleu); }
+.messagerie .salon[data-genre="communaute"] .icone-salon { --teinte: var(--violet); }
+.messagerie .salon.ferme .icone-salon { color: var(--texte-3); }
+.messagerie .salon .nom { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 14px; white-space: normal; }
+.messagerie .salon .ligne-haut, .messagerie .salon .ligne-bas { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.messagerie .salon .libelle { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texte); }
+.messagerie .salon .libelle .diese { color: var(--texte-3); font-weight: 600; margin-right: 1px; }
+.messagerie .salon .quand { flex: none; font-size: 11.5px; color: var(--texte-3); font-variant-numeric: tabular-nums; }
+.messagerie .salon .sujet { flex: 1; min-width: 0; margin: 0; font-size: 12.5px; color: var(--texte-3); }
+.messagerie .salon .sujet.vide-apercu { font-style: italic; }
+.messagerie .salon.non-lu .libelle { font-weight: 800; }
+.messagerie .salon.non-lu .sujet { color: var(--texte-2); }
+.messagerie .salon.non-lu .quand { color: var(--rouge-vif); font-weight: 700; }
+.messagerie .salon .badge { margin-left: auto; box-shadow: 0 2px 8px -2px rgba(215, 0, 5, .6); }
+.messagerie .salon.ferme .libelle { color: var(--texte-3); }
+.messagerie .aucun-salon { margin: 18px 10px; font-size: 13px; color: var(--texte-3); text-align: center; }
+
+/* ----------------------------------------------------------------- l'accueil */
+.messagerie-accueil, .fil-vide {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 8px; padding: 12vh 24px 40px; color: var(--texte-2);
+}
+.messagerie-accueil .halo, .fil-vide .halo {
+  width: 76px; height: 76px; border-radius: 24px; display: grid; place-items: center; margin-bottom: 8px;
+  color: var(--rouge-vif); border: 1px solid color-mix(in srgb, var(--rouge) 30%, var(--bord));
+  background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--rouge) 28%, transparent), var(--surface) 70%);
+  box-shadow: 0 18px 50px -20px rgba(215, 0, 5, .55);
+}
+.messagerie-accueil h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; text-transform: none; color: var(--texte); }
+.messagerie-accueil p, .fil-vide p { margin: 0; max-width: 46ch; font-size: 14px; line-height: 1.55; }
+.messagerie-accueil .astuces { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 18px 0 0; padding: 0; font-size: 12.5px; color: var(--texte-3); }
+.fil-vide { padding-top: 10vh; }
+.fil-vide .halo { width: 64px; height: 64px; border-radius: 20px; }
+.fil-vide .halo .diese { font-size: 28px; font-weight: 800; }
+.fil-vide b { font-size: 17px; color: var(--texte); }
+
+/* ------------------------------------------------------------------- le fil */
+.fil-salon .tete { gap: 12px; min-height: 64px; padding: 10px 2px; }
+.fil-salon .tete .icone-fil {
+  width: 40px; height: 40px; flex: none; border-radius: 12px; display: grid; place-items: center;
+  font-size: 19px; font-weight: 800; color: var(--rouge-vif);
+  background: var(--rouge-fond); border: 1px solid color-mix(in srgb, var(--rouge) 25%, var(--bord));
+}
+.fil-salon .tete h1 { font-size: 17px; font-weight: 750; letter-spacing: -.02em; }
+.fil-salon .tete .bouton.petit { cursor: pointer; border-radius: 10px; }
+
+.fil-salon .messages { padding: 10px 16px 18px; }
+.fil-salon .jour { margin: 22px 0 10px; }
+.fil-salon .jour {
+  font-size: 11px; letter-spacing: .06em;
+}
+.fil-salon .jour::before, .fil-salon .jour::after { background: linear-gradient(90deg, transparent, var(--bord)); }
+.fil-salon .jour::after { background: linear-gradient(90deg, var(--bord), transparent); }
+
+.msg { gap: 10px; }
+.msg.debut { margin-top: 14px; }
+.msg .avatar { width: 36px; height: 36px; border-radius: 12px; margin-top: 20px; font-size: 12px; }
+.msg.suite .avatar { width: 36px; }
+.msg .entete-msg { margin: 0 0 4px 4px; }
+.msg .entete-msg b { font-size: 13.5px; }
+.msg .heure-entete { font-size: 11px; color: var(--texte-3); font-variant-numeric: tabular-nums; }
+.msg .corps { max-width: min(76%, 680px); }
+
+.msg .bulle-ligne { display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+.msg.mien .bulle-ligne { flex-direction: row-reverse; }
+.msg .bulle { padding: 8px 13px 6px; border: 1px solid var(--bord); min-width: 64px; }
+.msg.mien .bulle { border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 22px -12px rgba(215, 0, 5, .7); }
+.msg.machine .bulle { border-color: color-mix(in srgb, var(--rouge) 30%, var(--bord)); }
+.msg .texte { font-size: 14.75px; line-height: 1.5; }
+.msg .texte a { color: inherit; text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; overflow-wrap: anywhere; }
+.msg:not(.mien) .texte a { color: var(--bleu); }
+.msg .bulle .meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; }
+.msg .bulle .meta time { margin: 0; }
+.msg .etat-envoi { display: inline-flex; color: rgba(255, 255, 255, .7); }
+.msg .etat-envoi.parti { color: rgba(255, 255, 255, .92); }
+
+/* Les gestes d'une bulle : au survol sur ordinateur, au toucher au telephone. */
+.msg .actions-msg {
+  display: flex; align-items: center; gap: 2px; flex: none; padding: 3px;
+  border-radius: 11px; background: var(--surface); border: 1px solid var(--bord-fort);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .55);
+  opacity: 0; transform: scale(.94); pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+.msg:hover .actions-msg, .msg:focus-within .actions-msg, .msg[data-choisi] .actions-msg,
+.msg .actions-msg:has(.actif) { opacity: 1; transform: none; pointer-events: auto; }
+@media (hover: none) {
+  .msg:hover:not([data-choisi]) .actions-msg:not(:has(.actif)) { opacity: 0; pointer-events: none; }
+}
+.msg .actions-msg .geste {
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; cursor: pointer;
+  display: grid; place-items: center; background: transparent; color: var(--texte-2);
+  transition: background-color .15s ease, color .15s ease;
+}
+.msg .actions-msg .geste:hover, .msg .actions-msg .geste.actif { background: var(--surface-2); color: var(--texte); }
+.msg .actions-msg .geste.danger:hover { background: var(--rouge-fond); color: var(--rouge-vif); }
+.msg .actions-msg .geste:focus-visible { outline: 2px solid var(--rouge); outline-offset: 1px; }
+.msg .actions-msg .oter { display: block; margin: 0; }
+.msg[data-choisi] .bulle { box-shadow: 0 0 0 3px var(--rouge-fond); }
+.msg .choix-emoji { box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .6); animation: emoji-entre .14s ease-out; }
+@keyframes emoji-entre { from { opacity: 0; transform: translateY(4px) scale(.96); } }
+.msg .reactions { margin-top: 5px; }
+
+/* Revenir en bas : la pastille flotte au-dessus du composeur. */
+.fil-salon .vers-le-bas {
+  position: sticky; bottom: 118px; z-index: 6; align-self: center; margin: -44px 0 8px;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
+  border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 700;
+  color: var(--texte); background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px); border: 1px solid var(--bord-fort);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .6);
+  animation: emoji-entre .18s ease-out;
+}
+.fil-salon .vers-le-bas .num { color: var(--rouge-vif); }
+.fil-salon .vers-le-bas:hover { border-color: var(--texte-3); }
+.fil-salon .vers-le-bas:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+/* --------------------------------------------------------------- le composeur */
+.composeur {
+  border-top: 0; padding: 10px 0 12px;
+  background: linear-gradient(to top, var(--fond) 72%, transparent);
+}
+.composeur .boite-composeur {
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 6px 6px 6px 16px; border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--bord-fort);
+  box-shadow: 0 14px 34px -18px rgba(0, 0, 0, .7);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.composeur .boite-composeur:focus-within {
+  border-color: color-mix(in srgb, var(--rouge) 55%, var(--bord-fort));
+  box-shadow: 0 0 0 4px var(--rouge-fond), 0 14px 34px -18px rgba(0, 0, 0, .7);
+}
+.composeur .boite-composeur textarea {
+  flex: 1; min-height: 42px; max-height: 220px; padding: 10px 0; margin: 0;
+  border: 0; background: transparent; box-shadow: none; outline: none; resize: none;
+  font-size: 15px; line-height: 1.5; color: var(--texte);
+}
+.composeur .boite-composeur textarea:focus { outline: none; box-shadow: none; }
+.composeur .envoyer {
+  flex: none; width: 42px; height: 42px; border: 0; border-radius: 13px; cursor: pointer;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(180deg, #ec1219, var(--rouge) 60%, #b60004);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 18px -8px rgba(215, 0, 5, .8);
+  transition: transform .12s ease, opacity .15s ease, filter .15s ease;
+}
+.composeur .envoyer:hover:not(:disabled) { filter: brightness(1.1); }
+.composeur .envoyer:active:not(:disabled) { transform: scale(.94); }
+.composeur .envoyer:focus-visible { outline: 2px solid var(--rouge-vif); outline-offset: 2px; }
+.composeur .envoyer:disabled { cursor: default; background: var(--surface-3); color: var(--texte-3); box-shadow: none; }
+.composeur .aide-composeur { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px 0; font-size: 11.5px; color: var(--texte-3); }
+.composeur .compteur { margin-left: auto; font-weight: 700; }
+.composeur .compteur.plein { color: var(--rouge-vif); }
+@media (hover: none) { .composeur .aide-composeur span:first-child { display: none; } }
+.composeur-muet {
+  align-self: center; margin: 12px auto 16px; padding: 8px 16px; border-radius: 999px;
+  font-size: 13px; color: var(--texte-3); background: var(--surface); border: 1px solid var(--bord);
+}
+
+/* ----------------------------------------------------------- grand ecran */
+@media (min-width: 980px) {
+  .ecran.messagerie { padding: 0 26px 0 0; grid-template-columns: 320px minmax(0, 1fr); gap: 26px; }
+  .messagerie .salons {
+    height: calc(100svh - var(--entete-h, 58px)); max-height: none;
+    padding: 18px 10px 18px 14px; background: var(--surface); border-right: 1px solid var(--bord);
+  }
+  .fil-salon { min-height: calc(100svh - var(--entete-h, 58px)); }
+  .fil-salon .vers-le-bas { bottom: 104px; }
+}
+@media (max-width: 979px) {
+  .messagerie[data-vue="liste"] .salons { padding-top: 6px; }
+  .msg .corps { max-width: 84%; }
+  .fil-salon .messages { padding-left: 2px; padding-right: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg .actions-msg, .msg .choix-emoji, .fil-salon .vers-le-bas { transition: none; animation: none; }
+}
