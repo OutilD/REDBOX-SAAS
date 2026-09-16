@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q1 } from "@/db";
-import { estSuperAdmin, peutConfigurer, peutVoirBorne, utilisateur } from "@/lib/auth";
+import { estSuperAdmin, peutVoirBorne, utilisateur } from "@/lib/auth";
+import { nomDuStatut } from "@/lib/statuts";
 import { ChoisirPlace } from "../../choisir-place";
 import { retourDe } from "../retour";
 
@@ -33,13 +34,16 @@ export default async function Situer({ params, searchParams }: {
   const b = await q1<{
     id: number; nom: string; adresse: string | null; ville: string | null;
     latitude: number | null; longitude: number | null; compte_id: number | null; compte: string | null;
+    numero: string | null; statut: string;
   }>(`
-    SELECT b.id, b.nom, b.adresse, b.ville, b.latitude, b.longitude, b.compte_id, c.nom AS compte
+    SELECT b.id, b.nom, b.adresse, b.ville, b.latitude, b.longitude, b.compte_id, c.nom AS compte,
+           b.numero, b.statut
       FROM borne b LEFT JOIN compte c ON c.id = b.compte_id
      WHERE b.id = $1`, [id]);
   if (!b) notFound();
   const sienne = b.compte_id !== null && Number(b.compte_id) === Number(u.compte_id) && peutVoirBorne(u, id);
-  if (!estSuperAdmin(u) && !(sienne && peutConfigurer(u))) redirect(sienne ? `/bornes/${id}` : "/carte");
+  // Placer une machine est un geste du super-admin : le client voit sa carte, il ne la modifie pas.
+  if (!estSuperAdmin(u)) redirect(sienne ? `/bornes/${id}` : "/carte");
 
   const annuler = retourDe(r, id, !sienne);
   const situee = b.latitude !== null && b.longitude !== null;
@@ -47,24 +51,25 @@ export default async function Situer({ params, searchParams }: {
   return (
     <>
       <Entete page="carte" />
-      <main className="ecran">
-        <div className="rangee" style={{ marginTop: 18, alignItems: "flex-start" }}>
-          <a href={annuler} className="bouton petit" aria-label="Retour">‹</a>
+      <main className="ecran situer">
+        <div className="situer-tete">
+          <a href={annuler} className="bouton icone" aria-label="Retour">‹</a>
           <div className="pousse" style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0 }}>{situee ? "Re-situer" : "Situer"} {b.nom}</h1>
-            {!sienne && b.compte ? <p className="sous" style={{ margin: "2px 0 0" }}>{b.compte}</p> : null}
+            <h1>{situee ? "Re-situer" : "Placer"} {b.nom}</h1>
+            <div className="situer-infos">
+              <span className="pilule stade" data-stade={b.statut}><i />{nomDuStatut(b.statut)}</span>
+              {b.numero ? <span className="mono">n° {b.numero}</span> : null}
+              <span>{b.compte ?? "sans compte"}</span>
+              {situee
+                ? <span className="pilule ok"><i />déjà sur la carte{b.ville ? ` · ${b.ville}` : ""}</span>
+                : <span className="pilule attente"><i />pas encore sur la carte</span>}
+            </div>
           </div>
         </div>
-        <p className="sous" style={{ maxWidth: 680 }}>
-          Tapez l’adresse et choisissez-la dans la liste, puis ajustez : touchez la carte
-          ou glissez le carré rouge jusqu’à l’emplacement exact de la machine.
-        </p>
         {e ? <p className="erreur" style={{ marginTop: 12 }}>{ERREURS[e] ?? "Impossible."}</p> : null}
 
-        <div className="carte" style={{ marginTop: 14 }}>
-          <ChoisirPlace action={`/api/bornes/${id}/place`} r={r ?? ""} annuler={annuler}
-                        adresse={b.adresse} ville={b.ville} latitude={b.latitude} longitude={b.longitude} />
-        </div>
+        <ChoisirPlace action={`/api/bornes/${id}/place`} r={r ?? ""} annuler={annuler}
+                      adresse={b.adresse} ville={b.ville} latitude={b.latitude} longitude={b.longitude} />
       </main>
       <NavBasse page="carte" />
     </>

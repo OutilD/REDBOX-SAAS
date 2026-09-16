@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q, depuis } from "@/db";
-import { peutConfigurer, utilisateur } from "@/lib/auth";
-import { dansLeCadre, situerLesBornes } from "@/lib/geo";
+import { utilisateur } from "@/lib/auth";
+import { dansLeCadre } from "@/lib/geo";
 import { statutValide } from "@/lib/statuts";
 import { Repli } from "../repli";
 import { IcoCarte } from "../icones";
@@ -31,22 +31,14 @@ type Ligne = {
  * machine attribuee mais pas encore posee y figure aussi, en bleu : c'est la
  * ou elle sera. Survolee, une machine dit ce qu'elle a rapporte.
  *
- * LA CARTE SE REGARDE, ELLE NE SE MODIFIE PAS. Une machine se situe depuis sa
- * page, la ou l'on regle aussi son nom et son adresse ; le parc entier se
- * deplace depuis l'espace super-admin.
- *
- * Les coordonnees et la ville viennent de l'adresse, par la Base Adresse
- * Nationale, au moment ou l'on ouvre la carte pour celles qui n'en ont pas
- * encore. Une machine sans adresse, ou dont l'adresse est introuvable, n'est
- * pas cachee : elle est listee, avec le chemin qui la fera apparaitre.
+ * LA CARTE SE REGARDE, ELLE NE SE MODIFIE PAS. Placer une machine est un geste
+ * du super-admin, comme l'attribuer ou changer son stade : l'adresse qu'un
+ * client ecrit sur sa fiche sert l'ecran d'assistance, elle ne deplace pas la
+ * machine. Une machine pas encore placee n'est pas cachee : elle est listee.
  */
 export default async function Carte() {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-
-  // Celles qui attendent une place l'obtiennent maintenant, par petit lot ; si
-  // le geocodeur ne repond pas, la page s'ouvre quand meme.
-  await situerLesBornes(u.compte_id).catch(() => {});
 
   const bornes = await q<Ligne>(`
     SELECT b.id, b.nom, b.adresse, b.ville, b.vue_le, b.jeton, b.hors_service, b.statut,
@@ -107,16 +99,12 @@ export default async function Carte() {
               <section className="carte a-situer" style={{ marginTop: 14 }}>
                 <h2 style={{ marginTop: 0 }}>À situer</h2>
                 <p className="faible" style={{ fontSize: 13, margin: "0 0 12px" }}>
-                  {peutConfigurer(u)
-                    ? "Une machine se situe depuis sa page : ouvrez-la, puis « Situer sur la carte »."
-                    : "Le propriétaire ou un gérant du compte la situe depuis la page de la machine."}
+                  "L’équipe RedBox place chaque machine sur la carte : elle apparaîtra ici dès que c’est fait."
                 </p>
                 <ul className="liste-a-situer">
                   {aSituer.map((b) => {
                     const etat = etatDe(b);
-                    const pourquoi = !(b.adresse ?? "").trim() ? "sans adresse"
-                      : b.situee_pour === b.adresse ? "adresse introuvable"
-                      : "recherche en cours";
+                    const pourquoi = !(b.adresse ?? "").trim() ? "sans adresse" : "pas encore placée";
                     return (
                       <li key={b.id}>
                         <div className="pousse" style={{ minWidth: 0 }}>
@@ -126,7 +114,6 @@ export default async function Carte() {
                         <span className="pilule" data-etat={etat}>
                           <i />{etat === "mal" ? `vue ${depuis(b.vue_le)}` : NOM_ETAT[etat]}
                         </span>
-                        {peutConfigurer(u) ? <Link href={`/bornes/${b.id}`} className="bouton petit">Ouvrir</Link> : null}
                       </li>
                     );
                   })}

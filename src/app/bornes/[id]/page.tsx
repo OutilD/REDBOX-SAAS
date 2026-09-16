@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q, q1, euros, depuis, enLigne, codeCanal, SQL_MINUIT } from "@/db";
-import { peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
+import { estSuperAdmin, peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
 import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
@@ -203,7 +203,7 @@ export default async function Detail({
             <h1>{b.nom}</h1>
             <div className="ou">
               {b.adresse ?? "lieu non renseigné"}
-              {peutConfigurer(u) ? <> · <Link href={`/carte/situer/${b.id}?r=borne`} className="situer">Situer sur la carte ›</Link></> : null}
+              {estSuperAdmin(u) ? <> · <Link href={`/carte/situer/${b.id}?r=borne`} className="situer">Situer sur la carte ›</Link></> : null}
             </div>
             {b.description ? <p className="quoi">{b.description}</p> : null}
             <div className="etats">

@@ -85,9 +85,10 @@ export function grouper(points: Point[]): Groupe[] {
 }
 
 /**
- * Sous la carte : ce que veulent dire les couleurs, et combien chacune compte.
- * D'abord les stades — la couleur du carre —, puis la sante des installees —
- * la pastille au coin.
+ * Sous la carte : la sante des machines installees — la pastille au coin des
+ * carres —, et combien chacune compte. Les stades, eux, sont les boutons posés
+ * sur la carte : ils disent la couleur et servent de filtre. Sans JavaScript,
+ * la carte n'existe pas : les stades restent alors ecrits ici.
  */
 export function Legende({ groupes }: { groupes: Groupe[] }) {
   const machines = groupes.flatMap((g) => g.machines);
@@ -99,17 +100,22 @@ export function Legende({ groupes }: { groupes: Groupe[] }) {
     .filter((x) => x.n > 0);
   return (
     <div className="legende-carte" aria-label="Légende">
-      {stades.map((s) => (
-        <span key={s.cle} className="pilule stade" data-stade={s.cle}>
-          <i />{s.nom} <b className="num">{s.n}</b>
-        </span>
-      ))}
-      {santes.length > 0 ? <span className="separe" aria-hidden /> : null}
+      {stades.length === 1 ? (
+        <span className="pilule stade" data-stade={stades[0].cle}><i />{stades[0].nom} <b className="num">{stades[0].n}</b></span>
+      ) : null}
+      {santes.length > 0 ? <span className="titre-legende">Santé</span> : null}
       {santes.map(({ e, n }) => (
         <span key={e} className="pilule" data-etat={e}>
           <i />{NOM_ETAT[e]} <b className="num">{n}</b>
         </span>
       ))}
+      <noscript>
+        {stades.map((s) => (
+          <span key={s.cle} className="pilule stade" data-stade={s.cle}>
+            <i />{s.nom} <b className="num">{s.n}</b>
+          </span>
+        ))}
+      </noscript>
     </div>
   );
 }

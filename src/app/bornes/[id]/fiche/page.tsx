@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q1 } from "@/db";
-import { peutConfigurer, peutVoirBorne, utilisateur } from "@/lib/auth";
+import { estSuperAdmin, peutConfigurer, peutVoirBorne, utilisateur } from "@/lib/auth";
 import { TEL_MAX, TEXTE_DEFAUT, TEXTE_MAX } from "@/lib/sav";
 
 export const dynamic = "force-dynamic";
@@ -109,13 +109,16 @@ export default async function FicheBorne({ params, searchParams }:
             <div className="champ">
               <div className="rangee" style={{ justifyContent: "space-between", gap: 8 }}>
                 <label htmlFor="adresse">Adresse</label>
-                <Link href={`/carte/situer/${b.id}?r=fiche`} className="faible" style={{ fontSize: 12.5 }}>Situer sur la carte ›</Link>
+                {estSuperAdmin(u)
+                  ? <Link href={`/carte/situer/${b.id}?r=fiche`} className="faible" style={{ fontSize: 12.5 }}>Situer sur la carte ›</Link>
+                  : null}
               </div>
               <input id="adresse" name="adresse" defaultValue={b.adresse ?? ""}
                      maxLength={160} placeholder="12 rue des Lilas, Paris 11ᵉ" />
               <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
                 La machine l’affiche sur son écran d’assistance : c’est ce que lit un
-                client qui vous appelle.
+                client qui vous appelle. Sa place sur la carte, elle, est posée par
+                l’équipe RedBox.
               </p>
             </div>
 

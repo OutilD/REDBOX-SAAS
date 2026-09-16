@@ -1,5 +1,5 @@
 import { q, q1 } from "@/db";
-import { estSuperAdmin, peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
+import { estSuperAdmin, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
 import { dansLeCadre } from "@/lib/geo";
 import { retourDe } from "@/app/carte/situer/retour";
@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
  * ouverture de la fiche. Une adresse modifiee plus tard, elle, se recherche de
  * nouveau : c'est une autre place.
  *
- * Qui peut : ceux qui configurent les machines de leur compte, et le
- * super-admin pour tout le parc. Si l'adresse change, la machine est reveillee
+ * Qui peut : le super-admin, seul. Placer une machine fait partie de la gestion
+ * du parc, comme l'attribuer ou changer son stade ; le client voit sa carte, il
+ * ne la modifie pas. Si l'adresse change, la machine est reveillee
  * — elle l'affiche sur son ecran d'assistance, comme depuis la fiche.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -31,7 +32,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     "SELECT compte_id, adresse, jeton FROM borne WHERE id = $1", [id]);
   if (!b) return versPage(req, "/carte");
   const sienne = b.compte_id !== null && Number(b.compte_id) === Number(u.compte_id) && peutVoirBorne(u, id);
-  if (!estSuperAdmin(u) && !(sienne && peutConfigurer(u))) return versPage(req, "/carte");
+  if (!estSuperAdmin(u)) return versPage(req, sienne ? `/bornes/${id}` : "/carte");
 
   const f = await req.formData();
   const r = String(f.get("r") ?? "");
@@ -56,5 +57,5 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (b.jeton && (b.adresse ?? "").trim() !== adresse) await reveiller(id, "adresse modifiée");
 
   const retour = retourDe(r, id, !sienne);
-  return versPage(req, retour.startsWith("/admin") ? `/admin?ok=situee#m${id}` : retour);
+  return versPage(req, r === "admin" ? "/admin?ok=situee#carte" : retour);
 }

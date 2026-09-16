@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { carreRedbox } from "./carte-maps";
+import { IcoCalques, IcoCible, IcoEpingle } from "../icones";
 
 type Suggestion = { libelle: string; ville: string; latitude: number; longitude: number };
 type Lieu = { latitude: number; longitude: number };
@@ -10,6 +11,30 @@ type Lieu = { latitude: number; longitude: number };
 /** La metropole et la Corse, quand la machine n'a encore aucune place. */
 const FRANCE: [[number, number], [number, number]] = [[41.2, -5.4], [51.3, 9.9]];
 const TAILLE = 28;
+
+const PLAN = {
+  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
+  maxZoom: 19,
+};
+/** La vue du ciel : on reconnait la terrasse, l'entree du centre commercial, le quai de la gare. */
+const SATELLITE = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  attribution: "Imagerie &copy; Esri, Maxar, Earthstar Geographics",
+  maxZoom: 19,
+};
+
+/** La distance entre deux places, a vol d'oiseau, en metres. */
+function distance(a: Lieu, b: Lieu): number {
+  const r = Math.PI / 180;
+  const x = Math.sin(((b.latitude - a.latitude) * r) / 2) ** 2 +
+    Math.cos(a.latitude * r) * Math.cos(b.latitude * r) * Math.sin(((b.longitude - a.longitude) * r) / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(x));
+}
+
+function enMetres(m: number): string {
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+}
 
 /**
  * CHOISIR LA PLACE D'UNE MACHINE : UNE ADRESSE, PUIS UN POINT.
@@ -29,6 +54,8 @@ export function ChoisirPlace({ action, r, annuler, adresse: adresseDepart, ville
   const LRef = useRef<typeof import("leaflet") | null>(null);
   const carteRef = useRef<import("leaflet").Map | null>(null);
   const marqueurRef = useRef<import("leaflet").Marker | null>(null);
+  const tuilesRef = useRef<import("leaflet").TileLayer | null>(null);
+  const [fond, setFond] = useState<"plan" | "satellite">("plan");
   // La derniere recherche d'adresse par le point gagne : on glisse vite.
   const tour = useRef(0);
   // Seule la frappe lance les suggestions — pas une adresse qu'on vient de choisir.
@@ -89,12 +116,10 @@ export function ChoisirPlace({ action, r, annuler, adresse: adresseDepart, ville
     void import("leaflet").then((L) => {
       if (!vivant || !boite.current) return;
       LRef.current = L;
-      const carte = L.map(boite.current, { scrollWheelZoom: true, zoomControl: true });
+      const carte = L.map(boite.current, { scrollWheelZoom: true, zoomControl: false });
+      L.control.zoom({ position: "bottomright" }).addTo(carte);
       carteRef.current = carte;
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
-      }).addTo(carte);
+      tuilesRef.current = L.tileLayer(PLAN.url, { maxZoom: PLAN.maxZoom, attribution: PLAN.attribution }).addTo(carte);
       if (depart) poser(depart.latitude, depart.longitude, 17);
       else carte.fitBounds(FRANCE);
       carte.on("click", (ev) => {
@@ -109,6 +134,15 @@ export function ChoisirPlace({ action, r, annuler, adresse: adresseDepart, ville
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Plan ou satellite : on change de tuiles, la carte ne bouge pas.
+  useEffect(() => {
+    const L = LRef.current, carte = carteRef.current;
+    if (!L || !carte) return;
+    const f = fond === "satellite" ? SATELLITE : PLAN;
+    tuilesRef.current?.remove();
+    tuilesRef.current = L.tileLayer(f.url, { maxZoom: f.maxZoom, attribution: f.attribution }).addTo(carte);
+  }, [fond]);
 
   // Les suggestions, un quart de seconde apres la derniere touche.
   useEffect(() => {
@@ -154,7 +188,15 @@ export function ChoisirPlace({ action, r, annuler, adresse: adresseDepart, ville
       { enableHighAccuracy: true, timeout: 10000 });
   }
 
+  function recentrer() {
+    const carte = carteRef.current;
+    if (!carte) return;
+    if (point) carte.flyTo([point.latitude, point.longitude], Math.max(carte.getZoom(), 17), { duration: .5 });
+    else carte.flyToBounds(FRANCE, { duration: .5 });
+  }
+
   const liste = ouvert && suggestions.length > 0;
+  const ecart = depart && point ? distance(depart, point) : 0;
 
   return (
     <form method="post" action={action} className="choisir-place">
@@ -163,57 +205,89 @@ export function ChoisirPlace({ action, r, annuler, adresse: adresseDepart, ville
       <input type="hidden" name="longitude" value={point?.longitude ?? ""} />
       <input type="hidden" name="ville" value={ville} />
 
-      <div className="champ recherche">
-        <label htmlFor="place-adresse">Adresse</label>
-        <input id="place-adresse" name="adresse" required maxLength={160} autoComplete="off" spellCheck={false}
-               placeholder="12 rue des Lilas, 33000 Bordeaux" value={adresse}
-               role="combobox" aria-autocomplete="list" aria-expanded={liste} aria-controls="place-suggestions"
-               aria-activedescendant={liste && actif >= 0 ? `place-s${actif}` : undefined}
-               onChange={(e) => { saisie.current = true; setAdresse(e.target.value); }}
-               onFocus={() => { if (suggestions.length > 0) setOuvert(true); }}
-               onBlur={() => setTimeout(() => setOuvert(false), 150)}
-               onKeyDown={(e) => {
-                 if (!liste) return;
-                 if (e.key === "ArrowDown") { e.preventDefault(); setActif((i) => (i + 1) % suggestions.length); }
-                 else if (e.key === "ArrowUp") { e.preventDefault(); setActif((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
-                 else if (e.key === "Enter") { e.preventDefault(); choisir(suggestions[Math.max(0, actif)]); }
-                 else if (e.key === "Escape") { e.preventDefault(); setOuvert(false); }
-               }} />
-        {liste ? (
-          <ul id="place-suggestions" role="listbox" className="suggestions">
-            {suggestions.map((s, i) => (
-              <li key={`${s.libelle}-${i}`} id={`place-s${i}`} role="option" aria-selected={i === actif}
-                  onMouseDown={(e) => e.preventDefault()} onClick={() => choisir(s)}>
-                {s.libelle}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      <div className="panneau">
+        <ol className="etapes">
+          <li data-fait={adresse.trim() ? "" : undefined}>
+            <span className="rang num" aria-hidden="true">1</span>
+            <div className="champ recherche">
+              <label htmlFor="place-adresse">L’adresse</label>
+              <input id="place-adresse" name="adresse" required maxLength={160} autoComplete="off" spellCheck={false}
+                     placeholder="12 rue des Lilas, 33000 Bordeaux" value={adresse}
+                     role="combobox" aria-autocomplete="list" aria-expanded={liste} aria-controls="place-suggestions"
+                     aria-activedescendant={liste && actif >= 0 ? `place-s${actif}` : undefined}
+                     onChange={(e) => { saisie.current = true; setAdresse(e.target.value); }}
+                     onFocus={() => { if (suggestions.length > 0) setOuvert(true); }}
+                     onBlur={() => setTimeout(() => setOuvert(false), 150)}
+                     onKeyDown={(e) => {
+                       if (!liste) return;
+                       if (e.key === "ArrowDown") { e.preventDefault(); setActif((i) => (i + 1) % suggestions.length); }
+                       else if (e.key === "ArrowUp") { e.preventDefault(); setActif((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
+                       else if (e.key === "Enter") { e.preventDefault(); choisir(suggestions[Math.max(0, actif)]); }
+                       else if (e.key === "Escape") { e.preventDefault(); setOuvert(false); }
+                     }} />
+              {liste ? (
+                <ul id="place-suggestions" role="listbox" className="suggestions">
+                  {suggestions.map((s, i) => (
+                    <li key={`${s.libelle}-${i}`} id={`place-s${i}`} role="option" aria-selected={i === actif}
+                        onMouseDown={(e) => e.preventDefault()} onClick={() => choisir(s)}>
+                      <IcoEpingle size={15} /><span>{s.libelle}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="aide-place">Tapez au moins trois lettres, puis choisissez dans la liste.</p>
+            </div>
+          </li>
+          <li data-fait={point ? "" : undefined}>
+            <span className="rang num" aria-hidden="true">2</span>
+            <div>
+              <div className="titre-etape">L’emplacement exact</div>
+              <p className="aide-place">
+                {point ? "Touchez la carte ou glissez le carré rouge jusqu’à la machine. La vue satellite aide à trouver l’entrée."
+                       : "Choisissez une adresse, ou touchez la carte à l’endroit de la machine."}
+              </p>
+              <button type="button" className="bouton petit" onClick={localiser}><IcoCible size={16} /> Je suis devant la machine</button>
+              {point ? (
+                <dl className="coordonnees num">
+                  <div><dt>Latitude</dt><dd>{point.latitude.toFixed(5)}</dd></div>
+                  <div><dt>Longitude</dt><dd>{point.longitude.toFixed(5)}</dd></div>
+                  {ville ? <div><dt>Ville</dt><dd>{ville}</dd></div> : null}
+                  {depart && ecart >= 1 ? <div><dt>Déplacée de</dt><dd>{enMetres(ecart)}</dd></div> : null}
+                </dl>
+              ) : null}
+              {proposee && proposee !== adresse ? (
+                <p className="proposee">
+                  <span>Adresse la plus proche : <b>{proposee}</b></span>
+                  <button type="button" className="bouton petit" onClick={() => { saisie.current = false; setAdresse(proposee); }}>
+                    Utiliser
+                  </button>
+                </p>
+              ) : null}
+              {avis ? <p className="faible avis-place" role="status">{avis}</p> : null}
+            </div>
+          </li>
+        </ol>
+
+        <div className="actions">
+          <a href={annuler} className="bouton">Annuler</a>
+          <button className="bouton primaire" disabled={!point}>Enregistrer la place</button>
+        </div>
       </div>
 
-      <div className="consigne">
-        <p className="faible">
-          {point ? "Touchez la carte ou glissez le carré rouge pour affiner."
-                 : "Choisissez une adresse, ou touchez la carte à l’endroit de la machine."}
-        </p>
-        <button type="button" className="bouton petit" onClick={localiser}>Me localiser</button>
-      </div>
-
-      <div ref={boite} className="carte-maps" role="region" aria-label="Carte : touchez pour placer la RedBox" />
-
-      {proposee && proposee !== adresse ? (
-        <p className="proposee">
-          Adresse la plus proche : <b>{proposee}</b>{" "}
-          <button type="button" className="bouton petit" onClick={() => { saisie.current = false; setAdresse(proposee); }}>
-            Utiliser
+      <div className="scene">
+        <div ref={boite} className="carte-maps" data-fond={fond} role="region" aria-label="Carte : touchez pour placer la RedBox" />
+        <div className="carte-outils gestes">
+          <button type="button" className="bouton icone" onClick={recentrer}
+                  title={point ? "Revenir sur la machine" : "Voir toute la France"} aria-label="Recentrer">
+            <IcoCible />
           </button>
-        </p>
-      ) : null}
-      {avis ? <p className="faible avis-place" role="status">{avis}</p> : null}
-
-      <div className="actions">
-        <a href={annuler} className="bouton">Annuler</a>
-        <button className="bouton primaire" disabled={!point}>Enregistrer la place</button>
+          <button type="button" className="bouton icone" aria-pressed={fond === "satellite"}
+                  onClick={() => setFond((f) => (f === "plan" ? "satellite" : "plan"))}
+                  title={fond === "plan" ? "Vue satellite" : "Vue plan"} aria-label={fond === "plan" ? "Vue satellite" : "Vue plan"}>
+            <IcoCalques />
+          </button>
+        </div>
+        <span className="fond-nom" aria-hidden="true">{fond === "plan" ? "Plan" : "Satellite"}</span>
       </div>
     </form>
   );

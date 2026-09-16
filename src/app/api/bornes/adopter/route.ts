@@ -1,7 +1,6 @@
 import { transaction } from "@/db";
 import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { nouveauJeton } from "@/lib/borne";
-import { situerBorne } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +93,5 @@ export async function POST(req: Request) {
   });
 
   if (issue.souci) return vers(issue.souci);
-  // L'adresse donnee ici place la machine sur la carte.
-  await situerBorne(issue.borne);
   return versPage(req, `/bornes/${issue.borne}`);
 }

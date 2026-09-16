@@ -5,7 +5,8 @@
 export function retourDe(r: string | null | undefined, id: number, admin: boolean): string {
   if (r === "fiche") return `/bornes/${id}/fiche`;
   if (r === "borne") return `/bornes/${id}`;
-  if (r === "admin") return `/admin#m${id}`;
+  if (r === "admin") return "/admin#carte";
+  if (r === "parc") return `/admin/parc#m${id}`;
   if (r === "carte") return "/carte";
-  return admin ? `/admin#m${id}` : "/carte";
+  return admin ? "/admin#carte" : "/carte";
 }

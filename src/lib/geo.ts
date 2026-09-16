@@ -112,15 +112,19 @@ export async function situerBorne(id: number): Promise<void> {
 }
 
 /**
- * Les bornes du compte qui ont une adresse mais pas encore de place sur la
- * carte, par petits lots : une page qui attend vingt geocodages ne s'ouvre
- * plus. Le reste viendra a l'ouverture suivante.
+ * Les bornes qui ont une adresse mais AUCUNE place sur la carte, par petits
+ * lots : une page qui attend vingt geocodages ne s'ouvre plus. Le reste viendra
+ * a l'ouverture suivante.
+ *
+ * Une machine deja placee ne bouge plus d'ici, meme si son adresse a change :
+ * le client ecrit l'adresse de son ecran d'assistance, c'est le super-admin
+ * qui place. Le tableau de bord de la plateforme signale l'ecart.
  */
 export async function situerLesBornes(compte_id: number | null, max = 8): Promise<void> {
   const a = await q<{ id: number }>(`
     SELECT id FROM borne
      WHERE ($1::bigint IS NULL OR compte_id = $1) AND COALESCE(adresse, '') <> ''
-       AND situee_pour IS DISTINCT FROM adresse
+       AND latitude IS NULL AND situee_pour IS DISTINCT FROM adresse
      ORDER BY id LIMIT $2`, [compte_id, max]);
   await Promise.all(a.map((b) => situerBorne(b.id)));
 }
