@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  *
  * Terminee, on part sur la suivante : c'est le geste qu'on attend en bas d'une
  * lecon, et le seul qui tienne sans JavaScript. La derniere du module ramene
- * au module, qui dit ce qui reste.
+ * au module, qui dit ce qui reste ; la derniere de la formation, au certificat.
  */
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   if (!lecon || !ouverte(l, lecon.module_acces, lecon.acces)) return versPage(req, "/academie");
   if (!l.apercu) await marquerFinie(u.id, id, fini);
   if (!fini) return versPage(req, `/academie/lecon/${id}`);
+  // La toute derniere lecon ouverte : la formation est finie, le certificat attend.
+  if (String(f.get("apres")) === "certificat") return versPage(req, "/academie/certificat");
   return versPage(req, Number.isInteger(suite) && suite > 0
     ? `/academie/lecon/${suite}`
     : `/academie/module/${lecon.module_id}?fini=1`);

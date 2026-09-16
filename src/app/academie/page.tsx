@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../chrome";
-import { modules, ouverte, reprise, salonProspects, type Module } from "@/lib/academie";
-import { IcoAcademie, IcoCadenas, IcoCoche, IcoDocument, IcoLecture } from "../icones";
+import { modules, ouverte, reprise, salonProspects, sommaire, type Module } from "@/lib/academie";
+import { IcoAcademie, IcoCadenas, IcoChevron, IcoCoche, IcoDocument, IcoHorloge, IcoLecture, IcoTrophee } from "../icones";
 import { lecteurDePage } from "./lecteur";
+import { bilanDe } from "./salle";
 import { Anneau, IconeModule, OngletsAcademie, Piste, PorteFermee, duree, pluriel } from "./vues";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function Academie() {
   const { l, equipe } = await lecteurDePage();
-  const [mods, suite] = await Promise.all([modules(l), reprise(l)]);
+  const [mods, suite, lecons] = await Promise.all([modules(l), reprise(l), sommaire(l)]);
+  const bilan = bilanDe(lecons);
   const somme = (f: (m: Module) => number) => mods.reduce((s, m) => s + f(m), 0);
   const ouvertes = somme((m) => m.ouvertes);
   const finies = somme((m) => m.finies_ouvertes);
@@ -33,7 +35,7 @@ export default async function Academie() {
   return (
     <>
       <Entete page="academie" />
-      <main className="ecran aca">
+      <main className="ecran aca aca-focus">
         <section className="aca-tete">
           <div className="dit">
             <div className="aca-marque"><IcoAcademie size={18} /> RedBox Academy</div>
@@ -44,8 +46,8 @@ export default async function Academie() {
             </h1>
             <p className="sous">
               {l.redboxer
-                ? "La machine, ses certificats, le contrat type, le pitch et les astuces du terrain. À votre rythme, leçon par leçon."
-                : "La machine, sa fiche technique, ses certificats et la façon d’en parler à un bar. Les redboxers ont en plus le contrat type et les astuces de vente."}
+                ? "La machine, ses certificats, le pitch, les chiffres et les astuces du terrain. À votre rythme, leçon par leçon."
+                : "La machine, sa fiche technique, ses certificats et la façon d’en parler à un bar. Les redboxers ont en plus les astuces de vente et de réassort."}
             </p>
             {mods.length > 0 ? (
               <div className="aca-chiffres num">
@@ -61,18 +63,10 @@ export default async function Academie() {
               <Anneau pct={pct} />
               <div className="dit">
                 <div className="grand num">{finies} / {ouvertes}</div>
-                <div className="faible">leçons terminées</div>
+                <div className="faible">leçons terminées{bilan.reste > 0 ? ` · ${duree(bilan.reste)} restantes` : ""}</div>
               </div>
-              {suite ? (
-                <Link href={`/academie/lecon/${suite.lecon_id}`} className="bouton primaire large aca-reprendre">
-                  <IcoLecture size={18} />
-                  <span className="dit">
-                    <span>{finies > 0 ? "Reprendre" : "Commencer la formation"}</span>
-                    <span className="ou">{suite.titre}</span>
-                  </span>
-                </Link>
-              ) : toutFini ? (
-                <div className="aca-tag grand" data-ton="fini"><IcoCoche size={14} /> Tout ce qui est ouvert est terminé</div>
+              {toutFini ? (
+                <Link href="/academie/certificat" className="aca-tag grand" data-ton="fini"><IcoTrophee size={14} /> Tout est terminé : voir mon certificat</Link>
               ) : null}
             </div>
           ) : null}
@@ -84,6 +78,37 @@ export default async function Academie() {
           <PorteFermee compacte salon={salon}
                        quoi={`${pluriel(fermees, "leçon réservée", "leçons réservées")} aux redboxers`} />
         ) : null}
+
+        {suite ? (() => {
+          const m = mods.find((x) => x.id === suite.module_id);
+          const rang = mods.findIndex((x) => x.id === suite.module_id) + 1;
+          const siennes = lecons.filter((x) => x.module_id === suite.module_id && x.ouverte);
+          const j = lecons.filter((x) => x.module_id === suite.module_id).findIndex((x) => x.id === suite.lecon_id);
+          const lecon = lecons.find((x) => x.id === suite.lecon_id);
+          return (
+            <Link href={`/academie/lecon/${suite.lecon_id}`} className="aca-continuer">
+              <span className="aca-picto grand" aria-hidden="true">{m ? <IconeModule icone={m.icone} size={28} /> : <IcoLecture size={28} />}</span>
+              <span className="dit">
+                <span className="aca-surtitre num">
+                  <span>{finies > 0 ? "Reprendre là où vous en étiez" : "Par où commencer"}</span>
+                  <span>Module {rang}{j >= 0 ? ` · Leçon ${j + 1}` : ""}</span>
+                  {lecon?.duree ? <span className="avec-icone"><IcoHorloge size={13} /> {duree(lecon.duree)}</span> : null}
+                </span>
+                <span className="titre">{suite.titre}</span>
+                <span className="module">{suite.module_titre}</span>
+                {siennes.length > 0 ? (
+                  <span className="aca-avance">
+                    <Piste n={siennes.filter((x) => x.fini).length} sur={siennes.length} label={`Progression : ${suite.module_titre}`} />
+                    <span className="num">{siennes.filter((x) => x.fini).length}/{siennes.length}</span>
+                  </span>
+                ) : null}
+              </span>
+              <span className="bouton primaire">
+                <IcoLecture size={18} /> {finies > 0 ? "Continuer" : "Commencer"}
+              </span>
+            </Link>
+          );
+        })() : null}
 
         {mods.length === 0 ? (
           <div className="vide">
@@ -142,6 +167,21 @@ export default async function Academie() {
                 );
               })}
             </div>
+
+            {ouvertes > 0 ? (
+              <Link href="/academie/certificat" className="aca-certif-carte" data-pret={toutFini ? "" : undefined}>
+                <span className="sceau" aria-hidden="true"><IcoTrophee size={26} /></span>
+                <span className="dit">
+                  <span className="titre">{toutFini ? "Votre certificat est prêt" : "Certificat de fin de formation"}</span>
+                  <span className="quoi">
+                    {toutFini
+                      ? "Imprimez-le ou enregistrez-le en PDF : il atteste que vous avez suivi tout le parcours."
+                      : `Terminez les ${ouvertes} leçons ouvertes pour le débloquer. Encore ${ouvertes - finies}${bilan.reste ? `, environ ${duree(bilan.reste)}` : ""}.`}
+                  </span>
+                </span>
+                <span className="aller">{toutFini ? "Voir" : `${pct} %`} <IcoChevron size={15} /></span>
+              </Link>
+            ) : null}
           </>
         )}
       </main>

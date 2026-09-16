@@ -145,8 +145,8 @@ export function PorteFermee({ salon, compacte, quoi }: { salon: number | null; c
         <div className="titre">{quoi ?? "Réservé aux redboxers"}</div>
         <p>
           {compacte
-            ? "Le contrat type, les astuces de vente et de réassort s’ouvrent dès votre première RedBox appairée."
-            : "Cette partie de l’académie s’ouvre dès que votre première RedBox est appairée : le contrat type, les astuces de vente et de réassort de ceux qui en font tourner."}
+            ? "Les astuces d’emplacement, de vente et de réassort s’ouvrent dès votre première RedBox appairée."
+            : "Cette partie de l’académie s’ouvre dès que votre première RedBox est appairée : les astuces d’emplacement, de vente et de réassort de ceux qui en font tourner."}
         </p>
       </div>
       <div className="rangee-actions">

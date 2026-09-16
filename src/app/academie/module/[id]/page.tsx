@@ -40,7 +40,7 @@ export default async function ModuleAcademie({ params, searchParams }: {
   return (
     <>
       <Entete page="academie" />
-      <main className="ecran aca">
+      <main className="ecran aca aca-focus">
         <Link href="/academie" className="aca-retour">‹ Académie</Link>
 
         <header className="aca-module-tete">

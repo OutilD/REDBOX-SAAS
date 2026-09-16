@@ -71,9 +71,14 @@ export function BasculeTheme({ depart, retour }: { depart: string; retour: strin
   );
 }
 
-export function BasculeRail({ depart, retour }: { depart: string; retour: string }) {
+/**
+ * `focus` : la page se lit en salle de cours (l'academie). Le rail y est
+ * replie par defaut, sans toucher au reglage du reste de la console ; le
+ * deplier ici pose « ouvert », qui vaut deplie partout.
+ */
+export function BasculeRail({ depart, retour, focus = false }: { depart: string; retour: string; focus?: boolean }) {
   const [rail, poser] = useState(depart);
-  const ferme = rail === "ferme";
+  const ferme = focus ? rail !== "ouvert" : rail === "ferme";
   const mot = ferme ? "Déplier le menu" : "Replier le menu";
 
   return (
@@ -81,7 +86,7 @@ export function BasculeRail({ depart, retour }: { depart: string; retour: string
       <button type="button" className="bouton icone rail-bascule avec-script"
               title={mot} aria-label={mot} aria-expanded={!ferme}
               onClick={() => {
-                const suivant = ferme ? "" : "ferme";
+                const suivant = focus ? (ferme ? "ouvert" : "") : (ferme ? "" : "ferme");
                 const r = document.documentElement;
                 if (suivant) r.setAttribute("data-rail", suivant);
                 else r.removeAttribute("data-rail");

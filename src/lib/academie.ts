@@ -198,6 +198,28 @@ export async function leconsDe(l: Lecteur, module: { id: number; acces: Acces })
   return lignes.map((x) => ({ ...x, ouverte: ouverte(l, module.acces, x.acces) }));
 }
 
+export type LeconSommaire = LeconResume & { fini_le: Date | null };
+
+/**
+ * TOUTE LA FORMATION, LECON PAR LECON, EN UNE REQUETE : le sommaire de la
+ * salle de cours, le temps qui reste et le certificat la lisent. Meme porte
+ * que `leconsDe` — le module et la lecon, la plus stricte gagne.
+ */
+export async function sommaire(l: Lecteur): Promise<LeconSommaire[]> {
+  const lignes = await q<Omit<LeconSommaire, "ouverte"> & { module_acces: Acces }>(`
+    SELECT le.id, le.module_id, le.titre, le.resume, le.duree, le.acces, le.ordre, le.publie,
+           (s.fini_le IS NOT NULL) AS fini, (s.vu_le IS NOT NULL) AS vu, s.fini_le,
+           m.acces AS module_acces,
+           (SELECT COUNT(*)::int FROM academie_bloc b WHERE b.lecon_id = le.id AND b.genre = 'video') AS videos,
+           (SELECT COUNT(*)::int FROM academie_bloc b WHERE b.lecon_id = le.id AND b.genre = 'fichier') AS fichiers
+      FROM academie_lecon le
+      JOIN academie_module m ON m.id = le.module_id
+      LEFT JOIN academie_suivi s ON s.lecon_id = le.id AND s.utilisateur_id = $1::bigint
+     WHERE (le.publie AND m.publie) OR $2::boolean
+     ORDER BY m.ordre, m.id, le.ordre, le.id`, [l.id, l.editeur]);
+  return lignes.map(({ module_acces, ...x }) => ({ ...x, ouverte: ouverte(l, module_acces, x.acces) }));
+}
+
 export async function moduleDe(l: Lecteur, id: number): Promise<Module | null> {
   if (!Number.isInteger(id)) return null;
   return (await modules(l)).find((m) => m.id === id) ?? null;

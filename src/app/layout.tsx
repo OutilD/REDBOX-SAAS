@@ -53,7 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
    * l'emporte, et il est retenu.
    */
   const attr: Record<string, string> = { "data-theme": theme === "light" ? "light" : "dark" };
-  if (rail === "ferme") attr["data-rail"] = "ferme";
+  if (rail === "ferme" || rail === "ouvert") attr["data-rail"] = rail;
   return (
     <html lang="fr" {...attr}>
       <body>

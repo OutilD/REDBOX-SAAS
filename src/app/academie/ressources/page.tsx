@@ -32,11 +32,11 @@ export default async function Ressources() {
   return (
     <>
       <Entete page="academie" />
-      <main className="ecran aca">
+      <main className="ecran aca aca-focus">
         <div className="aca-marque"><IcoAcademie size={18} /> RedBox Academy</div>
         <h1 style={{ marginTop: 8 }}>Ressources</h1>
         <p className="sous" style={{ maxWidth: 680 }}>
-          Certificats de conformité, contrat type, plaquettes : les documents de l’académie, à
+          Certificats de conformité, fiches, plaquettes : les documents de l’académie, à
           garder sous la main pendant un rendez-vous.
         </p>
 
