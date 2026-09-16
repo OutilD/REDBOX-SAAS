@@ -2,11 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { utilisateur } from "@/lib/auth";
+import { PSEUDO_MAX } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
 
 const MESSAGES: Record<string, string> = {
-  compte: "Donnez un nom à votre compte.",
+  pseudo: `Choisissez un pseudo de ${PSEUDO_MAX} caractères au plus.`,
   email: "Cette adresse n’est pas valable.",
   pris: "Cette adresse a déjà un compte. Connectez-vous plutôt.",
   mdp: "Le mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
@@ -21,9 +22,9 @@ const MESSAGES: Record<string, string> = {
  * plus personne ne peut reprendre.
  */
 export default async function Inscription({ searchParams }:
-  { searchParams: Promise<{ e?: string; compte?: string; email?: string }> }) {
+  { searchParams: Promise<{ e?: string; pseudo?: string; email?: string }> }) {
   if (await utilisateur()) redirect("/");
-  const { e, compte, email } = await searchParams;
+  const { e, pseudo, email } = await searchParams;
   const codeExige = Boolean(process.env.REDBOX_CODE_INSCRIPTION);
 
   return (
@@ -36,10 +37,17 @@ export default async function Inscription({ searchParams }:
           Créer votre espace d’exploitation
         </p>
 
+        {/* UN SEUL NOM : LE PSEUDO. « Nom de l'organisation » laissait croire
+            qu'on nommait une societe, alors que c'est ce nom-la que tout le
+            monde voit. Le pseudo nomme aussi l'espace ; il se renomme ensuite. */}
         <div className="champ">
-          <label htmlFor="compte">Nom de l’organisation</label>
-          <input id="compte" name="compte" required defaultValue={compte ?? ""}
-                 placeholder="Outil Digital, Bar du Coin…" autoComplete="organization" />
+          <label htmlFor="pseudo">Pseudo</label>
+          <input id="pseudo" name="pseudo" required maxLength={PSEUDO_MAX} defaultValue={pseudo ?? ""}
+                 placeholder="Kenny, Le Duplex…" autoComplete="nickname" />
+          <p className="faible" style={{ fontSize: 12, margin: "6px 0 0" }}>
+            Le nom que tous les redboxers verront dans la communauté : classement, messages,
+            profil. Vous pourrez le changer.
+          </p>
         </div>
         <div className="champ">
           <label htmlFor="email">Adresse mail</label>

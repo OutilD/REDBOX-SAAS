@@ -1,7 +1,7 @@
 import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
 import { semerDemo } from "@/lib/demo";
-import { offrirBienvenue } from "@/lib/communaute";
+import { PSEUDO_MAX, offrirBienvenue } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +25,20 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
   const f = await req.formData();
-  const compte = String(f.get("compte") ?? "").trim();
+  const pseudo = String(f.get("pseudo") ?? "").trim();
+  // L'espace porte le pseudo : un seul nom a donner, celui que tout le monde verra.
+  const compte = pseudo;
   const email = String(f.get("email") ?? "").trim().toLowerCase();
   const mdp = String(f.get("mdp") ?? "");
   const mdp2 = String(f.get("mdp2") ?? "");
 
   const vers = (e: string) => versPage(req,
-    `/inscription?e=${e}&compte=${encodeURIComponent(compte)}&email=${encodeURIComponent(email)}`);
+    `/inscription?e=${e}&pseudo=${encodeURIComponent(pseudo)}&email=${encodeURIComponent(email)}`);
 
   const attendu = process.env.REDBOX_CODE_INSCRIPTION;
   if (attendu && String(f.get("code") ?? "").trim() !== attendu) return vers("code");
 
-  if (!compte) return vers("compte");
+  if (!pseudo || pseudo.length > PSEUDO_MAX) return vers("pseudo");
   // Verification volontairement large : c'est le facteur de forme qu'on controle
   // ici, pas l'existence de la boite. Refuser une adresse valable parce qu'elle
   // sort de l'ordinaire coute plus cher qu'accepter une faute de frappe.
@@ -50,9 +52,9 @@ export async function POST(req: Request) {
     const k = (await c.query<{ id: number }>(
       "INSERT INTO compte (nom) VALUES ($1) RETURNING id", [compte])).rows[0];
     const u = (await c.query<{ id: number }>(`
-      INSERT INTO utilisateur (compte_id, email, mdp, role)
-      VALUES ($1, $2, $3, 'proprietaire') RETURNING id`,
-      [k.id, email, chiffrer(mdp)])).rows[0];
+      INSERT INTO utilisateur (compte_id, email, mdp, role, pseudo)
+      VALUES ($1, $2, $3, 'proprietaire', $4) RETURNING id`,
+      [k.id, email, chiffrer(mdp), pseudo])).rows[0];
     // L'appartenance est une ligne a part depuis que l'on peut servir plusieurs
     // exploitants : sans elle, la session ne trouve aucun compte et renvoie a
     // la connexion. La migration ne la posait que pour les comptes existants.

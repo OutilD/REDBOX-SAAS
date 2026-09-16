@@ -36,6 +36,8 @@ export type Utilisateur = {
   comptes: Appartenance[];
   /** Son nom, s'il l'a donne, et sa photo. Ni l'un ni l'autre n'est obligatoire. */
   nom: string | null;
+  /** Le nom sous lequel on la montre partout. Nul pour les comptes plus anciens que la question. */
+  pseudo: string | null;
   image_id: number | null;
   /**
    * LE COMPTE ACTIF EST-IL ENCORE DANS SON BAC A SABLE ?
@@ -102,9 +104,9 @@ export function enTeteBiscuit(jeton: string | null): string {
 async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
   if (!jeton) return null;
   const l = await q1<{ id: number; email: string; origine: number; expire_le: Date;
-                       actif: number | null; nom: string | null; image_id: number | null;
+                       actif: number | null; nom: string | null; pseudo: string | null; image_id: number | null;
                        super_admin: boolean }>(`
-    SELECT u.id, u.email, u.compte_id AS origine, u.nom, u.image_id, u.super_admin,
+    SELECT u.id, u.email, u.compte_id AS origine, u.nom, u.pseudo, u.image_id, u.super_admin,
            s.expire_le, s.compte_id AS actif
       FROM session s
       JOIN utilisateur u ON u.id = s.utilisateur_id
@@ -172,7 +174,7 @@ async function parJeton(jeton: string | undefined | null): Promise<Utilisateur |
     compte_id: choisi.compte_id, compte: choisi.compte, role: choisi.role,
     bornes: restreint.length > 0 ? restreint.map((r) => r.borne_id) : null,
     comptes,
-    nom: l.nom, image_id: l.image_id,
+    nom: l.nom, pseudo: l.pseudo, image_id: l.image_id,
     demo: choisi.demo,
     editeur: choisi.editeur,
     superAdmin: l.super_admin,

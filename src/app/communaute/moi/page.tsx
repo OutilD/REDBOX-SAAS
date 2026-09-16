@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q1 } from "@/db";
 import { utilisateur } from "@/lib/auth";
-import { COULEURS } from "@/lib/communaute";
+import { COULEURS, PSEUDO_MAX } from "@/lib/communaute";
 import { initiales } from "@/lib/personnes";
 import ChangerPhoto from "../../profil/changer-photo";
 
@@ -47,10 +47,10 @@ export default async function Personnaliser({ searchParams }:
         <form method="post" action="/api/communaute/profil" className="carte">
           <div className="champ">
             <label htmlFor="pseudo">Pseudo</label>
-            <input id="pseudo" name="pseudo" defaultValue={moi.pseudo ?? ""} maxLength={30}
-                   placeholder={u.nom || u.email.split("@")[0]} />
+            <input id="pseudo" name="pseudo" defaultValue={moi.pseudo ?? ""} maxLength={PSEUDO_MAX}
+                   placeholder="Le nom que tout le monde verra" />
             <p className="faible" style={{ fontSize: 12.5, margin: "6px 0 0" }}>
-              Il remplace votre nom dans la communauté. Vide, c’est votre nom qui sert.
+              C’est sous ce nom que l’équipe et tous les redboxers vous voient, dans la console comme dans la communauté.
             </p>
           </div>
           <div className="champ">

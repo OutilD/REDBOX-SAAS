@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q1 } from "@/db";
 import { nomDuRole, peutConfigurer, peutGererEquipe, utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { IcoAlerte, IcoCatalogue, IcoCategories, IcoCloche, IcoEquipe, IcoPub, IcoSav } from "../icones";
 
 export const dynamic = "force-dynamic";
@@ -151,7 +152,7 @@ export default async function Reglages() {
             <div className="ligne">
               <div className="corps">
                 <div className="nom" style={{ fontWeight: 500 }}>Connecté</div>
-                <div className="meta">{u.email}</div>
+                <div className="meta">{nomAffiche(u)}</div>
               </div>
               <div className="fin faible" style={{ fontSize: 13 }}>{nomDuRole(u.role)}</div>
             </div>

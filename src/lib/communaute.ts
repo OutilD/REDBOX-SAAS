@@ -556,6 +556,9 @@ export type Profil = {
 /** Les couleurs qu'un profil peut choisir : la marque, et sept autres qui se lisent sur sombre et sur clair. */
 export const COULEURS = ["#d70005", "#7c3aed", "#2563eb", "#0d9488", "#ea580c", "#db2777", "#65a30d", "#475569"];
 
+/** La longueur d'un pseudo : a l'inscription comme sur le profil. */
+export const PSEUDO_MAX = 30;
+
 /** Le pseudo, sinon le nom, sinon le debut de l'adresse. */
 export function pseudoDe(p: { pseudo?: string | null; nom?: string | null; email: string }): string {
   return (p.pseudo ?? "").trim() || (p.nom ?? "").trim() || p.email.split("@")[0];

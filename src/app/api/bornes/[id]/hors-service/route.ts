@@ -1,5 +1,6 @@
 import { q1 } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { reveiller } from "@/lib/borne";
 import { signaler } from "@/lib/notifications";
 
@@ -42,7 +43,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (b.hors_service !== actif) {
     void signaler(u.compte_id, { id, nom: b.nom }, [{
       genre: "service", actif, texte: actif ? texte : null,
-      par: u.nom?.trim() || u.email.split("@")[0],
+      par: nomAffiche(u),
     }]).catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
   }
 

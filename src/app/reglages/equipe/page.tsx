@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q } from "@/db";
 import { nomDuRole, peutGererEquipe, ROLES, utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { origineDes } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 
-type Membre = { id: number; email: string; role: string; cree_le: Date; bornes: string | null };
+type Membre = { id: number; email: string; pseudo: string | null; nom: string | null; role: string; cree_le: Date; bornes: string | null };
 type Invite = { id: number; email: string; role: string; code: string; borne: string | null };
 type Machine = { id: number; nom: string };
 
@@ -23,7 +24,7 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
   // sa ligne dans `membre`. On ramene au passage les bornes auxquelles il est
   // restreint — vide voulant dire tout le parc.
   const membres = await q<Membre>(`
-    SELECT x.id, x.email, m.role, m.cree_le,
+    SELECT x.id, x.email, x.pseudo, x.nom, m.role, m.cree_le,
            (SELECT string_agg(b.nom, ', ' ORDER BY b.nom)
               FROM acces_borne a JOIN borne b ON b.id = a.borne_id
              WHERE a.utilisateur_id = x.id AND b.compte_id = m.compte_id) AS bornes
@@ -63,7 +64,7 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
           {membres.map((m) => (
             <div className="ligne" key={m.id}>
               <div className="corps">
-                <div className="nom">{m.email}{m.id === u.id ? <span className="faible"> · vous</span> : null}</div>
+                <div className="nom">{nomAffiche(m)}{m.id === u.id ? <span className="faible"> · vous</span> : null}</div>
                 {/* La portee se lit ici : sans elle, deux lignes identiques
                     cachaient que l'une voit tout le parc et l'autre une machine. */}
                 <div className="meta">

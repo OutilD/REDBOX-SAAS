@@ -1,6 +1,6 @@
 import { q } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { COULEURS } from "@/lib/communaute";
+import { COULEURS, PSEUDO_MAX } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   if (!u) return versPage(req, "/connexion");
   const f = await req.formData();
   const pseudo = String(f.get("pseudo") ?? "").trim();
-  if (pseudo.length > 30) return versPage(req, "/communaute/moi?e=pseudo");
+  if (pseudo.length > PSEUDO_MAX) return versPage(req, "/communaute/moi?e=pseudo");
   const ville = String(f.get("ville") ?? "").trim().slice(0, 60);
   const bio = String(f.get("bio") ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 300);
   const couleur = String(f.get("couleur") ?? "");

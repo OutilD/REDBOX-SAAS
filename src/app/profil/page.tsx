@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { classement, evaluerBadges, profilDe, rareteDesBadges } from "@/lib/communaute";
 import CarteMoi from "../communaute/carte-moi";
 import Revelation from "../communaute/revelation";
@@ -76,9 +77,9 @@ export default async function Profil({ searchParams }:
             changeait a l'ecran en attendant — on croyait qu'elle n'etait pas
             passee. */}
         <div className="carte">
-          <div style={{ fontSize: 19, fontWeight: 750, letterSpacing: "-.02em" }}>{u.nom || u.email.split("@")[0]}</div>
+          <div style={{ fontSize: 19, fontWeight: 750, letterSpacing: "-.02em" }}>{nomAffiche(u)}</div>
           <div className="faible" style={{ fontSize: 13, margin: "2px 0 14px" }}>{nomDuRole(u.role)} · {u.compte}</div>
-          <ChangerPhoto imageId={u.image_id} initiales={initiales(u.nom || u.email)}
+          <ChangerPhoto imageId={u.image_id} initiales={initiales(nomAffiche(u))}
                         couleur={moi?.couleur ?? null} retour="/profil" taille={72} />
         </div>
 

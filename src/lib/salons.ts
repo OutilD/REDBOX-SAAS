@@ -258,7 +258,7 @@ const COLONNES_SALON = `
   s.id, CASE WHEN s.portee = 'support' THEN '${SUPPORT.nom}' ELSE s.nom END AS nom,
   s.sujet, s.borne_id, b.nom AS borne, s.ordre,
   s.portee, s.groupe, s.compte_id, k.nom AS compte, s.utilisateur_id, s.fond,
-  COALESCE(NULLIF(TRIM(p.nom), ''), NULLIF(TRIM(p.pseudo), ''), split_part(p.email, '@', 1)) AS personne`;
+  COALESCE(NULLIF(TRIM(p.pseudo), ''), NULLIF(TRIM(p.nom), ''), split_part(p.email, '@', 1)) AS personne`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
   return q<Salon>(`

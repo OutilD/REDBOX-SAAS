@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { q, euros, leJour, depuis } from "@/db";
 import { estSuperAdmin, nomDuRole, utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { BADGES_MANUELS } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ type Compte = {
 };
 
 type Membre = {
-  compte_id: number; id: number; email: string; nom: string | null; role: string;
+  compte_id: number; id: number; email: string; pseudo: string | null; nom: string | null; role: string;
   super_admin: boolean; cree_le: Date;
   /** Ceux des badges remis a la main qu'elle a deja. */
   manuels: string[];
@@ -69,7 +70,7 @@ export default async function Comptes({ searchParams }:
         FROM compte c
        ORDER BY c.demo, c.editeur DESC, c.nom`),
     q<Membre>(`
-      SELECT m.compte_id, u.id, u.email, u.nom, m.role, u.super_admin, u.cree_le,
+      SELECT m.compte_id, u.id, u.email, u.pseudo, u.nom, m.role, u.super_admin, u.cree_le,
              COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o
                         WHERE o.utilisateur_id = u.id AND o.badge = ANY($1::text[])), '{}') AS manuels
         FROM membre m JOIN utilisateur u ON u.id = m.utilisateur_id
@@ -94,7 +95,8 @@ export default async function Comptes({ searchParams }:
             </p>
           </div>
           <div className="rangee-actions">
-            <Link href="/admin" className="bouton">Parc</Link>
+            <Link href="/admin" className="bouton">Tableau</Link>
+            <Link href="/admin/parc" className="bouton">Parc</Link>
           </div>
         </div>
 
@@ -178,8 +180,8 @@ export default async function Comptes({ searchParams }:
                     {gens.map((m) => (
                       <li key={m.id}>
                         <div className="pousse" style={{ minWidth: 0 }}>
-                          <div className="nom">{m.nom ?? m.email}</div>
-                          <div className="ou">{m.email} · {nomDuRole(m.role)} · depuis {leJour(m.cree_le)}</div>
+                          <div className="nom">{nomAffiche(m)}</div>
+                          <div className="ou">{nomDuRole(m.role)} · depuis {leJour(m.cree_le)}</div>
                         </div>
                         {m.super_admin ? <span className="pilule ok"><i />super-admin</span> : null}
                         {BADGES_MANUELS.map((b) => {
