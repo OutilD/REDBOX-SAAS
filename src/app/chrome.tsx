@@ -48,13 +48,20 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
         droit: (u) => u.bornes === null },
       { cle: "ventes",  nom: "Ventes",  icone: <IcoVentes />, vers: "/ventes" },
       { cle: "bornes",  nom: "RedBox",  icone: <IcoBorne />,  vers: "/bornes" },
-      // Le meme parc, pose sur la carte de France : ou sont-elles, laquelle va mal.
-      { cle: "carte",   nom: "Carte",   icone: <IcoCarte />,  vers: "/carte" },
-      { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
+    ],
+  },
+  {
+    // Ce qui relie aux autres redboxers et a l'equipe, a cote du travail sur
+    // ses propres machines.
+    titre: "Réseau",
+    items: [
       { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
+      { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
       // La formation : la machine, le pitch, les contrats. Ouverte a tous — un
       // futur redboxer y apprend ce qu'il vendra —, plus large pour qui en a une.
       { cle: "academie",   nom: "Académie",   icone: <IcoAcademie />,   vers: "/academie" },
+      // Le parc pose sur la carte de France : ou sont-elles, laquelle va mal.
+      { cle: "carte",   nom: "Carte",   icone: <IcoCarte />,  vers: "/carte" },
     ],
   },
   {
