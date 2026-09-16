@@ -340,19 +340,20 @@ l'état, l'adresse, le CA sur 30 jours et au total, la dernière vente (et, pour
 l'éditeur, le compte, le numéro de série, la note). Sous la carte, la liste
 par ville dit la même chose sans JavaScript.
 
-La carte d'un compte **se regarde, elle ne se modifie pas** : une machine se
-situe depuis sa page (« Situer sur la carte », propriétaire et gérants),
-`/carte/situer/[id]`. Seul le super-admin déplace depuis la carte, sur `/admin`.
+La carte d'un compte **se regarde, elle ne se modifie pas**. Placer une machine
+(`/carte/situer/[id]`) est réservé au super-admin, comme l'attribuer ou changer
+son stade. L'adresse qu'un client écrit sur sa fiche sert l'écran d'assistance
+et ne déplace pas la machine : le géocodage automatique ne pose que les machines
+qui n'ont encore aucune place.
 
 Les coordonnées viennent de l'adresse, par la **Base Adresse Nationale**
-(`api-adresse.data.gouv.fr`, publique, sans clé) : à l'ouverture de la carte,
+(`api-adresse.data.gouv.fr`, publique, sans clé) : à l'ouverture de `/admin`,
 au plus huit machines sans place sont situées ; les autres le seront à
 l'ouverture suivante. `borne.situee_pour` retient l'adresse qui a servi — si
-elle change, on recommence ; si elle est introuvable, on le dit sous la carte
+elle change, le tableau de bord de la plateforme le signale ; si elle est introuvable, on le dit sous la carte
 plutôt que de redemander à chaque fois. Le géocodeur doit renvoyer une **ville**
 et un score d'au moins 0,5 — « TEST » tombait sur un lieu-dit. Une machine
-sans adresse y est listée avec le bouton qui l'y mettra ; côté éditeur, le
-champ d'adresse est directement sous la carte (`/api/admin/parc/adresse`).
+sans place est listée sous la carte, avec le bouton « Placer » côté éditeur.
 
 Le carré a **la couleur du stade** : violet en production, vert libre, ambre
 commandée, bleu bientôt installée, rouge installée ; une ville qui en mêle
@@ -371,10 +372,16 @@ numéro de série, posé par l'éditeur ; `note_editeur` ce qu'il note pour lui.
 **Le super-admin est une personne, pas un compte** : `utilisateur.super_admin`.
 Les propriétaires et gérants du compte éditeur le sont d'office à chaque
 migration ; le drapeau se donne et se retire sur `/admin/comptes`, jamais à
-soi-même.
+soi-même. Attribuer une machine, changer son stade et la placer sur la carte
+lui sont réservés.
 
-`/admin` : les cinq compteurs, la carte de tout le parc (toute machine située,
-quel que soit son stade, tous comptes), et un tableau en cinq colonnes où l'on
+`/admin` est le tableau de bord de la plateforme : CA sur trente jours et sa
+pente, santé du parc, machines à venir et en stock, comptes ; ce qui demande une
+main (silencieuses, hors service, à placer, adresse changée depuis le
+placement) ; la carte de tout le parc, où l'on place les machines ; les
+machines qui rapportent le plus.
+
+`/admin/parc` : les cinq compteurs et un tableau en cinq colonnes où l'on
 **glisse une carte** d'un stade à l'autre (`POST /api/admin/parc/statut`).
 Chaque colonne se tourne par pages de six. Chaque carte
 porte aussi un formulaire complet — stade, compte, numéro, nom, adresse, note —

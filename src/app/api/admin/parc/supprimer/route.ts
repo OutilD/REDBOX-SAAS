@@ -14,14 +14,14 @@ export async function POST(req: Request) {
   if (!estSuperAdmin(u)) return versPage(req, "/");
   const f = await req.formData();
   const id = Number(f.get("id"));
-  if (!Number.isInteger(id)) return versPage(req, "/admin");
+  if (!Number.isInteger(id)) return versPage(req, "/admin/parc");
 
   const b = await q1<{ jeton: string | null; ventes: number }>(`
     SELECT b.jeton, (SELECT COUNT(*) FROM vente v WHERE v.borne_id = b.id)::int AS ventes
       FROM borne b WHERE b.id = $1`, [id]);
-  if (!b) return versPage(req, "/admin");
-  if (b.jeton) return versPage(req, `/admin?e=appairee#m${id}`);
-  if (b.ventes > 0) return versPage(req, `/admin?e=vendue#m${id}`);
+  if (!b) return versPage(req, "/admin/parc");
+  if (b.jeton) return versPage(req, `/admin/parc?e=appairee#m${id}`);
+  if (b.ventes > 0) return versPage(req, `/admin/parc?e=vendue#m${id}`);
   await q("DELETE FROM borne WHERE id = $1", [id]);
-  return versPage(req, "/admin?ok=effacee");
+  return versPage(req, "/admin/parc?ok=effacee");
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse, planDe } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { nonLus } from "@/lib/salons";
 import { IcoCommunaute, IcoEquipe, IcoReglages } from "../icones";
 
@@ -26,7 +27,8 @@ const QUOI: Record<string, string> = {
   sav: "Le numéro d’assistance des machines",
   equipe: "Qui a accès, et à quoi",
   notifications: "Ce qui sonne sur cet appareil",
-  admin: "Toutes les machines, de l’usine au bar",
+  admin: "La plateforme : chiffres, à faire, carte du parc",
+  admin_parc: "Toutes les machines, de l’usine au bar",
   admin_comptes: "Tous les comptes et leurs chiffres",
 };
 
@@ -88,7 +90,7 @@ export default async function Menu() {
             <span className="rond" aria-hidden="true"><IcoEquipe /></span>
             <span className="dit">
               <span className="nom">Mon compte</span>
-              <span className="quoi">{u.email} · {nomDuRole(u.role)}</span>
+              <span className="quoi">{nomAffiche(u)} · {nomDuRole(u.role)}</span>
             </span>
             <span className="etat" />
             <span className="fleche" aria-hidden="true">›</span>

@@ -16,10 +16,10 @@ export async function POST(req: Request) {
   const f = await req.formData();
   const id = Number(f.get("id"));
   const adresse = String(f.get("adresse") ?? "").trim() || null;
-  if (!Number.isInteger(id)) return versPage(req, "/admin");
+  if (!Number.isInteger(id)) return versPage(req, "/admin/parc");
   await q("UPDATE borne SET adresse = $2 WHERE id = $1", [id, adresse]);
   await situerBorne(id);
   const b = await q1<{ latitude: number | null }>("SELECT latitude FROM borne WHERE id = $1", [id]);
   return versPage(req, b?.latitude !== null && b?.latitude !== undefined
-    ? "/admin?ok=situee" : `/admin?e=introuvable#m${id}`);
+    ? "/admin/parc?ok=situee" : `/admin/parc?e=introuvable#m${id}`);
 }

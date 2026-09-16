@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
+import { nomAffiche } from "@/lib/personnes";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
@@ -18,7 +19,7 @@ export type Page =
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
-  | "admin" | "admin_comptes";
+  | "admin" | "admin_parc" | "admin_comptes";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -93,7 +94,9 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
     // compte — le drapeau est sur l'utilisateur.
     titre: "Plateforme",
     items: [
-      { cle: "admin",         nom: "Parc",    icone: <IcoBorne />,  vers: "/admin",
+      { cle: "admin",         nom: "Tableau", icone: <IcoTableau />, vers: "/admin",
+        droit: estSuperAdmin },
+      { cle: "admin_parc",    nom: "Parc",    icone: <IcoBorne />,  vers: "/admin/parc",
         droit: estSuperAdmin },
       { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
         droit: estSuperAdmin },
@@ -136,7 +139,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", messages: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
-  admin: "menu", admin_comptes: "menu",
+  admin: "menu", admin_parc: "menu", admin_comptes: "menu",
   academie: "menu", academie_editer: "menu",
 };
 
@@ -162,7 +165,8 @@ const FIL: Record<Page, [string, string?]> = {
   profil:     ["Mon compte"],
   demo:       ["Mode démo", "Réglages"],
   menu:       ["Menu"],
-  admin:      ["Parc", "Plateforme"],
+  admin:      ["Tableau de bord", "Plateforme"],
+  admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
   academie:   ["Académie"],
   academie_editer: ["Édition", "Académie"],
@@ -282,7 +286,7 @@ export async function Entete({ page, borne, fenetre, periode }:
           <Link href="/" className="logo-mobile">
             <Image src="/logo-redbox.png" alt="RedBox" width={155} height={100} priority />
           </Link>
-          <BasculeRail depart={rail} retour={ici} />
+          <BasculeRail depart={rail} retour={ici} focus={page === "academie"} />
           <div className="fil">
             {parent ? <span className="parent">{parent} · </span> : null}{titre}
           </div>
@@ -338,10 +342,10 @@ export async function Entete({ page, borne, fenetre, periode }:
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/image/${u.image_id}`} alt="" className="jeton photo" />
                 ) : (
-                  <span className="jeton">{u ? initiales(u.nom || u.email) : "—"}</span>
+                  <span className="jeton">{u ? initiales(nomAffiche(u)) : "—"}</span>
                 )}
                 <span className="qui">
-                  <b>{u?.nom || u?.email.split("@")[0]}</b>
+                  <b>{u ? nomAffiche(u) : ""}</b>
                   <span>{u ? nomDuRole(u.role) : ""}</span>
                 </span>
               </Link>
@@ -358,6 +362,21 @@ export async function Entete({ page, borne, fenetre, periode }:
           qu'il porte. Ambre plutot que rouge : c'est un avertissement, pas
           une panne.
         */}
+        {/* PAS ENCORE DE PSEUDO. Les comptes ouverts avant qu'on le demande a
+            l'inscription s'affichaient sous le debut de leur adresse mail : on
+            les invite a choisir le nom sous lequel tout le monde les verra,
+            partout sauf sur la page ou on le choisit. */}
+        {u && !(u.pseudo ?? "").trim() && page !== "communaute" ? (
+          <div className="demo-bandeau" role="note">
+            <IcoCommunaute size={18} />
+            <div className="dit">
+              <b>Choisissez votre pseudo.</b>{" "}
+              <span className="entier">C’est le nom sous lequel l’équipe et tous les redboxers vous verront, à la place de votre adresse mail.</span>
+              <span className="bref">À la place de votre adresse.</span>
+            </div>
+            <Link href="/communaute/moi" className="bouton petit">Choisir</Link>
+          </div>
+        ) : null}
         {u?.demo ? (
           <div className="demo-bandeau" role="note">
             <IcoAlerte size={18} />

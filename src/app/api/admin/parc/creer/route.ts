@@ -23,8 +23,8 @@ export async function POST(req: Request) {
   const adresse = String(f.get("adresse") ?? "").trim() || null;
   const note = String(f.get("note") ?? "").trim() || null;
 
-  if (!statutValide(statut)) return versPage(req, "/admin?e=statut");
-  if (!nomSaisi && !numero) return versPage(req, "/admin?e=nom");
+  if (!statutValide(statut)) return versPage(req, "/admin/parc?e=statut");
+  if (!nomSaisi && !numero) return versPage(req, "/admin/parc?e=nom");
   const nom = nomSaisi || `RedBox n° ${numero}`;
   // Une machine libre n'a pas de compte, par definition.
   const compte_id = statut === "libre" || !compteBrut ? null : Number(compteBrut);
@@ -37,9 +37,9 @@ export async function POST(req: Request) {
       [compte_id, nom, adresse, statut, numero, note]);
     id = l!.id;
   } catch (e) {
-    if ((e as { code?: string }).code === "23505") return versPage(req, "/admin?e=numero");
+    if ((e as { code?: string }).code === "23505") return versPage(req, "/admin/parc?e=numero");
     throw e;
   }
   if (adresse) await situerBorne(id);
-  return versPage(req, `/admin?ok=creee#m${id}`);
+  return versPage(req, `/admin/parc?ok=creee#m${id}`);
 }

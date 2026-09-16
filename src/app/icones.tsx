@@ -388,3 +388,80 @@ export const IcoCorbeille = ({ size = 20 }: P) => (
     <path d="M3.5 5.5h13M8 5.5v-2h4v2M5.5 5.5l.8 11h7.4l.8-11" />
   </svg>
 );
+
+/** Chevron vers la gauche : revenir d'un cran. */
+export const IcoPrecedent = ({ size = 18 }: P) => (
+  <svg {...base(size)}><path d="M12.5 4l-6 6 6 6" /></svg>
+);
+
+/** Le sommaire d'une formation : une liste a puces. */
+export const IcoSommaire = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M7.5 5h9M7.5 10h9M7.5 15h9" />
+    <circle cx="3.8" cy="5" r=".9" /><circle cx="3.8" cy="10" r=".9" /><circle cx="3.8" cy="15" r=".9" />
+  </svg>
+);
+
+/** Plein ecran : quatre coins. */
+export const IcoPleinEcran = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3.5 7.5v-4h4M12.5 3.5h4v4M16.5 12.5v4h-4M7.5 16.5h-4v-4" />
+  </svg>
+);
+
+/** Recentrer : une mire. */
+export const IcoCible = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="10" cy="10" r="5.5" /><circle cx="10" cy="10" r="1.6" />
+    <path d="M10 2v2.5M10 15.5V18M2 10h2.5M15.5 10H18" />
+  </svg>
+);
+
+/** Les calques d'une carte : plan ou satellite. */
+export const IcoCalques = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="m10 3 7 3.8-7 3.8-7-3.8L10 3Z" />
+    <path d="m3 10.2 7 3.8 7-3.8M3 13.6l7 3.8 7-3.8" />
+  </svg>
+);
+
+/** Imprimer. */
+export const IcoImprimer = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5.5 7.5v-4h9v4M5.5 14h-2v-6.5h13V14h-2" />
+    <rect x="5.5" y="11.5" width="9" height="5" rx=".5" />
+  </svg>
+);
+
+/** Une epingle : l'adresse d'une machine. */
+export const IcoEpingle = ({ size = 16 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 17.5s5.5-5.1 5.5-9.5a5.5 5.5 0 1 0-11 0c0 4.4 5.5 9.5 5.5 9.5Z" />
+    <circle cx="10" cy="8" r="2" />
+  </svg>
+);
+
+/** La vue en liste d'un tableau. */
+export const IcoListe = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="3.5" width="14" height="13" rx="2" />
+    <path d="M3 8h14M3 12.3h14" />
+  </svg>
+);
+
+/** La vue en colonnes : le kanban. */
+export const IcoColonnes = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="3.5" width="4" height="13" rx="1" />
+    <rect x="8" y="3.5" width="4" height="9" rx="1" />
+    <rect x="13.5" y="3.5" width="4" height="11" rx="1" />
+  </svg>
+);
+
+/** Un trophee : la formation terminee. */
+export const IcoTrophee = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M6 3.5h8v4.2a4 4 0 0 1-8 0V3.5Z" />
+    <path d="M6 5H3.5v1.2A2.8 2.8 0 0 0 6.3 9M14 5h2.5v1.2A2.8 2.8 0 0 1 13.7 9M10 11.7v2.8M6.8 17h6.4M7.8 17l.6-2.5h3.2l.6 2.5" />
+  </svg>
+);
