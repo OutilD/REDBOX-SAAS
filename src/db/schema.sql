@@ -1195,3 +1195,46 @@ CREATE TABLE IF NOT EXISTS academie_ressource (
   cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
   modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- LA CENTRALE D'ACHAT. Ou s'approvisionner : des CATEGORIES (vapes, poppers,
+-- hygiene…), des FOURNISSEURS avec le lien vers leur site, et leurs PRODUITS
+-- avec le prix d'achat et le prix de vente conseille. Un catalogue de la
+-- plateforme, ecrit par l'equipe RedBox et lu par tous les comptes — pas le
+-- catalogue d'un exploitant, qui reste dans `produit`.
+CREATE TABLE IF NOT EXISTS centrale_categorie (
+  id          BIGSERIAL PRIMARY KEY,
+  nom         TEXT NOT NULL,
+  ordre       INT  NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS centrale_fournisseur (
+  id          BIGSERIAL PRIMARY KEY,
+  nom         TEXT NOT NULL,
+  url         TEXT,           -- le site, ou la page de commande
+  texte       TEXT,           -- deux lignes : qui c'est, conditions, delais
+  image_id    BIGINT REFERENCES image(id) ON DELETE SET NULL,   -- le logo
+  ordre       INT  NOT NULL DEFAULT 0,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS centrale_produit (
+  id                BIGSERIAL PRIMARY KEY,
+  fournisseur_id    BIGINT NOT NULL REFERENCES centrale_fournisseur(id) ON DELETE CASCADE,
+  categorie_id      BIGINT REFERENCES centrale_categorie(id) ON DELETE SET NULL,
+  nom               TEXT NOT NULL,
+  texte             TEXT,
+  url               TEXT,      -- la fiche chez le fournisseur, si elle existe
+  prix_achat_c      INT,       -- en centimes ; nul tant qu'on ne le connait pas
+  prix_conseille_c  INT,       -- le prix de vente conseille en RedBox
+  image_id          BIGINT REFERENCES image(id) ON DELETE SET NULL,
+  ordre             INT  NOT NULL DEFAULT 0,
+  cree_le           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS centrale_produit_fournisseur ON centrale_produit (fournisseur_id, ordre);
+CREATE INDEX IF NOT EXISTS centrale_produit_categorie ON centrale_produit (categorie_id);
+
+-- Un produit de la centrale peut etre en rupture chez son fournisseur : il
+-- reste visible, mais on ne renvoie pas quelqu'un vers un lien qui ne vend pas.
+ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS disponible BOOLEAN NOT NULL DEFAULT true;

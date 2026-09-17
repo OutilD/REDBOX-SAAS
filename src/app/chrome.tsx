@@ -6,7 +6,7 @@ import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe,
          type Utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
@@ -14,7 +14,7 @@ import { clesVapid } from "@/lib/notifications";
 import InviteNotifications from "./invite-notifications";
 
 export type Page =
-  | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger"
+  | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger" | "centrale"
   | "bornes" | "carte" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
   | "profil" | "demo" | "menu"
@@ -76,6 +76,8 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
       // se rejoint depuis ce choix.
       { cle: "charger",   nom: "Réassort", icone: <IcoReassort />, vers: "/charger",
         droit: peutCharger },
+      // Ou acheter : les fournisseurs et leurs prix, tenus par l'equipe RedBox.
+      { cle: "centrale",  nom: "Centrale d’achat", icone: <IcoCentrale />, vers: "/centrale" },
     ],
   },
   {
@@ -143,7 +145,7 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
 const FAMILLE: Partial<Record<Page, Page>> = {
   carte: "bornes",
   analytiques: "tableau",
-  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", messages: "menu",
+  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu", messages: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_parc: "menu", admin_comptes: "menu",
@@ -162,6 +164,7 @@ const FIL: Record<Page, [string, string?]> = {
   reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Fiche d’approvisionnement", "Approvisionnement"],
   charger:    ["Réassort", "Approvisionnement"],
+  centrale:   ["Centrale d’achat", "Approvisionnement"],
   reglages:   ["Réglages"],
   catalogue:  ["Catalogue", "Configuration"],
   categories: ["Catégories", "Configuration"],

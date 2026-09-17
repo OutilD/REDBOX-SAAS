@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
  * Bornee a son compte, elle revenait en 404 chez tous les autres, et le
  * navigateur posait son icone d'image cassee a la place du portrait. Une photo
  * de produit, de categorie ou de publicite reste, elle, fermee a son compte.
+ * Les photos de la centrale d'achat sont a tout le monde aussi : c'est un
+ * catalogue de la plateforme.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await utilisateur();
@@ -24,6 +26,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     `SELECT i.octets, i.type_mime, i.empreinte FROM image i
       WHERE i.id = $1
         AND (i.compte_id = $2
-             OR EXISTS (SELECT 1 FROM utilisateur x WHERE x.image_id = i.id))`,
+             OR EXISTS (SELECT 1 FROM utilisateur x WHERE x.image_id = i.id)
+             OR EXISTS (SELECT 1 FROM centrale_produit cp WHERE cp.image_id = i.id)
+             OR EXISTS (SELECT 1 FROM centrale_fournisseur cf WHERE cf.image_id = i.id))`,
     [id, u.compte_id]));
 }

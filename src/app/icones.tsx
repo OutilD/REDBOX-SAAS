@@ -96,6 +96,14 @@ export const IcoCatalogue = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Centrale d'achat : un sac de courses. */
+export const IcoCentrale = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5 7h10l1 10.5H4L5 7Z" />
+    <path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7" />
+  </svg>
+);
+
 /** Categories : une etiquette. */
 export const IcoCategories = ({ size = 20 }: P) => (
   <svg {...base(size)}>
