@@ -111,9 +111,11 @@ function raisonDe(e: unknown): { raison: string; relancable: boolean } {
  * nomme qu'une fois par serie, et le jour ne s'ecrit qu'a son changement.
  * La machine parle dans la meme colonne que les gens — c'est le point.
  */
-export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau,
+export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau,
                               fond = "aucun", reglageFond }: {
   salon: Salon; initial: Message[]; moi: number; peutEcrire: boolean; retour: string; erreur?: string;
+  /** Reagir sans pouvoir ecrire : les annonces. Par defaut, comme ecrire. */
+  peutReagir?: boolean;
   /** Ce qu'on dit a la place du composeur quand on ne peut pas ecrire ici. */
   raisonMuet?: string;
   /** Combien de personnes lisent ici, et si le panneau « qui » est ouvert. */
@@ -319,7 +321,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
       const suite = a
         ? x.reactions.map((r) => r.emoji === emoji ? { ...r, n: r.n + (r.mien ? -1 : 1), mien: !r.mien } : r)
                      .filter((r) => r.n > 0)
-        : [...x.reactions, { emoji, n: 1, mien: true }];
+        : [...x.reactions, { emoji, n: 1, mien: true, qui: [] }];
       return { ...x, reactions: suite };
     }));
     try {
@@ -360,7 +362,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
       && precedent.utilisateur_id === m.utilisateur_id
       && new Date(m.cree_le).getTime() - new Date(precedent.cree_le).getTime() < REGROUPE_MS;
     rendu.push(<Bulle key={m.id} m={m} salon={salon} suite={suite} mien={m.utilisateur_id === moi}
-                      oter={oter} reagir={peutEcrire ? reagir : undefined}
+                      oter={oter} reagir={peutReagir ? reagir : undefined}
                       reessayer={m.echec ? () => envoyer(m) : undefined}
                       abandonner={m.echec ? () => abandonner(m.id) : undefined} />);
     precedent = m;
@@ -457,7 +459,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, retour, erreur, r
 
 function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
   m: Ligne; salon: Salon; suite: boolean; mien: boolean; oter: (id: number) => void;
-  /** Absent quand on ne peut pas ecrire ici : on ne repond pas non plus par un pouce. */
+  /** Absent pour un compte en lecture seule : il lit, il ne repond pas d'un pouce. */
   reagir?: (id: number, emoji: string) => void;
   /** Present seulement quand l'envoi a echoue. */
   reessayer?: () => void;
@@ -620,13 +622,62 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
                       disabled={!reagir || mien}
                       onClick={() => reagir?.(m.id, r.emoji)}
                       aria-pressed={r.mien}
-                      title={r.mien ? "Retirer ma réaction" : "Réagir"}>
+                      title={noms(r).join(", ")}>
                 <span className="e" aria-hidden>{r.emoji}</span><span className="num">{r.n}</span>
               </button>
             ))}
+            <QuiAReagi reactions={m.reactions} />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/** Qui a pose cet emoji : « Vous » d'abord, puis les autres dans l'ordre. */
+function noms(r: Reaction): string[] {
+  return r.mien ? ["Vous", ...r.qui] : r.qui;
+}
+
+/**
+ * QUI A REAGI. Sous les pastilles, les premiers noms en clair — « Vous, Paul
+ * et 4 autres » — ; au toucher, la liste entiere, emoji par emoji. Le survol
+ * d'une pastille ne suffit pas : au doigt, il n'existe pas.
+ */
+function QuiAReagi({ reactions }: { reactions: Reaction[] }) {
+  const boite = useRef<HTMLDialogElement>(null);
+  const tous = [...new Set(reactions.flatMap(noms))];
+  if (tous.length === 0) return null;
+  const vus = tous.slice(0, 2);
+  const reste = tous.length - vus.length;
+  const resume = reste > 0
+    ? `${vus.join(", ")} et ${reste} autre${reste > 1 ? "s" : ""}`
+    : vus.join(" et ");
+  return (
+    <>
+      <button type="button" className="qui-a-reagi" onClick={() => boite.current?.showModal()}
+              aria-label={`Voir qui a réagi : ${resume}`}>
+        {resume}
+      </button>
+      <dialog ref={boite} className="modale etroite reactions-qui"
+              onClick={(e) => { if (e.target === boite.current) boite.current?.close(); }}>
+        <div className="modale-tete">
+          <h2>Réactions</h2>
+          <button type="button" className="bouton petit discret fermeture"
+                  aria-label="Fermer" onClick={() => boite.current?.close()}>✕</button>
+        </div>
+        <div className="modale-corps">
+          {reactions.map((r) => (
+            <section key={r.emoji} className="groupe-reaction">
+              <div className="tete-reaction">
+                <span className="e" aria-hidden>{r.emoji}</span>
+                <span className="num">{r.n}</span>
+              </div>
+              <ul>{noms(r).map((n, i) => <li key={i} className={n === "Vous" && i === 0 && r.mien ? "vous" : undefined}>{n}</li>)}</ul>
+            </section>
+          ))}
+        </div>
+      </dialog>
+    </>
   );
 }

@@ -12,6 +12,12 @@
  */
 export const EMOJIS = ["👍", "🔥", "💡", "🙌", "😂", "😮"] as const;
 
-export type Reaction = { emoji: string; n: number; mien: boolean };
+/**
+ * `qui` : les AUTRES qui ont pose cet emoji, dans l'ordre ou ils l'ont fait.
+ * La personne qui lit n'y est pas — `mien` le dit, et le fil ecrit « Vous » :
+ * son appui s'affiche tout de suite, sans attendre que le serveur lui rende
+ * son propre nom.
+ */
+export type Reaction = { emoji: string; n: number; mien: boolean; qui: string[] };
 
 export const ESTAMPILLE: ReadonlySet<string> = new Set<string>(EMOJIS);

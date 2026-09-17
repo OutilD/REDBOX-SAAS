@@ -7407,3 +7407,19 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
 @media (prefers-reduced-motion: reduce) {
   .aca-photos img, .aca-ressource { transition: none; }
 }
+
+/* ------------------------------------------------------------------ qui a reagi
+   Sous les pastilles, les premiers noms ; au toucher, la liste par emoji. */
+.msg .qui-a-reagi {
+  border: 0; background: none; padding: 2px 4px; min-height: 24px; cursor: pointer;
+  font-size: 12px; color: var(--texte-3); text-align: left;
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.msg .qui-a-reagi:hover { color: var(--texte-2); text-decoration: underline; }
+.msg .qui-a-reagi:focus-visible { outline: 2px solid var(--rouge); outline-offset: 1px; border-radius: 4px; }
+.reactions-qui .groupe-reaction + .groupe-reaction { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bord); }
+.reactions-qui .tete-reaction { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--texte-2); }
+.reactions-qui .tete-reaction .e { font-size: 20px; line-height: 1; }
+.reactions-qui ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.reactions-qui li { font-size: 15px; overflow-wrap: anywhere; }
+.reactions-qui li.vous { font-weight: 700; }

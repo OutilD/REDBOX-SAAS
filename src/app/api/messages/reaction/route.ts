@@ -1,5 +1,5 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { peutEcrire, reagir, salonDe } from "@/lib/salons";
+import { peutReagir, reagir, salonDe } from "@/lib/salons";
 import { evaluerEtSignaler, signalerReaction } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
  * increment — deux personnes qui applaudissent en meme temps ne doivent pas
  * finir avec deux comptes differents a l'ecran.
  *
- * Reagir demande le droit d'ecrire : dans les annonces, ou l'editeur seul
- * parle, personne ne repond par un pouce non plus.
+ * Reagir ne demande pas le droit d'ecrire : dans les annonces, ou l'editeur
+ * seul parle, chacun peut y repondre d'un pouce.
  */
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   if (!Number.isInteger(message_id) || !Number.isInteger(salon_id)) return refus(400, "paramètres");
   const s = await salonDe(u, salon_id);
   if (!s) return refus(404, "salon");
-  if (!peutEcrire(u, s)) return refus(403, "lecture");
+  if (!peutReagir(u, s)) return refus(403, "lecture");
 
   const r = await reagir(message_id, u.id, emoji);
   if (r === null) return refus(400, "réaction");

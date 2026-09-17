@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../chrome";
 import { estRestreint, peutConfigurer, type Utilisateur } from "@/lib/auth";
-import { assurerSalons, FONDS, LECTEURS_PAR_PAGE, lecteursDe, marquerLu, messagesDe, peutEcrire,
+import { assurerSalons, FONDS, LECTEURS_PAR_PAGE, lecteursDe, marquerLu, messagesDe, peutEcrire, peutReagir,
          peutReglerFond, salonDe, salonsDe, salonsFermes, SUPPORT,
          type Lecteurs, type Salon, type SalonFerme } from "@/lib/salons";
 import { Personne, Portrait } from "../communaute/vignette-personne";
@@ -138,8 +138,9 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
             <Fil salon={{ id: salon.id, nom: salon.portee === "support" && !moi(salon)
                                           ? `${salon.nom} · ${salon.personne ?? salon.compte ?? ""}` : salon.nom,
                           sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
-                 initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)} retour="/messages"
-                 raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit." : undefined}
+                 initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)}
+                 peutReagir={peutReagir(u, salon)} retour="/messages"
+                 raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit — vous pouvez réagir aux messages." : undefined}
                  fond={salon.fond}
                  reglageFond={peutReglerFond(u, salon)
                    ? { ouvert: Boolean(fondOuvert), panneau: <ChoixFond salon={salon} /> } : undefined}

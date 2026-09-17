@@ -155,6 +155,15 @@ export function peutEcrire(u: Utilisateur, s: Salon): boolean {
 }
 
 /**
+ * Peut-elle reagir la ? Partout ou elle lit, y compris dans les annonces : un
+ * pouce sous une nouveaute n'est pas une prise de parole, et c'est le seul
+ * retour que l'equipe en recoit. Seul le compte en lecture seule s'abstient.
+ */
+export function peutReagir(u: Utilisateur, _s: Salon): boolean {
+  return u.role !== "lecture";
+}
+
+/**
  * LES FONDS D'UN FIL. Sobre par defaut ; anime sur decision de qui administre
  * le salon. Les cles sont aussi dans la contrainte `salon_fond_check`.
  */
@@ -341,10 +350,14 @@ type Brut = Omit<Message, "grade" | "niveau" | "badge" | "reactions">;
 async function reactionsDe(ids: number[], moi: number | null): Promise<Map<number, Reaction[]>> {
   const out = new Map<number, Reaction[]>();
   if (ids.length === 0) return out;
-  const rows = await q<{ message_id: number; emoji: string; n: number; mien: boolean }>(`
+  const rows = await q<{ message_id: number; emoji: string; n: number; mien: boolean; qui: string[] }>(`
     SELECT r.message_id, r.emoji, COUNT(*)::int AS n,
-           BOOL_OR(r.utilisateur_id = $2::bigint) AS mien
-      FROM reaction r WHERE r.message_id = ANY($1::bigint[])
+           BOOL_OR(r.utilisateur_id = $2::bigint) AS mien,
+           COALESCE(ARRAY_AGG(COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1))
+                              ORDER BY r.cree_le)
+                      FILTER (WHERE r.utilisateur_id IS DISTINCT FROM $2::bigint), '{}') AS qui
+      FROM reaction r JOIN utilisateur x ON x.id = r.utilisateur_id
+     WHERE r.message_id = ANY($1::bigint[])
      GROUP BY r.message_id, r.emoji`, [ids, moi]);
   // L'ordre est celui de la barre, pas celui des comptes : une reaction qui
   // depasse une autre ne doit pas faire sauter les pastilles de place sous le
@@ -352,7 +365,7 @@ async function reactionsDe(ids: number[], moi: number | null): Promise<Map<numbe
   const rang = new Map(EMOJIS.map((e, i) => [e as string, i]));
   for (const r of rows) {
     const l = out.get(Number(r.message_id)) ?? [];
-    l.push({ emoji: r.emoji, n: r.n, mien: r.mien });
+    l.push({ emoji: r.emoji, n: r.n, mien: r.mien, qui: r.qui });
     out.set(Number(r.message_id), l);
   }
   for (const l of out.values()) l.sort((a, z) => (rang.get(a.emoji) ?? 99) - (rang.get(z.emoji) ?? 99));
