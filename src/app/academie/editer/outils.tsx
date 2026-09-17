@@ -1,4 +1,5 @@
-import { ACCES, ICONES, TEXTE_MAX, TITRE_MAX, type Acces, type Bloc, type Genre, type Icone } from "@/lib/academie";
+import { ACCES, ICONES, RESUME_MAX, TEXTE_MAX, TITRE_MAX,
+         type Acces, type Bloc, type Genre, type Icone, type Ressource } from "@/lib/academie";
 import { IcoBas, IcoCadenas, IcoCommunaute, IcoHaut } from "../../icones";
 import { IconeModule, NOMS_ICONES } from "../vues";
 
@@ -11,6 +12,7 @@ export const ERREURS: Record<string, string> = {
   titre: "Donnez un titre.",
   texte: "Ce bloc a besoin d’un texte.",
   video: "Lien vidéo non reconnu : collez l’adresse d’une vidéo YouTube ou Vimeo.",
+  drive: "Lien Drive non reconnu : collez l’adresse d’un dossier ou d’un fichier Google Drive.",
   fichier: "Choisissez un fichier.",
   fichier_type: "Format refusé : PDF, Word, Excel, PowerPoint, ODT ou image (JPG, PNG, WEBP) — une image pour un bloc image.",
   fichier_lourd: "Fichier trop lourd : 20 Mo au plus. Une vidéo se dépose sur YouTube.",
@@ -21,7 +23,7 @@ const ACCEPTE = ".pdf,.doc,.docx,.odt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.web
 
 /** Monter, descendre. Deux formulaires, deux boutons ; aux bords, inactifs. */
 export function Deplacer({ route, id, premier, dernier }: {
-  route: "module" | "lecon" | "bloc"; id: number; premier: boolean; dernier: boolean;
+  route: "module" | "lecon" | "bloc" | "ressource"; id: number; premier: boolean; dernier: boolean;
 }) {
   return (
     <span className="aca-deplacer">
@@ -113,6 +115,43 @@ export function CasePublie({ publie, quoi }: { publie: boolean; quoi: string }) 
   );
 }
 
+/** Le lien Drive, et ce qu'il faut pour que tout le monde le voie. */
+export function ChampDrive({ p, valeur }: { p: string; valeur?: string | null }) {
+  return (
+    <div className="champ">
+      <label htmlFor={`${p}-url`}>Lien Google Drive</label>
+      <input id={`${p}-url`} name="url" type="url" required maxLength={500} inputMode="url"
+             defaultValue={valeur ?? ""} placeholder="https://drive.google.com/drive/folders/…" />
+      <p className="aide">
+        Un dossier (ses photos et documents s’affichent) ou un seul fichier. Sur Drive : Partager →
+        « Tous les utilisateurs disposant du lien », en lecture.
+      </p>
+    </div>
+  );
+}
+
+/** Un bouton de la page Ressources : son nom, son lien Drive, son icone, sa porte. */
+export function ChampsRessource({ r }: { r?: Ressource }) {
+  const p = r ? `r${r.id}` : "r-n";
+  return (
+    <>
+      <div className="champ">
+        <label htmlFor={`${p}-titre`}>Nom du bouton</label>
+        <input id={`${p}-titre`} name="titre" required maxLength={TITRE_MAX} defaultValue={r?.titre ?? ""}
+               placeholder="Photos machines" />
+      </div>
+      <ChampDrive p={p} valeur={r?.url} />
+      <div className="champ">
+        <label htmlFor={`${p}-texte`}>Description <span className="faible">(facultatif)</span></label>
+        <input id={`${p}-texte`} name="texte" maxLength={RESUME_MAX} defaultValue={r?.texte ?? ""}
+               placeholder="Les RedBox installées, sous tous les angles" />
+      </div>
+      <ChoixIcone valeur={r?.icone ?? "document"} />
+      <ChoixAcces valeur={r?.acces ?? "tous"} />
+    </>
+  );
+}
+
 function AideTexte() {
   return (
     <p className="aide">
@@ -193,6 +232,17 @@ export function ChampsBloc({ genre, b }: { genre: Genre; b?: Bloc }) {
           <div className="champ">
             <label htmlFor={`${p}-titre`}>Légende <span className="faible">(facultatif)</span></label>
             <input id={`${p}-titre`} name="titre" maxLength={TITRE_MAX} defaultValue={b?.titre ?? ""} />
+          </div>
+        </>
+      );
+    case "drive":
+      return (
+        <>
+          <ChampDrive p={p} valeur={b?.url} />
+          <div className="champ">
+            <label htmlFor={`${p}-titre`}>Titre <span className="faible">(facultatif)</span></label>
+            <input id={`${p}-titre`} name="titre" maxLength={TITRE_MAX} defaultValue={b?.titre ?? ""}
+                   placeholder="La RedBox installée dans un bar" />
           </div>
         </>
       );

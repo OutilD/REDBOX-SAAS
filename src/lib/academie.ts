@@ -24,12 +24,13 @@ export const ACCES: { cle: Acces; nom: string; quoi: string }[] = [
   { cle: "redboxers", nom: "Redboxers",       quoi: "Il faut une RedBox appairée" },
 ];
 
-export type Genre = "texte" | "video" | "fichier" | "image" | "astuce" | "attention" | "script" | "fiche";
+export type Genre = "texte" | "video" | "fichier" | "image" | "drive" | "astuce" | "attention" | "script" | "fiche";
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "texte",     nom: "Texte",               quoi: "Paragraphes, intertitres, listes" },
   { cle: "video",     nom: "Vidéo",               quoi: "Un lien YouTube ou Vimeo" },
   { cle: "fichier",   nom: "Fichier à télécharger", quoi: "Certificat, contrat, plaquette…" },
   { cle: "image",     nom: "Image",               quoi: "Une photo ou un schéma, avec sa légende" },
+  { cle: "drive",     nom: "Photos Drive",        quoi: "Un dossier ou une photo Google Drive, vus sur place" },
   { cle: "astuce",    nom: "Astuce terrain",      quoi: "Ce qui marche, dit en deux phrases" },
   { cle: "attention", nom: "Point d’attention",   quoi: "Ce qu’il ne faut pas rater" },
   { cle: "script",    nom: "Script à dire",       quoi: "Les mots exacts d’un pitch ou d’une réponse" },
@@ -38,7 +39,7 @@ export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
 export const estGenre = (g: string): g is Genre => GENRES.some((x) => x.cle === g);
 
 /** Les icones qu'un module peut porter. Le dessin est dans `app/academie/vues.tsx`. */
-export const ICONES = ["borne", "certificat", "contrat", "pitch", "astuce", "video",
+export const ICONES = ["borne", "photos", "certificat", "contrat", "pitch", "astuce", "video",
                        "document", "chiffres", "communaute", "reassort"] as const;
 export type Icone = (typeof ICONES)[number];
 export const estIcone = (i: string): i is Icone => (ICONES as readonly string[]).includes(i);
@@ -294,25 +295,24 @@ export async function reprise(l: Lecteur): Promise<Reprise | null> {
 }
 
 export type Ressource = {
-  bloc_id: number; titre: string | null; texte: string | null;
-  fichier_id: number; nom: string; type_mime: string; taille: number;
-  lecon_id: number; lecon_titre: string; module_id: number; module_titre: string;
-  ouverte: boolean;
+  id: number; titre: string; texte: string | null; url: string; icone: Icone; acces: Acces;
+  ordre: number; ouverte: boolean;
 };
 
-/** Tous les fichiers a telecharger, rangés par module : la bibliotheque. */
+/**
+ * LES RESSOURCES : des boutons vers Google Drive, dans l'ordre choisi par
+ * l'equipe. Le contenu vit sur Drive ; ici, seulement le nom et le lien.
+ */
 export async function ressources(l: Lecteur): Promise<Ressource[]> {
-  const lignes = await q<Omit<Ressource, "ouverte"> & { module_acces: Acces; acces: Acces }>(`
-    SELECT b.id AS bloc_id, b.titre, b.texte, f.id AS fichier_id, f.nom, f.type_mime, f.taille,
-           le.id AS lecon_id, le.titre AS lecon_titre, m.id AS module_id, m.titre AS module_titre,
-           m.acces AS module_acces, le.acces
-      FROM academie_bloc b
-      JOIN academie_fichier f ON f.id = b.fichier_id
-      JOIN academie_lecon le ON le.id = b.lecon_id
-      JOIN academie_module m ON m.id = le.module_id
-     WHERE b.genre = 'fichier' AND ((le.publie AND m.publie) OR $1::boolean)
-     ORDER BY m.ordre, m.id, le.ordre, le.id, b.ordre, b.id`, [l.editeur]);
-  return lignes.map(({ module_acces, acces, ...r }) => ({ ...r, ouverte: ouverte(l, module_acces, acces) }));
+  const lignes = await q<Omit<Ressource, "ouverte">>(`
+    SELECT id, titre, texte, url, icone, acces, ordre
+      FROM academie_ressource ORDER BY ordre, id`);
+  return lignes.map((r) => ({ ...r, icone: estIcone(r.icone) ? r.icone : "document", ouverte: ouverte(l, r.acces) }));
+}
+
+export async function ressourceDe(l: Lecteur, id: number): Promise<Ressource | null> {
+  if (!Number.isInteger(id)) return null;
+  return (await ressources(l)).find((r) => r.id === id) ?? null;
 }
 
 /**
@@ -392,9 +392,9 @@ export function videoDe(brut: string | null | undefined): Video | null {
 
 /* ---------------------------------------------------------------- ecriture */
 
-type Table = "academie_module" | "academie_lecon" | "academie_bloc";
+type Table = "academie_module" | "academie_lecon" | "academie_bloc" | "academie_ressource";
 const PARENT: Record<Table, string | null> = {
-  academie_module: null, academie_lecon: "module_id", academie_bloc: "lecon_id",
+  academie_module: null, academie_lecon: "module_id", academie_bloc: "lecon_id", academie_ressource: null,
 };
 
 /** Le prochain rang dans sa liste : on ajoute a la fin. */

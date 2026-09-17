@@ -1,33 +1,43 @@
 import Link from "next/link";
 import { Entete, NavBasse } from "../../chrome";
-import { ressources, salonProspects, type Ressource } from "@/lib/academie";
-import { IcoAcademie, IcoDocument } from "../../icones";
+import { ressources, salonProspects } from "@/lib/academie";
+import { IcoAcademie, IcoCadenas, IcoDossier } from "../../icones";
+import Modale from "../../modale";
+import { ChampsRessource, Deplacer, ERREURS } from "../editer/outils";
 import { lecteurDePage } from "../lecteur";
-import { FichierCarte, OngletsAcademie, PorteFermee, pluriel } from "../vues";
+import { IconeModule, OngletsAcademie, PorteFermee, pluriel } from "../vues";
 
 export const dynamic = "force-dynamic";
 
 /**
- * LES RESSOURCES : TOUS LES DOCUMENTS DE L'ACADEMIE, AU MEME ENDROIT.
+ * LES RESSOURCES : DES BOUTONS VERS GOOGLE DRIVE.
  *
- * Un certificat, on le cherche devant un gerant, le telephone a la main — pas
- * au milieu d'une lecon. Chaque document garde le lien vers la lecon qui
- * l'explique ; ceux qui sont reserves se montrent avec leur cadenas.
+ * « Photos machines », « Modeles de contrats » : chaque bouton mene a un
+ * dossier Drive, montre ici sans quitter l'academie. L'equipe met Drive a
+ * jour ; la page suit toute seule. Ceux qui sont reserves se montrent avec
+ * leur cadenas.
  */
-export default async function Ressources() {
-  const { l, equipe } = await lecteurDePage();
+export default async function Ressources({ searchParams }: {
+  searchParams: Promise<{ e?: string; ok?: string }>;
+}) {
+  const [{ l, equipe }, sp] = await Promise.all([lecteurDePage(), searchParams]);
   const tout = await ressources(l);
-  const groupes: { module_id: number; titre: string; items: Ressource[] }[] = [];
-  for (const r of tout) {
-    let g = groupes[groupes.length - 1];
-    if (!g || g.module_id !== r.module_id) {
-      g = { module_id: r.module_id, titre: r.module_titre, items: [] };
-      groupes.push(g);
-    }
-    g.items.push(r);
-  }
   const fermes = tout.filter((r) => !r.ouverte).length;
   const salon = !l.redboxer && fermes > 0 ? await salonProspects() : null;
+  const erreur = sp.e ? ERREURS[sp.e] ?? "Impossible." : null;
+
+  const ajouter = l.editeur ? (
+    <Modale titre="Ajouter une ressource" ouvrir="Ajouter une ressource" classeBouton="bouton primaire">
+      <form method="post" action="/api/academie/ressource">
+        <input type="hidden" name="action" value="creer" />
+        <ChampsRessource />
+        <div className="aca-ed-bas">
+          <span />
+          <button className="bouton primaire">Ajouter</button>
+        </div>
+      </form>
+    </Modale>
+  ) : null;
 
   return (
     <>
@@ -36,37 +46,59 @@ export default async function Ressources() {
         <div className="aca-marque"><IcoAcademie size={18} /> RedBox Academy</div>
         <h1 style={{ marginTop: 8 }}>Ressources</h1>
         <p className="sous" style={{ maxWidth: 680 }}>
-          Certificats de conformité, fiches, plaquettes : les documents de l’académie, à
-          garder sous la main pendant un rendez-vous.
+          Photos des machines, modèles de contrats : tout ce qu’il faut garder sous la main
+          pendant un rendez-vous.
         </p>
 
         <OngletsAcademie actif="ressources" equipe={equipe} apercu={l.apercu} retour="/academie/ressources" />
 
+        {sp.ok === "1" ? <p className="aca-ok" role="status">Ressource enregistrée.</p> : null}
+        {sp.ok === "supprime" ? <p className="aca-ok" role="status">Ressource retirée.</p> : null}
+        {erreur ? <p className="erreur">{erreur}</p> : null}
+
         {fermes > 0 && !l.redboxer ? (
           <PorteFermee compacte salon={salon}
-                       quoi={`${pluriel(fermes, "document réservé", "documents réservés")} aux redboxers`} />
+                       quoi={`${pluriel(fermes, "ressource réservée", "ressources réservées")} aux redboxers`} />
         ) : null}
 
-        {groupes.length === 0 ? (
+        {tout.length === 0 ? (
           <div className="vide">
-            <span className="grand" aria-hidden="true"><IcoDocument size={40} /></span>
-            Aucun document pour l’instant.
+            <span className="grand" aria-hidden="true"><IcoDossier size={40} /></span>
+            Aucune ressource pour l’instant.
+            {ajouter ? <div style={{ marginTop: 14 }}>{ajouter}</div> : null}
           </div>
-        ) : groupes.map((g) => (
-          <section key={g.module_id}>
-            <div className="titre-section">
-              <h2>{g.titre}</h2>
-              <Link href={`/academie/module/${g.module_id}`} className="lien">Voir le module ›</Link>
-            </div>
-            <div className="aca-fichiers">
-              {g.items.map((r) => (
-                <FichierCarte key={r.bloc_id} id={r.fichier_id} nom={r.nom} type={r.type_mime} octets={r.taille}
-                              titre={r.titre} texte={r.texte} ferme={!r.ouverte}
-                              source={<> · <Link href={`/academie/lecon/${r.lecon_id}`} className="lien-souligne">{r.lecon_titre}</Link></>} />
+        ) : (
+          <>
+            <div className="aca-ressources">
+              {tout.map((r, j) => (
+                <div key={r.id} id={`r${r.id}`} className="aca-ressource-case">
+                  <Link href={`/academie/ressources/${r.id}`} className="aca-ressource"
+                        data-ferme={r.ouverte ? undefined : ""}>
+                    <span className="aca-picto"><IconeModule icone={r.icone} /></span>
+                    <span className="dit">
+                      <span className="titre">{r.titre}</span>
+                      {r.texte ? <span className="quoi">{r.texte}</span> : null}
+                    </span>
+                    {r.ouverte
+                      ? <span className="chevron" aria-hidden="true">›</span>
+                      : <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> Redboxers</span>}
+                  </Link>
+                  {l.editeur ? (
+                    <div className="outils">
+                      {r.acces === "redboxers" && r.ouverte
+                        ? <span className="aca-tag" data-ton="redboxers"><IcoCadenas size={12} /> Redboxers</span>
+                        : null}
+                      <span className="pousse" />
+                      <Deplacer route="ressource" id={r.id} premier={j === 0} dernier={j === tout.length - 1} />
+                      <Link href={`/academie/ressources/${r.id}#modifier`} className="bouton petit">Modifier</Link>
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
-          </section>
-        ))}
+            {ajouter ? <div className="aca-ressources-ajout">{ajouter}</div> : null}
+          </>
+        )}
       </main>
       <NavBasse page="academie" />
     </>

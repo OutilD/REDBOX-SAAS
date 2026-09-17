@@ -2,9 +2,10 @@ import Link from "next/link";
 import { FICHIER_TYPES, GENRES, taille, videoDe,
          type Bloc, type Genre, type Icone, type LeconResume } from "@/lib/academie";
 import { IcoAcademie, IcoAlerte, IcoAnalyses, IcoAstuce, IcoBorne, IcoCadenas, IcoCertificat, IcoCoche,
-         IcoCommunaute, IcoContrat, IcoDocument, IcoFiche, IcoImage, IcoLecture, IcoOeil, IcoPitch,
+         IcoCommunaute, IcoContrat, IcoDocument, IcoDossier, IcoFiche, IcoImage, IcoLecture, IcoOeil, IcoPitch,
          IcoReassort, IcoScript, IcoTelecharger, IcoTexte } from "../icones";
 import Video from "./video";
+import { Drive } from "./drive";
 
 /**
  * LES MORCEAUX DE L'ACADEMIE.
@@ -16,6 +17,7 @@ import Video from "./video";
 
 export function IconeModule({ icone, size = 22 }: { icone: Icone; size?: number }) {
   switch (icone) {
+    case "photos":     return <IcoImage size={size} />;
     case "certificat": return <IcoCertificat size={size} />;
     case "contrat":    return <IcoContrat size={size} />;
     case "pitch":      return <IcoPitch size={size} />;
@@ -30,7 +32,7 @@ export function IconeModule({ icone, size = 22 }: { icone: Icone; size?: number 
 }
 
 export const NOMS_ICONES: Record<Icone, string> = {
-  borne: "Machine", certificat: "Certificat", contrat: "Contrat", pitch: "Pitch", astuce: "Astuce",
+  borne: "Machine", photos: "Photos", certificat: "Certificat", contrat: "Contrat", pitch: "Pitch", astuce: "Astuce",
   video: "Vidéo", document: "Document", chiffres: "Chiffres", communaute: "Communauté", reassort: "Réassort",
 };
 
@@ -39,6 +41,7 @@ export function IconeGenre({ genre, size = 18 }: { genre: Genre; size?: number }
     case "video":     return <IcoLecture size={size} />;
     case "fichier":   return <IcoDocument size={size} />;
     case "image":     return <IcoImage size={size} />;
+    case "drive":     return <IcoDossier size={size} />;
     case "astuce":    return <IcoAstuce size={size} />;
     case "attention": return <IcoAlerte size={size} />;
     case "script":    return <IcoScript size={size} />;
@@ -318,7 +321,7 @@ export function FichierCarte({ id, nom, type, octets, titre, texte, ferme, sourc
   );
 }
 
-export function BlocVue({ b }: { b: Bloc }) {
+export function BlocVue({ b, editeur }: { b: Bloc; editeur?: boolean }) {
   switch (b.genre) {
     case "texte":
       return b.texte ? <Texte texte={b.texte} /> : null;
@@ -362,6 +365,13 @@ export function BlocVue({ b }: { b: Bloc }) {
           <img src={`/api/academie/fichier/${b.fichier_id}`} alt={b.texte ?? ""} loading="lazy" decoding="async" />
           {b.texte ? <figcaption>{b.texte}</figcaption> : null}
         </figure>
+      ) : null;
+    case "drive":
+      return b.url ? (
+        <section className="aca-drive-bloc">
+          {b.titre ? <div className="titre">{b.titre}</div> : null}
+          <Drive url={b.url} editeur={editeur} />
+        </section>
       ) : null;
     case "fichier":
       return b.fichier_id ? (

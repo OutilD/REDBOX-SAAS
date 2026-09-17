@@ -2,13 +2,14 @@ import { q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { TEXTE_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, estGenre, peutEditer,
          rangSuivant, rangerFichier, videoDe, type Genre } from "@/lib/academie";
+import { lienDrive } from "@/lib/drive";
 
 export const dynamic = "force-dynamic";
 
 /** Ce que chaque genre exige pour exister. */
-const EXIGE: Record<Genre, "texte" | "url" | "fichier" | "image"> = {
+const EXIGE: Record<Genre, "texte" | "url" | "drive" | "fichier" | "image"> = {
   texte: "texte", astuce: "texte", attention: "texte", script: "texte", fiche: "texte",
-  video: "url", fichier: "fichier", image: "image",
+  video: "url", drive: "drive", fichier: "fichier", image: "image",
 };
 
 /**
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
   const exige = EXIGE[genre];
   if (exige === "texte" && !texte) return retourErreur("texte");
   if (exige === "url" && !videoDe(url)) return retourErreur("video");
+  if (exige === "drive" && !lienDrive(url)) return retourErreur("drive");
   if ((exige === "fichier" || exige === "image") && !envoye && !existant) return retourErreur("fichier");
 
   const resultat = await transaction(async (c) => {
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
       await c.query(`
         UPDATE academie_bloc SET titre = $2, texte = $3, url = $4,
                fichier_id = COALESCE($5::bigint, fichier_id)
-         WHERE id = $1`, [id, titre, texte, exige === "url" ? url : null, fichier_id]);
+         WHERE id = $1`, [id, titre, texte, exige === "url" || exige === "drive" ? url : null, fichier_id]);
       if (fichier_id) await balayerFichiers(c);
       return { id };
     }
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
     const r = await c.query<{ id: number }>(`
       INSERT INTO academie_bloc (lecon_id, genre, ordre, titre, texte, url, fichier_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [lecon_id, genre, ordre, titre, texte, exige === "url" ? url : null, fichier_id]);
+      [lecon_id, genre, ordre, titre, texte, exige === "url" || exige === "drive" ? url : null, fichier_id]);
     await c.query("UPDATE academie_lecon SET modifie_le = now() WHERE id = $1", [lecon_id]);
     return { id: Number(r.rows[0].id) };
   });

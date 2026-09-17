@@ -1173,3 +1173,25 @@ CREATE TABLE IF NOT EXISTS academie_suivi (
   fini_le        TIMESTAMPTZ,
   PRIMARY KEY (utilisateur_id, lecon_id)
 );
+
+-- LES PHOTOS DRIVE DANS UNE LECON. Un bloc `drive` ne garde que le lien d'un
+-- dossier ou d'une photo : le contenu se lit sur Drive, a jour sans console.
+ALTER TABLE academie_bloc DROP CONSTRAINT IF EXISTS academie_bloc_genre_check;
+ALTER TABLE academie_bloc ADD CONSTRAINT academie_bloc_genre_check CHECK (genre IN
+  ('texte', 'video', 'fichier', 'image', 'astuce', 'attention', 'script', 'fiche', 'drive'));
+
+-- LES RESSOURCES DE L'ACADEMIE. Des boutons, chacun vers un dossier ou un
+-- fichier Google Drive — « Photos machines », « Modeles de contrats ». L'equipe
+-- met Drive a jour ; l'academie montre le contenu sur place. Meme porte que les
+-- modules : `redboxers` demande une RedBox appairee.
+CREATE TABLE IF NOT EXISTS academie_ressource (
+  id          BIGSERIAL PRIMARY KEY,
+  titre       TEXT NOT NULL,
+  texte       TEXT,
+  url         TEXT NOT NULL,
+  icone       TEXT NOT NULL DEFAULT 'document',
+  acces       TEXT NOT NULL DEFAULT 'tous' CHECK (acces IN ('tous', 'redboxers')),
+  ordre       INT  NOT NULL DEFAULT 0,
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

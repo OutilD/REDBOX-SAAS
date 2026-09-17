@@ -125,7 +125,7 @@ export default async function Academie() {
             <div className="titre-section">
               <h2>Les modules</h2>
               <span className="faible" style={{ fontSize: 12.5 }}>dans l’ordre conseillé</span>
-              <Link href="/academie/ressources" className="lien"><IcoDocument size={15} /> Tous les documents</Link>
+              <Link href="/academie/ressources" className="lien"><IcoDocument size={15} /> Ressources</Link>
             </div>
             <div className="aca-modules">
               {mods.map((m, i) => {

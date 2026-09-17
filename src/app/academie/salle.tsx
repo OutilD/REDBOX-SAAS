@@ -112,7 +112,7 @@ export function Sommaire({ mods, lecons, ici, bilan }: {
       </nav>
 
       <div className="pied">
-        <Link href="/academie/ressources" className="lien-pied"><IcoDocument size={16} /> Tous les documents</Link>
+        <Link href="/academie/ressources" className="lien-pied"><IcoDocument size={16} /> Ressources</Link>
         <Link href="/academie/certificat" className="lien-pied" data-pret={bilan.toutFini ? "" : undefined}>
           <IcoTrophee size={16} /> {bilan.toutFini ? "Mon certificat" : "Certificat de fin"}
         </Link>

@@ -98,7 +98,7 @@ export default async function EditerLecon({ params, searchParams }: {
                   <span className="pousse" />
                   <Deplacer route="bloc" id={b.id} premier={j === 0} dernier={j === blocs.length - 1} />
                 </div>
-                <div className="apercu"><BlocVue b={b} /></div>
+                <div className="apercu"><BlocVue b={b} editeur /></div>
                 <details className="aca-ed-modifier" open={blocOuvert === b.id}>
                   <summary>Modifier ce bloc</summary>
                   <form method="post" action="/api/academie/bloc" encType="multipart/form-data" className="formulaire">

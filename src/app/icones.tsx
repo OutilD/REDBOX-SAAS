@@ -293,6 +293,13 @@ export const IcoDocument = ({ size = 20 }: P) => (
   </svg>
 );
 
+/** Dossier : la chemise a onglet. */
+export const IcoDossier = ({ size = 20 }: P) => (
+  <svg {...base(size)}>
+    <path d="M2.5 5.5a1.5 1.5 0 0 1 1.5-1.5h3.6l1.8 2H16a1.5 1.5 0 0 1 1.5 1.5v7.5A1.5 1.5 0 0 1 16 16.5H4a1.5 1.5 0 0 1-1.5-1.5z" />
+  </svg>
+);
+
 /** Telecharger : la fleche qui tombe dans le bac. */
 export const IcoTelecharger = ({ size = 20 }: P) => (
   <svg {...base(size)}>
