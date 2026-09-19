@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { STATUTS, type Statut } from "@/lib/statuts";
 import { IcoChevron, IcoColonnes, IcoEpingle, IcoListe, IcoLoupe, IcoPrecedent } from "../icones";
 
-export type Compte = { id: number; nom: string };
+export type Compte = { id: number; nom: string; demo: boolean };
 export type Machine = {
   id: number; numero: string | null; nom: string; adresse: string | null;
   statut: Statut; depuis: string; note: string | null;
@@ -308,7 +308,7 @@ export function TableauParc({ machines, comptes }: { machines: Machine[]; compte
                           <select id={`c-${m.id}`} name="compte_id" defaultValue={m.compte_id ?? ""}
                                   disabled={m.appairee}>
                             <option value="">— aucun</option>
-                            {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                            {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.demo ? " (en démo : en sortira)" : ""}</option>)}
                           </select>
                           {m.appairee ? <p className="faible" style={{ fontSize: 12, margin: "4px 0 0" }}>
                             Appairée : le compte se change en la désappairant d’abord.</p> : null}
@@ -392,6 +392,9 @@ function Attribution({ machine: m, comptes, fermer }: { machine: Machine; compte
     ? (m.statut === "commandee" || m.statut === "bientot" ? "libre" : m.statut)
     : (m.statut === "libre" ? "commandee" : m.statut);
   const nomDevient = STATUTS.find((s) => s.cle === devient)?.nom ?? devient;
+  // Le compte choisi vit encore sur son parc fictif, et ce n'etait pas deja le sien.
+  const sortDeDemo = choisi !== "" && choisi !== String(m.compte_id ?? "")
+    && comptes.some((c) => String(c.id) === choisi && c.demo);
 
   return (
     <dialog ref={fenetre} className="parc-fenetre" onClose={fermer}
@@ -430,6 +433,7 @@ function Attribution({ machine: m, comptes, fermer }: { machine: Machine; compte
                 <input type="radio" name="choix-compte" checked={choisi === String(c.id)} onChange={() => choisir(String(c.id))} />
                 <span className="jeton-compte" aria-hidden="true">{c.nom.slice(0, 1).toUpperCase()}</span>
                 <span className="nom">{c.nom}</span>
+                {c.demo ? <span className="pilule demo">encore en démo</span> : null}
               </label>
             ))}
             {trouves.length === 0 ? <p className="faible" style={{ margin: 8 }}>Aucun compte ne s’appelle ainsi.</p> : null}
@@ -440,6 +444,13 @@ function Attribution({ machine: m, comptes, fermer }: { machine: Machine; compte
             <input id="attribuer-adresse" name="adresse" defaultValue={m.adresse ?? ""} maxLength={160}
                    placeholder="12 rue des Lilas, 33000 Bordeaux" />
           </div>
+          {sortDeDemo ? (
+            <p className="parc-alerte-demo" role="note">
+              <b>Ce compte est encore en mode démo.</b> Lui attribuer une RedBox l’en sort : ses machines,
+              ses ventes et son catalogue fictifs sont effacés, et ce n’est pas réversible. Ses membres,
+              leurs profils et leurs messages de la communauté restent.
+            </p>
+          ) : null}
           <p className="parc-devient">
             Après enregistrement : <span className="pilule stade" data-stade={devient}><i />{nomDevient}</span>
           </p>

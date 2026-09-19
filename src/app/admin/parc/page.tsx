@@ -53,7 +53,10 @@ export default async function Parc({ searchParams }:
         FROM borne b LEFT JOIN compte c ON c.id = b.compte_id
        WHERE ${SQL_VRAIE}
        ORDER BY b.statut_le DESC, b.id DESC`),
-    q<Compte>(`SELECT id, nom FROM compte WHERE NOT demo ORDER BY nom`),
+    // TOUS les comptes, ceux en demo compris : c'est souvent a eux qu'une
+    // machine est destinee. La leur attribuer les sort de la demo, et la
+    // fenetre le dit avant qu'on enregistre.
+    q<Compte>(`SELECT id, nom, demo FROM compte ORDER BY nom`),
   ]);
 
   const machines: Machine[] = lignes.map((b) => ({
@@ -130,7 +133,7 @@ export default async function Parc({ searchParams }:
               <label htmlFor="n-compte">Compte</label>
               <select id="n-compte" name="compte_id" defaultValue="">
                 <option value="">— aucun, libre à l’achat</option>
-                {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.demo ? " (en démo : en sortira)" : ""}</option>)}
               </select>
             </div>
             <div className="champ">

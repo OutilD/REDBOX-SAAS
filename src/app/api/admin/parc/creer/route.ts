@@ -1,6 +1,7 @@
-import { q1 } from "@/db";
+import { transaction } from "@/db";
 import { estSuperAdmin, utilisateurDe, versPage } from "@/lib/auth";
 import { situerBorne } from "@/lib/geo";
+import { sortirDeLaDemoPour } from "@/lib/demo";
 import { statutValide } from "@/lib/parc";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +32,15 @@ export async function POST(req: Request) {
 
   let id: number;
   try {
-    const l = await q1<{ id: number }>(`
-      INSERT INTO borne (compte_id, nom, adresse, statut, statut_le, numero, note_editeur)
-      VALUES ($1, $2, $3, $4, now(), $5, $6) RETURNING id`,
-      [compte_id, nom, adresse, statut, numero, note]);
-    id = l!.id;
+    // Creee pour un compte encore en demo : il en sort d'abord (voir `sortirDeLaDemoPour`).
+    id = await transaction(async (c) => {
+      if (compte_id !== null) await sortirDeLaDemoPour(c, compte_id);
+      const l = await c.query<{ id: number }>(`
+        INSERT INTO borne (compte_id, nom, adresse, statut, statut_le, numero, note_editeur)
+        VALUES ($1, $2, $3, $4, now(), $5, $6) RETURNING id`,
+        [compte_id, nom, adresse, statut, numero, note]);
+      return l.rows[0].id;
+    });
   } catch (e) {
     if ((e as { code?: string }).code === "23505") return versPage(req, "/admin/parc?e=numero");
     throw e;

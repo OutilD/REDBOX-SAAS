@@ -868,6 +868,29 @@ export async function quitterDemo(compte_id: number): Promise<void> {
 }
 
 /** Repart d'une demo neuve : efface, et reseme. */
+/**
+ * UNE VRAIE MACHINE ARRIVE : LE COMPTE SORT DE LA DEMO.
+ *
+ * Le super-admin attribue une RedBox a un compte qui vit encore sur son parc
+ * fictif. Les deux ne cohabitent pas : sortir de la demo efface TOUTES les
+ * bornes du compte, la vraie avec. On en sort donc AVANT de poser la machine,
+ * dans la meme transaction — si l'attribution echoue, le compte reste en demo.
+ *
+ * Rend vrai s'il vient d'en sortir. Un compte qui porte deja une machine qui
+ * n'est pas fictive ne devrait pas etre en demo : on refuse de le vider.
+ */
+export async function sortirDeLaDemoPour(c: PgClient, compte_id: number): Promise<boolean> {
+  const k = (await c.query<{ demo: boolean; vraies: number }>(`
+    SELECT k.demo, (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = k.id
+                     AND (b.jeton IS NULL OR b.jeton NOT LIKE 'demo\\_%')) AS vraies
+      FROM compte k WHERE k.id = $1 FOR UPDATE`, [compte_id])).rows[0];
+  if (!k || !k.demo) return false;
+  if (k.vraies > 0) throw new Error("compte en demo avec une vraie machine : on ne le vide pas");
+  await viderDemo(c, compte_id);
+  await c.query("UPDATE compte SET demo = false, demo_vie = NULL WHERE id = $1", [compte_id]);
+  return true;
+}
+
 export async function renouvelerDemo(compte_id: number, par: string): Promise<void> {
   await transaction(async (c) => {
     await viderDemo(c, compte_id);

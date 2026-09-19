@@ -1,6 +1,7 @@
-import { q1 } from "@/db";
+import { q1, transaction } from "@/db";
 import { estSuperAdmin, utilisateurDe, versPage } from "@/lib/auth";
 import { situerBorne } from "@/lib/geo";
+import { sortirDeLaDemoPour } from "@/lib/demo";
 import { statutApresAttribution, statutValide, type Statut } from "@/lib/parc";
 
 export const dynamic = "force-dynamic";
@@ -46,11 +47,16 @@ export async function POST(req: Request) {
   else if (statut === actuelle.statut) statut = statutApresAttribution(statut, compte_id);
 
   try {
-    await q1(`
-      UPDATE borne SET numero = $2, nom = $3, adresse = $4, note_editeur = $5,
-                       compte_id = $6, statut = $7,
-                       statut_le = CASE WHEN statut = $7 THEN statut_le ELSE now() END
-       WHERE id = $1`, [id, numero, nom, adresse, note, compte_id, statut]);
+    // Un compte encore en demo en sort avant de recevoir sa machine (voir
+    // `sortirDeLaDemoPour`) : les deux dans la meme transaction.
+    await transaction(async (c) => {
+      if (compte_id !== null && compte_id !== actuelle.compte_id) await sortirDeLaDemoPour(c, compte_id);
+      await c.query(`
+        UPDATE borne SET numero = $2, nom = $3, adresse = $4, note_editeur = $5,
+                         compte_id = $6, statut = $7,
+                         statut_le = CASE WHEN statut = $7 THEN statut_le ELSE now() END
+         WHERE id = $1`, [id, numero, nom, adresse, note, compte_id, statut]);
+    });
   } catch (e) {
     if ((e as { code?: string }).code === "23505") return versPage(req, `/admin/parc?e=numero#m${id}`);
     throw e;
