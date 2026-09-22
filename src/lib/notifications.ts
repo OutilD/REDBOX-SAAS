@@ -3,6 +3,7 @@ import { codeCanal, euros, FUSEAU, q, q1 } from "@/db";
 import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
 import { NOM_RANG, evaluerBadges, rangDe } from "./communaute";
+import { hotes, type Produit } from "./produits";
 
 /**
  * LES NOTIFICATIONS POUSSEES VERS LE TELEPHONE.
@@ -61,11 +62,11 @@ export type Evenement =
   | { genre: "retour";      minutes: number }
   /** Quelqu'un l'a mise hors service, ou rouverte, depuis la console. */
   | { genre: "service";     actif: boolean; texte: string | null; par: string }
-  /** Son application a change de version. */
   /** L'issue d'une reinitialisation du terminal de paiement demandee depuis la console. */
   | { genre: "reset_paiement"; ok: boolean; detail: string | null; par: string | null }
   /** Elle vient de redemarrer : remise sous tension, ou application relancee. */
   | { genre: "demarrage";   quand: Date | string | null }
+  /** Son application a change de version. */
   | { genre: "version";     avant: string; apres: string };
 
 /**
@@ -227,7 +228,6 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
       return { genre: "incidents", titre: `De retour · ${b}`,
                corps: `Elle répond à nouveau après ${duree(e.minutes)} de silence. Ses ventes remontent.`,
                url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
-    case "service":
     // Celui qui a donne l'ordre n'est pas toujours celui qui est devant la
     // machine : l'issue part sur les telephones, et s'ecrit dans le salon.
     case "reset_paiement":
@@ -247,6 +247,7 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                corps: `Elle a redémarré${e.quand ? ` à ${heure(e.quand)}` : ""} : remise sous tension, ou application relancée. `
                     + "Si personne n’y a touché, vérifiez son alimentation.",
                url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
+    case "service":
       return { genre: "incidents",
                titre: e.actif ? `Mise hors service · ${b}` : `Remise en service · ${b}`,
                corps: e.actif
@@ -263,10 +264,29 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
 // ---------------------------------------------------------------- l'envoi
 
 type Abonnement = {
-  id: number; endpoint: string; p256dh: string; auth: string; origine: string | null;
+  id: number; utilisateur_id: number; endpoint: string; p256dh: string; auth: string; origine: string | null;
   ventes: boolean; incidents: boolean; vides: boolean; chargements: boolean; messages: boolean;
   annonces: boolean; communaute: boolean;
 };
+
+/**
+ * A LA BONNE APPLICATION. Quand la Gestion et Connect ont chacune leur adresse,
+ * une personne peut avoir installe les deux : une vente sonne alors dans la
+ * Gestion, un message dans Connect, et pas deux fois. Un abonnement appartient
+ * a l'application de l'adresse ou il a ete pris (`origine`).
+ *
+ * PERSONNE NE PERD UNE ALERTE POUR AUTANT : qui n'a installe qu'une des deux —
+ * tout le monde, le jour ou la seconde adresse ouvre — recoit tout sur celle
+ * qu'il a. Le tri se fait personne par personne. Sans deux hotes, rien ne change.
+ */
+function versLaBonneApplication(cibles: Abonnement[], produit: Produit): Abonnement[] {
+  const h = hotes();
+  if (!h) return cibles;
+  const chezLui = (a: Abonnement) =>
+    (a.origine ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "").toLowerCase() === h[produit];
+  const servis = new Set(cibles.filter(chezLui).map((a) => Number(a.utilisateur_id)));
+  return cibles.filter((a) => chezLui(a) || !servis.has(Number(a.utilisateur_id)));
+}
 
 /**
  * Envoie un message a un appareil. Rend faux si l'abonnement est mort : le
@@ -317,8 +337,8 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
   if (sonores.length === 0) return;
 
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
-  const cibles = await q<Abonnement>(`
-    SELECT a.id, a.endpoint, a.p256dh, a.auth, a.origine,
+  const cibles = versLaBonneApplication(await q<Abonnement>(`
+    SELECT a.id, a.utilisateur_id, a.endpoint, a.p256dh, a.auth, a.origine,
            a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces, a.communaute
       FROM abonnement_push a
       JOIN membre m ON m.utilisateur_id = a.utilisateur_id AND m.compte_id = $1
@@ -326,7 +346,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
                         WHERE x.utilisateur_id = a.utilisateur_id AND b.compte_id = $1)
         OR EXISTS (SELECT 1 FROM acces_borne x
                     WHERE x.utilisateur_id = a.utilisateur_id AND x.borne_id = $2)`,
-    [compte_id, borne.id]);
+    [compte_id, borne.id]), "gestion");
   if (cibles.length === 0) return;
 
   const envois: Promise<boolean>[] = [];
@@ -350,7 +370,7 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
  */
 export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<void> {
   if (m.utilisateur_id === null) return;
-  const colonnes = `a.id, a.endpoint, a.p256dh, a.auth, a.origine,
+  const colonnes = `a.id, a.utilisateur_id, a.endpoint, a.p256dh, a.auth, a.origine,
                     a.ventes, a.incidents, a.vides, a.chargements, a.messages, a.annonces, a.communaute`;
   let cibles: Abonnement[];
   if (salon.portee === "compte") {
@@ -398,6 +418,7 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
                                                   AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`,
       [salon.groupe ?? "tous", m.utilisateur_id]);
   }
+  cibles = versLaBonneApplication(cibles, "connect");
   if (cibles.length === 0) return;
   const texte = m.texte.replace(/\s+/g, " ").trim();
   const message: Message = {
@@ -413,10 +434,10 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
 
 /** Les appareils d'UNE personne qui veulent entendre parler de la communaute. */
 async function appareilsCommunaute(utilisateur_id: number): Promise<Abonnement[]> {
-  return q<Abonnement>(`
-    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
+  return versLaBonneApplication(await q<Abonnement>(`
+    SELECT id, utilisateur_id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
            communaute
-      FROM abonnement_push WHERE utilisateur_id = $1 AND communaute`, [utilisateur_id]);
+      FROM abonnement_push WHERE utilisateur_id = $1 AND communaute`, [utilisateur_id]), "connect");
 }
 
 /**
@@ -487,7 +508,7 @@ export async function evaluerLeCompte(compte_id: number): Promise<void> {
 /** Un message d'essai vers tous les appareils d'une personne. Rend le nombre atteint. */
 export async function essayer(utilisateur_id: number): Promise<number> {
   const siens = await q<Abonnement>(`
-    SELECT id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
+    SELECT id, utilisateur_id, endpoint, p256dh, auth, origine, ventes, incidents, vides, chargements, messages, annonces,
            communaute
       FROM abonnement_push WHERE utilisateur_id = $1`, [utilisateur_id]);
   const r = await Promise.all(siens.map((a) => pousser(a, ESSAI)));

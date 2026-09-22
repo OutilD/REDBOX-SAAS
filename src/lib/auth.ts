@@ -2,6 +2,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { q, q1 } from "@/db";
 import { animerDemo } from "./demo";
+import { hoteDes } from "./produits";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
 export function chiffrer(mdp: string): string {
@@ -82,10 +83,22 @@ export async function detruireSession(jeton: string): Promise<void> {
   await q("DELETE FROM session WHERE jeton = $1", [jeton]);
 }
 
-export function enTeteBiscuit(jeton: string | null): string {
+/**
+ * LE BISCUIT DE SESSION. Avec `REDBOX_DOMAINE_BISCUIT` (« .exemple.com »), il
+ * vaut sous tous les hotes du domaine : connecte dans la Gestion, on l'est dans
+ * Connect (`lib/produits.ts`). Sans, il ne vaut que pour l'hote qui l'a pose.
+ *
+ * A LA DECONNEXION, LES DEUX FORMES S'EFFACENT : un navigateur connecte avant
+ * le passage au domaine garde un biscuit d'hote, qu'un effacement « de domaine »
+ * ne touche pas — il serait reste connecte apres avoir clique « Se deconnecter ».
+ */
+export function enTeteBiscuit(jeton: string | null): string[] {
   const commun = "Path=/; HttpOnly; SameSite=Lax";
-  return jeton ? `${BISCUIT}=${jeton}; ${commun}; Max-Age=${DUREE / 1000}`
-               : `${BISCUIT}=; ${commun}; Max-Age=0`;
+  const domaine = (process.env.REDBOX_DOMAINE_BISCUIT ?? "").trim();
+  const portee = domaine ? `; Domain=${domaine}` : "";
+  if (jeton) return [`${BISCUIT}=${jeton}; ${commun}${portee}; Max-Age=${DUREE / 1000}`];
+  const efface = `${BISCUIT}=; ${commun}; Max-Age=0`;
+  return domaine ? [efface, `${BISCUIT}=; ${commun}${portee}; Max-Age=0`] : [efface];
 }
 
 /**
@@ -249,8 +262,14 @@ export function estSuperAdmin(u: Utilisateur): boolean {
 }
 
 /** Retour a une page apres un formulaire : 303, donc rechargement en GET. */
-export function versPage(req: Request, chemin: string, biscuit?: string): Response {
-  const entetes = new Headers({ Location: new URL(chemin, req.url).toString() });
-  if (biscuit !== undefined) entetes.set("Set-Cookie", biscuit);
+export function versPage(req: Request, chemin: string, biscuit?: string | string[]): Response {
+  // L'adresse se compose depuis l'hote que le client a tape, pas depuis
+  // `req.url` : Next y met parfois le nom de la machine, et avec deux hotes pour
+  // deux produits on sortirait de l'application ou l'on etait.
+  const hote = hoteDes(req.headers);
+  const local = !hote || hote.startsWith("localhost") || hote.includes(".localhost") || hote.startsWith("127.");
+  const base = hote ? `${req.headers.get("x-forwarded-proto") ?? (local ? "http" : "https")}://${hote}` : req.url;
+  const entetes = new Headers({ Location: new URL(chemin, base).toString() });
+  for (const b of biscuit === undefined ? [] : [biscuit].flat()) entetes.append("Set-Cookie", b);
   return new Response(null, { status: 303, headers: entetes });
 }

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Entete, NavBasse, planDe } from "../chrome";
+import { Entete, NavBasse, PRODUITS, planDe, produitCourant } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
 import { nonLus } from "@/lib/salons";
-import { IcoCommunaute, IcoEquipe, IcoReglages } from "../icones";
+import { adresse } from "@/lib/produits";
+import { IcoBorne, IcoCommunaute, IcoEquipe, IcoReglages } from "../icones";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,14 @@ const QUOI: Record<string, string> = {
 export default async function Menu() {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const sections = planDe(u);
+  // Le plan du produit d'ou l'on vient, et la porte vers l'autre en tete.
+  const { produit, hote } = await produitCourant("menu");
+  const autre = produit === "gestion" ? "connect" : "gestion";
+  // « Vous » est deja le dernier bloc de cette page : la section du meme nom
+  // que porte le plan de Connect s'y fond au lieu de faire un second titre.
+  const plan = planDe(u, produit);
+  const sections = plan.filter((s) => s.titre !== "Vous");
+  const aMoi = plan.filter((s) => s.titre === "Vous").flatMap((s) => s.items);
   const nonLusN = await nonLus(u).catch(() => 0);
 
   return (
@@ -52,6 +60,21 @@ export default async function Menu() {
       <Entete page="menu" />
       <main className="ecran">
         <h1>Menu</h1>
+
+        <div className="rubriques">
+          <Link href={adresse(autre, PRODUITS[autre].accueil, hote)} className="rubrique">
+            <span className="rond" aria-hidden="true">{autre === "connect" ? <IcoCommunaute /> : <IcoBorne />}</span>
+            <span className="dit">
+              <span className="nom">Passer à RedBox {PRODUITS[autre].nom}</span>
+              <span className="quoi">{PRODUITS[autre].quoi}</span>
+            </span>
+            <span className="etat num">
+              {autre === "connect" && nonLusN > 0
+                ? <span className="compte-menu">{nonLusN > 99 ? "99+" : nonLusN}</span> : null}
+            </span>
+            <span className="fleche" aria-hidden="true">›</span>
+          </Link>
+        </div>
 
         {sections.map((s) => (
           <section key={s.titre}>
@@ -95,7 +118,18 @@ export default async function Menu() {
             <span className="etat" />
             <span className="fleche" aria-hidden="true">›</span>
           </Link>
-          <Link href="/reglages" className="rubrique">
+          {aMoi.map((i) => (
+            <Link key={i.cle} href={i.vers} className="rubrique">
+              <span className="rond" aria-hidden="true">{i.icone}</span>
+              <span className="dit">
+                <span className="nom">{i.nom}</span>
+                {QUOI[i.cle] ? <span className="quoi">{QUOI[i.cle]}</span> : null}
+              </span>
+              <span className="etat" />
+              <span className="fleche" aria-hidden="true">›</span>
+            </Link>
+          ))}
+          {produit === "gestion" ? <Link href="/reglages" className="rubrique">
             <span className="rond" aria-hidden="true"><IcoReglages /></span>
             <span className="dit">
               <span className="nom">Réglages</span>
@@ -103,7 +137,7 @@ export default async function Menu() {
             </span>
             <span className="etat" />
             <span className="fleche" aria-hidden="true">›</span>
-          </Link>
+          </Link> : null}
         </div>
 
         {/* Plusieurs comptes : le moyen d'en changer, qui vit dans le pied du

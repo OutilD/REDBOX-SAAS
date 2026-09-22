@@ -32,10 +32,98 @@ Un compteur qu’on modifie ne sait pas dire pourquoi il a changé. Un stock qui
 s’explique pas, on cesse d’y croire ; et une fois qu’on n’y croit plus, on cesse
 de le tenir. C’est comme ça qu’un outil de gestion meurt.
 
+## Deux produits, une console
+
+**RedBox Gestion** sert les machines : chiffres, ventes, réassort, maintenance,
+écran d’accueil, parc. **RedBox Connect** relie les gens : communauté, messages,
+académie, carte du réseau. Même connexion, même base, mêmes comptes — comme
+Messenger et Facebook —, mais chacun a son rail, sa barre du pouce et son
+accueil (`/` et `/communaute`). Quelqu’un qui n’a pas encore de machine vit dans
+Connect sans traverser un logiciel de gestion ; il y **arrive** à l’inscription
+et à la connexion (`api/session` : une vraie borne appairée, ou l’équipe RedBox,
+ouvre la gestion). La gestion en démonstration reste à un geste.
+
+Le produit se déduit de la **page** (`PRODUITS`, `SECTIONS[].produit` et
+`produitDe` dans `app/chrome.tsx`). Le menu, le compte, les notifications et le
+mode démo servent les deux : ils gardent l’habillage d’où l’on vient, retenu
+dans le biscuit `rbx_produit` que pose `src/middleware.ts` à chaque page qui
+appartient clairement à l’un des deux. On passe de l’un à l’autre par **un seul
+bouton** sous le logo — « RedBox Connect » depuis la Gestion, « RedBox Gestion »
+depuis Connect, aux couleurs de l’autre —, par le quatrième onglet de la barre
+du bas, et par la première ligne de la page Menu. Les messages non lus restent
+visibles depuis la gestion : sur la bulle de l’en-tête et sur ce bouton.
+
+**On sait où l’on est sans lire.** Le middleware transmet le produit de la page
+dans l’en-tête `x-rbx-produit` ; `layout.tsx` le pose en `data-produit` sur
+`<html>`, et la feuille de style fait le reste par les jetons `--accent`,
+`--accent-vif`, `--accent-fond` et les surfaces. **La Gestion est un outil** :
+noir, rouge, angles nets. **Connect est un lieu** : bleu nuit avec des halos de
+couleur fixes au fond de la page, rail et barres en verre teinté, coins ronds
+(`--r-*`), entrées de menu en pilules, et un **dégradé** bleu électrique →
+violet → rose (`--c1`…`--c4`, `--degrade`, façon Messenger) qui signe le nom
+sous le logo, l’entrée active, l’anneau de l’avatar, les boutons principaux
+(avec lueur), l’onglet actif de la barre du bas, les filets et un soulignement
+sous les titres. L’identité descend dans le contenu : bulle de mes messages
+en dégradé, anneau dégradé autour des avatars, composeur en pilule qui s’allume
+d’un liseret dégradé au focus, salon ouvert, progression de l’Académie, tête du
+classement, point devant les titres de section, focus partout. Changer les
+quatre `--c*` change toute l’identité. **La Gestion n’est pas touchée** : tout
+vit sous `:root[data-produit="connect"]`.
+
+Pour voir les deux produits tels qu’ils tournent : `captures/capture.mjs`
+(Playwright, session par cookie `rbx`, ordinateur et téléphone) écrit des PNG
+dans `captures/`, ignoré par git ; `captures/sonde-connect.mjs` lit les styles
+calculés des éléments clés. Les erreurs et les dangers restent rouges
+partout ; un seul bloc `:root[data-produit="connect"]` porte tout.
+
+**Une adresse qui ne mène nulle part** (`app/not-found.tsx`) dit « En cours de
+construction » dans l’habillage du produit, avec les deux portes. Un chemin
+inconnu compte pour la Gestion, sauf sur l’hôte de Connect. Sous le logo, le nom du produit en capitales avec son point de couleur ;
+au téléphone, la même puce à côté du logo.
+
+Ce n’est **qu’un seul projet** : la machine écrit dans son salon, les badges
+viennent des ventes, l’académie s’ouvre selon qu’on a une borne. Deux dépôts
+dupliqueraient la connexion, les notifications et le schéma.
+
+### Deux adresses, un seul déploiement
+
+Trois variables d’environnement donnent à chaque produit son adresse
+(`lib/produits.ts`) ; **sans elles, rien ne change** :
+
+    REDBOX_HOTE_GESTION=gestion.exemple.com
+    REDBOX_HOTE_CONNECT=connect.exemple.com
+    REDBOX_DOMAINE_BISCUIT=.exemple.com
+
+- **Chaque hôte ne sert que son produit.** Une page de l’autre y renvoie avec
+  son adresse entière (`middleware.ts`) : un lien gardé dans un message, une
+  notification reçue par l’autre application, tout arrive au bon endroit. La
+  racine de Connect est `/communaute`. Le menu, le compte et les notifications se
+  servent sur place, avec l’habillage de l’hôte. L’API n’est jamais renvoyée, et
+  un hôte qui n’est aucun des deux — l’ancienne adresse que les bornes
+  appellent — sert tout, comme avant.
+- **Une seule connexion.** Le biscuit de session est posé sur le domaine : connecté
+  dans l’une, on l’est dans l’autre. À la déconnexion les deux formes s’effacent,
+  celle d’hôte et celle de domaine — un navigateur connecté avant le passage au
+  domaine garde la première. On reste dans l’application où l’on s’est
+  connecté ; seul un prospect qui se connecte côté Gestion est conduit à Connect.
+- **Une application installable par produit** : le manifeste de l’hôte Connect
+  dit « RedBox Connect » et s’ouvre sur la communauté (`app/manifest.ts`).
+- **Les notifications vont à la bonne application** (`versLaBonneApplication`) :
+  un abonnement appartient à l’adresse où il a été pris. Une vente sonne dans la
+  Gestion, un message dans Connect. Qui n’a installé qu’une des deux reçoit tout
+  sur celle-là : personne ne perd une alerte le jour où la seconde adresse ouvre.
+- Les redirections (`versPage`) se composent depuis l’hôte que le client a tapé,
+  pas depuis `req.url`.
+
+Pour l’essayer en local : `REDBOX_HOTE_GESTION=gestion.localhost:4311
+REDBOX_HOTE_CONNECT=connect.localhost:4311 npx next start -p 4311`, puis
+`curl -H "Host: connect.localhost:4311" http://127.0.0.1:4311/ventes`.
+
 ## Deux navigations, une par posture
 
-**Sur écran large, un rail à gauche**, toujours visible, rangé en trois sections :
-Exploitation, Approvisionnement, Configuration. Il montre **tout**, y compris ce
+**Sur écran large, un rail à gauche**, toujours visible, rangé en sections — pour
+la gestion : Exploitation, Approvisionnement, Configuration. Il montre **tout** ce
+que porte le produit où l’on est, y compris ce
 qui se visite rarement — c’est la différence entre un menu qu’on parcourt et un
 plan qu’on lit. Chaque entrée porte sa pastille : canaux vides, litiges à
 regarder, produits épuisés en réserve. Une seule requête les calcule toutes les

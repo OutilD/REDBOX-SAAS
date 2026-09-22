@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
@@ -12,6 +12,9 @@ import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
 import { clesVapid } from "@/lib/notifications";
 import InviteNotifications from "./invite-notifications";
+import { BISCUIT_PRODUIT, PRODUITS, adresse, hoteDes, produitDeLHote, type Produit } from "@/lib/produits";
+
+export { PRODUITS, type Produit };
 
 export type Page =
   | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger" | "centrale"
@@ -27,15 +30,34 @@ type Item = {
 };
 
 /**
+ * DEUX PRODUITS DANS UNE CONSOLE.
+ *
+ * La GESTION sert les machines : chiffres, ventes, reassort, maintenance, ecran
+ * d'accueil. CONNECT relie les gens : communaute, messages, academie, carte du
+ * reseau. Meme connexion, meme base, memes comptes — comme Messenger et
+ * Facebook —, mais chacun son menu, sa barre du pouce et son accueil : quelqu'un
+ * qui n'a pas encore de machine vit dans Connect sans traverser un logiciel de
+ * gestion, et qui gere ses machines n'a pas le chat dans son plan de travail.
+ *
+ * Le produit se deduit de la PAGE. Les rares pages qui servent les deux — le
+ * menu, le compte, les notifications — prennent celui d'ou l'on vient, retenu
+ * dans le biscuit `rbx_produit` que pose `middleware.ts`. Quand les deux produits
+ * ont chacun leur adresse (`lib/produits.ts`), c'est l'hote qui le dit, et les
+ * portes de l'un a l'autre deviennent des adresses completes.
+ */
+/** Les pages qui n'appartiennent a aucun des deux : elles gardent l'habillage d'ou l'on vient. */
+const PARTAGEES: ReadonlySet<Page> = new Set<Page>(["menu", "profil", "notifications", "demo"]);
+
+/**
  * Le plan de l'application.
  *
  * Le rail montre TOUT, y compris ce qui se visite rarement : c'est la difference
  * entre un menu qu'on parcourt et un plan qu'on lit. La barre du bas, elle, ne
  * garde que les cinq destinations qu'on atteint au pouce.
  */
-const SECTIONS: { titre: string; items: Item[] }[] = [
+const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
   {
-    titre: "Exploitation",
+    titre: "Exploitation", produit: "gestion",
     items: [
       // Le tableau de bord agrege tout le parc, et le depot appartient a
       // l'exploitant : une personne restreinte a une machine y serait renvoyee.
@@ -51,21 +73,33 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
     ],
   },
   {
-    // Ce qui relie aux autres redboxers et a l'equipe, a cote du travail sur
-    // ses propres machines.
-    titre: "Réseau",
+    // Ce qui relie aux autres redboxers et a l'equipe.
+    titre: "Réseau", produit: "connect",
     items: [
       { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute />, vers: "/communaute" },
       { cle: "messages", nom: "Messages", icone: <IcoBulle />, vers: "/messages" },
-      // La formation : la machine, le pitch, les contrats. Ouverte a tous — un
-      // futur redboxer y apprend ce qu'il vendra —, plus large pour qui en a une.
-      { cle: "academie",   nom: "Académie",   icone: <IcoAcademie />,   vers: "/academie" },
       // Le parc pose sur la carte de France : ou sont-elles, laquelle va mal.
       { cle: "carte",   nom: "Carte",   icone: <IcoCarte />,  vers: "/carte" },
     ],
   },
   {
-    titre: "Approvisionnement",
+    // La formation : la machine, le pitch, les contrats. Ouverte a tous — un
+    // futur redboxer y apprend ce qu'il vendra —, plus large pour qui en a une.
+    titre: "Formation", produit: "connect",
+    items: [
+      { cle: "academie",   nom: "Académie",   icone: <IcoAcademie />,   vers: "/academie" },
+    ],
+  },
+  {
+    // Ce qui sonne sur cet appareil vaut pour les deux produits : l'entree
+    // existe aussi dans la Configuration de la gestion.
+    titre: "Vous", produit: "connect",
+    items: [
+      { cle: "notifications", nom: "Notifications", icone: <IcoCloche />, vers: "/reglages/notifications" },
+    ],
+  },
+  {
+    titre: "Approvisionnement", produit: "gestion",
     items: [
       { cle: "stock",     nom: "Mon stock", icone: <IcoStock />,     vers: "/stock",
         droit: (u) => u.bornes === null },
@@ -81,7 +115,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
     ],
   },
   {
-    titre: "Configuration",
+    titre: "Configuration", produit: "gestion",
     items: [
       // L'ordre du travail reel : on cree une categorie, on y range des produits,
       // puis on decide de ce qui defile sur l'ecran. Un menu qui suit la
@@ -101,7 +135,7 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
   {
     // L'editeur seul : le parc entier et tous les comptes. Une personne, pas un
     // compte — le drapeau est sur l'utilisateur.
-    titre: "Plateforme",
+    titre: "Plateforme", produit: "gestion",
     items: [
       { cle: "admin",         nom: "Tableau", icone: <IcoTableau />, vers: "/admin",
         droit: estSuperAdmin },
@@ -114,10 +148,30 @@ const SECTIONS: { titre: string; items: Item[] }[] = [
 ];
 
 /** Le plan, reduit a ce que cette personne a le droit d'ouvrir : le rail et la page Menu. */
-export function planDe(u: Utilisateur): { titre: string; items: Item[] }[] {
+export function planDe(u: Utilisateur, produit: Produit): { titre: string; items: Item[] }[] {
   return SECTIONS
+    .filter((s) => s.produit === produit)
     .map((s) => ({ titre: s.titre, items: s.items.filter((i) => !i.droit || i.droit(u)) }))
     .filter((s) => s.items.length > 0);
+}
+
+/**
+ * Le produit d'une page. Pour une page partagee : celui de l'hote quand chaque
+ * produit a le sien, sinon celui que le biscuit a retenu.
+ */
+export function produitDe(page: Page, biscuit?: string | null, hote?: Produit | null): Produit {
+  if (!PARTAGEES.has(page)) {
+    if (page === "academie_editer") return "connect";
+    for (const s of SECTIONS) if (s.items.some((i) => i.cle === page)) return s.produit;
+    return "gestion";
+  }
+  return hote ?? (biscuit === "connect" ? "connect" : "gestion");
+}
+
+/** Le meme, pour une page qui n'a que ses biscuits et ses en-tetes sous la main ; et l'hote, pour les portes. */
+export async function produitCourant(page: Page): Promise<{ produit: Produit; hote: string | null }> {
+  const hote = hoteDes(await headers());
+  return { produit: produitDe(page, (await cookies()).get(BISCUIT_PRODUIT)?.value, produitDeLHote(hote)), hote };
 }
 
 /**
@@ -129,13 +183,29 @@ export function planDe(u: Utilisateur): { titre: string; items: Item[] }[] {
  * Reassort, Messages, Analytiques, Reglages — c'est-a-dire le rail, en page :
  * rien de la console n'est plus a plus de deux gestes.
  */
-const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] = [
-  { cle: "tableau",    nom: "Tableau",    icone: <IcoTableau size={19} />,    vers: "/" },
-  { cle: "bornes",     nom: "RedBox",     icone: <IcoBorne size={19} />,      vers: "/bornes" },
-  { cle: "ventes",     nom: "Ventes",     icone: <IcoVentes size={19} />,     vers: "/ventes" },
-  { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute size={19} />, vers: "/communaute" },
-  { cle: "menu",       nom: "Menu",       icone: <IcoMenu size={19} />,       vers: "/menu" },
-];
+type Onglet = { cle: Page | "bascule"; nom: string; icone: React.ReactNode; vers: string };
+
+/**
+ * Une barre par produit. Le quatrieme onglet passe a l'autre : sur un
+ * telephone le rail n'existe pas, et c'est la seule bascule qu'on ait sous le
+ * pouce. Les messages non lus, eux, restent sur la bulle de l'en-tete.
+ */
+const POUCE: Record<Produit, Onglet[]> = {
+  gestion: [
+    { cle: "tableau",    nom: "Tableau",    icone: <IcoTableau size={19} />,    vers: "/" },
+    { cle: "bornes",     nom: "RedBox",     icone: <IcoBorne size={19} />,      vers: "/bornes" },
+    { cle: "ventes",     nom: "Ventes",     icone: <IcoVentes size={19} />,     vers: "/ventes" },
+    { cle: "bascule",    nom: "Connect",    icone: <IcoCommunaute size={19} />, vers: PRODUITS.connect.accueil },
+    { cle: "menu",       nom: "Menu",       icone: <IcoMenu size={19} />,       vers: "/menu" },
+  ],
+  connect: [
+    { cle: "communaute", nom: "Communauté", icone: <IcoCommunaute size={19} />, vers: "/communaute" },
+    { cle: "messages",   nom: "Messages",   icone: <IcoBulle size={19} />,      vers: "/messages" },
+    { cle: "academie",   nom: "Académie",   icone: <IcoAcademie size={19} />,   vers: "/academie" },
+    { cle: "bascule",    nom: "Gestion",    icone: <IcoBorne size={19} />,      vers: PRODUITS.gestion.accueil },
+    { cle: "menu",       nom: "Menu",       icone: <IcoMenu size={19} />,       vers: "/menu" },
+  ],
+};
 
 /**
  * La page ouverte, ramenee a l'onglet du pouce qui la contient. Tout ce qui
@@ -143,13 +213,13 @@ const POUCE: { cle: Page; nom: string; icone: React.ReactNode; vers: string }[] 
  * la qu'on en repart.
  */
 const FAMILLE: Partial<Record<Page, Page>> = {
-  carte: "bornes",
+  carte: "menu",
   analytiques: "tableau",
-  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu", messages: "menu",
+  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_parc: "menu", admin_comptes: "menu",
-  academie: "menu", academie_editer: "menu",
+  academie_editer: "academie",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -157,9 +227,9 @@ const FIL: Record<Page, [string, string?]> = {
   analytiques: ["Analytiques"],
   ventes:     ["Ventes"],
   bornes:     ["RedBox"],
-  carte:      ["Carte", "RedBox"],
-  messages:   ["Messages"],
-  communaute: ["Communauté"],
+  carte:      ["Carte", "Connect"],
+  messages:   ["Messages", "Connect"],
+  communaute: ["Communauté", "Connect"],
   stock:      ["Mon stock", "Approvisionnement"],
   reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Fiche d’approvisionnement", "Approvisionnement"],
@@ -178,7 +248,7 @@ const FIL: Record<Page, [string, string?]> = {
   admin:      ["Tableau de bord", "Plateforme"],
   admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
-  academie:   ["Académie"],
+  academie:   ["Académie", "Connect"],
   academie_editer: ["Édition", "Académie"],
 };
 
@@ -213,6 +283,11 @@ export async function Entete({ page, borne, fenetre, periode }:
   const biscuits = await cookies();
   const theme = biscuits.get("rbx_theme")?.value ?? "dark";
   const rail = biscuits.get("rbx_rail")?.value ?? "";
+  const hote = hoteDes(await headers());
+  const produit = produitDe(page, biscuits.get(BISCUIT_PRODUIT)?.value, produitDeLHote(hote));
+  // Les portes vers l'autre produit : un chemin ici, une adresse complete s'il a son hote.
+  const vers = (p: Produit, chemin: string) => adresse(p, chemin, hote);
+  const autre: Produit = produit === "gestion" ? "connect" : "gestion";
   const ici = cheminDe(page);
   const [titre, parent] = FIL[page] ?? ["RedBox"];
 
@@ -242,11 +317,17 @@ export async function Entete({ page, borne, fenetre, periode }:
   return (
     <>
       <aside className="rail">
-        <Link href="/" className="logo">
+        <Link href={PRODUITS[produit].accueil} className="logo">
           <Image src="/logo-redbox.png" alt="RedBox" width={232} height={150} priority />
         </Link>
+        {/* CONNECT A SON EN-TETE : sous le logo RedBox, le mot « connect » en
+            degrade. La Gestion, elle, reste telle qu'elle a toujours ete :
+            rien d'autre que le logo. */}
+        {produit === "connect" ? (
+          <div className="connect-marque" aria-label="RedBox Connect"><span>connect</span></div>
+        ) : null}
         <nav>
-          {SECTIONS.map((s) => {
+          {SECTIONS.filter((s) => s.produit === produit).map((s) => {
             const items = s.items.filter((i) => !i.droit || (u && i.droit(u)));
             if (items.length === 0) return null;
             return (
@@ -264,6 +345,22 @@ export async function Entete({ page, borne, fenetre, periode }:
               </div>
             );
           })}
+          {/* LA PORTE VERS L'AUTRE PRODUIT, en bas du plan, comme une entree
+              de plus : « RedBox Connect » depuis la Gestion, « RedBox Gestion »
+              depuis Connect. Les messages non lus s'y lisent depuis la Gestion. */}
+          {u ? (
+            <div>
+              <div className="section">{autre === "connect" ? "Réseau" : "Machines"}</div>
+              <Link href={vers(autre, PRODUITS[autre].accueil)} className="item produit-porte" data-vers={autre}
+                    title={PRODUITS[autre].quoi}>
+                <span className="glyphe">{autre === "connect" ? <IcoCommunaute /> : <IcoBorne />}</span>
+                RedBox {PRODUITS[autre].nom}
+                {autre === "connect" && nonLusN > 0
+                  ? <span className="compte num">{nonLusN > 99 ? "99+" : nonLusN}</span>
+                  : <IcoFleche size={13} />}
+              </Link>
+            </div>
+          ) : null}
         </nav>
         {/*
           LE COMPTE, ET LE MOYEN D'EN CHANGER.
@@ -293,8 +390,9 @@ export async function Entete({ page, borne, fenetre, periode }:
 
       <header className="entete">
         <div className="dedans">
-          <Link href="/" className="logo-mobile">
+          <Link href={PRODUITS[produit].accueil} className="logo-mobile">
             <Image src="/logo-redbox.png" alt="RedBox" width={155} height={100} priority />
+            {produit === "connect" ? <span className="produit-puce">connect</span> : null}
           </Link>
           <BasculeRail depart={rail} retour={ici} focus={page === "academie" || page === "messages"} />
           <div className="fil">
@@ -331,7 +429,7 @@ export async function Entete({ page, borne, fenetre, periode }:
             {/* La messagerie a sa bulle dans l'en-tete : elle n'a pas de place
                 dans la barre du pouce, et c'est ce qu'on regarde en arrivant. */}
             {u ? (
-              <Link href="/messages" className="bouton icone bulle" title="Messages" aria-label="Messages"
+              <Link href={vers("connect", "/messages")} className="bouton icone bulle" title="Messages" aria-label="Messages"
                     data-actif={page === "messages" ? "" : undefined}>
                 <IcoBulle size={17} />
                 {nonLusN > 0 ? <span className="pastille-nombre num">{nonLusN > 99 ? "99+" : nonLusN}</span> : null}
@@ -409,7 +507,8 @@ export async function Entete({ page, borne, fenetre, periode }:
           </div>
         ) : null}
       </header>
-      {/* L'INVITATION AUX NOTIFICATIONS, sur chaque page tant que cet appareil
+      {/* L'INVITATION A INSTALLER ET AUX NOTIFICATIONS — une grande fenetre sur
+          telephone, un bandeau sur ordinateur —, sur chaque page tant que cet appareil
           n'a jamais ete sollicite — sauf sur Reglages → Notifications, qui a
           deja son bouton. Le composant decide seul, dans le navigateur : la
           permission ne se lit pas depuis le serveur.
@@ -421,7 +520,7 @@ export async function Entete({ page, borne, fenetre, periode }:
           (`backdrop-filter`) aurait accroche une carte fixe a lui, pas a
           l'ecran. */}
       {u && page !== "notifications"
-        ? await clesVapid().then((k) => <InviteNotifications publique={k.publique} />).catch(() => null)
+        ? await clesVapid().then((k) => <InviteNotifications publique={k.publique} connect={produit === "connect"} />).catch(() => null)
         : null}
     </>
   );
@@ -435,12 +534,17 @@ function cheminDe(page: Page): string {
   return "/reglages";
 }
 
-export function NavBasse({ page }: { page: Page }) {
-  const actif = FAMILLE[page] ?? page;
+export async function NavBasse({ page }: { page: Page }) {
+  const { produit, hote } = await produitCourant(page);
+  const onglets = POUCE[produit];
+  const autre: Produit = produit === "gestion" ? "connect" : "gestion";
+  const actif = onglets.some((o) => o.cle === page) ? page : FAMILLE[page] ?? "menu";
   return (
     <nav className="nav-bas">
-      {POUCE.map((o) => (
-        <Link key={o.cle} href={o.vers} className={o.cle === actif ? "actif" : ""}>
+      {onglets.map((o) => (
+        <Link key={o.cle} href={o.cle === "bascule" ? adresse(autre, o.vers, hote) : o.vers}
+              className={o.cle === actif ? "actif" : ""}
+              data-bascule={o.cle === "bascule" ? "" : undefined}>
           <span className="glyphe">{o.icone}</span>
           {o.nom}
         </Link>

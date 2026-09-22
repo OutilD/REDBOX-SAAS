@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { ENTETE_PRODUIT } from "@/lib/produits";
 import "./globals.css";
 import Occupe from "./occupe";
 import { Suspense } from "react";
@@ -54,6 +55,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
    */
   const attr: Record<string, string> = { "data-theme": theme === "light" ? "light" : "dark" };
   if (rail === "ferme" || rail === "ouvert") attr["data-rail"] = rail;
+  // LE PRODUIT — Gestion ou Connect — habille toute la page : c'est le
+  // middleware qui l'a decide, la feuille de style fait le reste.
+  attr["data-produit"] = (await headers()).get(ENTETE_PRODUIT) === "connect" ? "connect" : "gestion";
   return (
     <html lang="fr" {...attr}>
       <body>

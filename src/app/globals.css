@@ -68,6 +68,13 @@
   --bleu:         #4d8dff;
   --bleu-fond:    rgba(77,141,255,.14);
   --violet:       #a274ff;
+
+  /* L'ACCENT DU PRODUIT. La Gestion est rouge, la marque ; Connect est violet.
+     Le rail, l'en-tete, la barre du bas et les boutons principaux passent par
+     ces jetons — jamais les erreurs ni les dangers, qui restent rouges. */
+  --accent:       var(--rouge);
+  --accent-vif:   var(--rouge-vif);
+  --accent-fond:  var(--rouge-fond);
   --violet-fond:  rgba(162,116,255,.14);
 
   /* Rythme.
@@ -104,6 +111,188 @@
   --violet: #7433d4; --violet-fond: rgba(116,51,212,.11);
   --ombre: none;
 }
+
+/* =============================================================================
+   CONNECT : UNE AUTRE IDENTITE.
+
+   La Gestion est un outil : noir, rouge, angles nets — la machine. Connect est
+   un lieu ou l'on se parle : bleu nuit, halos de couleur, pilules, et UN
+   DEGRADE — bleu electrique, violet, rose, comme les messageries qu'on connait
+   — qui signe le nom, les entrees actives, l'anneau de l'avatar, les boutons.
+   On sait ou l'on est avant d'avoir lu un mot. Les erreurs et les dangers
+   restent rouges partout. Tout tient ici : changer `--degrade` change tout.
+   ========================================================================== */
+:root[data-produit="connect"] {
+  --accent:       #6e5cff;
+  --accent-vif:   #8f80ff;
+  --accent-fond:  rgba(110,92,255,.16);
+  --c1: #00c2ff; --c2: #4f6bff; --c3: #a033ff; --c4: #ff4f9a;
+  --degrade:      linear-gradient(120deg, var(--c1) 0%, var(--c2) 32%, var(--c3) 66%, var(--c4) 100%);
+  --degrade-doux: linear-gradient(120deg, rgba(0,194,255,.18), rgba(79,107,255,.16) 35%, rgba(160,51,255,.16) 70%, rgba(255,79,154,.14));
+  --lueur:        0 10px 30px -10px rgba(110,92,255,.7);
+  --fond:         #0a0e1c;
+  --surface:      #10152a;
+  --surface-2:    #171d36;
+  --surface-3:    #212846;
+  --bord:         #222a48;
+  --bord-fort:    #333d63;
+  --r-s: 12px; --r-m: 16px; --r-l: 20px;
+}
+:root[data-produit="connect"][data-theme="light"] {
+  --accent:       #4f46e5;
+  --accent-vif:   #6e5cff;
+  --accent-fond:  rgba(79,70,229,.1);
+  --degrade-doux: linear-gradient(120deg, rgba(0,194,255,.12), rgba(79,107,255,.1) 35%, rgba(160,51,255,.1) 70%, rgba(255,79,154,.1));
+  --lueur:        0 10px 26px -12px rgba(79,70,229,.55);
+  --fond:         #f3f5fc;
+  --surface:      #ffffff;
+  --surface-2:    #eef1fb;
+  --surface-3:    #e3e8f7;
+  --bord:         #e1e6f3;
+  --bord-fort:    #c6cee6;
+}
+/* Des halos de couleur au fond de la page, fixes, tres doux : la profondeur
+   d'un lieu, pas la surface plate d'un outil. */
+:root[data-produit="connect"] body {
+  background:
+    radial-gradient(60% 40% at 85% -10%, rgba(160,51,255,.22), transparent 60%),
+    radial-gradient(50% 35% at -10% 30%, rgba(0,194,255,.14), transparent 60%),
+    radial-gradient(50% 40% at 70% 110%, rgba(255,79,154,.14), transparent 60%),
+    var(--fond);
+  background-attachment: fixed;
+}
+/* Le rail : verre teinte, aurore en haut, filet degrade sur le bord. */
+:root[data-produit="connect"] .rail {
+  background:
+    radial-gradient(120% 50% at 0% 0%, rgba(79,107,255,.35), transparent 60%),
+    radial-gradient(70% 30% at 100% 8%, rgba(255,79,154,.18), transparent 60%),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-right: 0; box-shadow: inset -1px 0 0 var(--bord);
+}
+:root[data-produit="connect"] .rail::after {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: var(--degrade); opacity: .9;
+}
+:root[data-produit="connect"] .rail .section { color: var(--texte-3); letter-spacing: .16em; padding-top: 18px; }
+:root[data-produit="connect"] .rail a.item { border-radius: 999px; padding: 9px 12px; margin-bottom: 3px; font-weight: 600; }
+:root[data-produit="connect"] .rail a.item:hover { background: rgba(255,255,255,.05); }
+:root[data-produit="connect"] .rail a.item.actif { background: var(--degrade-doux); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+:root[data-produit="connect"] .rail a.item.actif::before { display: none; }
+:root[data-produit="connect"] .rail a.item.actif .glyphe { color: #fff; }
+:root[data-produit="connect"] .rail a.item.actif::after {
+  content: ""; margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--degrade);
+  box-shadow: 0 0 10px 1px rgba(160,51,255,.6);
+}
+:root[data-produit="connect"] .rail a.item.actif .compte { background: var(--degrade); color: #fff; margin-left: auto; }
+:root[data-produit="connect"] .rail a.item.actif .compte + ::after { display: none; }
+/* LA MARQUE CONNECT, sous le logo : le mot en degrade, gros, serre — la
+   seule chose du rail qui ne soit pas un menu. */
+:root[data-produit="connect"] .rail .connect-marque {
+  margin: -2px 0 0; padding: 0 10px; font-size: 26px; font-weight: 900; letter-spacing: -.04em; line-height: 1;
+}
+:root[data-produit="connect"] .rail .connect-marque span {
+  background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+:root[data-produit="connect"] .rail .pied { border-top-color: rgba(255,255,255,.08); }
+/* L'en-tete : verre, un filet degrade en bas ; la puce et l'anneau de l'avatar
+   portent le degrade, comme un anneau de story. */
+:root[data-produit="connect"] .entete { background: color-mix(in srgb, var(--fond) 78%, transparent); border-bottom: 0; }
+:root[data-produit="connect"] .entete::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--degrade); }
+:root[data-produit="connect"] .entete .produit-puce {
+  border: 0; color: #fff; background: var(--degrade); text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 800; padding: 4px 10px;
+}
+:root[data-produit="connect"] .compte-chip .jeton {
+  background: var(--degrade); color: #fff; padding: 2px;
+  box-shadow: 0 0 0 2px var(--fond), 0 0 0 4px transparent;
+  outline: 2px solid transparent; outline-offset: 2px;
+  background-clip: padding-box, border-box;
+}
+:root[data-produit="connect"] .compte-chip .jeton.photo { border: 2px solid transparent; background: var(--degrade) border-box; }
+:root[data-produit="connect"] .compte-chip:hover .jeton { box-shadow: 0 0 0 2px var(--fond), 0 0 16px 2px rgba(160,51,255,.5); }
+:root[data-produit="connect"] .entete .bulle[data-actif] { color: var(--accent-vif); }
+:root[data-produit="connect"] .entete .bouton.icone:hover { border-color: var(--accent); }
+/* La barre du bas : verre, filet degrade, et l'onglet actif dans une pilule. */
+:root[data-produit="connect"] .nav-bas { background: color-mix(in srgb, var(--fond) 82%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 0; box-shadow: none; }
+:root[data-produit="connect"] .nav-bas::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--degrade); }
+:root[data-produit="connect"] .nav-bas a.actif .glyphe { color: #fff; background: var(--degrade); border-radius: 999px; padding: 5px 14px; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .nav-bas a .glyphe { padding: 5px 14px; border-radius: 999px; }
+:root[data-produit="connect"] .nav-bas a.actif { color: var(--texte); }
+/* Les boutons principaux : degrade et lueur. Les dangers restent rouges. */
+:root[data-produit="connect"] .bouton.primaire { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .bouton.primaire:hover { filter: brightness(1.08); background: var(--degrade); border-color: transparent; }
+:root[data-produit="connect"] .bouton:not(.primaire):not(.danger):hover { border-color: var(--accent); }
+/* Les cartes : un liseret degrade discret au survol ; les titres soulignes. */
+:root[data-produit="connect"] .carte { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+:root[data-produit="connect"] .carte:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--bord)); }
+:root[data-produit="connect"] .ecran > h1:first-child::after,
+:root[data-produit="connect"] .ecran > .titre-section:first-child h1::after {
+  content: ""; display: block; width: 52px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--degrade);
+}
+/* Les champs : anneau degrade au focus, pas un simple trait. */
+:root[data-produit="connect"] input:focus-visible, :root[data-produit="connect"] textarea:focus-visible, :root[data-produit="connect"] select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
+}
+/* ---- LE CONTENU DE CONNECT, pas seulement son cadre. Ce qu'on regarde le
+   plus — les bulles, les visages, le champ ou l'on ecrit — porte l'identite. */
+/* Mes messages : la bulle en degrade, comme Messenger. Les autres restent
+   sombres, mais dans le bleu nuit d'ici. */
+:root[data-produit="connect"] .msg.mien .bulle {
+  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 45%, var(--c3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px -8px rgba(79,107,255,.6);
+}
+:root[data-produit="connect"] .msg .bulle:not(.msg.mien .bulle) {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 90%, #fff) 0%, var(--surface-2) 58%, color-mix(in srgb, var(--surface-2) 92%, #000) 100%);
+}
+/* Les visages : un anneau degrade, comme une story ; les initiales sur degrade. */
+:root[data-produit="connect"] .msg .avatar,
+:root[data-produit="connect"] .portrait-rond { background: var(--degrade); }
+:root[data-produit="connect"] .msg .avatar img,
+:root[data-produit="connect"] .portrait-rond img { border: 2px solid var(--fond); border-radius: 50%; box-sizing: border-box; }
+:root[data-produit="connect"] .profil-tete .portrait {
+  border: 3px solid transparent;
+  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--degrade) border-box;
+  box-shadow: 0 0 24px -6px rgba(160,51,255,.55);
+}
+:root[data-produit="connect"] .profil-tete .portrait .jeton { color: var(--texte); }
+:root[data-produit="connect"] .msg.machine .entete-msg b { color: var(--accent-vif); }
+/* Le composeur : une pilule, qui s'allume d'un liseret degrade quand on y ecrit ;
+   le bouton d'envoi en degrade. */
+:root[data-produit="connect"] .boite-composeur {
+  border-radius: 999px; border: 1px solid transparent;
+  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, linear-gradient(var(--bord-fort), var(--bord-fort)) border-box;
+}
+:root[data-produit="connect"] .boite-composeur:focus-within {
+  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--degrade) border-box;
+  box-shadow: 0 0 0 4px rgba(79,107,255,.14);
+}
+:root[data-produit="connect"] .boite-composeur textarea:focus-visible { outline: 0; border-color: transparent; }
+:root[data-produit="connect"] .boite-composeur .envoyer { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .boite-composeur .envoyer:disabled { background: var(--surface-3); box-shadow: none; color: var(--texte-3); }
+/* Le salon ouvert, dans la liste : la pilule degradee du rail. */
+:root[data-produit="connect"] .messagerie a.salon[aria-current],
+:root[data-produit="connect"] .messagerie a.salon.actif { background: var(--degrade-doux); border-radius: var(--r-m); }
+:root[data-produit="connect"] .messagerie a.salon:focus-visible { outline-color: var(--accent); }
+/* L'academie : la progression en degrade, les modules qui s'allument au survol. */
+:root[data-produit="connect"] .aca-piste > span { background: var(--degrade); }
+:root[data-produit="connect"] .aca-module:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--bord)); box-shadow: 0 12px 30px -18px rgba(79,107,255,.6); }
+:root[data-produit="connect"] .aca-module:focus-visible { outline-color: var(--accent); }
+/* Le classement : la tete de liste ceinte de degrade, plus de rouge. */
+:root[data-produit="connect"] .classement li.tete a {
+  border-color: transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--degrade) border-box;
+}
+:root[data-produit="connect"] .classement a:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--bord)); }
+:root[data-produit="connect"] .classement a:focus-visible { outline-color: var(--accent); }
+/* Les titres de section : un point degrade devant, au lieu du gris seul. */
+:root[data-produit="connect"] .titre-section h2::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--degrade);
+}
+/* Le focus, partout : l'accent de Connect, jamais le rouge. */
+:root[data-produit="connect"] :is(a, button, summary, [tabindex]):focus-visible { outline-color: var(--accent); }
+/* Les liens soulignes et les petites pilules d'etat « ok » : la teinte d'ici. */
+:root[data-produit="connect"] .pilule.ok { background: var(--accent-fond); color: var(--accent-vif); }
+/* Le rail replie garde l'aurore et la pilule active. */
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus)))[data-produit="connect"] .rail a.item.actif::after { display: none; }
 
 /*
   LE LOGO EN THEME CLAIR.
@@ -160,6 +349,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .rail .logo { display: block; padding: 0 10px 4px; }
 .rail .logo img { width: 116px; height: auto; display: block; }
 .rail nav { flex: 1; overflow-y: auto; margin-top: 18px; }
+/* La porte vers l'autre produit : une entree du plan, avec sa fleche. Vers
+   Connect, le glyphe porte le degrade de Connect — un apercu de la-bas. */
+.rail a.item.produit-porte > svg:last-child { margin-left: auto; color: var(--texte-3); }
+.rail a.item.produit-porte[data-vers="connect"] .glyphe {
+  color: #fff; border-radius: 7px; padding: 3px; margin: -3px 0;
+  background: linear-gradient(120deg, #00c2ff, #4f6bff 32%, #a033ff 66%, #ff4f9a);
+}
+.rail a.item.produit-porte[data-vers="connect"] .compte { margin-left: auto; background: linear-gradient(120deg, #4f6bff, #a033ff); color: #fff; }
+/* La puce de l'en-tete au telephone, a cote du logo. */
+.entete .produit-puce {
+  margin-left: 8px; padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent-vif); background: var(--accent-fond); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+}
 .rail .section {
   font-size: 10px; letter-spacing: .13em; text-transform: uppercase;
   color: var(--texte-3); font-weight: 700; padding: 15px 10px 6px;
@@ -318,6 +520,61 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .invite-notifs .actions { width: 100%; }
   .invite-notifs .actions .bouton { flex: 1; justify-content: center; }
 }
+/*
+  LA GRANDE FENETRE, SUR TELEPHONE : installer l'application, puis activer les
+  notifications. Elle monte du bas, la ou sont les pouces, par-dessus un fond
+  floute qui dit « ceci d'abord » sans rien interdire : toucher le fond, la
+  croix ou « Plus tard » la ferme. En rouge, la couleur de la marque — c'est
+  une invitation de RedBox, pas une alerte du systeme.
+*/
+.invite-fond {
+  position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center;
+  background: rgb(0 0 0 / .62); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  animation: invite-fond-entre .2s ease-out;
+}
+.invite-fenetre {
+  position: relative; width: min(560px, 100%); max-height: 92dvh; overflow-y: auto;
+  padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+  background: var(--surface); border: 1px solid var(--bord-fort); border-bottom: 0;
+  border-radius: 22px 22px 0 0; box-shadow: 0 -18px 60px rgb(0 0 0 / .55);
+  animation: invite-fenetre-entre .28s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes invite-fond-entre { from { opacity: 0; } }
+@keyframes invite-fenetre-entre { from { transform: translateY(40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .invite-fond, .invite-fenetre { animation: none; } }
+.invite-fenetre .fermer {
+  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 999px;
+  font-size: 24px; line-height: 1; color: var(--texte-3); background: none; border: 0; cursor: pointer;
+}
+.invite-fenetre .fermer:hover { color: var(--texte); background: var(--surface-2); }
+.invite-fenetre .tete { display: flex; align-items: center; gap: 14px; padding-right: 40px; }
+.invite-fenetre .sceau {
+  flex: none; width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center;
+  color: var(--rouge-vif); background: var(--rouge-fond); border: 1px solid color-mix(in srgb, var(--rouge) 45%, transparent);
+}
+.invite-fenetre .sur { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--rouge-vif); }
+.invite-fenetre h2 { margin: 2px 0 0; font-size: 23px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15;
+                     text-transform: none; color: var(--texte); }
+.invite-fenetre .quoi { margin: 18px 0 0; font-size: 15.5px; line-height: 1.5; color: var(--texte-2); }
+.invite-fenetre .etapes { list-style: none; counter-reset: etape; margin: 18px 0 0; padding: 0; display: grid; gap: 12px; }
+.invite-fenetre .etapes li { counter-increment: etape; display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.45; }
+.invite-fenetre .etapes li::before {
+  content: counter(etape); flex: none; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center;
+  font-size: 13px; font-weight: 800; color: var(--rouge-vif); background: var(--rouge-fond);
+}
+.invite-fenetre .etapes li span { padding-top: 3px; }
+.invite-fenetre .etapes b { color: var(--texte); font-weight: 700; }
+.invite-fenetre .etapes svg { vertical-align: -3px; color: var(--rouge-vif); margin: 0 1px; }
+.invite-fenetre .etapes .points { color: var(--rouge-vif); letter-spacing: .08em; }
+.invite-fenetre .suite { margin: 16px 0 0; font-size: 13px; line-height: 1.45; color: var(--texte-3); }
+.invite-fenetre .actions { display: grid; gap: 10px; margin-top: 20px; }
+.invite-fenetre .actions .bouton { min-height: 52px; justify-content: center; font-size: 15.5px; border-radius: 14px; }
+/* Sur un ecran large — une tablette tenue en paysage —, elle se pose au milieu. */
+@media (min-width: 700px) {
+  .invite-fond { align-items: center; }
+  .invite-fenetre { border-bottom: 1px solid var(--bord-fort); border-radius: 22px; padding-bottom: 24px; }
+}
+
 /* Au-dela de 980 px le rail recouvre le debut de l'en-tete : le bandeau de la
    demo commence apres lui, sinon sa premiere phrase est coupee. */
 @media (min-width: 980px) {
@@ -521,61 +778,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (max-width: 620px) { .tableau .masque-etroit { display: none; } }
 
 /*
-  LA GRANDE FENETRE, SUR TELEPHONE : installer l'application, puis activer les
-  notifications. Elle monte du bas, la ou sont les pouces, par-dessus un fond
-  floute qui dit « ceci d'abord » sans rien interdire : toucher le fond, la
-  croix ou « Plus tard » la ferme. En rouge, la couleur de la marque — c'est
-  une invitation de RedBox, pas une alerte du systeme.
-*/
-.invite-fond {
-  position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center;
-  background: rgb(0 0 0 / .62); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
-  animation: invite-fond-entre .2s ease-out;
-}
-.invite-fenetre {
-  position: relative; width: min(560px, 100%); max-height: 92dvh; overflow-y: auto;
-  padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
-  background: var(--surface); border: 1px solid var(--bord-fort); border-bottom: 0;
-  border-radius: 22px 22px 0 0; box-shadow: 0 -18px 60px rgb(0 0 0 / .55);
-  animation: invite-fenetre-entre .28s cubic-bezier(.2, .8, .2, 1);
-}
-@keyframes invite-fond-entre { from { opacity: 0; } }
-@keyframes invite-fenetre-entre { from { transform: translateY(40px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .invite-fond, .invite-fenetre { animation: none; } }
-.invite-fenetre .fermer {
-  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 999px;
-  font-size: 24px; line-height: 1; color: var(--texte-3); background: none; border: 0; cursor: pointer;
-}
-.invite-fenetre .fermer:hover { color: var(--texte); background: var(--surface-2); }
-.invite-fenetre .tete { display: flex; align-items: center; gap: 14px; padding-right: 40px; }
-.invite-fenetre .sceau {
-  flex: none; width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center;
-  color: var(--rouge-vif); background: var(--rouge-fond); border: 1px solid color-mix(in srgb, var(--rouge) 45%, transparent);
-}
-.invite-fenetre .sur { font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--rouge-vif); }
-.invite-fenetre h2 { margin: 2px 0 0; font-size: 23px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15;
-                     text-transform: none; color: var(--texte); }
-.invite-fenetre .quoi { margin: 18px 0 0; font-size: 15.5px; line-height: 1.5; color: var(--texte-2); }
-.invite-fenetre .etapes { list-style: none; counter-reset: etape; margin: 18px 0 0; padding: 0; display: grid; gap: 12px; }
-.invite-fenetre .etapes li { counter-increment: etape; display: flex; gap: 12px; align-items: flex-start; font-size: 15px; line-height: 1.45; }
-.invite-fenetre .etapes li::before {
-  content: counter(etape); flex: none; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center;
-  font-size: 13px; font-weight: 800; color: var(--rouge-vif); background: var(--rouge-fond);
-}
-.invite-fenetre .etapes li span { padding-top: 3px; }
-.invite-fenetre .etapes b { color: var(--texte); font-weight: 700; }
-.invite-fenetre .etapes svg { vertical-align: -3px; color: var(--rouge-vif); margin: 0 1px; }
-.invite-fenetre .etapes .points { color: var(--rouge-vif); letter-spacing: .08em; }
-.invite-fenetre .suite { margin: 16px 0 0; font-size: 13px; line-height: 1.45; color: var(--texte-3); }
-.invite-fenetre .actions { display: grid; gap: 10px; margin-top: 20px; }
-.invite-fenetre .actions .bouton { min-height: 52px; justify-content: center; font-size: 15.5px; border-radius: 14px; }
-/* Sur un ecran large — une tablette tenue en paysage —, elle se pose au milieu. */
-@media (min-width: 700px) {
-  .invite-fond { align-items: center; }
-  .invite-fenetre { border-bottom: 1px solid var(--bord-fort); border-radius: 22px; padding-bottom: 24px; }
-}
-
-/*
   LES DEUX ENTETES DE FICHE : celle d'une borne, celle d'une personne.
 
   Meme forme, meme intention — l'image d'abord, en grand, parce que c'est elle
@@ -698,6 +900,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail { width: 62px; padding-left: 8px; padding-right: 8px; align-items: stretch; }
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .logo img { width: 40px; }
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .logo { padding: 0 3px; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail a.item.produit-porte > svg:last-child { display: none; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .connect-marque { display: none; }
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .section { font-size: 0; padding: 12px 0 4px; }
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus))) .rail .section::after {
   content: ""; display: block; height: 1px; background: var(--bord); margin: 0 6px;
@@ -1306,6 +1510,8 @@ a.ligne:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .nav-bas a .glyphe { display: flex; line-height: 1; }
 .nav-bas a.actif { color: var(--texte); }
 .nav-bas a.actif .glyphe { color: var(--rouge-vif); }
+/* L'onglet qui passe a l'autre produit : une porte, pas une page d'ici. */
+.nav-bas a[data-bascule] { border-left: 1px solid var(--bord); border-right: 1px solid var(--bord); }
 .nav-bas a { min-height: 52px; }
 
 @media (min-width: 980px) { .nav-bas { display: none; } }

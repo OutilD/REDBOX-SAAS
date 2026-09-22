@@ -2,6 +2,7 @@ import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
 import { semerDemo } from "@/lib/demo";
 import { PSEUDO_MAX, offrirBienvenue } from "@/lib/communaute";
+import { adresse, hoteDes } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -73,5 +74,6 @@ export async function POST(req: Request) {
   });
 
   if (issue.souci) return vers(issue.souci);
-  return versPage(req, "/", enTeteBiscuit(await creerSession(issue.id)));
+  // Un compte neuf n'a pas de machine : il arrive dans Connect (voir api/session).
+  return versPage(req, adresse("connect", "/communaute", hoteDes(req.headers)), enTeteBiscuit(await creerSession(issue.id)));
 }
