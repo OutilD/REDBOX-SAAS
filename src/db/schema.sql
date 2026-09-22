@@ -1264,3 +1264,11 @@ CREATE INDEX IF NOT EXISTS centrale_produit_categorie ON centrale_produit (categ
 -- Un produit de la centrale peut etre en rupture chez son fournisseur : il
 -- reste visible, mais on ne renvoie pas quelqu'un vers un lien qui ne vend pas.
 ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS disponible BOOLEAN NOT NULL DEFAULT true;
+
+-- LES GOUTS D'UN PRODUIT. Une puff se decline en vingt aromes ; les ecrire dans
+-- la description en faisait une liste illisible. Une liste a part, dans
+-- l'ordre de l'editeur, chaque gout portant au plus une etiquette :
+-- « best » (best-seller) ou « nouveau ». JSON plutot qu'une table : un gout
+-- n'existe jamais hors de son produit, et personne ne le cherche seul.
+--   [{"nom": "Black Dragon Ice", "etiquette": "best"}, {"nom": "Cherry Ice", "etiquette": null}]
+ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS gouts JSONB NOT NULL DEFAULT '[]'::jsonb;

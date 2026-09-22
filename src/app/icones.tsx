@@ -517,3 +517,18 @@ export const IcoPartageIos = ({ size = 18 }: P) => (
 export const IcoPlusCarre = ({ size = 18 }: P) => (
   <svg {...base(size)}><rect x="3.5" y="3.5" width="13" height="13" rx="3" /><path d="M10 7v6M7 10h6" /></svg>
 );
+
+/** Best-seller : une etoile pleine. */
+export const IcoEtoile = ({ size = 16 }: P) => (
+  <svg {...base(size)} fill="currentColor" strokeWidth={1.2}>
+    <path d="M10 2.6l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5L2.8 7.9l5-.7z" />
+  </svg>
+);
+
+/** Nouveau : une etincelle a quatre branches, et sa petite soeur. */
+export const IcoEtincelle = ({ size = 16 }: P) => (
+  <svg {...base(size)} fill="currentColor" strokeWidth={0.8}>
+    <path d="M8.5 2.5c.5 3.4 1.6 4.5 5 5-3.4.5-4.5 1.6-5 5-.5-3.4-1.6-4.5-5-5 3.4-.5 4.5-1.6 5-5z" />
+    <path d="M15 11.5c.25 1.7.8 2.25 2.5 2.5-1.7.25-2.25.8-2.5 2.5-.25-1.7-.8-2.25-2.5-2.5 1.7-.25 2.25-.8 2.5-2.5z" />
+  </svg>
+);

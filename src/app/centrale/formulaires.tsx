@@ -1,5 +1,6 @@
 import { NOM_MAX, TEXTE_MAX, URL_MAX, type Categorie, type Fournisseur, type Produit } from "@/lib/centrale";
 import { IcoBas, IcoHaut } from "../icones";
+import GoutsEditeur from "./gouts-editeur";
 
 /**
  * LES FORMULAIRES DE LA CENTRALE. Des formulaires ordinaires, envoyes a
@@ -100,17 +101,21 @@ export function ChampsProduit({ pr, p, fournisseurs, categories, fournisseur_id,
       </div>
       <div className="champs" style={{ marginTop: 14 }}>
         <div className="c-court">
-          <label htmlFor={`${p}-achat`}>Prix d’achat (€)</label>
+          <label htmlFor={`${p}-achat`}>Prix d’achat HT (€)</label>
           <input id={`${p}-achat`} name="prix_achat" inputMode="decimal" defaultValue={prix(pr?.prix_achat_c)} placeholder="2,10" />
         </div>
         <div className="c-court">
-          <label htmlFor={`${p}-conseille`}>Prix de vente conseillé (€)</label>
+          <label htmlFor={`${p}-conseille`}>Prix de vente conseillé TTC (€)</label>
           <input id={`${p}-conseille`} name="prix_conseille" inputMode="decimal" defaultValue={prix(pr?.prix_conseille_c)} placeholder="4,50" />
         </div>
       </div>
       <div className="champ" style={{ marginTop: 14 }}>
         <label htmlFor={`${p}-texte`}>Description <span className="faible">(facultatif)</span></label>
         <textarea id={`${p}-texte`} name="texte" rows={3} maxLength={TEXTE_MAX} defaultValue={pr?.texte ?? ""} />
+      </div>
+      <div className="champ">
+        <label>Goûts disponibles <span className="faible">(facultatif — une ligne par goût ; best-seller ou nouveau se cochent à côté)</span></label>
+        <GoutsEditeur gouts={pr?.gouts ?? []} />
       </div>
       <div className="champ">
         <label htmlFor={`${p}-url`}>Lien de commande du produit <span className="faible">(facultatif — sinon, le bouton Commander mène au fournisseur)</span></label>

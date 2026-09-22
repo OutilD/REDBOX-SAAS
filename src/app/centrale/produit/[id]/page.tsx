@@ -4,6 +4,7 @@ import { Entete, NavBasse } from "../../../chrome";
 import { utilisateur } from "@/lib/auth";
 import { categories as lireCategories, estNouveau, fournisseurs as lireFournisseurs, lienAchat,
          peutEditerCentrale, produitDe, similaires } from "@/lib/centrale";
+import { ListeGouts } from "../../vues";
 import { IcoCoche, IcoCorbeille, IcoFleche, IcoImage } from "../../../icones";
 import { ChampsProduit, Deplacer, ERREURS, Retour } from "../../formulaires";
 import { BlocPrix, GrilleProduits } from "../../vues";
@@ -42,7 +43,7 @@ export default async function FicheProduit({ params, searchParams }: {
 
         {sp.ok === "1" ? <p className="aca-ok" role="status">Enregistré.</p> : null}
 
-        <article className={`ctr-fiche${p.disponible ? "" : " rupture"}`}>
+        <article className={`ctr-fiche${p.disponible ? "" : " rupture"}${p.gouts.length > 0 ? " avec-gouts" : ""}`}>
           <div className="photo">
             {p.image_id
               ? <img src={`/api/image/${p.image_id}`} alt={p.nom} decoding="async" />  // eslint-disable-line @next/next/no-img-element
@@ -57,7 +58,20 @@ export default async function FicheProduit({ params, searchParams }: {
                 : estNouveau(p) ? <span className="pilule ok"><i />Nouveau</span> : <span className="pilule ok"><IcoCoche size={13} /> Disponible</span>}
             </div>
             <h1>{p.nom}</h1>
-            {p.texte ? <p className="ctr-fiche-texte">{p.texte}</p> : null}
+            {/* LA DESCRIPTION ET LES GOUTS, cote a cote a droite de la photo :
+                deux colonnes separees d'un filet, la description a gauche, la
+                liste a droite ; l'une sous l'autre quand la place manque. */}
+            {p.texte || p.gouts.length > 0 ? (
+              <div className={`ctr-fiche-corps${p.texte && p.gouts.length > 0 ? " deux" : ""}`}>
+                {p.texte ? (
+                  <section className="ctr-fiche-description" aria-label="Description">
+                    <h2>Description</h2>
+                    <p className="ctr-fiche-texte">{p.texte}</p>
+                  </section>
+                ) : null}
+                <ListeGouts gouts={p.gouts} />
+              </div>
+            ) : null}
             <BlocPrix p={p} />
             {achat ? (
               <a href={achat} target="_blank" rel="noopener noreferrer" className="bouton primaire large ctr-fiche-acheter">

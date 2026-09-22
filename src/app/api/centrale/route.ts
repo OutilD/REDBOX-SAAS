@@ -1,6 +1,7 @@
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { NOM_MAX, TEXTE_MAX, champ, deplacer, lien, peutEditerCentrale, rangSuivant } from "@/lib/centrale";
+import { NOM_MAX, TEXTE_MAX, champ, deplacer, goutsDe, lien, peutEditerCentrale, rangSuivant,
+         type GoutSaisi } from "@/lib/centrale";
 import { rangerImage } from "@/lib/image";
 import { centimes } from "@/lib/prix";
 
@@ -120,6 +121,18 @@ export async function POST(req: Request) {
     const conseille = centimes(String(f.get("prix_conseille") ?? ""));
     const prixMauvais = (n: string) => String(f.get(n) ?? "").trim() !== "" && centimes(String(f.get(n))) === null;
     const disponible = String(f.get("disponible") ?? "") === "1";
+    const saisis = goutsDe(f);
+    // Les photos des gouts se rangent dans la transaction, comme celle du
+    // produit ; une photo refusee arrete tout et le dit.
+    const rangerGouts = async (c: Parameters<typeof rangerImage>[0]): Promise<string | null> => {
+      for (const g of saisis as GoutSaisi[]) {
+        if (!g.fichier) continue;
+        const id = await rangerImage(c, u.compte_id, g.fichier);
+        if (id === null) return null;
+        g.image_id = id;
+      }
+      return JSON.stringify(saisis.map(({ nom, etiquette, image_id }) => ({ nom, etiquette, image_id })));
+    };
     const fichier = f.get("image");
     const envoye = fichier instanceof File && fichier.size > 0 ? fichier : null;
     const ancre = action === "creer" ? undefined : "modifier";
@@ -140,12 +153,14 @@ export async function POST(req: Request) {
           image_id = await rangerImage(c, u.compte_id, envoye);
           if (image_id === null) return { refus: "image" };
         }
+        const gouts = await rangerGouts(c);
+        if (gouts === null) return { refus: "image" };
         const ordre = await rangSuivant(c, "centrale_produit", fournisseur_id);
         const n = await c.query<{ id: number }>(`
           INSERT INTO centrale_produit
-            (fournisseur_id, categorie_id, nom, texte, url, prix_achat_c, prix_conseille_c, image_id, ordre, disponible)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-          [fournisseur_id, categorie_id, nom, texte, url, achat, conseille, image_id, ordre, disponible]);
+            (fournisseur_id, categorie_id, nom, texte, url, prix_achat_c, prix_conseille_c, image_id, ordre, disponible, gouts)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) RETURNING id`,
+          [fournisseur_id, categorie_id, nom, texte, url, achat, conseille, image_id, ordre, disponible, gouts]);
         return { id: Number(n.rows[0].id) };
       });
       if ("refus" in r) return vers(`e=${r.refus}`);
@@ -159,12 +174,14 @@ export async function POST(req: Request) {
           image_id = await rangerImage(c, u.compte_id, envoye);
           if (image_id === null) return { refus: "image" };
         }
+        const gouts = await rangerGouts(c);
+        if (gouts === null) return { refus: "image" };
         await c.query(`
           UPDATE centrale_produit
              SET fournisseur_id = $2, categorie_id = $3, nom = $4, texte = $5, url = $6,
                  prix_achat_c = $7, prix_conseille_c = $8,
-                 image_id = COALESCE($9::bigint, image_id), disponible = $10, modifie_le = now()
-           WHERE id = $1`, [id, fournisseur_id, categorie_id, nom, texte, url, achat, conseille, image_id, disponible]);
+                 image_id = COALESCE($9::bigint, image_id), disponible = $10, gouts = $11::jsonb, modifie_le = now()
+           WHERE id = $1`, [id, fournisseur_id, categorie_id, nom, texte, url, achat, conseille, image_id, disponible, gouts]);
         return {};
       });
       if ("refus" in r) return vers(`e=${r.refus}`, ancre);

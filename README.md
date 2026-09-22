@@ -382,6 +382,26 @@ abonnement sur une adresse `http://` autre que `localhost`. Sur iPhone, il faut
 en plus poser la console sur l’écran d’accueil (Partager › Sur l’écran
 d’accueil) et l’ouvrir depuis cette icône — iOS 16.4 ou plus.
 
+### L’invitation à installer et à activer
+
+Presque aucun appareil n’était abonné : il fallait aller chercher les
+notifications dans Réglages. `app/invite-notifications.tsx` les propose donc à
+l’ouverture. **Sur un téléphone, une grande fenêtre** qui monte du bas — d’abord
+« Installez RedBox » (sur iPhone, Safari ne pousse rien à un site qui n’est pas
+sur l’écran d’accueil : trois étapes illustrées ; sur Android, le bouton
+« Installer » de Chrome quand il tend `beforeinstallprompt`, le chemin par le
+menu sinon), puis « Activez les notifications » une fois installée. **Jamais
+bloquante** : « Plus tard », la croix et le fond la ferment. Elle se tait alors
+une journée, et il n’y en a qu’une par ouverture : fermer l’installation ne fait
+pas surgir les notifications à la page suivante. **Sur ordinateur**, le bandeau
+discret, deux semaines de silence après « Plus tard ». Le texte change selon le
+produit (machines pour la gestion, messages et badges pour Connect).
+
+La demande du navigateur ne part que du toucher sur « Activer » : une demande au
+chargement est refusée par Safari et Firefox, et un « Bloquer » réflexe est
+définitif. Tout se décide dans `decider` (`reglages/notifications/abonnement.ts`),
+pure, vérifiable cas par cas.
+
 ## Mode démo
 
 Un compte qui vient de s’inscrire **s’ouvre sur un parc inventé** : trois
@@ -470,26 +490,6 @@ placement) ; la carte de tout le parc, où l'on place les machines ; les
 machines qui rapportent le plus.
 
 `/admin/parc` : les cinq compteurs et un tableau en cinq colonnes où l'on
-### L’invitation à installer et à activer
-
-Presque aucun appareil n’était abonné : il fallait aller chercher les
-notifications dans Réglages. `app/invite-notifications.tsx` les propose donc à
-l’ouverture. **Sur un téléphone, une grande fenêtre** qui monte du bas — d’abord
-« Installez RedBox » (sur iPhone, Safari ne pousse rien à un site qui n’est pas
-sur l’écran d’accueil : trois étapes illustrées ; sur Android, le bouton
-« Installer » de Chrome quand il tend `beforeinstallprompt`, le chemin par le
-menu sinon), puis « Activez les notifications » une fois installée. **Jamais
-bloquante** : « Plus tard », la croix et le fond la ferment. Elle se tait alors
-une journée, et il n’y en a qu’une par ouverture : fermer l’installation ne fait
-pas surgir les notifications à la page suivante. **Sur ordinateur**, le bandeau
-discret, deux semaines de silence après « Plus tard ». Le texte change selon le
-produit (machines pour la gestion, messages et badges pour Connect).
-
-La demande du navigateur ne part que du toucher sur « Activer » : une demande au
-chargement est refusée par Safari et Firefox, et un « Bloquer » réflexe est
-définitif. Tout se décide dans `decider` (`reglages/notifications/abonnement.ts`),
-pure, vérifiable cas par cas.
-
 **glisse une carte** d'un stade à l'autre (`POST /api/admin/parc/statut`).
 Chaque colonne se tourne par pages de six. Chaque carte
 porte aussi un formulaire complet — stade, compte, numéro, nom, adresse, note —
@@ -508,3 +508,30 @@ attribuées pas encore posées, la page « Ajouter une RedBox » demande laquell
 on appaire : la ligne existante reçoit le jeton et passe `installee`, avec son
 lieu, sa place sur la carte et son historique. « Une autre RedBox » crée une
 ligne comme avant.
+
+## Centrale d’achat
+
+`/centrale` est la boutique des redboxers : ce qu’on met dans une RedBox, où
+l’acheter, à quel prix, et ce que ça rapporte (`lib/centrale.ts`). Un catalogue
+de la **plateforme** — les super-admins l’écrivent, tous les comptes le lisent —,
+qui se parcourt comme un site de vente ; l’achat lui-même se fait chez le
+fournisseur, par son lien. Un seul guichet, `POST /api/centrale`, l’action dit
+quoi ; des formulaires ordinaires, sans JavaScript.
+
+**Les goûts d’un produit** (`centrale_produit.gouts`, JSON) : une liste à part,
+dans l’ordre de l’éditeur, chaque goût portant au plus une étiquette —
+best-seller (étoile ambre) ou nouveau (étincelle verte), et une photo
+(`image_id`, rangée par `rangerImage` dans la transaction du produit). Sur la
+fiche, **la description et les goûts sont côte à côte, à droite de la photo**,
+séparés d’un filet, au-dessus des prix ; la photo cède de la place quand il y a
+des goûts (`.ctr-fiche.avec-gouts`), et sous 1100 px la liste passe sous la
+description (`.ctr-fiche-corps`). La liste : rang, vignette — un clic l’agrandit
+dans une fenêtre (`gout-photo.tsx` ; sans JavaScript, le lien ouvre l’image) —,
+nom, étiquette, best-sellers d’abord ; la carte de la grille dit « 18 goûts ·
+4 best-sellers », et la recherche les trouve. L’éditeur (`gouts-editeur.tsx`,
+côté client : il importe `lib/gouts.ts`, pas `lib/centrale.ts` qui ouvre la
+base) est une ligne par goût — vignette cliquable pour la photo, nom, trois
+boutons radio ; l’ancienne photo survit par un champ caché tant qu’on n’en
+envoie pas une autre. Sans JavaScript, trois lignes vides. Un bloc « Coller une liste » lit une liste de fournisseur,
+« - BEST SELLER » ou « - NOUVEAU » en fin de ligne posant l’étiquette
+(`goutsDe`).

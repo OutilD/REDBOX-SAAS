@@ -7286,6 +7286,15 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
 .parc-fenetre .comptes input { position: absolute; opacity: 0; pointer-events: none; }
 .parc-fenetre .comptes .jeton-compte.sans { background: var(--surface-3); color: var(--texte-3); }
 .parc-fenetre .comptes .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parc-fenetre .comptes label .pilule.demo {
+  margin-left: auto; flex: none; font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px;
+  color: var(--ambre, #b45309); background: color-mix(in srgb, var(--ambre, #f59e0b) 16%, transparent);
+}
+.parc-alerte-demo {
+  margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-s); font-size: 13px; line-height: 1.45;
+  color: var(--texte); background: color-mix(in srgb, var(--ambre, #f59e0b) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ambre, #f59e0b) 45%, transparent);
+}
 .parc-devient { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 13px; color: var(--texte-2); }
 .parc-fenetre footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--bord); }
 .parc-mesure { box-shadow: inset 0 3px 0 var(--stade); }
@@ -7309,15 +7318,6 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
   font: 600 10.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--texte-2); background: var(--surface-2);
   border: 1px solid var(--bord-fort); border-bottom-width: 2px; border-radius: 5px;
-}
-.parc-fenetre .comptes label .pilule.demo {
-  margin-left: auto; flex: none; font-size: 11px; font-weight: 650; padding: 2px 8px; border-radius: 999px;
-  color: var(--ambre, #b45309); background: color-mix(in srgb, var(--ambre, #f59e0b) 16%, transparent);
-}
-.parc-alerte-demo {
-  margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-s); font-size: 13px; line-height: 1.45;
-  color: var(--texte); background: color-mix(in srgb, var(--ambre, #f59e0b) 13%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ambre, #f59e0b) 45%, transparent);
 }
 
 /* ----------------------------------------------------------------- la liste */
@@ -7810,6 +7810,9 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
 }
 :root[data-theme="light"] .ctr-fiche { box-shadow: 0 10px 30px -24px rgba(20, 20, 30, .35); }
 @media (min-width: 860px) { .ctr-fiche { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 28px; padding: 24px; align-items: start; } }
+/* Avec des gouts a montrer, la photo cede de la place : la colonne de droite
+   porte la description ET la liste, cote a cote. */
+@media (min-width: 1100px) { .ctr-fiche.avec-gouts { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
 .ctr-fiche .photo {
   position: relative; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 12px;
   background: linear-gradient(160deg, var(--surface-3), var(--surface-2)); border: 1px solid var(--bord);
@@ -7824,6 +7827,98 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
 .ctr-fiche h1 { margin: 0; font-size: 26px; letter-spacing: -.035em; line-height: 1.12; text-wrap: balance; }
 @media (min-width: 860px) { .ctr-fiche h1 { font-size: 30px; } }
 .ctr-fiche-texte { margin: 12px 0 0; font-size: 15px; line-height: 1.6; color: var(--texte-2); white-space: pre-line; max-width: 60ch; }
+/* LA DESCRIPTION ET LES GOUTS : une rangee de la fiche a eux, sous la photo
+   et les prix. Deux colonnes bien separees par un filet sur grand ecran —
+   la description a gauche, jamais plus large qu'un paragraphe se lit, la
+   liste a droite —, l'une sous l'autre au telephone. */
+.ctr-fiche-corps { display: grid; gap: 20px; margin-top: 14px; }
+@media (min-width: 1100px) {
+  .ctr-fiche-corps.deux { grid-template-columns: minmax(240px, 1fr) minmax(280px, 320px); gap: 0; }
+  .ctr-fiche-corps.deux .ctr-gouts { border-left: 1px solid var(--bord); padding-left: 20px; margin-left: 20px; }
+}
+.ctr-fiche-description h2, .ctr-gouts h2 { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--texte-3); }
+.ctr-fiche-description .ctr-fiche-texte { margin: 0; max-width: 62ch; font-size: 14.5px; }
+
+/* LA LISTE DES GOUTS. Une ligne par gout : le rang, la photo, le nom, l'etiquette.
+   Une ligne etiquetee prend la teinte de son etiquette et un filet a gauche. */
+.ctr-gouts { min-width: 0; scroll-margin-top: 80px; }
+.ctr-gouts header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.ctr-gouts header h2 { margin: 0; }
+.ctr-gouts header span { font-size: 12.5px; }
+.ctr-gouts ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ctr-gouts li {
+  display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 5px 10px 5px 8px;
+  border: 1px solid var(--bord); border-radius: 12px; background: var(--surface);
+  transition: border-color .15s, background .15s;
+}
+.ctr-gouts li:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.ctr-gouts li .rang { flex: none; width: 20px; text-align: right; font-size: 11.5px; font-weight: 700; color: var(--texte-3); }
+.ctr-gouts li .nom { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; color: var(--texte); }
+.ctr-gouts li .etq {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--etq); background: color-mix(in srgb, var(--etq) 14%, transparent);
+}
+.ctr-gouts li[data-etq="best"] { --etq: var(--ambre); }
+.ctr-gouts li[data-etq="nouveau"] { --etq: var(--vert); }
+.ctr-gouts li[data-etq] { border-color: color-mix(in srgb, var(--etq) 35%, var(--bord)); background: color-mix(in srgb, var(--etq) 6%, var(--surface)); box-shadow: inset 3px 0 0 var(--etq); }
+.ctr-gouts li[data-etq]:hover { background: color-mix(in srgb, var(--etq) 11%, var(--surface)); }
+.ctr-gouts footer { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+.ctr-gouts footer span { display: inline-flex; align-items: center; gap: 5px; }
+.ctr-gouts footer span:first-child svg { color: var(--ambre); }
+.ctr-gouts footer span svg { color: var(--vert); }
+.ctr-gouts footer span:first-child svg { color: var(--ambre); }
+
+/* La vignette d'un gout, et la fenetre qui l'agrandit. */
+.ctr-gout-vignette {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; overflow: hidden;
+  background: var(--surface-3); border: 1px solid var(--bord); color: var(--texte-3); font-weight: 800; font-size: 15px;
+}
+a.ctr-gout-vignette { cursor: zoom-in; transition: transform .15s, box-shadow .15s; }
+a.ctr-gout-vignette:hover { transform: scale(1.06); box-shadow: 0 6px 16px -6px rgb(0 0 0 / .6); border-color: var(--bord-fort); }
+a.ctr-gout-vignette:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.ctr-gout-vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ctr-gout-grand { border: 0; padding: 0; background: transparent; max-width: min(92vw, 720px); max-height: 92vh; }
+.ctr-gout-grand::backdrop { background: rgb(0 0 0 / .7); backdrop-filter: blur(6px); }
+.ctr-gout-grand .cadre { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--bord-fort); border-radius: 16px; overflow: hidden; box-shadow: 0 30px 80px rgb(0 0 0 / .6); }
+.ctr-gout-grand img { display: block; max-width: min(92vw, 720px); max-height: 78vh; width: auto; height: auto; object-fit: contain; background: var(--surface-3); }
+.ctr-gout-grand p { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 650; text-align: center; }
+.ctr-gout-grand .fermer {
+  position: absolute; top: 10px; right: 10px; width: 38px; height: 38px; border-radius: 999px; border: 0; cursor: pointer;
+  font-size: 24px; line-height: 1; color: #fff; background: rgb(0 0 0 / .55);
+}
+.ctr-gout-grand .fermer:hover { background: rgb(0 0 0 / .8); }
+.ctr-produit .gouts { font-size: 12px; color: var(--texte-3); margin-top: 2px; }
+
+/* L'editeur des gouts, sous le formulaire : une ligne par gout, trois
+   boutons radio en pilules pour l'etiquette, la corbeille au bout. */
+.ctr-gouts-editeur .lignes { display: flex; flex-direction: column; gap: 6px; }
+.ctr-gouts-editeur .ligne { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctr-gouts-editeur .ligne > input { flex: 1 1 200px; min-width: 0; min-height: 40px; margin: 0; }
+.ctr-gouts-editeur .vignette {
+  flex: none; width: 40px; height: 40px; border-radius: 9px; overflow: hidden; position: relative; cursor: pointer;
+  display: grid; place-items: center; color: var(--texte-3); background: var(--surface-2); border: 1px dashed var(--bord-fort);
+}
+.ctr-gouts-editeur .vignette:hover { color: var(--texte); border-color: var(--texte-3); }
+.ctr-gouts-editeur .vignette img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ctr-gouts-editeur .vignette input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.ctr-gouts-editeur .vignette:has(input:focus-visible) { outline: 2px solid var(--rouge); outline-offset: 1px; }
+.ctr-gouts-editeur .etiquettes { display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--bord); }
+.ctr-gouts-editeur .etiquettes label {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 30px; min-width: 34px; padding: 0 11px;
+  border-radius: 999px; font-size: 12.5px; font-weight: 650; color: var(--texte-3); cursor: pointer; position: relative;
+}
+.ctr-gouts-editeur .etiquettes label input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.ctr-gouts-editeur .etiquettes label[data-choisi] { background: var(--surface); color: var(--texte); box-shadow: 0 1px 2px rgb(0 0 0 / .18); }
+.ctr-gouts-editeur .etiquettes label[data-choisi][data-etq="best"] { color: var(--ambre); }
+.ctr-gouts-editeur .etiquettes label[data-choisi][data-etq="nouveau"] { color: var(--vert); }
+.ctr-gouts-editeur .etiquettes label:has(input:focus-visible) { outline: 2px solid var(--rouge); outline-offset: 1px; }
+.ctr-gouts-editeur > .bouton { margin-top: 8px; }
+.ctr-gouts-coller { margin-top: 12px; }
+.ctr-gouts-coller summary { cursor: pointer; font-size: 13.5px; color: var(--texte-2); }
+.ctr-gouts-coller textarea { margin-top: 8px; width: 100%; font-size: 13.5px; }
+.ctr-gouts-coller p { margin: 6px 0 0; font-size: 12.5px; }
+
 .ctr-fiche-prix {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin: 18px 0 0;
   border: 1px solid var(--bord); border-radius: 12px; overflow: hidden; background: var(--bord);
@@ -7915,3 +8010,20 @@ details.ctr-ligne-pliable .formulaire.supprimer .bouton { gap: 6px; }
   .ctr-produit:hover { transform: none; }
   .ctr-produit:hover .photo img { transform: none; }
 }
+
+/* ------------------------------------------------------- en construction */
+/* Une adresse qui ne mene nulle part — un lien pose avant la page, une faute
+   de frappe — ne montre pas l'erreur nue du serveur : on dit que c'est en
+   chantier, et on propose les deux portes. */
+.chantier { min-height: 100svh; display: grid; place-items: center; padding: 24px; }
+.chantier .carte { width: min(460px, 100%); padding: 30px 26px; text-align: center; }
+.chantier .sceau {
+  width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 18px; display: grid; place-items: center;
+  color: #fff; background: var(--accent); font-size: 28px;
+}
+:root[data-produit="connect"] .chantier .sceau { background: var(--degrade); }
+.chantier .sur { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-vif); }
+.chantier h1 { margin: 6px 0 10px; font-size: 26px; }
+.chantier p { margin: 0 0 18px; color: var(--texte-2); line-height: 1.5; }
+.chantier .portes { display: grid; gap: 8px; }
+.chantier .adresse { margin-top: 14px; font-size: 12px; word-break: break-all; }

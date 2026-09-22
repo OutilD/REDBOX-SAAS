@@ -1,5 +1,8 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
+import { GOUTS_MAX, GOUT_MAX, type Etiquette, type Gout } from "./gouts";
+
+export { GOUTS_MAX, GOUT_MAX, ETIQUETTES, type Etiquette, type Gout } from "./gouts";
 
 /**
  * LA CENTRALE D'ACHAT : LA BOUTIQUE DES REDBOXERS.
@@ -34,6 +37,7 @@ export type Produit = {
   nom: string; texte: string | null; url: string | null;
   prix_achat_c: number | null; prix_conseille_c: number | null; image_id: number | null;
   disponible: boolean; ordre: number; cree_le: string;
+  gouts: Gout[];
 };
 
 export const TRIS = [
@@ -53,7 +57,7 @@ export type Filtre = {
 const COLONNES = `
   p.id, p.fournisseur_id, f.nom AS fournisseur, f.url AS fournisseur_url,
   p.categorie_id, c.nom AS categorie, p.nom, p.texte, p.url,
-  p.prix_achat_c, p.prix_conseille_c, p.image_id, p.disponible, p.ordre,
+  p.prix_achat_c, p.prix_conseille_c, p.image_id, p.disponible, p.ordre, p.gouts,
   to_char(p.cree_le AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cree_le`;
 const JOINTURES = `
   FROM centrale_produit p
@@ -71,7 +75,10 @@ const ORDRES: Record<Tri, string> = {
 function typer(p: Produit): Produit {
   return { ...p, id: Number(p.id), fournisseur_id: Number(p.fournisseur_id),
            categorie_id: p.categorie_id === null ? null : Number(p.categorie_id),
-           image_id: p.image_id === null ? null : Number(p.image_id) };
+           image_id: p.image_id === null ? null : Number(p.image_id),
+           gouts: Array.isArray(p.gouts)
+             ? p.gouts.map((g) => ({ ...g, image_id: g.image_id ? Number(g.image_id) : null }))
+             : [] };
 }
 
 /** Les produits qui repondent au filtre, dans l'ordre demande. */
@@ -82,7 +89,8 @@ export async function produits(f: Filtre = {}): Promise<Produit[]> {
     SELECT ${COLONNES} ${JOINTURES}
      WHERE ($1::bigint IS NULL OR p.categorie_id = $1)
        AND ($2::bigint IS NULL OR p.fournisseur_id = $2)
-       AND ($3::text IS NULL OR p.nom ILIKE $3 OR COALESCE(p.texte, '') ILIKE $3 OR f.nom ILIKE $3)
+       AND ($3::text IS NULL OR p.nom ILIKE $3 OR COALESCE(p.texte, '') ILIKE $3 OR f.nom ILIKE $3
+            OR p.gouts::text ILIKE $3)
        AND (NOT $4::boolean OR p.disponible)
      ORDER BY ${ordre}`, [f.categorie ?? null, f.fournisseur ?? null, motif, Boolean(f.dispo)]);
   return lignes.map(typer);
@@ -144,6 +152,17 @@ export const lienAchat = (p: Produit): string | null => p.url ?? p.fournisseur_u
 /** Nouveau : arrive depuis moins d'un mois. */
 export const estNouveau = (p: Produit): boolean => Date.now() - new Date(p.cree_le).getTime() < 30 * 86_400_000;
 
+/** « 18 goûts · 4 best-sellers · 1 nouveauté », ou rien. */
+export function resumeGouts(g: Gout[]): string | null {
+  if (g.length === 0) return null;
+  const best = g.filter((x) => x.etiquette === "best").length;
+  const neuf = g.filter((x) => x.etiquette === "nouveau").length;
+  const morceaux = [`${g.length} goût${g.length > 1 ? "s" : ""}`];
+  if (best) morceaux.push(`${best} best-seller${best > 1 ? "s" : ""}`);
+  if (neuf) morceaux.push(`${neuf} nouveauté${neuf > 1 ? "s" : ""}`);
+  return morceaux.join(" · ");
+}
+
 /* ------------------------------------------------------------------- ecriture */
 
 type Table = "centrale_categorie" | "centrale_fournisseur" | "centrale_produit";
@@ -184,6 +203,46 @@ export async function deplacer(table: Table, id: number, sens: "monter" | "desce
 export function champ(f: FormData, nom: string, max: number): string | null {
   const v = String(f.get(nom) ?? "").replace(/\r\n/g, "\n").trim().slice(0, max);
   return v === "" ? null : v;
+}
+
+/**
+ * LES GOUTS D'UN FORMULAIRE. Deux entrees, dans l'ordre : les lignes de
+ * l'editeur (`gout_nom_N`, `gout_etq_N`), puis le bloc « coller une liste » —
+ * une ligne par gout, ou « - BEST SELLER » et « - NOUVEAU » en fin de ligne
+ * posent l'etiquette, comme dans les listes qu'on recopie d'un fournisseur.
+ * Vide est ignore ; un doublon garde le premier.
+ */
+export type GoutSaisi = Gout & {
+  /** La photo envoyee avec cette ligne, pas encore rangee : c'est la route qui la range. */
+  fichier: File | null;
+};
+
+export function goutsDe(f: FormData): GoutSaisi[] {
+  const gouts: GoutSaisi[] = [];
+  const vus = new Set<string>();
+  const poser = (nom: string, etiquette: Etiquette | null, image_id: number | null = null, fichier: File | null = null) => {
+    const propre = nom.replace(/\s+/g, " ").trim().slice(0, GOUT_MAX);
+    const cle = propre.toLowerCase();
+    if (!propre || vus.has(cle) || gouts.length >= GOUTS_MAX) return;
+    vus.add(cle);
+    gouts.push({ nom: propre, etiquette, image_id, fichier });
+  };
+  for (let i = 0; f.has(`gout_nom_${i}`); i++) {
+    const e = String(f.get(`gout_etq_${i}`) ?? "");
+    // L'image qu'il avait deja (champ cache), et celle qu'on vient d'envoyer.
+    const deja = Number(f.get(`gout_image_id_${i}`));
+    const envoye = f.get(`gout_image_${i}`);
+    poser(String(f.get(`gout_nom_${i}`) ?? ""), e === "best" || e === "nouveau" ? e : null,
+          Number.isInteger(deja) && deja > 0 ? deja : null,
+          envoye instanceof File && envoye.size > 0 ? envoye : null);
+  }
+  for (const ligne of String(f.get("gouts_liste") ?? "").split(/\r?\n/)) {
+    const m = /^\s*[-•*]?\s*(.*?)\s*(?:[-–—:(]\s*(best[\s-]*sellers?|nouveau|nouveauté|new)\s*\)?)?\s*$/i.exec(ligne);
+    if (!m) continue;
+    const marque = (m[2] ?? "").toLowerCase();
+    poser(m[1], marque ? (marque.startsWith("best") ? "best" : "nouveau") : null);
+  }
+  return gouts;
 }
 
 /** Un lien http(s), ou nul. Vide est accepte ; illisible est refuse (`false`). */
