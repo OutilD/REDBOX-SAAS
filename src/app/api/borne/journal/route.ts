@@ -1,5 +1,7 @@
 import { q } from "@/db";
 import { parJeton } from "@/lib/borne";
+import { apres } from "@/lib/apres";
+import { signaler } from "@/lib/notifications";
 import { RETENTION_DIAGNOSTIC_JOURS, aujourdhuiDans, commandeDe, estSource,
          fuseauValide, quandDe } from "@/lib/journal";
 
@@ -30,7 +32,16 @@ const LIGNES_MAX = 2000;
  *
  * On n'ecrit rien d'autre : ni compteur, ni etat de la borne. Le releve
  * (/api/borne/etat) reste la seule voie qui touche au stock.
+ *
+ * UNE SEULE LIGNE SE LIT ICI : « borne demarree ». Une machine debranchee puis
+ * rebranchee reparle bien avant le quart d'heure de la ronde — ni « Hors
+ * ligne » ni « De retour » ne partent, et personne ne sait qu'elle a perdu le
+ * courant. La ligne neuve, et recente, l'annonce ; rejouee, elle n'est plus
+ * neuve, et un vieux journal remonte d'un coup ne reveille personne.
  */
+const DEMARRAGE = /\bborne demarree\b/;
+const DEMARRAGE_RECENT_MS = 30 * 60 * 1000;
+
 export async function POST(req: Request) {
   const borne = await parJeton(req.headers);
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
@@ -72,13 +83,23 @@ export async function POST(req: Request) {
       : "(q::timestamp AT TIME ZONE $8)";
     const params: unknown[] = [borne.id, source, lot, positions, quands, commandes, textes];
     if (source === "diagnostic") params.push(tz);
-    const r = await q<{ id: number }>(`
+    const r = await q<{ id: number; ligne: string; horodatage: Date | null }>(`
       INSERT INTO journal_borne (borne_id, source, lot, position, horodatage, commande_id, ligne)
       SELECT $1, $2, $3, p, CASE WHEN q IS NULL THEN NULL ELSE ${quand} END, c, t
         FROM unnest($4::bigint[], $5::text[], $6::text[], $7::text[]) AS u(p, q, c, t)
       ON CONFLICT (borne_id, source, lot, position) DO NOTHING
-      RETURNING id`, params);
+      RETURNING id, ligne, horodatage`, params);
     recu = r.length;
+
+    const demarrage = source === "diagnostic"
+      ? r.filter((l) => DEMARRAGE.test(l.ligne) && l.horodatage
+                        && Date.now() - new Date(l.horodatage).getTime() < DEMARRAGE_RECENT_MS).at(-1)
+      : undefined;
+    if (demarrage && borne.compte_id) {
+      const compte_id = borne.compte_id;
+      apres("notifications", () => signaler(compte_id, { id: borne.id, nom: borne.nom },
+                                            [{ genre: "demarrage", quand: demarrage.horodatage }]));
+    }
   }
 
   await purger();

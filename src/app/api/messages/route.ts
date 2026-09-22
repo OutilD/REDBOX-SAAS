@@ -1,5 +1,6 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
+import { apres } from "@/lib/apres";
 import { deposer, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 
 export const dynamic = "force-dynamic";
@@ -74,15 +75,12 @@ export async function POST(req: Request) {
   const m = await deposer(salon_id, u.id, texte);
   // Ses propres messages ne comptent jamais comme non lus : avancer le curseur
   // n'est pas urgent, et attendre la base pour le faire retardait la reponse.
-  void marquerLu(u.id, salon_id, m.id)
-    .catch((e) => console.error("lecture :", e instanceof Error ? e.message : e));
-  void signalerMessage(s, m)
-    .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+  apres("lecture", () => marquerLu(u.id, salon_id, m.id));
+  apres("notifications", () => signalerMessage(s, m));
   // Ce message peut debloquer un badge — le premier, le centieme, la
   // trentieme journee. On le verifie maintenant plutot qu'a la prochaine visite
   // de la page Communaute, et ce qui tombe part sur le telephone.
-  void evaluerEtSignaler(u.id)
-    .catch((e) => console.error("badges :", e instanceof Error ? e.message : e));
+  apres("badges", () => evaluerEtSignaler(u.id));
 
   return json ? Response.json({ message: m }) : versPage(req, `/messages/${salon_id}#fin`);
 }

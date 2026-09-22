@@ -4,6 +4,7 @@ import { spireValide } from "@/lib/machine";
 import { evaluerLeCompte, signaler, type Evenement } from "@/lib/notifications";
 import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 import { SILENCE_MS, veillerSiLeMoment } from "@/lib/veille";
+import { apres } from "@/lib/apres";
 
 export const dynamic = "force-dynamic";
 
@@ -319,7 +320,7 @@ export async function POST(req: Request) {
   // ne tourne pas — une plateforme qui endort le serveur entre deux requetes.
   veillerSiLeMoment();
 
-  // Les telephones, apres coup et sans attendre. Une borne sans compte n'a
+  // Les telephones, apres la reponse (voir `apres`). Une borne sans compte n'a
   // personne a prevenir.
   const distribuees = nouvelles.filter((v) => v.statut === "distribue");
   const incidents = nouvelles.filter((v) => (A_REGARDER as readonly string[]).includes(v.statut));
@@ -327,15 +328,15 @@ export async function POST(req: Request) {
   if (incidents.length > 0) evenements.push({ genre: "incidents", incidents });
   if (videes.length > 0) evenements.push({ genre: "vides", canaux: videes });
   if (borne.compte_id && evenements.length > 0) {
-    void signaler(borne.compte_id, { id: borne.id, nom: borne.nom }, evenements)
-      .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+    const compte_id = borne.compte_id;
+    apres("notifications", () => signaler(compte_id, { id: borne.id, nom: borne.nom }, evenements));
   }
   // Des ventes distribuees par une vraie machine peuvent debloquer des badges —
   // la dizaine, la centaine, le noctambule — pour toute l'equipe du compte. Une
   // borne de demonstration n'en fait gagner aucun : on ne la compte meme pas.
   if (borne.compte_id && distribuees.length > 0 && !(borne.jeton ?? "").startsWith("demo_")) {
-    void evaluerLeCompte(borne.compte_id)
-      .catch((e) => console.error("badges :", e instanceof Error ? e.message : e));
+    const compte_id = borne.compte_id;
+    apres("badges", () => evaluerLeCompte(compte_id));
   }
 
   return Response.json({

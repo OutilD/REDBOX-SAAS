@@ -24,7 +24,8 @@ import { NOM_RANG, evaluerBadges, rangDe } from "./communaute";
  *
  *  2. ON N'ATTEND JAMAIS L'ENVOI. Le releve d'une borne, le passage des bornes
  *     fictives : ce qui declenche a deja fini son travail et repondu. L'envoi
- *     part apres, et un echec ne remonte a personne — il se compte, et
+ *     part apres — par `apres`, jamais par un `void` nu, que la plateforme
+ *     gele a mi-chemin —, et un echec ne remonte a personne — il se compte, et
  *     l'abonnement saute au dixieme echec de suite ou des que le service dit
  *     que l'appareil n'existe plus.
  *
@@ -38,7 +39,7 @@ export type Genre = "ventes" | "incidents" | "vides" | "chargements" | "messages
 /** Ce qu'on peut demander, dans l'ordre ou la page le propose. */
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "ventes",      nom: "Ventes",         quoi: "Chaque relevé qui apporte des ventes, avec le montant" },
-  { cle: "incidents",   nom: "Incidents et coupures", quoi: "Payé, rien n’est tombé ; machine hors ligne ou de retour ; mise hors service" },
+  { cle: "incidents",   nom: "Incidents et coupures", quoi: "Payé, rien n’est tombé ; machine hors ligne, de retour ou redémarrée ; mise hors service" },
   { cle: "vides",       nom: "Stock bas et épuisé",   quoi: "Un produit passe sous son seuil, ou une spire vend son dernier article" },
   { cle: "chargements", nom: "Chargements",    quoi: "La machine a confirmé un chargement saisi ici" },
   { cle: "messages",    nom: "Messages",       quoi: "Ce que l’équipe et la communauté écrivent dans les salons" },
@@ -275,7 +276,7 @@ async function pousser(a: Abonnement, m: Message): Promise<boolean> {
 /**
  * SIGNALE CE QU'UNE BORNE VIENT DE VIVRE a tous les appareils qui veulent le
  * savoir. A appeler APRES la transaction qui a enregistre le releve, et sans
- * l'attendre : `void signaler(...)`.
+ * l'attendre : `apres("notifications", () => signaler(...))`.
  */
 export async function signaler(compte_id: number, borne: { id: number; nom: string },
                                evenements: Evenement[]): Promise<void> {
@@ -430,7 +431,7 @@ export async function signalerReaction(r: {
  *
  * Jamais depuis la page Communaute elle-meme : on y voit deja la carte
  * « Nouveau badge ! », faire vibrer le telephone en plus serait du bruit.
- * A appeler sans l'attendre : `void evaluerEtSignaler(id)`.
+ * A appeler sans l'attendre : `apres("badges", () => evaluerEtSignaler(id))`.
  */
 export async function evaluerEtSignaler(utilisateur_id: number): Promise<void> {
   const neufs = await evaluerBadges(utilisateur_id);

@@ -1,5 +1,6 @@
 import { transaction } from "@/db";
 import { signaler } from "./notifications";
+import { apres } from "./apres";
 
 /**
  * LA RONDE : QUELLE MACHINE S'EST TUE ?
@@ -56,11 +57,12 @@ export async function veiller(): Promise<number> {
  * Une ronde, si la derniere date d'au moins une minute. Appelee au passage par
  * les releves des autres machines : meme sans minuterie — une plateforme qui
  * endort le serveur entre deux requetes —, la ronde se fait tant qu'une borne
- * du parc parle encore.
+ * du parc parle encore. Elle passe par `apres` : lancee en l'air, la plateforme
+ * la gelait avant qu'elle ait rien annonce.
  */
 let derniere = 0;
 export function veillerSiLeMoment(): void {
   if (Date.now() - derniere < 60_000) return;
   derniere = Date.now();
-  void veiller().catch((e) => console.error("ronde :", e instanceof Error ? e.message : e));
+  apres("ronde", veiller);
 }

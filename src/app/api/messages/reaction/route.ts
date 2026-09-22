@@ -1,6 +1,7 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { peutReagir, reagir, salonDe } from "@/lib/salons";
 import { evaluerEtSignaler, signalerReaction } from "@/lib/notifications";
+import { apres } from "@/lib/apres";
 
 export const dynamic = "force-dynamic";
 
@@ -45,14 +46,13 @@ export async function POST(req: Request) {
   // retiree, ni vers la machine, qui n'a pas de telephone. Sans attendre : la
   // pastille doit repondre au doigt, pas au service de push.
   if (r.posee) {
-    const trace = (quoi: string) => (e: unknown) =>
-      console.error(quoi, e instanceof Error ? e.message : e);
-    if (r.auteur_id !== null) {
-      void signalerReaction({ auteur_id: r.auteur_id, par: r.par, emoji, message_id,
-                              salon_id, salon: s.nom, texte: r.texte }).catch(trace("push reaction :"));
-      void evaluerEtSignaler(r.auteur_id).catch(trace("badges :"));
+    const auteur_id = r.auteur_id;
+    if (auteur_id !== null) {
+      apres("push reaction", () => signalerReaction({ auteur_id, par: r.par, emoji, message_id,
+                                                      salon_id, salon: s.nom, texte: r.texte }));
+      apres("badges", () => evaluerEtSignaler(auteur_id));
     }
-    void evaluerEtSignaler(u.id).catch(trace("badges :"));
+    apres("badges", () => evaluerEtSignaler(u.id));
   }
   return json ? Response.json({ reactions: r.reactions }) : versPage(req, `/messages/${salon_id}`);
 }

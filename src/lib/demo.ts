@@ -4,6 +4,7 @@ import { empreinteDe } from "./borne";
 import { IMAGES_DEMO } from "./demo-images";
 import { DOMAINE } from "./invente";
 import { signaler, type Evenement } from "./notifications";
+import { apres } from "./apres";
 import { slug } from "./salons";
 import { laneDe } from "./machine";
 import { reserveDe } from "./stock";
@@ -867,7 +868,6 @@ export async function quitterDemo(compte_id: number): Promise<void> {
   });
 }
 
-/** Repart d'une demo neuve : efface, et reseme. */
 /**
  * UNE VRAIE MACHINE ARRIVE : LE COMPTE SORT DE LA DEMO.
  *
@@ -891,6 +891,7 @@ export async function sortirDeLaDemoPour(c: PgClient, compte_id: number): Promis
   return true;
 }
 
+/** Repart d'une demo neuve : efface, et reseme. */
 export async function renouvelerDemo(compte_id: number, par: string): Promise<void> {
   await transaction(async (c) => {
     await viderDemo(c, compte_id);
@@ -1112,8 +1113,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
   // les vraies : c'est ainsi qu'on voit les notifications marcher avant
   // d'avoir une machine.
   for (const [borne_id, evenements] of aSignaler) {
-    void signaler(compte_id, { id: borne_id, nom: nomDe.get(borne_id) ?? "RedBox" }, evenements)
-      .catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+    apres("notifications", () => signaler(compte_id, { id: borne_id, nom: nomDe.get(borne_id) ?? "RedBox" }, evenements));
   }
 }
 

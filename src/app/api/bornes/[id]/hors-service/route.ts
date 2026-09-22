@@ -3,6 +3,7 @@ import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth"
 import { nomAffiche } from "@/lib/personnes";
 import { reveiller } from "@/lib/borne";
 import { signaler } from "@/lib/notifications";
+import { apres } from "@/lib/apres";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +42,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // savoir qu'une RedBox a cesse de vendre, et qui l'a decide. Seulement si
   // l'etat change — reenvoyer le formulaire ne doit pas le redire.
   if (b.hors_service !== actif) {
-    void signaler(u.compte_id, { id, nom: b.nom }, [{
+    apres("notifications", () => signaler(u.compte_id, { id, nom: b.nom }, [{
       genre: "service", actif, texte: actif ? texte : null,
       par: nomAffiche(u),
-    }]).catch((e) => console.error("notifications :", e instanceof Error ? e.message : e));
+    }]));
   }
 
   await q1(`
