@@ -113,186 +113,176 @@
 }
 
 /* =============================================================================
-   CONNECT : UNE AUTRE IDENTITE.
+   CONNECT : UNE AUTRE IDENTITE, EN DEUX THEMES.
 
-   La Gestion est un outil : noir, rouge, angles nets — la machine. Connect est
-   un lieu ou l'on se parle : bleu nuit, halos de couleur, pilules, et UN
-   DEGRADE — bleu electrique, violet, rose, comme les messageries qu'on connait
-   — qui signe le nom, les entrees actives, l'anneau de l'avatar, les boutons.
-   On sait ou l'on est avant d'avoir lu un mot. Les erreurs et les dangers
-   restent rouges partout. Tout tient ici : changer `--degrade` change tout.
+   La Gestion est un outil : noir, rouge, angles nets, fait pour le comptoir
+   d'un bar a deux heures du matin. Connect est un lieu ou l'on se parle :
+   coins ronds, ombres douces, et un degrade chaud — violet, rose, orange,
+   comme les reseaux qu'on connait — sur ce qui compte : le nom, l'entree
+   active, les visages, les bulles, les boutons. Le jour, blanc et lavande ;
+   la nuit, une nuit PRUNE, chaude, qui ne se confond pas avec le noir de
+   l'outil. Les erreurs et les dangers restent rouges. Tout tient ici ; les
+   regles ne connaissent que les jetons, les deux themes ne font que les poser.
    ========================================================================== */
 :root[data-produit="connect"] {
-  --accent:       #6e5cff;
-  --accent-vif:   #8f80ff;
-  --accent-fond:  rgba(110,92,255,.16);
-  --c1: #00c2ff; --c2: #4f6bff; --c3: #a033ff; --c4: #ff4f9a;
-  --degrade:      linear-gradient(120deg, var(--c1) 0%, var(--c2) 32%, var(--c3) 66%, var(--c4) 100%);
-  --degrade-doux: linear-gradient(120deg, rgba(0,194,255,.18), rgba(79,107,255,.16) 35%, rgba(160,51,255,.16) 70%, rgba(255,79,154,.14));
-  --lueur:        0 10px 30px -10px rgba(110,92,255,.7);
-  --fond:         #0a0e1c;
-  --surface:      #10152a;
-  --surface-2:    #171d36;
-  --surface-3:    #212846;
-  --bord:         #222a48;
-  --bord-fort:    #333d63;
-  --r-s: 12px; --r-m: 16px; --r-l: 20px;
+  --c1: #7c3aed; --c2: #d946ef; --c3: #f43f5e; --c4: #fb923c;
+  --degrade:      linear-gradient(120deg, var(--c1) 0%, var(--c2) 40%, var(--c3) 72%, var(--c4) 100%);
+  --degrade-doux: linear-gradient(120deg, rgba(124,58,237,.2), rgba(217,70,239,.16) 40%, rgba(244,63,94,.14) 72%, rgba(251,146,60,.14));
+  --lueur:        0 10px 26px -10px rgba(217,70,239,.6);
+  --accent:       #a855f7;
+  --accent-vif:   #c084fc;
+  --accent-fond:  rgba(168,85,247,.16);
+  --violet: #a855f7; --violet-fond: rgba(168,85,247,.14);
+  --r-s: 12px; --r-m: 16px; --r-l: 22px;
+  /* La nuit prune */
+  --fond:         #100b19;
+  --surface:      #181226;
+  --surface-2:    #221a32;
+  --surface-3:    #2d243f;
+  --bord:         #2d243f;
+  --bord-fort:    #423656;
+  --texte:        #f7f3fc;
+  --texte-2:      #b5adc8;
+  --texte-3:      #8c839f;
+  --plaque-logo:  transparent;
+  --ombre-carte:  0 10px 30px -18px rgba(0,0,0,.7);
+  --halo-1:       rgba(124,58,237,.22);
+  --halo-2:       rgba(244,63,94,.12);
+  --verre:        rgba(16,11,25,.8);
 }
 :root[data-produit="connect"][data-theme="light"] {
-  --accent:       #4f46e5;
-  --accent-vif:   #6e5cff;
-  --accent-fond:  rgba(79,70,229,.1);
-  --degrade-doux: linear-gradient(120deg, rgba(0,194,255,.12), rgba(79,107,255,.1) 35%, rgba(160,51,255,.1) 70%, rgba(255,79,154,.1));
-  --lueur:        0 10px 26px -12px rgba(79,70,229,.55);
-  --fond:         #f3f5fc;
+  --degrade-doux: linear-gradient(120deg, rgba(124,58,237,.12), rgba(217,70,239,.1) 40%, rgba(244,63,94,.1) 72%, rgba(251,146,60,.1));
+  --lueur:        0 10px 26px -10px rgba(217,70,239,.5);
+  --accent:       #8b3fe0;
+  --accent-vif:   #a855f7;
+  --accent-fond:  rgba(139,63,224,.1);
+  --violet: #7c3aed; --violet-fond: rgba(124,58,237,.1);
+  --fond:         #faf8fe;
   --surface:      #ffffff;
-  --surface-2:    #eef1fb;
-  --surface-3:    #e3e8f7;
-  --bord:         #e1e6f3;
-  --bord-fort:    #c6cee6;
+  --surface-2:    #f3f0fa;
+  --surface-3:    #e9e4f5;
+  --bord:         #e9e5f2;
+  --bord-fort:    #d3cce6;
+  --texte:        #1b1530;
+  --texte-2:      #4b4560;
+  --texte-3:      #6e6886;
+  --ambre:        #a67c00;
+  --vert-fond:    rgba(53,180,106,.12);
+  --ambre-fond:   rgba(166,124,0,.14);
+  --rouge-fond:   rgba(215,0,5,.09);
+  --bleu: #4f46e5; --bleu-fond: rgba(79,70,229,.1);
+  --ombre: none;
+  --plaque-logo:  #0e0e12;
+  --ombre-carte:  0 6px 24px -16px rgba(60,40,120,.22);
+  --halo-1:       rgba(217,70,239,.13);
+  --halo-2:       rgba(124,58,237,.1);
+  --verre:        rgba(255,255,255,.84);
 }
-/* Des halos de couleur au fond de la page, fixes, tres doux : la profondeur
-   d'un lieu, pas la surface plate d'un outil. */
+/* Le fond : deux taches de couleur, fixes, pour que la page ne soit pas une feuille vide. */
 :root[data-produit="connect"] body {
   background:
-    radial-gradient(60% 40% at 85% -10%, rgba(160,51,255,.22), transparent 60%),
-    radial-gradient(50% 35% at -10% 30%, rgba(0,194,255,.14), transparent 60%),
-    radial-gradient(50% 40% at 70% 110%, rgba(255,79,154,.14), transparent 60%),
+    radial-gradient(55% 40% at 100% 0%, var(--halo-1), transparent 60%),
+    radial-gradient(45% 35% at 0% 100%, var(--halo-2), transparent 60%),
     var(--fond);
-  background-attachment: fixed;
+  background-attachment: fixed; color: var(--texte);
 }
-/* Le rail : verre teinte, aurore en haut, filet degrade sur le bord. */
+/* Le logo RedBox est dessine pour du noir : sur clair, il a sa plaque. */
+:root[data-produit="connect"] .rail .logo img, :root[data-produit="connect"] .entete .logo-mobile img, :root[data-produit="connect"] .logo-entree {
+  background: var(--plaque-logo); border-radius: 12px; padding: 10px 12px;
+}
+/* Le rail : la surface, une ombre douce, le mot « connect » en degrade. */
 :root[data-produit="connect"] .rail {
-  background:
-    radial-gradient(120% 50% at 0% 0%, rgba(79,107,255,.35), transparent 60%),
-    radial-gradient(70% 30% at 100% 8%, rgba(255,79,154,.18), transparent 60%),
-    color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
-  border-right: 0; box-shadow: inset -1px 0 0 var(--bord);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 8%, var(--surface)), var(--surface) 220px);
+  border-right: 1px solid var(--bord); box-shadow: 8px 0 30px -18px rgba(0,0,0,.35);
 }
-:root[data-produit="connect"] .rail::after {
-  content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: var(--degrade); opacity: .9;
-}
+:root[data-produit="connect"] .rail .connect-marque { margin: -2px 0 0; padding: 0 10px; font-size: 26px; font-weight: 900; letter-spacing: -.04em; line-height: 1; }
+:root[data-produit="connect"] .rail .connect-marque span { background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent; }
 :root[data-produit="connect"] .rail .section { color: var(--texte-3); letter-spacing: .16em; padding-top: 18px; }
-:root[data-produit="connect"] .rail a.item { border-radius: 999px; padding: 9px 12px; margin-bottom: 3px; font-weight: 600; }
-:root[data-produit="connect"] .rail a.item:hover { background: rgba(255,255,255,.05); }
-:root[data-produit="connect"] .rail a.item.actif { background: var(--degrade-doux); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+:root[data-produit="connect"] .rail a.item { border-radius: 999px; padding: 9px 12px; margin-bottom: 3px; font-weight: 600; color: var(--texte-2); }
+:root[data-produit="connect"] .rail a.item:hover { background: var(--surface-2); color: var(--texte); }
+:root[data-produit="connect"] .rail a.item.actif { background: var(--degrade-doux); color: var(--accent-vif); font-weight: 750; }
 :root[data-produit="connect"] .rail a.item.actif::before { display: none; }
-:root[data-produit="connect"] .rail a.item.actif .glyphe { color: #fff; }
-:root[data-produit="connect"] .rail a.item.actif::after {
-  content: ""; margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--degrade);
-  box-shadow: 0 0 10px 1px rgba(160,51,255,.6);
-}
+:root[data-produit="connect"] .rail a.item.actif .glyphe { color: var(--accent-vif); }
+:root[data-produit="connect"] .rail a.item.actif::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--degrade); }
 :root[data-produit="connect"] .rail a.item.actif .compte { background: var(--degrade); color: #fff; margin-left: auto; }
-:root[data-produit="connect"] .rail a.item.actif .compte + ::after { display: none; }
-/* LA MARQUE CONNECT, sous le logo : le mot en degrade, gros, serre — la
-   seule chose du rail qui ne soit pas un menu. */
-:root[data-produit="connect"] .rail .connect-marque {
-  margin: -2px 0 0; padding: 0 10px; font-size: 26px; font-weight: 900; letter-spacing: -.04em; line-height: 1;
+:root[data-produit="connect"] .rail .pied { border-top-color: var(--bord); }
+/* LA PORTE VERS LA GESTION : un vrai bouton RedBox, rouge, plein. C'est
+   l'outil, on y va pour travailler ; il ne se confond avec rien d'ici. */
+:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] {
+  margin-top: 4px; justify-content: center; gap: 8px; min-height: 44px; border-radius: 12px;
+  background: linear-gradient(180deg, #ec1219, #d70005 55%, #b60004); color: #fff; font-weight: 800; letter-spacing: -.01em;
+  box-shadow: 0 8px 22px -10px rgba(215,0,5,.7), inset 0 1px 0 rgba(255,255,255,.22);
 }
-:root[data-produit="connect"] .rail .connect-marque span {
-  background: var(--degrade); -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-:root[data-produit="connect"] .rail .pied { border-top-color: rgba(255,255,255,.08); }
-/* L'en-tete : verre, un filet degrade en bas ; la puce et l'anneau de l'avatar
-   portent le degrade, comme un anneau de story. */
-:root[data-produit="connect"] .entete { background: color-mix(in srgb, var(--fond) 78%, transparent); border-bottom: 0; }
+:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"]:hover { filter: brightness(1.06); background: linear-gradient(180deg, #ec1219, #d70005 55%, #b60004); }
+:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] .glyphe { color: #fff; }
+:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] > svg:last-child { color: rgba(255,255,255,.85); margin-left: 0; }
+/* L'en-tete et la barre du bas : verre, un filet degrade. */
+:root[data-produit="connect"] .entete { background: var(--verre); border-bottom: 0; }
 :root[data-produit="connect"] .entete::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--degrade); }
 :root[data-produit="connect"] .entete .produit-puce {
-  border: 0; color: #fff; background: var(--degrade); text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 800; padding: 4px 10px;
+  margin-left: 8px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: none;
+  border: 0; color: #fff; background: var(--degrade);
 }
-:root[data-produit="connect"] .compte-chip .jeton {
-  background: var(--degrade); color: #fff; padding: 2px;
-  box-shadow: 0 0 0 2px var(--fond), 0 0 0 4px transparent;
-  outline: 2px solid transparent; outline-offset: 2px;
-  background-clip: padding-box, border-box;
-}
-:root[data-produit="connect"] .compte-chip .jeton.photo { border: 2px solid transparent; background: var(--degrade) border-box; }
-:root[data-produit="connect"] .compte-chip:hover .jeton { box-shadow: 0 0 0 2px var(--fond), 0 0 16px 2px rgba(160,51,255,.5); }
+:root[data-produit="connect"] .entete .bouton.icone { background: var(--surface); border-color: var(--bord); color: var(--texte-2); }
+:root[data-produit="connect"] .entete .bouton.icone:hover { border-color: var(--accent); color: var(--accent-vif); }
 :root[data-produit="connect"] .entete .bulle[data-actif] { color: var(--accent-vif); }
-:root[data-produit="connect"] .entete .bouton.icone:hover { border-color: var(--accent); }
-/* La barre du bas : verre, filet degrade, et l'onglet actif dans une pilule. */
-:root[data-produit="connect"] .nav-bas { background: color-mix(in srgb, var(--fond) 82%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 0; box-shadow: none; }
+:root[data-produit="connect"] .compte-chip .jeton { background: var(--degrade); color: #fff; }
+:root[data-produit="connect"] .compte-chip .jeton.photo { border: 2px solid transparent; background: var(--degrade) border-box; }
+:root[data-produit="connect"] .nav-bas { background: var(--verre); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 0; box-shadow: 0 -8px 30px -18px rgba(0,0,0,.35); }
 :root[data-produit="connect"] .nav-bas::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--degrade); }
-:root[data-produit="connect"] .nav-bas a.actif .glyphe { color: #fff; background: var(--degrade); border-radius: 999px; padding: 5px 14px; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .nav-bas a { color: var(--texte-3); }
 :root[data-produit="connect"] .nav-bas a .glyphe { padding: 5px 14px; border-radius: 999px; }
-:root[data-produit="connect"] .nav-bas a.actif { color: var(--texte); }
-/* Les boutons principaux : degrade et lueur. Les dangers restent rouges. */
-:root[data-produit="connect"] .bouton.primaire { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
-:root[data-produit="connect"] .bouton.primaire:hover { filter: brightness(1.08); background: var(--degrade); border-color: transparent; }
-:root[data-produit="connect"] .bouton:not(.primaire):not(.danger):hover { border-color: var(--accent); }
-/* Les cartes : un liseret degrade discret au survol ; les titres soulignes. */
-:root[data-produit="connect"] .carte { background: color-mix(in srgb, var(--surface) 92%, transparent); }
-:root[data-produit="connect"] .carte:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--bord)); }
+:root[data-produit="connect"] .nav-bas a.actif { color: var(--accent-vif); }
+:root[data-produit="connect"] .nav-bas a.actif .glyphe { color: #fff; background: var(--degrade); box-shadow: var(--lueur); }
+:root[data-produit="connect"] .nav-bas a[data-bascule] { border-color: var(--bord); }
+/* Les cartes : sans filet lourd, une ombre douce. Les titres soulignes. */
+:root[data-produit="connect"] .carte { background: var(--surface); border-color: var(--bord); box-shadow: var(--ombre-carte); }
+:root[data-produit="connect"] .carte:hover { border-color: var(--bord-fort); }
 :root[data-produit="connect"] .ecran > h1:first-child::after,
-:root[data-produit="connect"] .ecran > .titre-section:first-child h1::after {
-  content: ""; display: block; width: 52px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--degrade);
-}
-/* Les champs : anneau degrade au focus, pas un simple trait. */
-:root[data-produit="connect"] input:focus-visible, :root[data-produit="connect"] textarea:focus-visible, :root[data-produit="connect"] select:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
-}
-/* ---- LE CONTENU DE CONNECT, pas seulement son cadre. Ce qu'on regarde le
-   plus — les bulles, les visages, le champ ou l'on ecrit — porte l'identite. */
-/* Mes messages : la bulle en degrade, comme Messenger. Les autres restent
-   sombres, mais dans le bleu nuit d'ici. */
+:root[data-produit="connect"] .ecran > .titre-section:first-child h1::after { content: ""; display: block; width: 52px; height: 4px; margin-top: 8px; border-radius: 2px; background: var(--degrade); }
+:root[data-produit="connect"] .titre-section h2::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--degrade); }
+/* Les boutons : le principal en degrade avec lueur. Les dangers restent rouges. */
+:root[data-produit="connect"] .bouton:not(.primaire):not(.danger):hover { border-color: var(--accent); color: var(--accent-vif); }
+:root[data-produit="connect"] .bouton.primaire { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .bouton.primaire:hover { filter: brightness(1.06); background: var(--degrade); border-color: transparent; }
+/* Les champs : anneau violet au focus. */
+:root[data-produit="connect"] input:focus-visible, :root[data-produit="connect"] textarea:focus-visible, :root[data-produit="connect"] select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+:root[data-produit="connect"] :is(a, button, summary, [tabindex]):focus-visible { outline-color: var(--accent); }
+:root[data-produit="connect"] .pilule.ok { background: var(--accent-fond); color: var(--accent-vif); }
+/* ---- LE CONTENU. Les bulles, les visages, le champ ou l'on ecrit. */
 :root[data-produit="connect"] .msg.mien .bulle {
-  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 45%, var(--c3) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 6px 18px -8px rgba(79,107,255,.6);
+  background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 50%, var(--c3) 100%); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 8px 20px -10px rgba(217,70,239,.6);
 }
-:root[data-produit="connect"] .msg .bulle:not(.msg.mien .bulle) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 90%, #fff) 0%, var(--surface-2) 58%, color-mix(in srgb, var(--surface-2) 92%, #000) 100%);
-}
-/* Les visages : un anneau degrade, comme une story ; les initiales sur degrade. */
-:root[data-produit="connect"] .msg .avatar,
-:root[data-produit="connect"] .portrait-rond { background: var(--degrade); }
-:root[data-produit="connect"] .msg .avatar img,
-:root[data-produit="connect"] .portrait-rond img { border: 2px solid var(--fond); border-radius: 50%; box-sizing: border-box; }
+:root[data-produit="connect"] .msg:not(.mien) .bulle { background: var(--surface-2); color: var(--texte); box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
+:root[data-produit="connect"] .msg .avatar, :root[data-produit="connect"] .portrait-rond { background: var(--degrade); color: #fff; }
+:root[data-produit="connect"] .msg .avatar img, :root[data-produit="connect"] .portrait-rond img { border: 2px solid var(--fond); border-radius: 50%; box-sizing: border-box; }
+:root[data-produit="connect"] .msg.machine .avatar { background: #0e0e12; border-color: var(--bord-fort); }
+:root[data-produit="connect"] .msg.machine .entete-msg b { color: var(--accent-vif); }
 :root[data-produit="connect"] .profil-tete .portrait {
-  border: 3px solid transparent;
-  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--degrade) border-box;
-  box-shadow: 0 0 24px -6px rgba(160,51,255,.55);
+  border: 3px solid transparent; background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--degrade) border-box;
+  box-shadow: 0 10px 30px -14px rgba(217,70,239,.5);
 }
 :root[data-produit="connect"] .profil-tete .portrait .jeton { color: var(--texte); }
-:root[data-produit="connect"] .msg.machine .entete-msg b { color: var(--accent-vif); }
-/* Le composeur : une pilule, qui s'allume d'un liseret degrade quand on y ecrit ;
-   le bouton d'envoi en degrade. */
 :root[data-produit="connect"] .boite-composeur {
   border-radius: 999px; border: 1px solid transparent;
-  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, linear-gradient(var(--bord-fort), var(--bord-fort)) border-box;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(var(--bord-fort), var(--bord-fort)) border-box;
+  box-shadow: var(--ombre-carte);
 }
-:root[data-produit="connect"] .boite-composeur:focus-within {
-  background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--degrade) border-box;
-  box-shadow: 0 0 0 4px rgba(79,107,255,.14);
-}
+:root[data-produit="connect"] .boite-composeur:focus-within { background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--degrade) border-box; box-shadow: 0 0 0 4px rgba(217,70,239,.14); }
+:root[data-produit="connect"] .boite-composeur textarea { background: transparent; }
 :root[data-produit="connect"] .boite-composeur textarea:focus-visible { outline: 0; border-color: transparent; }
 :root[data-produit="connect"] .boite-composeur .envoyer { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
 :root[data-produit="connect"] .boite-composeur .envoyer:disabled { background: var(--surface-3); box-shadow: none; color: var(--texte-3); }
-/* Le salon ouvert, dans la liste : la pilule degradee du rail. */
-:root[data-produit="connect"] .messagerie a.salon[aria-current],
-:root[data-produit="connect"] .messagerie a.salon.actif { background: var(--degrade-doux); border-radius: var(--r-m); }
-:root[data-produit="connect"] .messagerie a.salon:focus-visible { outline-color: var(--accent); }
-/* L'academie : la progression en degrade, les modules qui s'allument au survol. */
+:root[data-produit="connect"] .messagerie a.salon[aria-current], :root[data-produit="connect"] .messagerie a.salon.actif { background: var(--degrade-doux); border-radius: var(--r-m); }
 :root[data-produit="connect"] .aca-piste > span { background: var(--degrade); }
-:root[data-produit="connect"] .aca-module:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--bord)); box-shadow: 0 12px 30px -18px rgba(79,107,255,.6); }
-:root[data-produit="connect"] .aca-module:focus-visible { outline-color: var(--accent); }
-/* Le classement : la tete de liste ceinte de degrade, plus de rouge. */
-:root[data-produit="connect"] .classement li.tete a {
-  border-color: transparent;
-  background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--degrade) border-box;
-}
+:root[data-produit="connect"] .aca-module { background: var(--surface); box-shadow: var(--ombre-carte); }
+:root[data-produit="connect"] .aca-module:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--bord)); box-shadow: 0 14px 34px -18px rgba(124,58,237,.45); }
+:root[data-produit="connect"] .classement li.tete a { border-color: transparent; background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--degrade) border-box; }
 :root[data-produit="connect"] .classement a:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--bord)); }
-:root[data-produit="connect"] .classement a:focus-visible { outline-color: var(--accent); }
-/* Les titres de section : un point degrade devant, au lieu du gris seul. */
-:root[data-produit="connect"] .titre-section h2::before {
-  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--degrade);
-}
-/* Le focus, partout : l'accent de Connect, jamais le rouge. */
-:root[data-produit="connect"] :is(a, button, summary, [tabindex]):focus-visible { outline-color: var(--accent); }
-/* Les liens soulignes et les petites pilules d'etat « ok » : la teinte d'ici. */
-:root[data-produit="connect"] .pilule.ok { background: var(--accent-fond); color: var(--accent-vif); }
-/* Le rail replie garde l'aurore et la pilule active. */
+/* Le rail replie : la pilule active garde son point, le bouton rouge devient une icone. */
 :root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus)))[data-produit="connect"] .rail a.item.actif::after { display: none; }
+:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus)))[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] { padding: 8px 0; }
 
 /*
   LE LOGO EN THEME CLAIR.

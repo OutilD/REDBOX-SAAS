@@ -55,26 +55,19 @@ visibles depuis la gestion : sur la bulle de l’en-tête et sur ce bouton.
 
 **On sait où l’on est sans lire.** Le middleware transmet le produit de la page
 dans l’en-tête `x-rbx-produit` ; `layout.tsx` le pose en `data-produit` sur
-`<html>`, et la feuille de style fait le reste par les jetons `--accent`,
-`--accent-vif`, `--accent-fond` et les surfaces. **La Gestion est un outil** :
-noir, rouge, angles nets. **Connect est un lieu** : bleu nuit avec des halos de
-couleur fixes au fond de la page, rail et barres en verre teinté, coins ronds
-(`--r-*`), entrées de menu en pilules, et un **dégradé** bleu électrique →
-violet → rose (`--c1`…`--c4`, `--degrade`, façon Messenger) qui signe le nom
-sous le logo, l’entrée active, l’anneau de l’avatar, les boutons principaux
-(avec lueur), l’onglet actif de la barre du bas, les filets et un soulignement
-sous les titres. L’identité descend dans le contenu : bulle de mes messages
-en dégradé, anneau dégradé autour des avatars, composeur en pilule qui s’allume
-d’un liseret dégradé au focus, salon ouvert, progression de l’Académie, tête du
-classement, point devant les titres de section, focus partout. Changer les
-quatre `--c*` change toute l’identité. **La Gestion n’est pas touchée** : tout
-vit sous `:root[data-produit="connect"]`.
-
-Pour voir les deux produits tels qu’ils tournent : `captures/capture.mjs`
-(Playwright, session par cookie `rbx`, ordinateur et téléphone) écrit des PNG
-dans `captures/`, ignoré par git ; `captures/sonde-connect.mjs` lit les styles
-calculés des éléments clés. Les erreurs et les dangers restent rouges
-partout ; un seul bloc `:root[data-produit="connect"]` porte tout.
+`<html>`, et la feuille de style fait le reste. **La Gestion est un outil de
+nuit** : noir, rouge, angles nets, elle ne change pas. **Connect est un lieu** :
+coins ronds, ombres douces, deux thèmes — le jour blanc et lavande, la nuit
+**prune**, chaude, qui ne se confond pas avec le noir de l’outil —, et un dégradé
+chaud violet → rose → orangé (`--c1`…`--c4`, `--degrade`) sur le mot « connect »
+sous le logo, l’entrée active en pilule, l’avatar, la bulle de mes messages, le
+composeur, les boutons principaux, l’onglet actif de la barre du bas, les filets
+et un soulignement sous les titres. Les gris secondaires y sont plus foncés que
+dans le thème clair de la Gestion, pour se lire sur blanc. En bas du plan de
+Connect, « RedBox Gestion » est un **bouton rouge plein**, aux couleurs de
+l’outil ; en bas du plan de la Gestion, « RedBox Connect » est une entrée
+ordinaire dont le glyphe porte le dégradé. Tout vit sous
+`:root[data-produit="connect"]`.
 
 **Une adresse qui ne mène nulle part** (`app/not-found.tsx`) dit « En cours de
 construction » dans l’habillage du produit, avec les deux portes. Un chemin
