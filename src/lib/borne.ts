@@ -49,7 +49,7 @@ export type Borne = {
  * ce qui est le bon defaut : la console ne peut pas connaitre l'avenir.
  */
 export const VERSION_MINIMALE = "5.13";
-export const VERSION_ATTENDUE = "5.14";
+export const VERSION_ATTENDUE = "5.15";
 
 /**
  * Compare deux versions « majeure.mineure ». Rend un nombre negatif si `a` est

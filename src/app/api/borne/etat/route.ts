@@ -29,6 +29,8 @@ type Releve = {
              sku?: string | null; prix_centimes: number; statut: string; faite_le: string }[];
   transferts_appliques?: number[];
   corrections_appliquees?: number[];
+  /** Les ordres de la console que la machine a executes, avec leur issue. */
+  ordres_executes?: { id?: unknown; ok?: unknown; detail?: unknown }[];
 };
 
 const CONNUS = new Set(STATUTS);
@@ -144,6 +146,21 @@ export async function POST(req: Request) {
         UPDATE correction_canal SET applique_le = now()
          WHERE id = ANY($1::bigint[]) AND borne_id = $2 AND applique_le IS NULL`,
         [idsCorr, borne.id]);
+    }
+
+    // 1 ter. Les ordres executes. `execute_le IS NULL` rend l'accuse rejouable :
+    //     la borne le renvoie tant qu'elle n'a pas lu notre reponse, et seule la
+    //     premiere fois l'ecrit — donc l'annonce.
+    for (const o of (r.ordres_executes ?? []).slice(0, 20)) {
+      if (!Number.isInteger(o.id)) continue;
+      const detail = typeof o.detail === "string" ? o.detail.slice(0, 300) : null;
+      const fait = (await c.query<{ genre: string; par: string | null }>(`
+        UPDATE ordre_borne SET execute_le = now(), ok = $3, detail = $4
+         WHERE id = $1 AND borne_id = $2 AND execute_le IS NULL
+        RETURNING genre, par`, [o.id, borne.id, o.ok === true, detail])).rows[0];
+      if (fait?.genre === "reset_paiement") {
+        evenements.push({ genre: "reset_paiement", ok: o.ok === true, detail, par: fait.par });
+      }
     }
 
     // 2. Les compteurs de la machine.

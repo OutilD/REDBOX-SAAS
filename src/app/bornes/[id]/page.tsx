@@ -6,6 +6,7 @@ import { estSuperAdmin, peutCharger, utilisateur, peutVoirBorne, peutConfigurer 
 import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
+import { ORDRE_VALIDITE_MIN, VERSION_ORDRES, dernierOrdre, enAttente, saitRecevoirDesOrdres } from "@/lib/ordres";
 import { SQL_A_REGARDER } from "@/lib/ventes";
 import { Repli } from "../../repli";
 import { IcoAlerte } from "../../icones";
@@ -58,7 +59,7 @@ export default async function Detail({
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
                              reveil?: string; delier?: string; pin?: string;
-                             reconcilie?: string; hs?: string; fiche?: string; e?: string;
+                             reconcilie?: string; hs?: string; fiche?: string; e?: string; ordre?: string;
                              c?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
@@ -66,7 +67,7 @@ export default async function Detail({
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();
-  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche,
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche, ordre,
           c: filtre } = await searchParams;
 
   const b = await q1<Borne>(
@@ -79,6 +80,7 @@ export default async function Detail({
   if (!b) notFound();
 
   const canaux = await canauxDe(id, u.compte_id);
+  const resetTerminal = await dernierOrdre(id, "reset_paiement");
   const jour = await q1<{ n: number; total: number }>(`
     SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
      WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= ${SQL_MINUIT}`, [id]);
@@ -238,6 +240,13 @@ export default async function Detail({
           <Avis titre={hs === "1" ? "RedBox mise hors service" : "RedBox remise en service"}>
             Elle a été réveillée : l’écran change dans la seconde si elle est en ligne,
             à son retour sinon.
+          </Avis>
+        ) : null}
+        {ordre === "ok" ? (
+          <Avis titre="Réinitialisation du terminal demandée">
+            La RedBox a été réveillée : en ligne, elle s’y met dans la seconde. Le terminal
+            redémarre, ce qui lui prend une trentaine de secondes ; le résultat s’affichera
+            ici et arrivera en notification.
           </Avis>
         ) : null}
         {pin ? (
@@ -477,7 +486,7 @@ export default async function Detail({
           hors de vue — et c'etait la seule raison d'avoir clique.
         */}
         {b.jeton && peutCharger(u) ? (
-          <details className="groupe" style={{ marginTop: 22 }} open={pin !== undefined}>
+          <details className="groupe" style={{ marginTop: 22 }} open={pin !== undefined || ordre !== undefined}>
             <summary>
               <span className="chevron">▶</span>
               <div className="pousse" style={{ minWidth: 0 }}>
@@ -585,6 +594,49 @@ export default async function Detail({
                   </p>
                 </form>
               ) : null}
+
+              {/*
+                LE TERMINAL FIGE. Un Nayax bloque repond encore au bus : la machine
+                le croit en bonne sante et ne le reprend pas d'elle-meme. C'est la
+                seule panne pour laquelle il fallait se deplacer et debrancher.
+              */}
+              <div className="carte" style={{ marginTop: 12 }} id="ordres">
+                <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <strong>Réinitialiser le terminal de paiement</strong>
+                  <span className="faible" style={{ fontSize: 13.5 }}>
+                    Quand le Nayax est figé ou n’accepte plus les cartes.
+                  </span>
+                </div>
+                {saitRecevoirDesOrdres(b.version) ? (
+                  <>
+                    <form method="post" action={`/api/bornes/${id}/ordre`} className="rangee-actions" style={{ marginTop: 12 }}>
+                      <input type="hidden" name="genre" value="reset_paiement" />
+                      <button className="bouton" disabled={enAttente(resetTerminal)}>
+                        {enAttente(resetTerminal) ? "En cours…" : "Réinitialiser le terminal"}
+                      </button>
+                    </form>
+                    <p className="faible" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                      {ordre === "deja"
+                        ? "Une réinitialisation est déjà en cours : en lancer une seconde ferait repartir le terminal de zéro. "
+                        : ""}
+                      {!resetTerminal
+                        ? "La machine redémarre son terminal, qui revient en une trentaine de secondes. Elle refuse de le faire pendant une vente : personne n’est débité pour rien."
+                        : enAttente(resetTerminal)
+                          ? `Demandée ${depuis(resetTerminal.demande_le)}${resetTerminal.par ? ` par ${resetTerminal.par}` : ""}. ${vivante ? "La machine s’en occupe ; rechargez la page dans une minute." : `La machine est hors ligne : elle la prendra à son retour, s’il a lieu dans les ${ORDRE_VALIDITE_MIN} minutes.`}`
+                          : resetTerminal.execute_le === null
+                            ? `La dernière demande (${depuis(resetTerminal.demande_le)}) est restée sans réponse : la machine était hors ligne. Vous pouvez recommencer.`
+                            : resetTerminal.ok
+                              ? `Dernière réinitialisation ${depuis(resetTerminal.execute_le)}${resetTerminal.par ? `, demandée par ${resetTerminal.par}` : ""} : le terminal a redémarré et répond.`
+                              : `Dernière tentative ${depuis(resetTerminal.execute_le)} : ${resetTerminal.detail ?? "échec"}. ${resetTerminal.detail === "une vente est en cours" ? "Réessayez dans une minute." : "S’il reste figé, il faut couper son alimentation."}`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="faible" style={{ margin: "8px 0 0", fontSize: 13 }}>
+                    Cette RedBox est en {b.version ?? "version inconnue"} : la réinitialisation à distance arrive avec
+                    la {VERSION_ORDRES}. Mettez son application à jour pour en disposer.
+                  </p>
+                )}
+              </div>
 
               <div className="carte" style={{ marginTop: 12 }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>

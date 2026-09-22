@@ -6,6 +6,7 @@ import { empreintePub, pubVide, visuelsPour } from "@/lib/pub";
 import { illustrationsDe } from "@/lib/illustration";
 import { savDe } from "@/lib/sav";
 import { pinLivrable } from "@/lib/maintenance";
+import { ordresPour } from "@/lib/ordres";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
   // Tout ce que la borne doit recevoir se lit d'un seul elan. L'horodatage de
   // passage part avec le reste : il n'interesse personne dans cette reponse.
-  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin, corrections] =
+  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin, corrections, ordres] =
     await Promise.all([
     q("UPDATE borne SET vue_le = now() WHERE id = $1", [borne.id]),
 
@@ -74,6 +75,11 @@ export async function GET(req: Request) {
     q(`SELECT id, lane, quantite FROM correction_canal
         WHERE borne_id = $1 AND applique_le IS NULL
         ORDER BY id`, [borne.id]),
+
+    // Les gestes demandes depuis la console — reinitialiser le terminal de
+    // paiement. Une application anterieure a la 5.15 ignore ce champ ; la page
+    // ne propose donc le bouton qu'aux machines qui le lisent.
+    ordresPour(borne.id),
   ]);
 
   // L'empreinte evite le travail inutile : la borne ne reconstruit son inventaire
@@ -116,7 +122,8 @@ export async function GET(req: Request) {
     maintenance: pin ? { pin } : null,
     transferts,
     corrections,
+    ordres,
     prochain_appel_s:
-      transferts.length > 0 || corrections.length > 0 ? RYTHME_VIF : RYTHME_CALME,
+      transferts.length > 0 || corrections.length > 0 || ordres.length > 0 ? RYTHME_VIF : RYTHME_CALME,
   });
 }

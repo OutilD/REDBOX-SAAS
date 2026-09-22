@@ -482,6 +482,32 @@ CREATE TABLE IF NOT EXISTS correction_canal (
 CREATE INDEX IF NOT EXISTS i_correction_vive
   ON correction_canal (borne_id) WHERE applique_le IS NULL;
 
+-- ------------------------------------------------------------ ordres
+--
+-- CE QU'ON DEMANDE A LA MACHINE DE FAIRE, A DISTANCE.
+--
+-- La mise hors service est un ETAT : il voyage a chaque appel et la borne s'y
+-- conforme. Un ordre est un GESTE, a faire une fois : « reinitialise ton
+-- terminal de paiement ». Le Nayax se fige parfois en repondant encore au bus ;
+-- la borne le croit en bonne sante, et il fallait aller debrancher la machine.
+--
+-- La borne le prend dans /api/borne/config, l'execute, et en remonte l'issue
+-- dans son releve (`ordres_executes`) : `execute_le`, `ok`, `detail`. Un ordre
+-- n'est plus presente passe ORDRE_VALIDITE : une machine qui revient d'une nuit
+-- hors ligne n'execute pas un ordre de la veille.
+CREATE TABLE IF NOT EXISTS ordre_borne (
+  id           BIGSERIAL PRIMARY KEY,
+  borne_id     BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
+  genre        TEXT NOT NULL CHECK (genre IN ('reset_paiement')),
+  par_id       BIGINT REFERENCES utilisateur(id) ON DELETE SET NULL,
+  par          TEXT,                      -- le nom affiche au moment de l'ordre
+  demande_le   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  execute_le   TIMESTAMPTZ,
+  ok           BOOLEAN,
+  detail       TEXT                       -- la raison d'un echec, dite par la machine
+);
+CREATE INDEX IF NOT EXISTS i_ordre_borne ON ordre_borne (borne_id, id DESC);
+
 -- ------------------------------------------------------- mise hors service
 
 -- ARRETER LA VENTE SANS SE DEPLACER.

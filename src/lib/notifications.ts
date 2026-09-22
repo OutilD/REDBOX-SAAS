@@ -62,6 +62,10 @@ export type Evenement =
   /** Quelqu'un l'a mise hors service, ou rouverte, depuis la console. */
   | { genre: "service";     actif: boolean; texte: string | null; par: string }
   /** Son application a change de version. */
+  /** L'issue d'une reinitialisation du terminal de paiement demandee depuis la console. */
+  | { genre: "reset_paiement"; ok: boolean; detail: string | null; par: string | null }
+  /** Elle vient de redemarrer : remise sous tension, ou application relancee. */
+  | { genre: "demarrage";   quand: Date | string | null }
   | { genre: "version";     avant: string; apres: string };
 
 /**
@@ -224,6 +228,25 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                corps: `Elle répond à nouveau après ${duree(e.minutes)} de silence. Ses ventes remontent.`,
                url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
     case "service":
+    // Celui qui a donne l'ordre n'est pas toujours celui qui est devant la
+    // machine : l'issue part sur les telephones, et s'ecrit dans le salon.
+    case "reset_paiement":
+      return { genre: "incidents",
+               titre: e.ok ? `Terminal de paiement réinitialisé · ${b}` : `Réinitialisation échouée · ${b}`,
+               corps: e.ok
+                 ? `${e.par ? `Demandé par ${e.par}. ` : ""}Le terminal a redémarré et répond : la machine peut encaisser.`
+                 : `${e.par ? `Demandé par ${e.par}. ` : ""}La machine répond : ${e.detail ?? "sans raison donnée"}.`
+                   + (e.detail === "une vente est en cours" ? " Réessayez dans une minute." : " S’il reste figé, il faut couper son alimentation."),
+               url: `/bornes/${borne.id}`, tag: `terminal-${borne.id}` };
+    // UN REDEMARRAGE NE FAIT PAS UN SILENCE : debranchee puis rebranchee, la
+    // machine reparle en cinq minutes, bien avant le seuil de la ronde. C'est
+    // son journal qui le dit (« borne demarree »). Meme `tag` que la ligne :
+    // apres une vraie coupure, « Redémarrée » remplace « De retour ».
+    case "demarrage":
+      return { genre: "incidents", titre: `Redémarrée · ${b}`,
+               corps: `Elle a redémarré${e.quand ? ` à ${heure(e.quand)}` : ""} : remise sous tension, ou application relancée. `
+                    + "Si personne n’y a touché, vérifiez son alimentation.",
+               url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
       return { genre: "incidents",
                titre: e.actif ? `Mise hors service · ${b}` : `Remise en service · ${b}`,
                corps: e.actif
