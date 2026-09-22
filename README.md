@@ -382,6 +382,26 @@ placement) ; la carte de tout le parc, où l'on place les machines ; les
 machines qui rapportent le plus.
 
 `/admin/parc` : les cinq compteurs et un tableau en cinq colonnes où l'on
+### L’invitation à installer et à activer
+
+Presque aucun appareil n’était abonné : il fallait aller chercher les
+notifications dans Réglages. `app/invite-notifications.tsx` les propose donc à
+l’ouverture. **Sur un téléphone, une grande fenêtre** qui monte du bas — d’abord
+« Installez RedBox » (sur iPhone, Safari ne pousse rien à un site qui n’est pas
+sur l’écran d’accueil : trois étapes illustrées ; sur Android, le bouton
+« Installer » de Chrome quand il tend `beforeinstallprompt`, le chemin par le
+menu sinon), puis « Activez les notifications » une fois installée. **Jamais
+bloquante** : « Plus tard », la croix et le fond la ferment. Elle se tait alors
+une journée, et il n’y en a qu’une par ouverture : fermer l’installation ne fait
+pas surgir les notifications à la page suivante. **Sur ordinateur**, le bandeau
+discret, deux semaines de silence après « Plus tard ». Le texte change selon le
+produit (machines pour la gestion, messages et badges pour Connect).
+
+La demande du navigateur ne part que du toucher sur « Activer » : une demande au
+chargement est refusée par Safari et Firefox, et un « Bloquer » réflexe est
+définitif. Tout se décide dans `decider` (`reglages/notifications/abonnement.ts`),
+pure, vérifiable cas par cas.
+
 **glisse une carte** d'un stade à l'autre (`POST /api/admin/parc/statut`).
 Chaque colonne se tourne par pages de six. Chaque carte
 porte aussi un formulaire complet — stade, compte, numéro, nom, adresse, note —

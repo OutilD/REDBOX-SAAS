@@ -502,3 +502,18 @@ export const IcoSourire = ({ size = 18 }: P) => (
     <path d="M7.6 8h.01M12.4 8h.01" strokeWidth="2.2" />
   </svg>
 );
+
+/** Installer l'application : une fleche qui descend dans un bac. */
+export const IcoInstaller = ({ size = 20 }: P) => (
+  <svg {...base(size)}><path d="M10 3.5v8.5M6.5 8.8 10 12.3l3.5-3.5M4 13.5v1.8A1.2 1.2 0 0 0 5.2 16.5h9.6a1.2 1.2 0 0 0 1.2-1.2v-1.8" /></svg>
+);
+
+/** Le bouton « Partager » d'iOS : un carre ouvert, une fleche qui en sort par le haut. */
+export const IcoPartageIos = ({ size = 18 }: P) => (
+  <svg {...base(size)}><path d="M10 12V3M7 5.8 10 2.8l3 3M7 8.5H5.8A1.3 1.3 0 0 0 4.5 9.8v6A1.3 1.3 0 0 0 5.8 17h8.4a1.3 1.3 0 0 0 1.3-1.3v-6a1.3 1.3 0 0 0-1.3-1.3H13" /></svg>
+);
+
+/** « Sur l'ecran d'accueil » : un plus dans un carre. */
+export const IcoPlusCarre = ({ size = 18 }: P) => (
+  <svg {...base(size)}><rect x="3.5" y="3.5" width="13" height="13" rx="3" /><path d="M10 7v6M7 10h6" /></svg>
+);
