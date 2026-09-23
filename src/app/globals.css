@@ -182,13 +182,19 @@
   background: var(--plaque-logo); border-radius: 12px; padding: 10px 12px;
 }
 /* LA BARRE DU HAUT : le logo a gauche, les quatre destinations au milieu, le
-   compte et le bouton rouge « Gestion » a droite. Le contenu tient au centre,
-   comme un fil, sur une largeur qui se lit. */
+   compte et le bouton rouge « Gestion » a droite. Le contenu prend TOUTE la
+   largeur, comme dans la Gestion : sur un grand ecran, un fil bride au centre
+   laissait un tiers de vide de chaque cote. */
 :root[data-produit="connect"] .entete { background: var(--surface); border-bottom: 1px solid var(--bord); }
 :root[data-produit="connect"] .entete::after { display: none; }
-:root[data-produit="connect"] .entete > .dedans { max-width: 1180px; margin: 0 auto; height: 60px; padding: 0 16px; }
-:root[data-produit="connect"] .ecran { margin: 0 auto; max-width: 1180px; padding-left: 16px; padding-right: 16px; }
+:root[data-produit="connect"] .entete > .dedans { max-width: none; margin: 0; height: 60px; padding: 0 16px; }
+:root[data-produit="connect"] .ecran { margin: 0; max-width: none; padding-left: 16px; padding-right: 16px; }
 :root[data-produit="connect"] .demo-bandeau { padding-left: 16px; padding-right: 16px; }
+@media (min-width: 980px) {
+  :root[data-produit="connect"] .entete > .dedans { padding: 0 26px; }
+  :root[data-produit="connect"] .ecran { padding: 22px 26px 56px; }
+  :root[data-produit="connect"] .demo-bandeau { padding-left: 26px; padding-right: 26px; }
+}
 :root[data-produit="connect"] .invite-notifs { width: min(440px, calc(100vw - 48px)); }
 :root[data-produit="connect"] .entete .produit-puce {
   margin-left: 8px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: none;
