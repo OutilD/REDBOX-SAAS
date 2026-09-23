@@ -147,6 +147,17 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
   },
 ];
 
+/**
+ * LES PAGES QU'ON OUVRE DEPUIS LE NAVIGATEUR. Une page dynamique ne se
+ * precharge pas d'elle-meme : un clic attendait le serveur. Celles-ci sont
+ * demandees des que leur lien est a l'ecran, et gardees trente secondes
+ * (`staleTimes`) : le clic les montre tout de suite. Pas tout le plan — une
+ * page de plus a precharger, c'est un rendu de plus a chaque ouverture.
+ */
+const PRECHARGEES: ReadonlySet<Page> = new Set<Page>([
+  "tableau", "bornes", "ventes", "stock", "charger", "communaute", "messages", "academie", "carte",
+]);
+
 /** Le plan, reduit a ce que cette personne a le droit d'ouvrir : le rail et la page Menu. */
 export function planDe(u: Utilisateur, produit: Produit): { titre: string; items: Item[] }[] {
   return SECTIONS
@@ -334,7 +345,7 @@ export async function Entete({ page, borne, fenetre, periode }:
               <div key={s.titre}>
                 <div className="section">{s.titre}</div>
                 {items.map((i) => (
-                  <Link key={i.cle} href={i.vers} title={i.nom}
+                  <Link key={i.cle} href={i.vers} title={i.nom} prefetch={PRECHARGEES.has(i.cle)}
                         className={`item ${i.cle === page ? "actif" : ""}`}>
                     <span className="glyphe">{i.icone}</span>
                     {i.nom}
@@ -549,7 +560,7 @@ export async function NavBasse({ page }: { page: Page }) {
   return (
     <nav className="nav-bas">
       {onglets.map((o) => (
-        <Link key={o.cle} href={o.cle === "bascule" ? adresse(autre, o.vers, hote) : o.vers}
+        <Link key={o.cle} href={o.cle === "bascule" ? adresse(autre, o.vers, hote) : o.vers} prefetch={true}
               className={o.cle === actif ? "actif" : ""}
               data-bascule={o.cle === "bascule" ? "" : undefined}>
           <span className="glyphe">{o.icone}</span>

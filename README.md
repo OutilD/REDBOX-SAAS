@@ -368,7 +368,11 @@ opaques), plus de fond fixe, les longues listes en `content-visibility: auto`,
 les images en `loading="lazy"`, les écouteurs de défilement une fois par image
 et sans écriture inutile sur la racine (`hauteur-ecran.tsx`, `fil.tsx`), et un
 cache de navigation de trente secondes (`staleTimes` dans `next.config.ts`)
-pour que retour et aller-retour entre deux pages soient immédiats.
+pour que retour et aller-retour entre deux pages soient immédiats. Les pages
+qu’on ouvre le plus — les cinq onglets du pouce, et dans le rail `PRECHARGEES`
+(`chrome.tsx`) — sont préchargées dès que leur lien est à l’écran : le clic les
+montre depuis le navigateur. Les autres montrent l’écran au logo RedBox
+(`app/loading.tsx`) le temps du serveur.
 `captures/perf.mjs` mesure octets, three.js et images longues au défilement.
 
 Au-delà du compte, les exploitants se parlent entre eux, et à nous.
