@@ -56,17 +56,18 @@ visibles depuis la gestion : sur la bulle de l’en-tête et sur ce bouton.
 **On sait où l’on est sans lire.** Le middleware transmet le produit de la page
 dans l’en-tête `x-rbx-produit` ; `layout.tsx` le pose en `data-produit` sur
 `<html>`, et la feuille de style fait le reste. **La Gestion est un outil de
-nuit** : noir, rouge, angles nets, elle ne change pas. **Connect est une messagerie** :
-un bleu-nuit profond et UN seul accent, le bleu électrique des applications
-qu’on a dans la poche (`--accent` #2f7dff) — plus de dégradé multicolore.
-Rail plus large (264 px) dont chaque entrée porte une pastille ronde, bleue et
-carrée quand elle est ouverte ; bulles envoyées en bleu plein ; composeur en
-capsule avec anneau bleu au focus ; coins ronds, typographie serrée. Un thème
-clair dans la même langue (blanc, gris très pâle, le même bleu). Les erreurs et
-les dangers restent rouges. En bas du plan de
-Connect, « RedBox Gestion » est un **bouton rouge plein**, aux couleurs de
-l’outil ; en bas du plan de la Gestion, « RedBox Connect » est une entrée
-ordinaire dont le glyphe porte le dégradé. Tout vit sous
+nuit** : noir, rouge, angles nets, elle ne change pas. **Connect est un réseau, pas un tableau de bord** : pas de rail. Sur
+ordinateur, une **barre du haut** (`.connect-nav` dans `chrome.tsx`) porte les
+quatre destinations — Communauté, Messages (avec les non-lus), Académie, Carte
+—, l’active soulignée de rouge ; le logo à gauche, le compte et un bouton rouge
+« Gestion » à droite ; le contenu centré sur 1180 px, comme un fil. Au
+téléphone, la barre du bas. Trois couleurs : le **bleu sombre** de la nuit
+(`--fond` #0a1020), le **blanc**, et le **rouge RedBox en nuances** — corail
+(`--accent` #ff4d57) pour ce qui est actif ou vivant, le rouge plein
+(`--degrade`) pour ce qu’on presse, les bulles envoyées, les avatars. Un thème
+clair dans la même langue (blanc, bleu-gris pâle, les mêmes rouges). Les pages
+secondaires (notifications, profil, réglages) passent par la page Menu. En bas du plan de
+la Gestion, « RedBox Connect » est une entrée ordinaire. Tout vit sous
 `:root[data-produit="connect"]`.
 
 **Une adresse qui ne mène nulle part** (`app/not-found.tsx`) dit « En cours de

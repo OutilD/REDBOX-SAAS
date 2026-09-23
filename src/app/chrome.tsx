@@ -327,16 +327,13 @@ export async function Entete({ page, borne, fenetre, periode }:
 
   return (
     <>
+      {/* LE RAIL EST A LA GESTION. Connect n'est pas un tableau de bord : ses
+          destinations sont dans la barre du haut, comme sur un reseau. */}
+      {produit === "gestion" ? (
       <aside className="rail">
         <Link href={PRODUITS[produit].accueil} className="logo">
           <Image src="/logo-redbox.png" alt="RedBox" width={232} height={150} priority />
         </Link>
-        {/* CONNECT A SON EN-TETE : sous le logo RedBox, le mot « connect » en
-            degrade. La Gestion, elle, reste telle qu'elle a toujours ete :
-            rien d'autre que le logo. */}
-        {produit === "connect" ? (
-          <div className="connect-marque" aria-label="RedBox Connect"><span>connect</span></div>
-        ) : null}
         <nav>
           {SECTIONS.filter((s) => s.produit === produit).map((s) => {
             const items = s.items.filter((i) => !i.droit || (u && i.droit(u)));
@@ -398,6 +395,7 @@ export async function Entete({ page, borne, fenetre, periode }:
           <div className="pied">{u?.compte}{u?.demo ? " · démo" : ""}</div>
         )}
       </aside>
+      ) : null}
 
       <header className="entete">
         <div className="dedans">
@@ -405,10 +403,33 @@ export async function Entete({ page, borne, fenetre, periode }:
             <Image src="/logo-redbox.png" alt="RedBox" width={155} height={100} priority />
             {produit === "connect" ? <span className="produit-puce">connect</span> : null}
           </Link>
-          <BasculeRail depart={rail} retour={ici} focus={page === "academie" || page === "messages"} />
+          {produit === "gestion"
+            ? <BasculeRail depart={rail} retour={ici} focus={page === "academie" || page === "messages"} />
+            : null}
           <div className="fil">
             {parent ? <span className="parent">{parent} · </span> : null}{titre}
           </div>
+          {/* LES DESTINATIONS DE CONNECT, au milieu de la barre : communaute,
+              messages, academie, carte — des onglets a icone, l'actif souligne
+              de rouge, comme sur un reseau. Au telephone, c'est la barre du bas. */}
+          {produit === "connect" && u ? (
+            <nav className="connect-nav" aria-label="Connect">
+              {([
+                { cle: "communaute", nom: "Communauté", vers: "/communaute", icone: <IcoCommunaute size={22} /> },
+                { cle: "messages",   nom: "Messages",   vers: "/messages",   icone: <IcoBulle size={22} /> },
+                { cle: "academie",   nom: "Académie",   vers: "/academie",   icone: <IcoAcademie size={22} /> },
+                { cle: "carte",      nom: "Carte",      vers: "/carte",      icone: <IcoCarte size={22} /> },
+              ] as { cle: Page; nom: string; vers: string; icone: React.ReactNode }[]).map((o) => (
+                <Link key={o.cle} href={o.vers} prefetch={true} title={o.nom} aria-label={o.nom}
+                      className={o.cle === page || (o.cle === "academie" && page === "academie_editer") ? "actif" : ""}
+                      aria-current={o.cle === page ? "page" : undefined}>
+                  {o.icone}
+                  <span>{o.nom}</span>
+                  {o.cle === "messages" && nonLusN > 0 ? <b className="num">{nonLusN > 99 ? "99+" : nonLusN}</b> : null}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
 
           <div className="droite">
             {machines.length > 0 ? (
@@ -448,6 +469,12 @@ export async function Entete({ page, borne, fenetre, periode }:
             ) : null}
 
             <BasculeTheme depart={theme} retour={ici} />
+
+            {produit === "connect" && u ? (
+              <Link href={vers("gestion", PRODUITS.gestion.accueil)} className="bouton petit primaire vers-gestion" title={PRODUITS.gestion.quoi}>
+                <IcoBorne size={15} /><span>Gestion</span>
+              </Link>
+            ) : null}
 
             <div className="compte-chip">
               {/* La pastille mene a SON PROFIL COMPLET — niveau, rang, badges,

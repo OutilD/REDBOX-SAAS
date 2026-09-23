@@ -113,144 +113,146 @@
 }
 
 /* =============================================================================
-   CONNECT : UNE MESSAGERIE SOMBRE, UN SEUL BLEU.
+   CONNECT : UN RESEAU, PAS UN TABLEAU DE BORD.
 
-   La Gestion est un outil : noir, rouge, angles nets — la machine. Connect
-   est une messagerie : un bleu-nuit profond, et UN accent, le bleu electrique
-   des applications qu'on a deja dans la poche. Pas de degrade multicolore :
-   une seule couleur qui dit tout — l'entree active, la bulle qu'on envoie, le
-   bouton qu'on presse. Le rail est plus large, ses entrees portent une
-   pastille ronde comme les serveurs d'un Discord ; les coins sont ronds, la
-   typographie serree. Un theme clair existe, dans la meme langue : blanc,
-   gris tres pale, le meme bleu. Les erreurs et les dangers restent rouges.
-   Tout tient ici ; `--degrade` n'est plus qu'un bleu sur bleu, pour que ce
-   qui l'appelait encore reste d'une seule couleur.
+   La Gestion est un outil : noir, rouge, angles nets, un rail a gauche qui
+   liste tout — la machine. Connect est un lieu ou l'on se retrouve : pas de
+   rail, une BARRE DU HAUT avec les quatre destinations (communaute, messages,
+   academie, carte), le contenu centre comme un fil, des coins ronds. Trois
+   couleurs : le BLEU SOMBRE de la nuit, le BLANC, et le ROUGE REDBOX en
+   nuances — corail pour ce qui est actif ou vivant, le rouge plein pour ce
+   qu'on presse. Un theme clair dans la meme langue : blanc, bleu-gris pale,
+   les memes rouges. Tout tient ici.
    ========================================================================== */
 :root[data-produit="connect"] {
-  --accent:       #2f7dff;
-  --accent-vif:   #5b9bff;
-  --accent-fond:  rgba(47,125,255,.16);
-  --degrade:      linear-gradient(135deg, #2f7dff, #4a8dff);
-  --degrade-doux: rgba(47,125,255,.14);
-  --lueur:        0 8px 22px -10px rgba(47,125,255,.75);
-  --bleu: #5b9bff; --bleu-fond: rgba(47,125,255,.14);
-  --violet: #8b95ff; --violet-fond: rgba(139,149,255,.12);
+  --accent:       #ff4d57;
+  --accent-vif:   #ff6b73;
+  --accent-fond:  rgba(255,77,87,.14);
+  --degrade:      linear-gradient(180deg, #ff3a44, #d70005 60%, #b60004);
+  --degrade-doux: rgba(255,77,87,.12);
+  --lueur:        0 8px 22px -10px rgba(215,0,5,.75);
+  --bleu: #6ea8ff; --bleu-fond: rgba(110,168,255,.14);
+  --violet: #9b8cff; --violet-fond: rgba(155,140,255,.12);
   --r-s: 10px; --r-m: 14px; --r-l: 18px;
-  --rail: 264px;
-  --fond:         #0b1220;
+  --rail: 0px;
+  --fond:         #0a1020;
   --surface:      #111a2e;
-  --surface-2:    #172238;
-  --surface-3:    #1f2c47;
+  --surface-2:    #182338;
+  --surface-3:    #212e48;
   --bord:         #1f2b45;
-  --bord-fort:    #2e3d5e;
-  --texte:        #eef2ff;
-  --texte-2:      #aab5d1;
-  --texte-3:      #7f8bab;
+  --bord-fort:    #2f3e5f;
+  --texte:        #f6f8ff;
+  --texte-2:      #b3bdd6;
+  --texte-3:      #8590ad;
   --plaque-logo:  transparent;
   --ombre-carte:  0 10px 30px -18px rgba(0,0,0,.7);
-  --pastille:     #1f2c47;
+  --pastille:     #212e48;
 }
 :root[data-produit="connect"][data-theme="light"] {
-  --accent:       #1a6dff;
-  --accent-vif:   #2f7dff;
-  --accent-fond:  rgba(26,109,255,.1);
-  --degrade:      linear-gradient(135deg, #1a6dff, #2f7dff);
-  --degrade-doux: rgba(26,109,255,.1);
-  --lueur:        0 8px 22px -10px rgba(26,109,255,.5);
-  --bleu: #1a6dff; --bleu-fond: rgba(26,109,255,.1);
+  --accent:       #d70005;
+  --accent-vif:   #ff2a30;
+  --accent-fond:  rgba(215,0,5,.09);
+  --degrade-doux: rgba(215,0,5,.08);
+  --lueur:        0 8px 22px -10px rgba(215,0,5,.45);
+  --bleu: #1a4fb8; --bleu-fond: rgba(26,79,184,.1);
   --violet: #5b5fe8; --violet-fond: rgba(91,95,232,.1);
-  --fond:         #f4f6fb;
+  --fond:         #f3f5fa;
   --surface:      #ffffff;
-  --surface-2:    #eef2f9;
-  --surface-3:    #e2e8f3;
-  --bord:         #e3e8f2;
-  --bord-fort:    #c7d1e4;
-  --texte:        #0f172a;
-  --texte-2:      #475069;
-  --texte-3:      #66708a;
+  --surface-2:    #eef1f8;
+  --surface-3:    #e2e7f1;
+  --bord:         #e2e7f0;
+  --bord-fort:    #c5cfe0;
+  --texte:        #0f1a33;
+  --texte-2:      #45526e;
+  --texte-3:      #66728e;
   --ambre:        #a67c00;
   --vert-fond:    rgba(53,180,106,.12);
   --ambre-fond:   rgba(166,124,0,.14);
   --rouge-fond:   rgba(215,0,5,.09);
   --ombre: none;
   --plaque-logo:  #0e0e12;
-  --ombre-carte:  0 6px 22px -16px rgba(15,23,42,.22);
-  --pastille:     #e2e8f3;
+  --ombre-carte:  0 6px 22px -16px rgba(15,26,51,.22);
+  --pastille:     #e2e7f1;
 }
 :root[data-produit="connect"] body { background: var(--fond); color: var(--texte); }
 :root[data-produit="connect"] h1, :root[data-produit="connect"] h2 { letter-spacing: -.03em; }
 :root[data-produit="connect"] h1 { font-weight: 800; }
-/* Le logo RedBox est dessine pour du noir : sur clair, il a sa plaque. */
+:root[data-produit="connect"] .rail { display: none; }
 :root[data-produit="connect"] .rail .logo img, :root[data-produit="connect"] .entete .logo-mobile img, :root[data-produit="connect"] .logo-entree {
   background: var(--plaque-logo); border-radius: 12px; padding: 10px 12px;
 }
-/* LE RAIL, PLUS LARGE : chaque entree porte une pastille ronde, bleue quand
-   elle est ouverte — les serveurs d'un Discord, les conversations d'un
-   Messenger. Le mot « connect » sous le logo, en bleu, tout simplement. */
-:root[data-produit="connect"] .rail { width: var(--rail); background: var(--surface); border-right: 1px solid var(--bord); box-shadow: none; }
-:root[data-produit="connect"] .rail .connect-marque { margin: 0; padding: 2px 10px 0; font-size: 22px; font-weight: 850; letter-spacing: -.04em; line-height: 1; color: var(--accent-vif); }
-:root[data-produit="connect"] .rail .connect-marque span { background: none; color: inherit; -webkit-background-clip: initial; background-clip: initial; }
-:root[data-produit="connect"] .rail .connect-marque span::after { content: ""; display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--accent); vertical-align: 2px; }
-:root[data-produit="connect"] .rail .section { color: var(--texte-3); letter-spacing: .14em; padding: 16px 10px 8px; }
-:root[data-produit="connect"] .rail a.item { border-radius: 12px; padding: 6px 10px 6px 8px; margin-bottom: 4px; gap: 12px; font-size: 14.5px; font-weight: 600; color: var(--texte-2); min-height: 44px; }
-:root[data-produit="connect"] .rail a.item .glyphe {
-  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none;
-  color: var(--texte-2); background: var(--pastille); transition: border-radius .15s, background .15s, color .15s;
-}
-:root[data-produit="connect"] .rail a.item:hover { background: var(--surface-2); color: var(--texte); }
-:root[data-produit="connect"] .rail a.item:hover .glyphe { border-radius: 12px; color: var(--texte); }
-:root[data-produit="connect"] .rail a.item.actif { background: var(--accent-fond); color: var(--texte); font-weight: 700; }
-:root[data-produit="connect"] .rail a.item.actif::before { display: none; }
-:root[data-produit="connect"] .rail a.item.actif .glyphe { background: var(--accent); color: #fff; border-radius: 12px; box-shadow: var(--lueur); }
-:root[data-produit="connect"] .rail a.item.actif::after { display: none; }
-:root[data-produit="connect"] .rail a.item .compte { background: var(--accent); color: #fff; }
-:root[data-produit="connect"] .rail .pied { border-top-color: var(--bord); }
-/* LA PORTE VERS LA GESTION : un vrai bouton RedBox, rouge, plein. */
-:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] {
-  margin-top: 4px; justify-content: center; gap: 8px; min-height: 44px; border-radius: 12px;
-  background: linear-gradient(180deg, #ec1219, #d70005 55%, #b60004); color: #fff; font-weight: 800; letter-spacing: -.01em;
-  box-shadow: 0 8px 22px -10px rgba(215,0,5,.7), inset 0 1px 0 rgba(255,255,255,.22);
-}
-:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"]:hover { filter: brightness(1.06); background: linear-gradient(180deg, #ec1219, #d70005 55%, #b60004); }
-:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] .glyphe { width: auto; height: auto; background: none; color: #fff; box-shadow: none; }
-:root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] > svg:last-child { color: rgba(255,255,255,.85); margin-left: 0; }
-/* L'en-tete et la barre du bas : pleins, un trait fin ; la puce et l'avatar en bleu. */
+/* LA BARRE DU HAUT : le logo a gauche, les quatre destinations au milieu, le
+   compte et le bouton rouge « Gestion » a droite. Le contenu tient au centre,
+   comme un fil, sur une largeur qui se lit. */
 :root[data-produit="connect"] .entete { background: var(--surface); border-bottom: 1px solid var(--bord); }
 :root[data-produit="connect"] .entete::after { display: none; }
+:root[data-produit="connect"] .entete > .dedans { max-width: 1180px; margin: 0 auto; height: 60px; padding: 0 16px; }
+:root[data-produit="connect"] .ecran { margin: 0 auto; max-width: 1180px; padding-left: 16px; padding-right: 16px; }
+:root[data-produit="connect"] .demo-bandeau { padding-left: 16px; padding-right: 16px; }
+:root[data-produit="connect"] .invite-notifs { width: min(440px, calc(100vw - 48px)); }
 :root[data-produit="connect"] .entete .produit-puce {
   margin-left: 8px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: none;
-  border: 0; color: #fff; background: var(--accent);
+  border: 0; color: #fff; background: var(--degrade);
 }
+:root[data-produit="connect"] .connect-nav { display: none; }
+@media (min-width: 980px) {
+  :root[data-produit="connect"] .entete .logo-mobile { display: flex; }
+  :root[data-produit="connect"] .entete .fil { display: none; }
+  :root[data-produit="connect"] .connect-nav {
+    display: flex; align-items: stretch; gap: 4px; height: 60px; margin: 0 auto;
+    position: absolute; left: 50%; transform: translateX(-50%);
+  }
+  :root[data-produit="connect"] .entete > .dedans { position: relative; }
+  :root[data-produit="connect"] .connect-nav a {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-width: 96px; padding: 0 14px; border-radius: 12px 12px 0 0;
+    font-size: 11.5px; font-weight: 650; color: var(--texte-3);
+  }
+  :root[data-produit="connect"] .connect-nav a:hover { color: var(--texte); background: var(--surface-2); }
+  :root[data-produit="connect"] .connect-nav a.actif { color: var(--accent-vif); }
+  :root[data-produit="connect"] .connect-nav a.actif::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); }
+  :root[data-produit="connect"] .connect-nav a b {
+    position: absolute; top: 8px; left: calc(50% + 8px); min-width: 18px; padding: 1px 5px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 800; line-height: 16px; text-align: center; color: #fff; background: var(--degrade);
+  }
+}
+@media (max-width: 1240px) and (min-width: 980px) { :root[data-produit="connect"] .connect-nav a span { display: none; } :root[data-produit="connect"] .connect-nav a { min-width: 64px; } }
+:root[data-produit="connect"] .entete .vers-gestion { gap: 6px; background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .entete .vers-gestion:hover { filter: brightness(1.06); background: var(--degrade); border-color: transparent; }
+@media (max-width: 979px) { :root[data-produit="connect"] .entete .vers-gestion { display: none; } }
 :root[data-produit="connect"] .entete .bouton.icone { background: var(--surface-2); border-color: var(--bord); color: var(--texte-2); }
 :root[data-produit="connect"] .entete .bouton.icone:hover { border-color: var(--accent); color: var(--accent-vif); }
 :root[data-produit="connect"] .entete .bulle[data-actif] { color: var(--accent-vif); }
-:root[data-produit="connect"] .compte-chip .jeton { background: var(--accent); color: #fff; }
+:root[data-produit="connect"] .compte-chip .jeton { background: var(--degrade); color: #fff; }
 :root[data-produit="connect"] .compte-chip .jeton.photo { border: 2px solid var(--accent); background: none; }
+/* La barre du bas, au telephone : l'onglet actif en rouge. */
 :root[data-produit="connect"] .nav-bas { background: var(--surface); border-top: 1px solid var(--bord); box-shadow: none; }
 :root[data-produit="connect"] .nav-bas::before { display: none; }
 :root[data-produit="connect"] .nav-bas a { color: var(--texte-3); }
 :root[data-produit="connect"] .nav-bas a .glyphe { padding: 5px 14px; border-radius: 999px; }
 :root[data-produit="connect"] .nav-bas a.actif { color: var(--accent-vif); }
-:root[data-produit="connect"] .nav-bas a.actif .glyphe { color: #fff; background: var(--accent); box-shadow: var(--lueur); }
+:root[data-produit="connect"] .nav-bas a.actif .glyphe { color: #fff; background: var(--degrade); box-shadow: var(--lueur); }
 :root[data-produit="connect"] .nav-bas a[data-bascule] { border-color: var(--bord); }
-/* Les cartes : sans filet lourd, une ombre douce. Les titres, un trait bleu. */
+/* Le menu (telephone) : la porte vers la Gestion en rouge plein. */
+:root[data-produit="connect"] .rubriques .rubrique[href="/"] .rond { background: var(--degrade); color: #fff; }
+/* Les cartes : sans filet lourd, une ombre douce. Les titres, un trait rouge. */
 :root[data-produit="connect"] .carte { background: var(--surface); border-color: var(--bord); box-shadow: var(--ombre-carte); }
 :root[data-produit="connect"] .carte:hover { border-color: var(--bord-fort); }
 :root[data-produit="connect"] .ecran > h1:first-child::after,
 :root[data-produit="connect"] .ecran > .titre-section:first-child h1::after { content: ""; display: block; width: 40px; height: 3px; margin-top: 8px; border-radius: 2px; background: var(--accent); }
 :root[data-produit="connect"] .titre-section h2::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; background: var(--accent); }
-/* Les boutons : le principal en bleu plein. Les dangers restent rouges. */
+/* Les boutons : le principal en rouge RedBox. */
 :root[data-produit="connect"] .bouton:not(.primaire):not(.danger):hover { border-color: var(--accent); color: var(--accent-vif); }
-:root[data-produit="connect"] .bouton.primaire { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--lueur); }
-:root[data-produit="connect"] .bouton.primaire:hover { background: var(--accent-vif); border-color: var(--accent-vif); filter: none; }
-/* Les champs : anneau bleu au focus. */
+:root[data-produit="connect"] .bouton.primaire { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: var(--lueur); }
+:root[data-produit="connect"] .bouton.primaire:hover { filter: brightness(1.06); background: var(--degrade); border-color: transparent; }
+/* Les champs : anneau corail au focus. */
 :root[data-produit="connect"] input:focus-visible, :root[data-produit="connect"] textarea:focus-visible, :root[data-produit="connect"] select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 :root[data-produit="connect"] :is(a, button, summary, [tabindex]):focus-visible { outline-color: var(--accent); }
 :root[data-produit="connect"] .pilule.ok { background: var(--accent-fond); color: var(--accent-vif); }
 /* ---- LE CONTENU. Les bulles, les visages, le champ ou l'on ecrit. */
-:root[data-produit="connect"] .msg.mien .bulle { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
+:root[data-produit="connect"] .msg.mien .bulle { background: var(--degrade); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
 :root[data-produit="connect"] .msg:not(.mien) .bulle { background: var(--surface-2); color: var(--texte); box-shadow: none; }
-:root[data-produit="connect"] .msg .avatar, :root[data-produit="connect"] .portrait-rond { background: var(--accent); color: #fff; }
+:root[data-produit="connect"] .msg .avatar, :root[data-produit="connect"] .portrait-rond { background: var(--degrade); color: #fff; }
 :root[data-produit="connect"] .msg .avatar img, :root[data-produit="connect"] .portrait-rond img { border: 0; border-radius: 50%; }
 :root[data-produit="connect"] .msg.machine .avatar { background: #0e0e12; border-color: var(--bord-fort); }
 :root[data-produit="connect"] .msg.machine .entete-msg b { color: var(--accent-vif); }
@@ -260,19 +262,16 @@
 :root[data-produit="connect"] .boite-composeur:focus-within { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 4px var(--accent-fond); }
 :root[data-produit="connect"] .boite-composeur textarea { background: transparent; }
 :root[data-produit="connect"] .boite-composeur textarea:focus-visible { outline: 0; border-color: transparent; }
-:root[data-produit="connect"] .boite-composeur .envoyer { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: none; }
+:root[data-produit="connect"] .boite-composeur .envoyer { background: var(--degrade); border-color: transparent; color: #fff; box-shadow: none; }
 :root[data-produit="connect"] .boite-composeur .envoyer:disabled { background: var(--surface-3); color: var(--texte-3); }
 :root[data-produit="connect"] .messagerie a.salon[aria-current], :root[data-produit="connect"] .messagerie a.salon.actif { background: var(--accent-fond); border-radius: var(--r-m); }
 :root[data-produit="connect"] .messagerie a.salon .icone-salon { color: var(--texte-2); background: var(--pastille); border-radius: 50%; }
-:root[data-produit="connect"] .messagerie a.salon.actif .icone-salon { background: var(--accent); color: #fff; }
-:root[data-produit="connect"] .aca-piste > span { background: var(--accent); }
+:root[data-produit="connect"] .messagerie a.salon.actif .icone-salon { background: var(--degrade); color: #fff; }
+:root[data-produit="connect"] .aca-piste > span { background: var(--degrade); }
 :root[data-produit="connect"] .aca-module { background: var(--surface); box-shadow: var(--ombre-carte); }
-:root[data-produit="connect"] .aca-module:hover { border-color: var(--accent); box-shadow: 0 14px 34px -18px rgba(47,125,255,.45); }
+:root[data-produit="connect"] .aca-module:hover { border-color: var(--accent); box-shadow: 0 14px 34px -18px rgba(215,0,5,.4); }
 :root[data-produit="connect"] .classement li.tete a { border-color: var(--accent); background: var(--surface); }
 :root[data-produit="connect"] .classement a:hover { border-color: var(--accent); }
-/* Le rail replie : la pastille active reste bleue, le bouton rouge devient une icone. */
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus)))[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] { padding: 8px 0; }
-:root:is([data-rail="ferme"], :not([data-rail="ouvert"]):has(main:is(.aca-focus, .rail-focus)))[data-produit="connect"] .rail a.item { padding: 5px 0; justify-content: center; }
 
 /*
   LE LOGO EN THEME CLAIR.
@@ -333,9 +332,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
    Connect, le glyphe porte le degrade de Connect — un apercu de la-bas. */
 .rail a.item.produit-porte > svg:last-child { margin-left: auto; color: var(--texte-3); }
 .rail a.item.produit-porte[data-vers="connect"] .glyphe {
-  color: #fff; border-radius: 7px; padding: 3px; margin: -3px 0; background: #2f7dff;
+  color: #fff; border-radius: 7px; padding: 3px; margin: -3px 0; background: #1b2a4a;
 }
-.rail a.item.produit-porte[data-vers="connect"] .compte { margin-left: auto; background: #2f7dff; color: #fff; }
+.rail a.item.produit-porte[data-vers="connect"] .compte { margin-left: auto; background: var(--rouge); color: #fff; }
 /* La puce de l'en-tete au telephone, a cote du logo. */
 .entete .produit-puce {
   margin-left: 8px; padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
