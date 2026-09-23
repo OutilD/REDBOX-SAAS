@@ -4,6 +4,7 @@ import { Entete, NavBasse } from "../../chrome";
 import { q, euros, leJour, depuis } from "@/db";
 import { estSuperAdmin, nomDuRole, utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
+import { DOMAINE } from "@/lib/invente";
 import { BADGES_MANUELS } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,8 @@ export default async function Comptes({ searchParams }:
   const [comptes, membres] = await Promise.all([
     q<Compte>(`
       SELECT c.id, c.nom, c.cree_le, c.demo, c.editeur,
-             (SELECT COUNT(*) FROM membre m WHERE m.compte_id = c.id)::int AS membres,
+             (SELECT COUNT(*) FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id
+               WHERE m.compte_id = c.id AND x.email NOT LIKE '%@' || $1)::int AS membres,
              (SELECT COUNT(*) FROM borne b WHERE b.compte_id = c.id
                AND b.statut = 'installee' AND b.jeton IS NOT NULL)::int AS installees,
              (SELECT COUNT(*) FROM borne b WHERE b.compte_id = c.id AND b.jeton IS NOT NULL
@@ -68,13 +70,16 @@ export default async function Comptes({ searchParams }:
              (SELECT MAX(v.faite_le) FROM vente v JOIN borne b ON b.id = v.borne_id
                WHERE b.compte_id = c.id AND v.statut = 'distribue') AS derniere_vente
         FROM compte c
-       ORDER BY c.demo, c.editeur DESC, c.nom`),
+       ORDER BY c.demo, c.editeur DESC, c.nom`, [DOMAINE]),
     q<Membre>(`
       SELECT m.compte_id, u.id, u.email, u.pseudo, u.nom, m.role, u.super_admin, u.cree_le,
              COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o
                         WHERE o.utilisateur_id = u.id AND o.badge = ANY($1::text[])), '{}') AS manuels
         FROM membre m JOIN utilisateur u ON u.id = m.utilisateur_id
-       ORDER BY m.compte_id, (m.role = 'proprietaire') DESC, u.email`, [BADGES_MANUELS.map((b) => b.cle)]),
+       -- Les personnes inventees par la demo (« Sami », l'invitee) ne sont pas
+       -- des comptes : elles n'ont rien a faire dans la liste de la plateforme.
+       WHERE u.email NOT LIKE '%@' || $2
+       ORDER BY m.compte_id, (m.role = 'proprietaire') DESC, u.email`, [BADGES_MANUELS.map((b) => b.cle), DOMAINE]),
   ]);
 
   const reels = comptes.filter((c) => !c.demo);
