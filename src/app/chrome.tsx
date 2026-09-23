@@ -500,10 +500,17 @@ export async function Entete({ page, borne, fenetre, periode }:
               </span>
               <span className="bref">Rien n’est réel.</span>
             </div>
-            <Link href="/demo" className="bouton petit" aria-label="Désactiver le mode démo">
-              <span className="entier">Désactiver le mode démo</span>
-              <span className="bref">Quitter</span>
-            </Link>
+            {/* UN CLIC, ET ON SORT. Le bouton envoyait vers la page des reglages,
+                ou il fallait confirmer : on ne quitte pas une demo en trois
+                gestes. Ce qui s'efface est invente ; la route garde son verrou
+                (`sur=1`) et refuse a qui n'est pas proprietaire. */}
+            <form method="post" action="/api/demo/fin">
+              <input type="hidden" name="sur" value="1" />
+              <button className="bouton petit" aria-label="Désactiver le mode démo">
+                <span className="entier">Désactiver le mode démo</span>
+                <span className="bref">Quitter</span>
+              </button>
+            </form>
           </div>
         ) : null}
       </header>
