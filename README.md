@@ -299,6 +299,17 @@ est un compte que plus personne ne reprend.
 
 ## Messagerie
 
+**Instantané.** Un clic sur un salon ne charge plus de page : la messagerie
+bascule dans le navigateur (`bascule.tsx`). Le serveur rend la page une fois,
+comme avant — sans JavaScript rien ne change — ; puis, au repos, le navigateur
+demande le dernier lot de chaque salon visible (`GET /api/salons/apercus`,
+`apercusDe`, une lecture pour tous) et le garde. Un clic change l’adresse
+(`pushState`), montre le fil déjà là (`ColonneFil`, `LienSalon`), éteint la
+pastille et note la lecture au serveur sans l’attendre (`?lu=`). Précédent
+et Suivant marchent (`popstate`). Le salon rendu par le serveur garde ses
+panneaux (qui lit, fond) ; un salon ouvert sur place n’a pas de compte de
+lecteurs (« … ») tant qu’on n’ouvre pas son panneau, qui reste une page.
+
 **Vite.** Une page de salon coûtait vingt-cinq allers-retours vers la base, en
 file ; elle en coûte une dizaine, en parallèle (`vue.tsx` : liste, portes,
 salon, messages et lecteurs partent ensemble ; `assurerSalons` une fois par

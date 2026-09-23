@@ -8037,3 +8037,6 @@ html { touch-action: manipulation; }
 @media (max-width: 979px) {
   .embleme-aura, .tuile-foil, .tuile.mythique[data-etat="debloque"] .tuile-cadre::before { animation: none !important; }
 }
+
+/* Le fil d'un salon pas encore en memoire, le temps d'un aller-retour. */
+.fil-attente .messages { opacity: .6; }

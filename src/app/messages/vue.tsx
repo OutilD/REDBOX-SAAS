@@ -9,7 +9,7 @@ import { assurerSalons, FONDS, LECTEURS_PAR_PAGE, lecteursDe, marquerLu, message
          type Lecteurs, type Salon, type SalonFerme } from "@/lib/salons";
 import { Personne, Portrait } from "../communaute/vignette-personne";
 import { VoirPlus } from "../voir-plus";
-import Fil from "./fil";
+import { ColonneFil, LienSalon, Messagerie as Bascule, type MetaSalon } from "./bascule";
 import MesureEntete from "./mesure";
 import RechercheSalons from "./recherche-salons";
 import { FUSEAU } from "@/lib/fuseau";
@@ -90,6 +90,14 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
     .sort((a, z) => (z.non_lus - a.non_lus)
       || ((z.dernier_le ? +new Date(z.dernier_le) : 0) - (a.dernier_le ? +new Date(a.dernier_le) : 0)));
   const peutCreer = peutConfigurer(u) && !estRestreint(u);
+  // Ce que le navigateur doit savoir de chaque salon pour l'ouvrir sur place.
+  const nomDe = (s: Salon) => s.portee === "support" && !moi(s) ? `${s.nom} · ${s.personne ?? s.compte ?? ""}` : s.nom;
+  const metas: Record<number, MetaSalon> = Object.fromEntries(salons.map((s) => [s.id, {
+    id: s.id, nom: nomDe(s), sujet: s.sujet, borne: s.borne, traverse: s.portee !== "compte",
+    peutEcrire: peutEcrire(u, s), peutReagir: peutReagir(u, s),
+    raisonMuet: s.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit — vous pouvez réagir aux messages." : undefined,
+    fond: s.fond, peutReglerFond: peutReglerFond(u, s),
+  }]));
   const totalNonLus = salons.reduce((t, x) => t + x.non_lus, 0);
 
   return (
@@ -97,6 +105,7 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
       <Entete page="messages" />
       <MesureEntete />
       <main className="ecran messagerie rail-focus" data-vue={salon ? "fil" : "liste"}>
+       <Bascule metas={metas} initialId={salon?.id ?? null} initialMessages={messages}>
         <aside className="salons">
           <div className="tete">
             <div className="titre-messages">
@@ -158,21 +167,18 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
         </aside>
 
         <section className="fil-cadre">
-          {salon ? (
-            <Fil salon={{ id: salon.id, nom: salon.portee === "support" && !moi(salon)
-                                          ? `${salon.nom} · ${salon.personne ?? salon.compte ?? ""}` : salon.nom,
-                          sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" }}
-                 initial={messages} moi={u.id} peutEcrire={peutEcrire(u, salon)}
-                 peutReagir={peutReagir(u, salon)} retour="/messages"
-                 raisonMuet={salon.portee === "annonces" ? "Ici, seule l’équipe RedBox écrit — vous pouvez réagir aux messages." : undefined}
-                 fond={salon.fond}
-                 reglageFond={peutReglerFond(u, salon)
-                   ? { ouvert: Boolean(fondOuvert), panneau: <ChoixFond salon={salon} /> } : undefined}
-                 lecteurs={{ total: lecteurs?.total ?? 0, ouvert: Boolean(qui) }}
-                 panneau={lecteurs ? <Qui salon={salon} l={lecteurs} erreur={erreur === "droit" ? ERREURS.droit : undefined} /> : null}
-                 erreur={erreur && erreur !== "nom" && erreur !== "pris" && erreur !== "droit" ? ERREURS[erreur] : undefined} />
-          ) : (
-            <div className="messagerie-accueil">
+          <ColonneFil moi={u.id}
+            initial={salon ? { id: salon.id, fil: {
+              salon: { id: salon.id, nom: nomDe(salon), sujet: salon.sujet, borne: salon.borne, traverse: salon.portee !== "compte" },
+              peutEcrire: peutEcrire(u, salon), peutReagir: peutReagir(u, salon), retour: "/messages",
+              raisonMuet: metas[salon.id]?.raisonMuet, fond: salon.fond,
+              reglageFond: peutReglerFond(u, salon) ? { ouvert: Boolean(fondOuvert), panneau: <ChoixFond salon={salon} /> } : undefined,
+              lecteurs: { total: lecteurs?.total ?? 0, ouvert: Boolean(qui) },
+              panneau: lecteurs ? <Qui salon={salon} l={lecteurs} erreur={erreur === "droit" ? ERREURS.droit : undefined} /> : null,
+              erreur: erreur && erreur !== "nom" && erreur !== "pris" && erreur !== "droit" ? ERREURS[erreur] : undefined,
+            } } : null}
+            accueil={
+              <div className="messagerie-accueil">
               <span className="halo" aria-hidden="true"><IcoBulle size={34} /></span>
               <h2>Vos conversations</h2>
               <p>Choisissez un salon à gauche : l’équipe, vos RedBox qui écrivent d’elles-mêmes, la communauté des redboxers.</p>
@@ -182,8 +188,9 @@ export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, le
                 <li><kbd>Maj</kbd> + <kbd>Entrée</kbd> aller à la ligne</li>
               </ul>
             </div>
-          )}
+            } />
         </section>
+       </Bascule>
       </main>
       <NavBasse page="messages" />
     </>
@@ -296,9 +303,9 @@ function Entree({ s, actif, etiquette, genre }: { s: Salon; actif: boolean; etiq
     ? `${s.apercu_mien ? "Vous" : s.apercu_de ?? (s.borne ? "La machine" : "RedBox")} : ${s.apercu}`
     : etiquette ? `#${s.nom}` : s.sujet;
   return (
-    <Link href={`/messages/${s.id}`} data-cherche={`${nom} ${s.nom} ${s.sujet ?? ""}`}
+    <LienSalon id={s.id} data-cherche={`${nom} ${s.nom} ${s.sujet ?? ""}`}
           className={`salon${actif ? " actif" : ""}${s.non_lus > 0 ? " non-lu" : ""}`}
-          data-genre={genre} aria-current={actif ? "page" : undefined}>
+          data-genre={genre}>
       <span className="icone-salon" aria-hidden><IconeSalon genre={genre} /></span>
       <span className="nom">
         <span className="ligne-haut">
@@ -310,7 +317,7 @@ function Entree({ s, actif, etiquette, genre }: { s: Salon; actif: boolean; etiq
           {s.non_lus > 0 ? <span className="badge num" aria-label={`${s.non_lus} non lus`}>{s.non_lus > 99 ? "99+" : s.non_lus}</span> : null}
         </span>
       </span>
-    </Link>
+    </LienSalon>
   );
 }
 

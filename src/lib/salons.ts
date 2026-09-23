@@ -1,5 +1,6 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
+import { MESSAGES_PAR_LOT } from "./fil";
 import { groupeDuCompte, niveauxDe, type BadgeMontre } from "./communaute";
 import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
 
@@ -405,6 +406,24 @@ export async function messagesDe(salon_id: number,
      WHERE m.salon_id = $1 AND ($2::bigint IS NULL OR m.id < $2)
      ORDER BY m.id DESC LIMIT $3`, [salon_id, o.avant ?? null, limite]);
   return grader(rows.reverse(), moi);
+}
+
+/**
+ * LE DERNIER LOT DE CHAQUE SALON, EN UNE LECTURE. C'est ce que le navigateur
+ * garde sous la main pour ouvrir un salon sans attendre : une fenetre par
+ * salon, les auteurs et les reactions resolus d'un coup pour tout le monde.
+ */
+export async function apercusDe(salon_ids: number[], moi: number, lot = MESSAGES_PAR_LOT): Promise<Record<number, Message[]>> {
+  const ids = salon_ids.filter(Number.isInteger).slice(0, 120);
+  if (ids.length === 0) return {};
+  const rows = await q<Brut>(`
+    SELECT ${COLONNES} FROM (
+      SELECT m.*, row_number() OVER (PARTITION BY m.salon_id ORDER BY m.id DESC) AS rn
+        FROM message m WHERE m.salon_id = ANY($1::bigint[])) m ${JOINTURES}
+     WHERE m.rn <= $2 ORDER BY m.salon_id, m.id`, [ids, lot]);
+  const out: Record<number, Message[]> = {};
+  for (const m of await grader(rows, moi)) (out[m.salon_id] ??= []).push(m);
+  return out;
 }
 
 /**

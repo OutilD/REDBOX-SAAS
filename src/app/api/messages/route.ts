@@ -41,7 +41,10 @@ export async function GET(req: Request) {
     messagesDe(salon_id, { depuis, limite: 200, moi: u.id }),
     vus.length > 0 ? reactionsDes(salon_id, vus, u.id) : Promise.resolve({}),
   ]);
-  const dernier = messages.at(-1)?.id;
+  // Ce qu'on a lu : le dernier arrive, ou — `lu` — ce que le navigateur montre
+  // deja quand il ouvre un salon garde en memoire, sans passer par la page.
+  const lu = Number(url.searchParams.get("lu"));
+  const dernier = messages.at(-1)?.id ?? (Number.isInteger(lu) && lu > 0 ? lu : undefined);
   if (dernier !== undefined) await marquerLu(u.id, salon_id, dernier);
   return Response.json({ messages, reactions });
 }

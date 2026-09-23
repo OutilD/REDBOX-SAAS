@@ -112,20 +112,22 @@ function raisonDe(e: unknown): { raison: string; relancable: boolean } {
  * La machine parle dans la meme colonne que les gens — c'est le point.
  */
 export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peutEcrire, retour, erreur, raisonMuet, lecteurs, panneau,
-                              fond = "aucun", reglageFond }: {
+                              fond = "aucun", reglageFond, surRetour }: {
   salon: Salon; initial: Message[]; moi: number; peutEcrire: boolean; retour: string; erreur?: string;
   /** Reagir sans pouvoir ecrire : les annonces. Par defaut, comme ecrire. */
   peutReagir?: boolean;
   /** Ce qu'on dit a la place du composeur quand on ne peut pas ecrire ici. */
   raisonMuet?: string;
   /** Combien de personnes lisent ici, et si le panneau « qui » est ouvert. */
-  lecteurs: { total: number; ouvert: boolean };
+  lecteurs: { total: number | null; ouvert: boolean };
   /** Le panneau « qui lit ici », rendu par le serveur, glisse sous la tete. */
   panneau?: React.ReactNode;
   /** Le fond du fil, choisi par qui administre le salon. */
   fond?: string;
   /** Present seulement pour qui peut choisir le fond : le bouton, et le panneau rendu par le serveur. */
   reglageFond?: { ouvert: boolean; panneau: React.ReactNode };
+  /** Revenir a la liste sans changer de page : la messagerie bascule dans le navigateur. */
+  surRetour?: () => void;
 }) {
   const [messages, poser] = useState<Ligne[]>(initial);
   const [texte, ecrire] = useState("");
@@ -427,7 +429,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   return (
     <div className="fil-salon" data-fond={fond}>
       <div className="tete">
-        <Link href={retour} className="bouton petit retour" aria-label="Tous les salons">‹</Link>
+        <Link href={retour} className="bouton petit retour" aria-label="Tous les salons"
+              onClick={surRetour ? (e) => { e.preventDefault(); surRetour(); } : undefined}>‹</Link>
         <span className="icone-fil" aria-hidden="true">{salon.borne ? <IcoBorne size={18} /> : "#"}</span>
         <div className="pousse" style={{ minWidth: 0 }}>
           <h1>{salon.nom}</h1>
@@ -443,7 +446,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
             <circle cx="7.5" cy="7" r="2.8" /><path d="M2.5 16.5c0-3 2.2-5 5-5s5 2 5 5" />
             <circle cx="14" cy="7.5" r="2.2" /><path d="M13.2 11.6c2.5.2 4.3 2.1 4.3 4.9" />
           </svg>
-          <span className="num">{lecteurs.total}</span>
+          <span className="num">{lecteurs.total ?? "…"}</span>
         </Link>
         {reglageFond ? (
           <Link href={reglageFond.ouvert ? `/messages/${salon.id}` : `/messages/${salon.id}?fond=1`}
