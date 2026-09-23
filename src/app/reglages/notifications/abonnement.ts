@@ -43,8 +43,19 @@ export type Situation = {
 export function situation(): Situation {
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const mobile = ios || /Android/.test(navigator.userAgent);
-  const installee = (navigator as Navigator & { standalone?: boolean }).standalone === true
-    || window.matchMedia("(display-mode: standalone)").matches;
+  // INSTALLEE, ET ON S'EN SOUVIENT. Le navigateur ne le sait que quand la
+  // console tourne DANS l'application ; un lien ouvert dans Safari ou Chrome
+  // alors que l'icone est deja sur l'ecran d'accueil redemandait d'installer.
+  // Une fois vue en application, ce telephone ne le demande plus.
+  const enApplication = (navigator as Navigator & { standalone?: boolean }).standalone === true
+    || window.matchMedia("(display-mode: standalone)").matches
+    || document.referrer.startsWith("android-app://");
+  let dejaVue = false;
+  try {
+    if (enApplication) localStorage.setItem("rbx_installee", "1");
+    dejaVue = localStorage.getItem("rbx_installee") === "1";
+  } catch { /* navigation privee : on ne retient rien */ }
+  const installee = enApplication || dejaVue;
   const pousse = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const samsung = /SamsungBrowser/.test(navigator.userAgent);
   return { securise: window.isSecureContext, pousse, ios, installee, mobile, samsung,

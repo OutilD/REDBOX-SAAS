@@ -63,8 +63,12 @@ export default function InviteNotifications({ publique, connect = false }: { pub
     poserIos(s.ios);
     poserSamsung(s.samsung);
     const le = (cle: string) => { const v = lire(cle, localStorage); return v ? Number(v) : null; };
-    poser(decider(s, { installer: le(PLUS_TARD_INSTALL), activer: le(PLUS_TARD) },
-                  lire(VUE, sessionStorage) === "1", Date.now()));
+    const d = decider(s, { installer: le(PLUS_TARD_INSTALL), activer: le(PLUS_TARD) },
+                      lire(VUE, sessionStorage) === "1", Date.now());
+    poser(d);
+    // Montree, c'est vue : elle ne revient pas a la page suivante parce qu'on
+    // a touche un onglet au lieu de « Plus tard ». Une fois par ouverture.
+    if (d) ecrire(VUE, "1", sessionStorage);
     // L'offre d'Android peut arriver apres nous : le bouton « Installer » apparait alors.
     const f = () => rafraichir((n) => n + 1);
     ecouteurs.add(f);
