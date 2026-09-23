@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { BISCUIT_PRODUIT, ENTETE_PRODUIT, PRODUITS, adresse, hoteDes, produitDeLHote, produitDuChemin,
-         type Produit } from "@/lib/produits";
+import { BISCUIT_PRODUIT, ENTETE_PRODUIT, MARQUE_PARTAGE, PRODUITS, adresse, domaineBiscuit, hoteDes, produitDeLHote,
+         produitDuChemin, type Produit } from "@/lib/produits";
 
 /**
  * A QUEL PRODUIT APPARTIENT CETTE PAGE, ET EST-ON AU BON ENDROIT ?
@@ -34,20 +34,30 @@ export function middleware(req: NextRequest) {
   entetes.set(ENTETE_PRODUIT, effectif);
   const suivant = () => NextResponse.next({ request: { headers: entetes } });
 
+  // UN BISCUIT DE SESSION D'AVANT LE DOMAINE (sans marque, voir MARQUE_PARTAGE)
+  // ne vaut plus rien et pourrait laisser quelqu'un « connecte » d'un seul
+  // cote : on l'efface sur cet hote. Le biscuit de domaine, lui, reste.
+  const vestige = domaineBiscuit() !== null
+    && req.cookies.getAll("rbx").some((c) => !c.value.startsWith(MARQUE_PARTAGE));
+  const purger = (r: NextResponse) => {
+    if (vestige) r.headers.append("Set-Cookie", "rbx=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    return r;
+  };
+
   if (ici !== null) {
     if (ici === "connect" && chemin === "/") {
       // L'adresse se compose depuis l'hote que le client a tape : derriere un
       // proxy, `req.url` porte celui de la machine, qu'il ne connait pas.
       const protocole = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-      return NextResponse.redirect(`${protocole}://${hote}${PRODUITS.connect.accueil}`);
+      return purger(NextResponse.redirect(`${protocole}://${hote}${PRODUITS.connect.accueil}`));
     }
     if (produit !== null && produit !== ici) {
-      return NextResponse.redirect(adresse(produit, chemin + req.nextUrl.search, hote));
+      return purger(NextResponse.redirect(adresse(produit, chemin + req.nextUrl.search, hote)));
     }
-    return suivant();
+    return purger(suivant());
   }
 
-  const suite = suivant();
+  const suite = purger(suivant());
   if (produit !== null && req.cookies.get(BISCUIT_PRODUIT)?.value !== produit) {
     suite.cookies.set(BISCUIT_PRODUIT, produit, { path: "/", sameSite: "lax", maxAge: 365 * 24 * 3600 });
   }

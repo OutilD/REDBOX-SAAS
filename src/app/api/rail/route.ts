@@ -1,4 +1,5 @@
 import { versPage } from "@/lib/auth";
+import { biscuitPartage } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -6,8 +7,6 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const f = await req.formData();
   const ferme = String(f.get("actuel") ?? "") !== "ferme";
-  const biscuit = ferme
-    ? `rbx_rail=ferme; Path=/; SameSite=Lax; Max-Age=${365 * 24 * 3600}`
-    : "rbx_rail=; Path=/; SameSite=Lax; Max-Age=0";
+  const biscuit = ferme ? biscuitPartage("rbx_rail", "ferme", 365 * 24 * 3600) : biscuitPartage("rbx_rail", "", 0);
   return versPage(req, String(f.get("retour") ?? "/"), biscuit);
 }

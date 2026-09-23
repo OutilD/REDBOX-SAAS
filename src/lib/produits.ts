@@ -70,6 +70,41 @@ export function adresse(produit: Produit, chemin: string, hoteIci: string | null
   return `${local ? "http" : "https"}://${h[produit]}${chemin}`;
 }
 
+/**
+ * LE DOMAINE DES BISCUITS (`REDBOX_DOMAINE_BISCUIT`, « .exemple.com »), ou null.
+ * Pose, la session, le theme et le rail valent sous tous les hotes du domaine :
+ * connecte dans la Gestion, on l'est dans Connect ; deconnecte de l'une, on
+ * l'est de l'autre ; meme compte, meme theme des deux cotes.
+ */
+export function domaineBiscuit(): string | null {
+  const d = (process.env.REDBOX_DOMAINE_BISCUIT ?? "").trim();
+  return d ? d : null;
+}
+
+/**
+ * LA MARQUE DU BISCUIT DE SESSION PARTAGE. Un navigateur connecte avant le
+ * passage au domaine garde un biscuit d'hote, que rien ne distingue d'un
+ * biscuit de domaine dans une requete — et il aurait pu rester connecte d'un
+ * cote apres s'etre deconnecte de l'autre. Le biscuit de domaine porte donc
+ * cette marque ; en mode domaine, un biscuit sans marque est un vestige : on
+ * l'ignore et le middleware l'efface. Une reconnexion, une fois, et c'est fini.
+ */
+export const MARQUE_PARTAGE = "d.";
+
+/** Le jeton que porte un biscuit de session, ou null s'il n'est pas valable ici. */
+export function jetonDuBiscuit(valeur: string | null | undefined): string | null {
+  if (!valeur) return null;
+  const marque = valeur.startsWith(MARQUE_PARTAGE);
+  if (domaineBiscuit() && !marque) return null;
+  return marque ? valeur.slice(MARQUE_PARTAGE.length) : valeur;
+}
+
+/** Un biscuit de preference (theme, rail), partage sous le domaine s'il y en a un. */
+export function biscuitPartage(nom: string, valeur: string, maxAge: number): string {
+  const d = domaineBiscuit();
+  return `${nom}=${valeur}; Path=/; SameSite=Lax${d ? `; Domain=${d}` : ""}; Max-Age=${maxAge}`;
+}
+
 /** L'hote tel que le client l'a compose — derriere un proxy, `x-forwarded-host` passe devant. */
 export function hoteDes(h: { get(nom: string): string | null }): string | null {
   return h.get("x-forwarded-host") ?? h.get("host");

@@ -2,7 +2,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { q, q1 } from "@/db";
 import { animerDemo } from "./demo";
-import { hoteDes } from "./produits";
+import { MARQUE_PARTAGE, domaineBiscuit, hoteDes, jetonDuBiscuit } from "./produits";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
 export function chiffrer(mdp: string): string {
@@ -94,10 +94,15 @@ export async function detruireSession(jeton: string): Promise<void> {
  */
 export function enTeteBiscuit(jeton: string | null): string[] {
   const commun = "Path=/; HttpOnly; SameSite=Lax";
-  const domaine = (process.env.REDBOX_DOMAINE_BISCUIT ?? "").trim();
+  const domaine = domaineBiscuit();
   const portee = domaine ? `; Domain=${domaine}` : "";
-  if (jeton) return [`${BISCUIT}=${jeton}; ${commun}${portee}; Max-Age=${DUREE / 1000}`];
   const efface = `${BISCUIT}=; ${commun}; Max-Age=0`;
+  if (jeton) {
+    // En mode domaine, le biscuit porte sa marque, et l'eventuel biscuit d'hote
+    // de ce navigateur est efface du meme geste : un seul biscuit, partage.
+    const pose = `${BISCUIT}=${domaine ? MARQUE_PARTAGE : ""}${jeton}; ${commun}${portee}; Max-Age=${DUREE / 1000}`;
+    return domaine ? [efface, pose] : [pose];
+  }
   return domaine ? [efface, `${BISCUIT}=; ${commun}${portee}; Max-Age=0`] : [efface];
 }
 
@@ -227,7 +232,7 @@ export function peutVoirBorne(u: Utilisateur, borne_id: number): boolean {
 
 /** Cote page : le rendu a acces aux en-tetes de la requete. */
 export async function utilisateur(): Promise<Utilisateur | null> {
-  return parJeton((await cookies()).get(BISCUIT)?.value);
+  return parJeton(jetonDuBiscuit((await cookies()).get(BISCUIT)?.value));
 }
 
 /**
@@ -242,7 +247,7 @@ export async function utilisateurDe(req: Request): Promise<Utilisateur | null> {
   const brut = req.headers.get("cookie") ?? "";
   for (const morceau of brut.split(";")) {
     const [nom, ...reste] = morceau.trim().split("=");
-    if (nom === BISCUIT) return parJeton(decodeURIComponent(reste.join("=")));
+    if (nom === BISCUIT) return parJeton(jetonDuBiscuit(decodeURIComponent(reste.join("="))));
   }
   return null;
 }

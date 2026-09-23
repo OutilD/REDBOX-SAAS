@@ -94,10 +94,14 @@ Trois variables d’environnement donnent à chaque produit son adresse
   servent sur place, avec l’habillage de l’hôte. L’API n’est jamais renvoyée, et
   un hôte qui n’est aucun des deux — l’ancienne adresse que les bornes
   appellent — sert tout, comme avant.
-- **Une seule connexion.** Le biscuit de session est posé sur le domaine : connecté
-  dans l’une, on l’est dans l’autre. À la déconnexion les deux formes s’effacent,
-  celle d’hôte et celle de domaine — un navigateur connecté avant le passage au
-  domaine garde la première. On reste dans l’application où l’on s’est
+- **Une seule connexion, un seul compte.** Le biscuit de session est posé sur le
+  domaine et porte une marque (`d.`, `MARQUE_PARTAGE`) : connecté dans l’une, on
+  l’est dans l’autre, sur le même compte (le compte actif vit dans la session,
+  en base) ; se déconnecter d’un côté détruit en base toutes les sessions que le
+  navigateur présente, donc des deux côtés. Un biscuit d’avant le domaine, sans
+  marque, ne vaut plus rien : la page l’ignore et le middleware l’efface — une
+  reconnexion, une fois. Le thème et le rail sont eux aussi partagés sous le
+  domaine (`biscuitPartage`). On reste dans l’application où l’on s’est
   connecté ; seul un prospect qui se connecte côté Gestion est conduit à Connect.
 - **Une application installable par produit** : le manifeste de l’hôte Connect
   dit « RedBox Connect » et s’ouvre sur la communauté (`app/manifest.ts`).
