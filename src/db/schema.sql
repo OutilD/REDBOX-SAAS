@@ -1272,3 +1272,10 @@ ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS disponible BOOLEAN NOT NUL
 -- n'existe jamais hors de son produit, et personne ne le cherche seul.
 --   [{"nom": "Black Dragon Ice", "etiquette": "best"}, {"nom": "Cherry Ice", "etiquette": null}]
 ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS gouts JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- #REDBOXERS REVIENT. La migration qui renommait #proprietaires en #redboxers a
+-- laisse un #redboxers archive et vide, dont le nom empechait le code de le
+-- recreer : le salon des redboxers a manque dix jours. Les salons de la
+-- plateforme sont rouverts ; le code fait pareil a chaque ouverture desormais.
+UPDATE salon SET archive_le = NULL
+ WHERE compte_id IS NULL AND nom IN ('annonces', 'futurs-redboxers', 'redboxers', 'developpeurs');

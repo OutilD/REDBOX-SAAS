@@ -238,11 +238,15 @@ export async function assurerSalons(u: Utilisateur): Promise<void> {
        WHERE NOT EXISTS (SELECT 1 FROM salon WHERE portee = 'support' AND utilisateur_id = $3::bigint)
       ON CONFLICT DO NOTHING`, [compte_id, SUPPORT.nom, u.id, SUPPORT.sujet]);
   }
+  // UN SALON DE LA PLATEFORME NE RESTE PAS ARCHIVE. La migration du
+  // 14 septembre a laisse #redboxers archive, vide, et le nom pris : le code
+  // ne pouvait plus le recreer, et il a disparu pendant dix jours. S'il est
+  // dans la liste, il est ouvert.
   await q(`
     INSERT INTO salon (compte_id, nom, sujet, portee, groupe, ordre)
     SELECT NULL, p.nom, p.sujet, p.portee, p.groupe, p.ordre
       FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[]) AS p(nom, sujet, portee, groupe, ordre)
-    ON CONFLICT (nom) WHERE compte_id IS NULL DO NOTHING`,
+    ON CONFLICT (nom) WHERE compte_id IS NULL DO UPDATE SET archive_le = NULL`,
     [PLATEFORME.map((p) => p.nom), PLATEFORME.map((p) => p.sujet), PLATEFORME.map((p) => p.portee),
      PLATEFORME.map((p) => p.groupe), PLATEFORME.map((p) => p.ordre)]);
   const sans = await q<{ id: number; nom: string }>(`
