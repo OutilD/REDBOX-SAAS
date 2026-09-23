@@ -56,14 +56,14 @@ visibles depuis la gestion : sur la bulle de l’en-tête et sur ce bouton.
 **On sait où l’on est sans lire.** Le middleware transmet le produit de la page
 dans l’en-tête `x-rbx-produit` ; `layout.tsx` le pose en `data-produit` sur
 `<html>`, et la feuille de style fait le reste. **La Gestion est un outil de
-nuit** : noir, rouge, angles nets, elle ne change pas. **Connect est un lieu** :
-coins ronds, ombres douces, deux thèmes — le jour blanc et lavande, la nuit
-**prune**, chaude, qui ne se confond pas avec le noir de l’outil —, et un dégradé
-chaud violet → rose → orangé (`--c1`…`--c4`, `--degrade`) sur le mot « connect »
-sous le logo, l’entrée active en pilule, l’avatar, la bulle de mes messages, le
-composeur, les boutons principaux, l’onglet actif de la barre du bas, les filets
-et un soulignement sous les titres. Les gris secondaires y sont plus foncés que
-dans le thème clair de la Gestion, pour se lire sur blanc. En bas du plan de
+nuit** : noir, rouge, angles nets, elle ne change pas. **Connect est une messagerie** :
+un bleu-nuit profond et UN seul accent, le bleu électrique des applications
+qu’on a dans la poche (`--accent` #2f7dff) — plus de dégradé multicolore.
+Rail plus large (264 px) dont chaque entrée porte une pastille ronde, bleue et
+carrée quand elle est ouverte ; bulles envoyées en bleu plein ; composeur en
+capsule avec anneau bleu au focus ; coins ronds, typographie serrée. Un thème
+clair dans la même langue (blanc, gris très pâle, le même bleu). Les erreurs et
+les dangers restent rouges. En bas du plan de
 Connect, « RedBox Gestion » est un **bouton rouge plein**, aux couleurs de
 l’outil ; en bas du plan de la Gestion, « RedBox Connect » est une entrée
 ordinaire dont le glyphe porte le dégradé. Tout vit sous
