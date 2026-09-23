@@ -347,7 +347,7 @@ type Brut = Omit<Message, "grade" | "niveau" | "badge" | "reactions">;
  * les miennes — c'est ce qui allume la pastille, et ce qui fait qu'un second
  * appui retire au lieu d'ajouter.
  */
-async function reactionsDe(ids: number[], moi: number | null): Promise<Map<number, Reaction[]>> {
+async function reactionsDe(ids: number[], moi: number | null, salon_id: number | null = null): Promise<Map<number, Reaction[]>> {
   const out = new Map<number, Reaction[]>();
   if (ids.length === 0) return out;
   const rows = await q<{ message_id: number; emoji: string; n: number; mien: boolean; qui: string[] }>(`
@@ -358,7 +358,8 @@ async function reactionsDe(ids: number[], moi: number | null): Promise<Map<numbe
                       FILTER (WHERE r.utilisateur_id IS DISTINCT FROM $2::bigint), '{}') AS qui
       FROM reaction r JOIN utilisateur x ON x.id = r.utilisateur_id
      WHERE r.message_id = ANY($1::bigint[])
-     GROUP BY r.message_id, r.emoji`, [ids, moi]);
+       AND ($3::bigint IS NULL OR EXISTS (SELECT 1 FROM message m WHERE m.id = r.message_id AND m.salon_id = $3))
+     GROUP BY r.message_id, r.emoji`, [ids, moi, salon_id]);
   // L'ordre est celui de la barre, pas celui des comptes : une reaction qui
   // depasse une autre ne doit pas faire sauter les pastilles de place sous le
   // doigt de celui qui vient d'appuyer.
@@ -415,10 +416,9 @@ export async function messagesDe(salon_id: number,
 export async function reactionsDes(salon_id: number, ids: number[], moi: number): Promise<Record<number, Reaction[]>> {
   const propres = ids.filter((i) => Number.isInteger(i)).slice(0, 200);
   if (propres.length === 0) return {};
-  const permis = await q<{ id: number }>(
-    "SELECT id FROM message WHERE salon_id = $1 AND id = ANY($2::bigint[])", [salon_id, propres]);
-  const m = await reactionsDe(permis.map((r) => Number(r.id)), moi);
-  return Object.fromEntries(m);
+  // Le salon se verifie dans la requete des reactions elle-meme : une lecture
+  // au lieu de deux, toutes les trois secondes.
+  return Object.fromEntries(await reactionsDe(propres, moi, salon_id));
 }
 
 /**

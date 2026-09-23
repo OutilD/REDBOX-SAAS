@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { apres } from "@/lib/apres";
+import { MESSAGES_PAR_LOT } from "@/lib/fil";
 import { Entete, NavBasse } from "../chrome";
 import { estRestreint, peutConfigurer, type Utilisateur } from "@/lib/auth";
 import { assurerSalons, FONDS, LECTEURS_PAR_PAGE, lecteursDe, marquerLu, messagesDe, peutEcrire, peutReagir,
@@ -34,19 +37,40 @@ const ERREURS: Record<string, string> = {
  * Les salons se rangent en deux groupes : ceux de l'equipe, et ceux des
  * bornes — ou la machine parle la premiere.
  */
+const ASSURES = new Map<number, number>();
+const ASSURE_MS = 15 * 60_000;
+function assureRecemment(compte_id: number): boolean {
+  const le = ASSURES.get(compte_id);
+  if (le !== undefined && Date.now() - le < ASSURE_MS) return true;
+  ASSURES.set(compte_id, Date.now());
+  return false;
+}
+
 export default async function Messagerie({ u, salon_id, nouveau, erreur, qui, lecteursN, fondOuvert }:
   { u: Utilisateur; salon_id?: number; nouveau?: boolean; erreur?: string; qui?: boolean;
     /** Combien de lecteurs montrer dans le panneau « qui lit ici ». */
     lecteursN?: number;
     /** Le choix du fond est ouvert (`?fond=1`). */
     fondOuvert?: boolean }) {
-  await assurerSalons(u);
-  const [salons, fermes] = await Promise.all([salonsDe(u), salonsFermes(u)]);
-  const salon = salon_id !== undefined ? await salonDe(u, salon_id) : null;
-  const [messages, lecteurs] = salon
-    ? await Promise.all([messagesDe(salon.id, { limite: 80, moi: u.id }), lecteursDe(u, salon, lecteursN)])
-    : [[], null];
-  if (salon && messages.length > 0) await marquerLu(u.id, salon.id, messages[messages.length - 1].id);
+  // LES SALONS DU COMPTE EXISTENT — verifie une fois par compte et par quart
+  // d'heure, pas a chaque page : ce sont quatre ecritures qui ne changent rien
+  // le reste du temps.
+  if (!assureRecemment(u.compte_id)) await assurerSalons(u);
+  // TOUT EN MEME TEMPS. La liste, les portes fermees, le salon ouvert, ses
+  // derniers messages et ses lecteurs ne dependent pas les uns des autres :
+  // un seul aller-retour de latence au lieu de cinq a la file.
+  const salonP = salon_id !== undefined ? salonDe(u, salon_id) : Promise.resolve(null);
+  const [salons, fermes, salon, messages, lecteurs] = await Promise.all([
+    salonsDe(u), salonsFermes(u), salonP,
+    salon_id !== undefined ? messagesDe(salon_id, { limite: MESSAGES_PAR_LOT, moi: u.id }) : Promise.resolve([]),
+    salonP.then((s) => (s ? lecteursDe(u, s, lecteursN) : null)),
+  ]);
+  if (salon_id !== undefined && !salon) notFound();
+  // Lu jusque-la : apres la reponse, la page n'attend pas la base pour ca.
+  if (salon && messages.length > 0) {
+    const dernier = messages[messages.length - 1].id;
+    apres("lecture", () => marquerLu(u.id, salon.id, dernier));
+  }
 
   const miens = salons.filter((s) => s.portee === "compte");
   const equipe = miens.filter((s) => s.borne_id === null);

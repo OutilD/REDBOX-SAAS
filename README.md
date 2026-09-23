@@ -299,6 +299,22 @@ est un compte que plus personne ne reprend.
 
 ## Messagerie
 
+**Vite.** Une page de salon coûtait vingt-cinq allers-retours vers la base, en
+file ; elle en coûte une dizaine, en parallèle (`vue.tsx` : liste, portes,
+salon, messages et lecteurs partent ensemble ; `assurerSalons` une fois par
+compte et par quart d’heure ; la lecture se note après la réponse). La session
+se résout une fois par rendu (`cache` de React) et se garde vingt secondes par
+processus (`SESSIONS` dans `lib/auth.ts`, oubliée à la déconnexion et au
+changement de compte) : un tour de sondage du fil, c’est trois requêtes. Le fil
+charge un lot de quarante messages et le reste en remontant (« Voir les
+messages précédents », `?avant=`) ; il sonde toutes les trois secondes, toutes
+les douze après deux minutes sans rien, vif de nouveau au retour sur l’onglet
+(`lib/fil.ts`). `REDBOX_TRACE_SQL=1` journalise chaque requête avec sa durée ;
+au-delà d’une demi-seconde, elle est journalisée de toute façon — c’est ce qu’on
+lit chez l’hébergeur quand une page traîne. Ce qui reste hors du code : la base
+se rendort après inactivité et met quelques secondes à se réveiller — un appel
+de `/api/ronde` chaque minute la garde éveillée.
+
 Des **salons**, comme sur Discord : `#general` pour l’équipe, un salon par borne
 où **la machine écrit elle-même** ce qui lui arrive — ventes du relevé,
 incidents, spires vides, chargements reçus — et où l’on répond dessous. Les

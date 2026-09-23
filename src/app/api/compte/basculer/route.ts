@@ -1,4 +1,5 @@
 import { BISCUIT, basculerCompte, utilisateurDe, versPage } from "@/lib/auth";
+import { jetonDuBiscuit } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   let jeton = "";
   for (const morceau of brut.split(";")) {
     const [nom, ...reste] = morceau.trim().split("=");
-    if (nom === BISCUIT) jeton = decodeURIComponent(reste.join("="));
+    if (nom === BISCUIT) jeton = jetonDuBiscuit(decodeURIComponent(reste.join("="))) ?? "";
   }
   if (!jeton) return versPage(req, "/connexion");
 

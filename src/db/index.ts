@@ -51,9 +51,21 @@ export function pool(): Pool {
   return global_._rbxPool;
 }
 
+/**
+ * UNE REQUETE LENTE SE DIT. Au-dela d'une demi-seconde, la requete est notee
+ * dans le journal du serveur, avec son debut : c'est ce qu'on lit dans les
+ * journaux de l'hebergeur quand une page traine. `REDBOX_TRACE_SQL=1` note
+ * toutes les requetes, pour compter ce qu'une page coute.
+ */
+const LENTE_MS = 500;
 export async function q<T extends QueryResultRow>(
   sql: string, params: unknown[] = []): Promise<T[]> {
+  const t0 = Date.now();
   const r = await pool().query<T>(sql, params);
+  const ms = Date.now() - t0;
+  if (ms >= LENTE_MS || process.env.REDBOX_TRACE_SQL) {
+    console[ms >= LENTE_MS ? "warn" : "log"](`[sql ${ms} ms] ${sql.replace(/\s+/g, " ").trim().slice(0, 90)}`);
+  }
   return r.rows;
 }
 

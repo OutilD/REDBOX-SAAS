@@ -7,6 +7,7 @@ import { EMOJIS, type Reaction } from "@/lib/reactions";
 import { initiales } from "@/lib/personnes";
 import { Badge } from "../communaute/badge";
 import { FUSEAU } from "@/lib/fuseau";
+import { CADENCE_CALME_MS, CADENCE_VIVE_MS, CALME_APRES_MS, MESSAGES_PAR_LOT } from "@/lib/fil";
 import { IcoBas, IcoBorne, IcoCoche, IcoCorbeille, IcoEnvoyer, IcoHorloge, IcoSourire } from "../icones";
 
 type Salon = {
@@ -27,7 +28,6 @@ type Ligne = Message & {
 /** Au-dela, un envoi sans reponse est tenu pour rate : la bulle le dit, et on peut reessayer. */
 const DELAI_ENVOI_MS = 20_000;
 
-const CADENCE_MS = 3000;
 /** Le plafond du texte d'un message ; le compteur apparait en approchant. */
 const LONGUEUR_MAX = 2000;
 const COMPTEUR_DES = 1600;
@@ -145,6 +145,32 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   // rafraichissement : il redemanderait tout le fil depuis le debut.
   const dernier = messages.reduce((a, m) => (m.id > a ? m.id : a), 0);
 
+  // L'HISTORIQUE SE CHARGE EN REMONTANT. Le serveur rend un lot ; le bouton en
+  // haut du fil demande le lot d'avant, et le fil ne saute pas : on rend au
+  // defilement exactement la hauteur ajoutee. `fini` quand un lot revient court.
+  const [fini, poserFini] = useState(initial.length < MESSAGES_PAR_LOT);
+  const [remonte, poserRemonte] = useState(false);
+  const ajoutEnHaut = useRef(false);
+  // Le dernier signe de vie du fil — un message, un retour sur l'onglet — : le sondage s'y regle.
+  const dernierMouvement = useRef(Date.now());
+  async function plusAncien() {
+    const premier = messages.filter((m) => m.id > 0).reduce((a, m) => (m.id < a ? m.id : a), Infinity);
+    if (!Number.isFinite(premier) || remonte) return;
+    poserRemonte(true);
+    const hauteurAvant = document.documentElement.scrollHeight;
+    try {
+      const r = await fetch(`/api/messages?salon=${salon.id}&avant=${premier}`, { cache: "no-store" });
+      if (!r.ok) return;
+      const { messages: anciens } = await r.json() as { messages: Message[] };
+      if (anciens.length < MESSAGES_PAR_LOT) poserFini(true);
+      if (anciens.length === 0) return;
+      ajoutEnHaut.current = true;
+      poser((m) => { const connus = new Set(m.map((x) => x.id)); return [...anciens.filter((x) => !connus.has(x.id)), ...m]; });
+      requestAnimationFrame(() => window.scrollBy(0, document.documentElement.scrollHeight - hauteurAvant));
+    } catch { /* on reessaiera au prochain appui */ }
+    finally { poserRemonte(false); }
+  }
+
   // Le fil s'ouvre en bas, la ou ca se passe ; et y reste tant qu'on n'est
   // pas remonte lire plus haut.
   // Remonte lire plus haut : la pastille « nouveaux messages » compte ce qui
@@ -166,6 +192,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   useEffect(() => {
     const neufs = messages.length - combien.current;
     combien.current = messages.length;
+    if (ajoutEnHaut.current) { ajoutEnHaut.current = false; return; }
+    if (neufs > 0) dernierMouvement.current = Date.now();
     if (enBas.current) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
     else if (neufs > 0 && messages[messages.length - 1]?.utilisateur_id !== moi) poserArrives((n) => n + neufs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,10 +247,30 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
     } catch { /* le prochain tour reessaiera */ }
   }, [salon.id, dernier, moi]);
 
+  // LE SONDAGE SE CALME. Toutes les trois secondes tant qu'il se passe quelque
+  // chose ; apres deux minutes sans message ni geste, toutes les douze. Un
+  // retour sur l'onglet, un message : il repart vif. Un fil laisse ouvert
+  // toute la nuit ne martele plus le serveur.
   useEffect(() => {
-    const t = setInterval(rafraichir, CADENCE_MS);
-    document.addEventListener("visibilitychange", rafraichir);
-    return () => { clearInterval(t); document.removeEventListener("visibilitychange", rafraichir); };
+    let vivant = true;
+    let minuterie: number | undefined;
+    const tour = async () => {
+      if (!vivant) return;
+      await rafraichir();
+      if (!vivant) return;
+      const calme = Date.now() - dernierMouvement.current > CALME_APRES_MS;
+      minuterie = window.setTimeout(tour, calme ? CADENCE_CALME_MS : CADENCE_VIVE_MS);
+    };
+    minuterie = window.setTimeout(tour, CADENCE_VIVE_MS);
+    const reveil = () => {
+      if (document.visibilityState !== "visible") return;
+      dernierMouvement.current = Date.now();
+      window.clearTimeout(minuterie);
+      void tour();
+    };
+    document.addEventListener("visibilitychange", reveil);
+    window.addEventListener("focus", reveil);
+    return () => { vivant = false; window.clearTimeout(minuterie); document.removeEventListener("visibilitychange", reveil); window.removeEventListener("focus", reveil); };
   }, [rafraichir]);
 
   /**
@@ -405,6 +453,13 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       {reglageFond?.ouvert ? reglageFond.panneau : null}
 
       <div className="messages">
+        {!fini && messages.length > 0 ? (
+          <div className="fil-plus-ancien">
+            <button type="button" className="bouton petit discret avec-script" onClick={plusAncien} disabled={remonte}>
+              {remonte ? "Un instant…" : "Voir les messages précédents"}
+            </button>
+          </div>
+        ) : null}
         {messages.length === 0 ? (
           <div className="fil-vide">
             <span className="halo" aria-hidden="true">{salon.borne ? <IcoBorne size={28} /> : <span className="diese">#</span>}</span>

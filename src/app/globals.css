@@ -4302,6 +4302,8 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
    ou le pouce la cherche.
 */
 .fil-salon .messages { display: flex; flex-direction: column; }
+.fil-plus-ancien { display: flex; justify-content: center; padding: 6px 0 12px; }
+
 .msg {
   display: flex; align-items: flex-end; gap: 8px;
   padding: 1px 0; position: relative; max-width: 100%;

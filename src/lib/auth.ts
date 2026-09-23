@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { q, q1 } from "@/db";
 import { animerDemo } from "./demo";
 import { MARQUE_PARTAGE, domaineBiscuit, hoteDes, jetonDuBiscuit } from "./produits";
@@ -80,6 +81,7 @@ export async function creerSession(utilisateur_id: number): Promise<string> {
 }
 
 export async function detruireSession(jeton: string): Promise<void> {
+  oublierSession(jeton);
   await q("DELETE FROM session WHERE jeton = $1", [jeton]);
 }
 
@@ -119,8 +121,29 @@ export function enTeteBiscuit(jeton: string | null): string[] {
  * appartenance. Une personne sans aucune appartenance n'existe plus : sa session
  * ne vaut rien, et le dire tot evite de la promener sur des pages vides.
  */
+/**
+ * LA SESSION, GARDEE VINGT SECONDES. Le fil de la messagerie interroge le
+ * serveur toutes les trois secondes, et chaque tour relisait la session, les
+ * appartenances et les restrictions : trois requetes pour redire qui est la.
+ * On s'en souvient un instant, par processus. Un droit retire, un compte
+ * change : vingt secondes de retard au pire, et la deconnexion, elle, passe
+ * par `oublierSession` a l'instant.
+ */
+const SESSIONS = new Map<string, { u: Utilisateur | null; le: number }>();
+const SESSION_MS = 20_000;
+export function oublierSession(jeton: string): void { SESSIONS.delete(jeton); }
+
 async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
   if (!jeton) return null;
+  const garde = SESSIONS.get(jeton);
+  if (garde && Date.now() - garde.le < SESSION_MS) return garde.u;
+  const u = await lireSession(jeton);
+  if (SESSIONS.size > 500) SESSIONS.clear();
+  SESSIONS.set(jeton, { u, le: Date.now() });
+  return u;
+}
+
+async function lireSession(jeton: string): Promise<Utilisateur | null> {
   const l = await q1<{ id: number; email: string; origine: number; expire_le: Date;
                        actif: number | null; nom: string | null; pseudo: string | null; image_id: number | null;
                        super_admin: boolean }>(`
@@ -209,6 +232,7 @@ export async function basculerCompte(jeton: string, utilisateur_id: number,
                       [utilisateur_id, compte_id]);
   if (!ok) return false;
   await q("UPDATE session SET compte_id = $2 WHERE jeton = $1", [jeton, compte_id]);
+  oublierSession(jeton);   // le compte actif change : la session gardee ne vaut plus
   return true;
 }
 
@@ -231,9 +255,14 @@ export function peutVoirBorne(u: Utilisateur, borne_id: number): boolean {
 }
 
 /** Cote page : le rendu a acces aux en-tetes de la requete. */
-export async function utilisateur(): Promise<Utilisateur | null> {
+/**
+ * UNE FOIS PAR REQUETE. La page, l'en-tete et la barre du bas demandent
+ * chacun qui est la : `cache` de React ne resout la session qu'une fois par
+ * rendu — trois requetes a la base au lieu de neuf, sur chaque page.
+ */
+export const utilisateur = cache(async (): Promise<Utilisateur | null> => {
   return parJeton(jetonDuBiscuit((await cookies()).get(BISCUIT)?.value));
-}
+});
 
 /**
  * Cote route : on lit l'en-tete Cookie de la requete elle-meme.

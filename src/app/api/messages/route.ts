@@ -2,6 +2,7 @@ import { utilisateurDe, versPage } from "@/lib/auth";
 import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
 import { deposer, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
+import { MESSAGES_PAR_LOT } from "@/lib/fil";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,12 @@ export async function GET(req: Request) {
   }
   const s = await salonDe(u, salon_id);
   if (!s) return Response.json({ erreur: "salon inconnu" }, { status: 404 });
+  // En remontant le fil : le lot d'avant `avant`, et rien d'autre — ni lecture
+  // a noter, ni reactions a rafraichir.
+  const avant = Number(url.searchParams.get("avant"));
+  if (Number.isInteger(avant) && avant > 0) {
+    return Response.json({ messages: await messagesDe(salon_id, { avant, limite: MESSAGES_PAR_LOT, moi: u.id }) });
+  }
   const vus = (url.searchParams.get("vus") ?? "").split(",").map(Number).filter(Number.isInteger);
   const [messages, reactions] = await Promise.all([
     messagesDe(salon_id, { depuis, limite: 200, moi: u.id }),
