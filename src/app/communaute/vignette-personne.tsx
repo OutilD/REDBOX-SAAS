@@ -11,7 +11,7 @@ export function Portrait({ image_id, pseudo, couleur, taille = 40 }:
   return (
     <span className="portrait-rond" style={{ width: taille, height: taille, background: couleur ?? undefined,
                                              fontSize: Math.round(taille * 0.34) }} aria-hidden>
-      {image_id ? <img src={`/api/image/${image_id}`} alt="" /> : initiales(pseudo)}
+      {image_id ? <img src={`/api/image/${image_id}`} alt=""  loading="lazy" decoding="async" /> : initiales(pseudo)}
     </span>
   );
 }

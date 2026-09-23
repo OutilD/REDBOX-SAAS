@@ -41,15 +41,19 @@ export default function HauteurEcran() {
     if (!vv) return;
     const racine = document.documentElement;
     let raf = 0;
-
+    // Poser une propriete sur la racine recalcule le style de TOUTE la page :
+    // on ne le fait que si la valeur a change — au telephone, le viewport
+    // « defile » a chaque image quand la barre d'adresse se replie.
+    const dernier = { bas: -1, haut: -1 };
     const mesurer = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const neutre = estChamp(document.activeElement) || vv.scale > 1.01;
         const bas = neutre ? 0 : Math.round(vv.height + vv.offsetTop - window.innerHeight);
         const haut = neutre ? 0 : Math.round(vv.offsetTop);
-        racine.style.setProperty("--ecart-bas", `${Math.max(0, bas)}px`);
-        racine.style.setProperty("--ecart-haut", `${Math.max(0, haut)}px`);
+        const b = Math.max(0, bas), h = Math.max(0, haut);
+        if (b !== dernier.bas) { dernier.bas = b; racine.style.setProperty("--ecart-bas", `${b}px`); }
+        if (h !== dernier.haut) { dernier.haut = h; racine.style.setProperty("--ecart-haut", `${h}px`); }
       });
     };
 

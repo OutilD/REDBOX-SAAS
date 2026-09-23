@@ -345,6 +345,21 @@ téléphone (sujet « Messages » des notifications).
 
 ## Communauté
 
+**Léger au téléphone.** Les badges se dessinent depuis des vignettes WebP
+(`public/badges/petit`, 96 px, 82 Ko pour toute la page au lieu de 2,2 Mo ;
+`moyen`, 192 px, pour les tailles intermédiaires) ; la pièce en 3D
+(`piece3d/apercus`, three.js, 500 Ko) ne se photographie que sur ordinateur,
+pour les badges obtenus, quand la tuile est à l’écran et le navigateur au
+repos (`badge.tsx`). Les animations sans fin des tuiles rares sont coupées sous
+980 px. Partout : plus de `backdrop-filter` sur les barres qui glissent
+au-dessus du contenu (en-tête, barre du fil, barres de Connect — elles sont
+opaques), plus de fond fixe, les longues listes en `content-visibility: auto`,
+les images en `loading="lazy"`, les écouteurs de défilement une fois par image
+et sans écriture inutile sur la racine (`hauteur-ecran.tsx`, `fil.tsx`), et un
+cache de navigation de trente secondes (`staleTimes` dans `next.config.ts`)
+pour que retour et aller-retour entre deux pages soient immédiats.
+`captures/perf.mjs` mesure octets, three.js et images longues au défilement.
+
 Au-delà du compte, les exploitants se parlent entre eux, et à nous.
 
 **Salons de la plateforme** (`salon.compte_id` nul) : `#annonces`, où seul

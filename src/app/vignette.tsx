@@ -51,7 +51,7 @@ export default function Vignette({
               onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}>
         {photo
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={photo} alt="" />
+          ? <img src={photo} alt=""  loading="lazy" decoding="async" />
           : choisi ? <span className="picto"><Picto cle={choisi} /></span>
                    : <span className="rien">＋</span>}
       </button>

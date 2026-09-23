@@ -184,7 +184,7 @@
     radial-gradient(55% 40% at 100% 0%, var(--halo-1), transparent 60%),
     radial-gradient(45% 35% at 0% 100%, var(--halo-2), transparent 60%),
     var(--fond);
-  background-attachment: fixed; color: var(--texte);
+  color: var(--texte);
 }
 /* Le logo RedBox est dessine pour du noir : sur clair, il a sa plaque. */
 :root[data-produit="connect"] .rail .logo img, :root[data-produit="connect"] .entete .logo-mobile img, :root[data-produit="connect"] .logo-entree {
@@ -217,7 +217,7 @@
 :root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] .glyphe { color: #fff; }
 :root[data-produit="connect"] .rail a.item.produit-porte[data-vers="gestion"] > svg:last-child { color: rgba(255,255,255,.85); margin-left: 0; }
 /* L'en-tete et la barre du bas : verre, un filet degrade. */
-:root[data-produit="connect"] .entete { background: var(--verre); border-bottom: 0; }
+:root[data-produit="connect"] .entete { background: var(--fond); border-bottom: 0; }
 :root[data-produit="connect"] .entete::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--degrade); }
 :root[data-produit="connect"] .entete .produit-puce {
   margin-left: 8px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0; text-transform: none;
@@ -228,7 +228,7 @@
 :root[data-produit="connect"] .entete .bulle[data-actif] { color: var(--accent-vif); }
 :root[data-produit="connect"] .compte-chip .jeton { background: var(--degrade); color: #fff; }
 :root[data-produit="connect"] .compte-chip .jeton.photo { border: 2px solid transparent; background: var(--degrade) border-box; }
-:root[data-produit="connect"] .nav-bas { background: var(--verre); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 0; box-shadow: 0 -8px 30px -18px rgba(0,0,0,.35); }
+:root[data-produit="connect"] .nav-bas { background: var(--fond); border-top: 0; box-shadow: 0 -8px 30px -18px rgba(0,0,0,.35); }
 :root[data-produit="connect"] .nav-bas::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--degrade); }
 :root[data-produit="connect"] .nav-bas a { color: var(--texte-3); }
 :root[data-produit="connect"] .nav-bas a .glyphe { padding: 5px 14px; border-radius: 999px; }
@@ -399,8 +399,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
   /* Meme decalage qu'en bas, par le haut : l'en-tete ne sort plus de l'ecran. */
   translate: 0 var(--ecart-haut, 0px);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
-  background: color-mix(in srgb, var(--fond) 90%, transparent);
-  backdrop-filter: saturate(150%) blur(10px);
+  /* OPAQUE, SANS FLOU : un flou d'arriere-plan sur une barre collee force le
+     navigateur a redessiner tout ce qui defile dessous, a chaque image — c'est
+     ce qui saccadait au telephone. */
+  background: var(--fond);
   border-bottom: 1px solid var(--bord);
 }
 .entete > .dedans {
@@ -2067,7 +2069,6 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
   display: flex; align-items: center; gap: 14px; justify-content: space-between;
   padding: 12px 16px; border: 1px solid var(--bord-fort); border-radius: var(--r-l);
   background: color-mix(in srgb, var(--fond) 94%, transparent);
-  backdrop-filter: saturate(150%) blur(10px);
 }
 @media (min-width: 980px) { .pied-recu { bottom: 14px; } }
 
@@ -4265,7 +4266,6 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
   display: flex; align-items: center; gap: 10px;
   padding: 10px 0; margin: 0 0 4px;
   background: color-mix(in srgb, var(--fond) 92%, transparent);
-  backdrop-filter: saturate(150%) blur(10px);
   border-bottom: 1px solid var(--bord);
 }
 .fil-salon .tete h1 { font-size: 18px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4907,7 +4907,7 @@ html.revelation-ouverte { overflow: hidden; }
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
 }
 .revelation[open] { display: grid; place-items: center; }
-.revelation::backdrop { background: rgba(4,4,6,.93); backdrop-filter: blur(6px); animation: rev-fondu .35s ease both; }
+.revelation::backdrop { background: rgba(4,4,6,.93); animation: rev-fondu .35s ease both; }
 .revelation.rare       { --lueur: #63a0ff; }
 .revelation.epique     { --lueur: #b58cff; }
 .revelation.legendaire { --lueur: #f7cd5c; }
@@ -6701,7 +6701,6 @@ details.aca-danger p { margin: 0 0 12px; color: var(--texte-2); font-size: 14px;
   position: sticky; top: var(--entete-h, 54px); z-index: 20;
   display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 6px 12px;
   background: color-mix(in srgb, var(--fond) 92%, transparent);
-  backdrop-filter: saturate(150%) blur(10px);
   border-bottom: 1px solid var(--bord);
 }
 .aca-barre-cours .ou { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
@@ -7099,7 +7098,6 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
 .filtre-stade, .carte-outils .bouton.icone {
   pointer-events: auto; cursor: pointer;
   background: color-mix(in srgb, var(--surface) 90%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--bord-fort); color: var(--texte);
   box-shadow: 0 2px 10px rgba(0, 0, 0, .22);
 }
@@ -7254,7 +7252,7 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
   padding: 0; border: 1px solid var(--bord-fort); border-radius: var(--r-l);
   background: var(--surface); color: var(--texte); box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
 }
-.parc-fenetre::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(2px); }
+.parc-fenetre::backdrop { background: rgba(0, 0, 0, .55); }
 .parc-fenetre[open] { animation: parc-entre .18s ease-out; }
 @keyframes parc-entre { from { opacity: 0; transform: translateY(8px) scale(.99); } }
 @media (prefers-reduced-motion: reduce) { .parc-fenetre[open] { animation: none; } }
@@ -7490,7 +7488,7 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
   border-radius: 999px; cursor: pointer; font-size: 12.5px; font-weight: 700;
   color: var(--texte); background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px); border: 1px solid var(--bord-fort);
+ border: 1px solid var(--bord-fort);
   box-shadow: 0 12px 30px -12px rgba(0, 0, 0, .6);
   animation: emoji-entre .18s ease-out;
 }
@@ -7765,7 +7763,6 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
 .ctr-produit .rayon {
   padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .03em;
   background: rgba(10, 10, 12, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .14);
-  backdrop-filter: blur(8px) saturate(1.2); -webkit-backdrop-filter: blur(8px) saturate(1.2);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ctr-produit .rayon.neuf { background: color-mix(in srgb, var(--vert) 85%, #000); border-color: transparent; }
@@ -7871,7 +7868,7 @@ a.ctr-gout-vignette:hover { transform: scale(1.06); box-shadow: 0 6px 16px -6px 
 a.ctr-gout-vignette:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
 .ctr-gout-vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ctr-gout-grand { border: 0; padding: 0; background: transparent; max-width: min(92vw, 720px); max-height: 92vh; }
-.ctr-gout-grand::backdrop { background: rgb(0 0 0 / .7); backdrop-filter: blur(6px); }
+.ctr-gout-grand::backdrop { background: rgb(0 0 0 / .7); }
 .ctr-gout-grand .cadre { position: relative; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--bord-fort); border-radius: 16px; overflow: hidden; box-shadow: 0 30px 80px rgb(0 0 0 / .6); }
 .ctr-gout-grand img { display: block; max-width: min(92vw, 720px); max-height: 78vh; width: auto; height: auto; object-fit: contain; background: var(--surface-3); }
 .ctr-gout-grand p { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 650; text-align: center; }
@@ -8019,3 +8016,24 @@ details.ctr-ligne-pliable .formulaire.supprimer .bouton { gap: 6px; }
 .chantier p { margin: 0 0 18px; color: var(--texte-2); line-height: 1.5; }
 .chantier .portes { display: grid; gap: 8px; }
 .chantier .adresse { margin-top: 14px; font-size: 12px; word-break: break-all; }
+
+/* ------------------------------------------------------------ rendu differe */
+/* Ce qui est loin sous le pli n'est pas dessine tant qu'on n'y arrive pas :
+   un fil de cent messages, un classement, une grille de produits coutent
+   alors ce qu'on en voit. La taille reservee garde la barre de defilement
+   stable. */
+.msg, .classement > li, .aca-module, .ctr-produit, .rubriques .rubrique, .lignes > .ligne {
+  content-visibility: auto;
+}
+.msg { contain-intrinsic-size: auto 64px; }
+.classement > li { contain-intrinsic-size: auto 72px; }
+.aca-module { contain-intrinsic-size: auto 210px; }
+.ctr-produit { contain-intrinsic-size: auto 320px; }
+.rubriques .rubrique, .lignes > .ligne { contain-intrinsic-size: auto 60px; }
+/* Le toucher repond au doigt, sans le delai du double-tap. */
+html { touch-action: manipulation; }
+/* Une animation qui tourne sans fin ne tourne pas hors ecran ni pour qui l'a
+   demande, et pas du tout au telephone : elle coute une image sur deux. */
+@media (max-width: 979px) {
+  .embleme-aura, .tuile-foil, .tuile.mythique[data-etat="debloque"] .tuile-cadre::before { animation: none !important; }
+}

@@ -180,14 +180,22 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   const combien = useRef(initial.length);
   useLayoutEffect(() => { window.scrollTo(0, document.documentElement.scrollHeight); }, []);
   useEffect(() => {
+    // Une mesure par image au plus, et un etat pose seulement s'il change :
+    // lire scrollHeight a chaque evenement de defilement forcait une mise en
+    // page par evenement, et le fil saccadait au telephone.
+    let raf = 0;
     const suivre = () => {
-      const reste = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
-      enBas.current = reste < 120;
-      poserLoin(reste > 480);
-      if (enBas.current) poserArrives(0);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const reste = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+        enBas.current = reste < 120;
+        poserLoin((l) => (reste > 480) === l ? l : reste > 480);
+        if (enBas.current) poserArrives((n) => (n === 0 ? n : 0));
+      });
     };
     window.addEventListener("scroll", suivre, { passive: true });
-    return () => window.removeEventListener("scroll", suivre);
+    return () => { window.removeEventListener("scroll", suivre); if (raf) cancelAnimationFrame(raf); };
   }, []);
   useEffect(() => {
     const neufs = messages.length - combien.current;
@@ -578,7 +586,7 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
         <div className="avatar" aria-hidden style={suite ? undefined : teinte}>
           {suite ? null
             : machine ? <img src="/icone-192.png" alt="" />
-            : m.image_id ? <img src={`/api/image/${m.image_id}`} alt="" />
+            : m.image_id ? <img src={`/api/image/${m.image_id}`} alt="" loading="lazy" decoding="async" />
             : initiales(nom)}
         </div>
       )}
