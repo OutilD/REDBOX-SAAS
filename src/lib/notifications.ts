@@ -66,6 +66,8 @@ export type Evenement =
   | { genre: "reset_paiement"; ok: boolean; detail: string | null; par: string | null }
   /** Elle vient de redemarrer : remise sous tension, ou application relancee. */
   | { genre: "demarrage";   quand: Date | string | null }
+  /** Son terminal de paiement ne repond plus (`ok` faux), ou repond a nouveau. */
+  | { genre: "paiement";    ok: boolean }
   /** Son application a change de version. */
   | { genre: "version";     avant: string; apres: string };
 
@@ -247,6 +249,20 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                corps: `Elle a redémarré${e.quand ? ` à ${heure(e.quand)}` : ""} : remise sous tension, ou application relancée. `
                     + "Si personne n’y a touché, vérifiez son alimentation.",
                url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
+    // LE TERMINAL NE REPOND PLUS ALORS QUE LA MACHINE PARLE. C'est la panne
+    // qu'on ne voit pas de loin : la borne est en ligne, ses ecrans tournent,
+    // et personne ne peut payer. La machine le dit a chaque releve
+    // (`sante.paiement`) ; on previent au passage de « pret » a « indisponible »,
+    // et l'on rassure au retour. Meme tag : « revenu » remplace « en panne ».
+    case "paiement":
+      return e.ok
+        ? { genre: "incidents", titre: `Terminal de paiement revenu · ${b}`,
+            corps: "Il répond à nouveau : les paiements passent.",
+            url: `/bornes/${borne.id}`, tag: `paiement-${borne.id}` }
+        : { genre: "incidents", titre: `Terminal de paiement en panne · ${b}`,
+            corps: "La RedBox est en ligne, mais son terminal ne répond plus : personne ne peut payer. "
+                 + "Depuis sa fiche, « Réinitialiser le terminal de paiement » ; s’il reste muet, coupez et rallumez la machine.",
+            url: `/bornes/${borne.id}`, tag: `paiement-${borne.id}` };
     case "service":
       return { genre: "incidents",
                titre: e.actif ? `Mise hors service · ${b}` : `Remise en service · ${b}`,

@@ -69,13 +69,13 @@ export async function POST(req: Request) {
     // Ce qu'elle etait AVANT ce releve — depuis quand elle se taisait, dans
     // quelle version elle tournait —, lu et remplace d'un meme geste, sous
     // verrou : deux releves simultanes ne peuvent pas annoncer deux retours.
-    const avant = (await c.query<{ vue_avant: Date | null; version_avant: string | null }>(
-      `WITH avant AS (SELECT id, vue_le, version FROM borne WHERE id = $3 FOR UPDATE)
+    const avant = (await c.query<{ vue_avant: Date | null; version_avant: string | null; sante_avant: { paiement?: unknown } | null }>(
+      `WITH avant AS (SELECT id, vue_le, version, sante FROM borne WHERE id = $3 FOR UPDATE)
        UPDATE borne b SET vue_le = now(), version = COALESCE($1, b.version),
               catalogue_version = COALESCE($4, b.catalogue_version), sante = $2,
               maintenance_vu = COALESCE($5, b.maintenance_vu)
          FROM avant WHERE b.id = avant.id
-       RETURNING avant.vue_le AS vue_avant, avant.version AS version_avant`,
+       RETURNING avant.vue_le AS vue_avant, avant.version AS version_avant, avant.sante AS sante_avant`,
       [r.version ?? null, r.sante ? JSON.stringify(r.sante) : null, borne.id,
        r.catalogue_version ?? null, r.maintenance_pin ?? null])).rows[0];
 
@@ -86,6 +86,12 @@ export async function POST(req: Request) {
       const absence = Date.now() - new Date(avant.vue_avant).getTime();
       if (absence >= SILENCE_MS) evenements.push({ genre: "retour", minutes: absence / 60_000 });
     }
+    // SON TERMINAL DE PAIEMENT vient de tomber, ou de revenir. La machine
+    // parle toujours — sans ce signal, la console la croirait en pleine forme.
+    const paiementDe = (s: unknown) => (s && typeof s === "object" ? (s as { paiement?: unknown }).paiement : undefined);
+    const paiementAvant = paiementDe(avant?.sante_avant), paiementApres = paiementDe(r.sante);
+    if (paiementAvant === "pret" && paiementApres === "indisponible") evenements.push({ genre: "paiement", ok: false });
+    if (paiementAvant === "indisponible" && paiementApres === "pret") evenements.push({ genre: "paiement", ok: true });
     // Son application a change : on l'ecrit dans son salon, sans faire vibrer.
     if (r.version && avant?.version_avant && r.version !== avant.version_avant) {
       evenements.push({ genre: "version", avant: avant.version_avant, apres: r.version });

@@ -150,6 +150,12 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
       pourquoi: "de l’argent encaissé sans distribution, à rendre ou à récupérer",
       vers: "/ventes", faire: "Traiter",
     },
+    tete.terminal_panne > 0 && {
+      cle: "paiement", niveau: "grave" as const, n: tete.terminal_panne,
+      quoi: `RedBox dont le terminal de paiement ne répond plus`,
+      pourquoi: "la machine est en ligne, mais personne ne peut payer : réinitialisez le terminal depuis sa fiche",
+      vers: "/bornes", faire: "Voir",
+    },
     urgences.length > 0 && {
       cle: "rupture", niveau: "grave" as const, n: urgences.length,
       quoi: `référence${urgences.length > 1 ? "s" : ""} en rupture sous trois jours`,

@@ -202,6 +202,8 @@ export type Entete = {
   bornes: number; en_ligne: number; jamais_appairees: number;
   ventes: number; ca: number; marge: number;
   litiges: number; canaux_vides: number;
+  /** En ligne, mais le terminal de paiement ne repond plus : personne ne peut payer. */
+  terminal_panne: number;
 };
 
 export async function entete(compte_id: number, p: Periode,
@@ -229,7 +231,10 @@ export async function entete(compte_id: number, p: Periode,
           AND ${SQL_A_REGARDER})                                                    AS litiges,
       (SELECT COUNT(*)::int FROM canal c JOIN borne b ON b.id = c.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
-          AND c.produit_id IS NOT NULL AND c.quantite = 0)                          AS canaux_vides
+          AND c.produit_id IS NOT NULL AND c.quantite = 0)                          AS canaux_vides,
+      (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
+         AND b.vue_le > now() - interval '15 minutes'
+         AND b.sante->>'paiement' = 'indisponible')                                  AS terminal_panne
   `, [compte_id, p.debut, p.fin, bornes]))!;
 }
 
