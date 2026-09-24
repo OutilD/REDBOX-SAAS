@@ -33,28 +33,31 @@ export default async function Reception({ searchParams }:
   if (!peutCharger(u)) redirect("/");
   const { e, ok, refs, p: cible, q: quantite } = await searchParams;
 
-  const produits = await q<Ligne>(`
-    SELECT p.id, p.sku, p.nom,
-           COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
-                      WHERE s.produit_id = p.id AND l.genre = 'reserve'), 0) AS reserve,
-           (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c
-      FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
-     WHERE p.compte_id = $1 AND p.actif
-     ORDER BY COALESCE(cat.ordre, 999), COALESCE(cat.nom, 'zzz'), p.nom`, [u.compte_id]);
+  // Deux lectures ensemble.
+  const [produits, [derniere]] = await Promise.all([
+    q<Ligne>(`
+      SELECT p.id, p.sku, p.nom,
+             COALESCE(cat.nom, 'sans catégorie') AS categorie,
+             COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
+                        WHERE s.produit_id = p.id AND l.genre = 'reserve'), 0) AS reserve,
+             (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c
+        FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
+       WHERE p.compte_id = $1 AND p.actif
+       ORDER BY COALESCE(cat.ordre, 999), COALESCE(cat.nom, 'zzz'), p.nom`, [u.compte_id]),
+    q<Recue>(`
+      SELECT MIN(m.id)::int AS id, m.reference, m.par, m.fait_le,
+             COUNT(*)::int AS lignes,
+             SUM(m.quantite)::int AS unites,
+             COALESCE(SUM(m.quantite * m.prix_achat_c), 0)::int AS total
+        FROM mouvement m
+       WHERE m.compte_id = $1 AND m.motif = 'reception' AND m.annule_le IS NULL
+       GROUP BY m.fait_le, m.reference, m.par
+       ORDER BY m.fait_le DESC LIMIT 1`, [u.compte_id]),
+  ]);
 
   // Une reception, c'est toutes les lignes saisies au meme instant sous la meme
   // reference : on les regroupe pour la relire comme un bon de livraison. Ici on
   // ne montre que la derniere — l'historique a sa page.
-  const [derniere] = await q<Recue>(`
-    SELECT MIN(m.id)::int AS id, m.reference, m.par, m.fait_le,
-           COUNT(*)::int AS lignes,
-           SUM(m.quantite)::int AS unites,
-           COALESCE(SUM(m.quantite * m.prix_achat_c), 0)::int AS total
-      FROM mouvement m
-     WHERE m.compte_id = $1 AND m.motif = 'reception' AND m.annule_le IS NULL
-     GROUP BY m.fait_le, m.reference, m.par
-     ORDER BY m.fait_le DESC LIMIT 1`, [u.compte_id]);
 
   const prerempli = cible && Number(cible) > 0
     ? { id: Number(cible), q: Math.max(1, Number(quantite) || 1) } : undefined;

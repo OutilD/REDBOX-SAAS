@@ -71,37 +71,40 @@ export default async function Detail({
   const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche, ordre,
           c: filtre } = await searchParams;
 
-  const b = await q1<Borne>(
-    `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
-            maintenance_pin, maintenance_pin_le, maintenance_vu,
-            hors_service, hors_service_texte, hors_service_le,
-            description, image_id
-       FROM borne WHERE id = $1 AND compte_id = $2`,
-    [id, u.compte_id]);
+  // HUIT LECTURES, ENSEMBLE. Aucune ne depend d'une autre — toutes partent de
+  // l'identifiant —, et chacune coute un aller-retour vers une base de l'autre
+  // cote de l'Atlantique : a la suite, la page mettait deux secondes a venir.
+  const [b, canaux, autonomies, resetTerminal, jour, soucis, enRoute, attendue] = await Promise.all([
+    q1<Borne>(
+      `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
+              maintenance_pin, maintenance_pin_le, maintenance_vu,
+              hors_service, hors_service_texte, hors_service_le,
+              description, image_id
+         FROM borne WHERE id = $1 AND compte_id = $2`,
+      [id, u.compte_id]),
+    canauxDe(id, u.compte_id),
+    // Combien de jours avant que chaque spire soit vide, a son propre rythme.
+    autonomieCanaux(u.compte_id, [id]),
+    dernierOrdre(id, "reset_paiement"),
+    q1<{ n: number; total: number }>(`
+      SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
+       WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= ${SQL_MINUIT}`, [id]),
+    q1<{ n: number }>(`
+      SELECT COUNT(*)::int n FROM vente v
+       WHERE v.borne_id = $1 AND ${SQL_A_REGARDER}`, [id]),
+    q<{ lane: number; nom: string; quantite: number; fait_le: Date; par: string | null }>(`
+      SELECT m.lane, p.nom, m.quantite, m.fait_le, m.par
+        FROM mouvement m JOIN produit p ON p.id = m.produit_id
+        JOIN borne b ON b.lieu_id = m.vers_lieu_id
+       WHERE b.id = $1 AND m.motif = 'transfert' AND m.confirme_le IS NULL AND m.annule_le IS NULL
+       ORDER BY m.fait_le`, [id]),
+    // Le catalogue que la machine detient est-il celui d'aujourd'hui ? On compare
+    // son empreinte a celle calculee maintenant. Sans ce reperage, une categorie
+    // renommee ou un prix change peut dormir des heures sans qu'on le sache.
+    empreinteDe(u.compte_id, id),
+  ]);
   if (!b) notFound();
-
-  const canaux = await canauxDe(id, u.compte_id);
-  // Combien de jours avant que chaque spire soit vide, a son propre rythme.
-  const jours = new Map((await autonomieCanaux(u.compte_id, [id])).map((a) => [a.lane, a.jours_restants]));
-  const resetTerminal = await dernierOrdre(id, "reset_paiement");
-  const jour = await q1<{ n: number; total: number }>(`
-    SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
-     WHERE borne_id = $1 AND statut = 'distribue' AND faite_le >= ${SQL_MINUIT}`, [id]);
-  const soucis = await q1<{ n: number }>(`
-    SELECT COUNT(*)::int n FROM vente v
-     WHERE v.borne_id = $1 AND ${SQL_A_REGARDER}`, [id]);
-
-  const enRoute = await q<{ lane: number; nom: string; quantite: number; fait_le: Date; par: string | null }>(`
-    SELECT m.lane, p.nom, m.quantite, m.fait_le, m.par
-      FROM mouvement m JOIN produit p ON p.id = m.produit_id
-      JOIN borne b ON b.lieu_id = m.vers_lieu_id
-     WHERE b.id = $1 AND m.motif = 'transfert' AND m.confirme_le IS NULL AND m.annule_le IS NULL
-     ORDER BY m.fait_le`, [id]);
-
-  // Le catalogue que la machine detient est-il celui d'aujourd'hui ? On compare
-  // son empreinte a celle calculee maintenant. Sans ce reperage, une categorie
-  // renommee ou un prix change peut dormir des heures sans qu'on le sache.
-  const attendue = await empreinteDe(u.compte_id, id);
+  const jours = new Map(autonomies.map((a) => [a.lane, a.jours_restants]));
   const aJour = b.catalogue_version === attendue;
 
   const vivante = enLigne(b.vue_le);

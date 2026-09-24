@@ -39,11 +39,14 @@ export default async function Charger({ params, searchParams }:
   if (!peutVoirBorne(u, id)) notFound();
   if (!peutCharger(u)) redirect(`/bornes/${id}`);
 
-  const borne = await q1<{ id: number; nom: string; adresse: string | null; vue_le: Date | null }>(
-    "SELECT id, nom, adresse, vue_le FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
+  // La machine et ses canaux, ensemble : la page de reassort s'ouvre devant la machine, on ne fait pas attendre.
+  const [borne, canaux] = await Promise.all([
+    q1<{ id: number; nom: string; adresse: string | null; vue_le: Date | null }>(
+      "SELECT id, nom, adresse, vue_le FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]),
+    canauxDe(id, u.compte_id),
+  ]);
   if (!borne) notFound();
 
-  const canaux = await canauxDe(id, u.compte_id);
   const aCharger = canaux.filter((c) => c.produit_id !== null);
   const libres = canaux.length - aCharger.length;
   const groupes = grouperCanaux(aCharger);

@@ -45,50 +45,53 @@ export default async function Produit({
   const id = Number((await params).id);
   const { sortie, motif: motifSorti } = await searchParams;
 
-  const p = await q1<Fiche>(`
-    SELECT p.id, p.sku, p.nom, COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           p.prix_vente_c, p.age_min,
-           (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c,
-           COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
-                      WHERE s.produit_id = p.id AND l.genre = 'reserve'), 0) AS reserve,
-           COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
-                      WHERE s.produit_id = p.id AND l.genre = 'borne'), 0)   AS bornes,
-           COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r
-                      WHERE r.produit_id = p.id), 0)                          AS en_route,
-           COALESCE((SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
-                      WHERE v.produit_id = p.id AND b.compte_id = p.compte_id
-                        AND v.statut = 'distribue'
-                        AND v.faite_le >= now() - interval '30 days'), 0)     AS vendus_30
-      FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
-     WHERE p.id = $1 AND p.compte_id = $2`, [id, u.compte_id]);
+  // TROIS LECTURES ENSEMBLE : aucune ne depend d'une autre, chacune coute un aller-retour.
+  const [p, emplacements, mouvements] = await Promise.all([
+    q1<Fiche>(`
+      SELECT p.id, p.sku, p.nom, COALESCE(cat.nom, 'sans catégorie') AS categorie,
+             p.prix_vente_c, p.age_min,
+             (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c,
+             COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
+                        WHERE s.produit_id = p.id AND l.genre = 'reserve'), 0) AS reserve,
+             COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s JOIN lieu l ON l.id = s.lieu_id
+                        WHERE s.produit_id = p.id AND l.genre = 'borne'), 0)   AS bornes,
+             COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r
+                        WHERE r.produit_id = p.id), 0)                          AS en_route,
+             COALESCE((SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
+                        WHERE v.produit_id = p.id AND b.compte_id = p.compte_id
+                          AND v.statut = 'distribue'
+                          AND v.faite_le >= now() - interval '30 days'), 0)     AS vendus_30
+        FROM produit p LEFT JOIN categorie cat ON cat.id = p.categorie_id
+       WHERE p.id = $1 AND p.compte_id = $2`, [id, u.compte_id]),
+    q<Emplacement>(`
+      SELECT s.lieu_id, b.id AS borne_id, l.nom, l.genre, s.quantite::int,
+             -- La notation de la machine : rangee puis colonne sur deux chiffres,
+             -- comme sur l'etiquette du plateau et dans CSM.
+             (SELECT string_agg(c.rangee || lpad(c.colonne::text, 2, '0')
+                                || ' (' || c.quantite || ')', ', ' ORDER BY c.lane)
+                FROM canal c WHERE c.borne_id = b.id AND c.produit_id = $1) AS canaux
+        FROM v_stock s
+        JOIN lieu l ON l.id = s.lieu_id
+        LEFT JOIN borne b ON b.lieu_id = l.id
+       WHERE s.produit_id = $1 AND l.compte_id = $2 AND s.quantite <> 0
+       ORDER BY (l.genre = 'reserve') DESC, s.quantite DESC`, [id, u.compte_id]),
+    q<Mouvement>(`
+      SELECT m.id, m.motif, m.quantite, m.lane, m.reference, m.par, m.fait_le, m.confirme_le,
+             ld.nom AS de, lv.nom AS vers,
+             CASE WHEN m.vers_lieu_id IS NOT NULL AND m.de_lieu_id IS NULL THEN 1
+                  WHEN m.de_lieu_id IS NOT NULL AND m.vers_lieu_id IS NULL THEN -1
+                  ELSE 0 END AS sens
+        FROM mouvement m
+        LEFT JOIN lieu ld ON ld.id = m.de_lieu_id
+        LEFT JOIN lieu lv ON lv.id = m.vers_lieu_id
+       WHERE m.produit_id = $1 AND m.compte_id = $2 AND m.annule_le IS NULL
+       ORDER BY m.fait_le DESC LIMIT 30`, [id, u.compte_id]),
+  ]);
   if (!p) notFound();
 
   // Ou se trouve la marchandise, lieu par lieu — avec les canaux quand c'est une
   // borne : « 12 en machine » ne dit pas dans quel tiroir aller les chercher.
-  const emplacements = await q<Emplacement>(`
-    SELECT s.lieu_id, b.id AS borne_id, l.nom, l.genre, s.quantite::int,
-           -- La notation de la machine : rangee puis colonne sur deux chiffres,
-           -- comme sur l'etiquette du plateau et dans CSM.
-           (SELECT string_agg(c.rangee || lpad(c.colonne::text, 2, '0')
-                              || ' (' || c.quantite || ')', ', ' ORDER BY c.lane)
-              FROM canal c WHERE c.borne_id = b.id AND c.produit_id = $1) AS canaux
-      FROM v_stock s
-      JOIN lieu l ON l.id = s.lieu_id
-      LEFT JOIN borne b ON b.lieu_id = l.id
-     WHERE s.produit_id = $1 AND l.compte_id = $2 AND s.quantite <> 0
-     ORDER BY (l.genre = 'reserve') DESC, s.quantite DESC`, [id, u.compte_id]);
 
-  const mouvements = await q<Mouvement>(`
-    SELECT m.id, m.motif, m.quantite, m.lane, m.reference, m.par, m.fait_le, m.confirme_le,
-           ld.nom AS de, lv.nom AS vers,
-           CASE WHEN m.vers_lieu_id IS NOT NULL AND m.de_lieu_id IS NULL THEN 1
-                WHEN m.de_lieu_id IS NOT NULL AND m.vers_lieu_id IS NULL THEN -1
-                ELSE 0 END AS sens
-      FROM mouvement m
-      LEFT JOIN lieu ld ON ld.id = m.de_lieu_id
-      LEFT JOIN lieu lv ON lv.id = m.vers_lieu_id
-     WHERE m.produit_id = $1 AND m.compte_id = $2 AND m.annule_le IS NULL
-     ORDER BY m.fait_le DESC LIMIT 30`, [id, u.compte_id]);
 
   const total = p.reserve + p.bornes + p.en_route;
   const parJour = p.vendus_30 / 30;

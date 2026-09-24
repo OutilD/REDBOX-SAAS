@@ -23,21 +23,24 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
   // quelqu'un peut servir deux exploitants, et n'est de cette equipe-ci que par
   // sa ligne dans `membre`. On ramene au passage les bornes auxquelles il est
   // restreint — vide voulant dire tout le parc.
-  const membres = await q<Membre>(`
-    SELECT x.id, x.email, x.pseudo, x.nom, m.role, m.cree_le,
-           (SELECT string_agg(b.nom, ', ' ORDER BY b.nom)
-              FROM acces_borne a JOIN borne b ON b.id = a.borne_id
-             WHERE a.utilisateur_id = x.id AND b.compte_id = m.compte_id) AS bornes
-      FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id
-     WHERE m.compte_id = $1
-     ORDER BY m.cree_le`, [u.compte_id]);
-  const invites = await q<Invite>(`
-    SELECT i.id, i.email, i.role, i.code, b.nom AS borne
-      FROM invitation i LEFT JOIN borne b ON b.id = i.borne_id
-     WHERE i.compte_id = $1 AND i.utilisee_le IS NULL
-     ORDER BY i.id DESC`, [u.compte_id]);
-  const machines = await q<Machine>(
-    "SELECT id, nom FROM borne WHERE compte_id = $1 ORDER BY nom", [u.compte_id]);
+  // Trois lectures ensemble, pas a la suite.
+  const [membres, invites, machines] = await Promise.all([
+    q<Membre>(`
+      SELECT x.id, x.email, x.pseudo, x.nom, m.role, m.cree_le,
+             (SELECT string_agg(b.nom, ', ' ORDER BY b.nom)
+                FROM acces_borne a JOIN borne b ON b.id = a.borne_id
+               WHERE a.utilisateur_id = x.id AND b.compte_id = m.compte_id) AS bornes
+        FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id
+       WHERE m.compte_id = $1
+       ORDER BY m.cree_le`, [u.compte_id]),
+    q<Invite>(`
+      SELECT i.id, i.email, i.role, i.code, b.nom AS borne
+        FROM invitation i LEFT JOIN borne b ON b.id = i.borne_id
+       WHERE i.compte_id = $1 AND i.utilisee_le IS NULL
+       ORDER BY i.id DESC`, [u.compte_id]),
+    q<Machine>(
+      "SELECT id, nom FROM borne WHERE compte_id = $1 ORDER BY nom", [u.compte_id]),
+  ]);
 
   // L'ADRESSE COMPLETE, PAS SEULEMENT LE CODE. C'est ce qu'on envoie vraiment a
   // quelqu'un : un lien qu'il ouvre, avec le code deja dedans. Un code seul

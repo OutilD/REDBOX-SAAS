@@ -327,13 +327,16 @@ export async function Entete({ page, borne, fenetre, periode }:
     : (periode?.cle ?? fenetre) ? { f: (periode?.cle ?? fenetre)! } : {};
   // Ce qu'on n'a pas lu dans les salons : la pastille sur la bulle de l'en-tete
   // et sur l'entree du rail. Une lecture, comme les autres pastilles.
-  const nonLusN = u ? await nonLus(u).catch(() => 0) : 0;
-  const machines = u && filtrable
-    ? await q<{ id: number; nom: string }>(
-        `SELECT id, nom FROM borne
-          WHERE compte_id = $1 AND ($2::bigint[] IS NULL OR id = ANY($2))
-          ORDER BY nom`, [u.compte_id, u.bornes])
-    : [];
+  // Les deux lectures de l'en-tete partent ensemble : elles sont sur chaque page.
+  const [nonLusN, machines] = await Promise.all([
+    u ? nonLus(u).catch(() => 0) : 0,
+    u && filtrable
+      ? q<{ id: number; nom: string }>(
+          `SELECT id, nom FROM borne
+            WHERE compte_id = $1 AND ($2::bigint[] IS NULL OR id = ANY($2))
+            ORDER BY nom`, [u.compte_id, u.bornes])
+      : [],
+  ]);
 
   return (
     <>

@@ -28,7 +28,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       "content-length": String(f.octets.length),
       "content-disposition":
         `${lisible && !force ? "inline" : "attachment"}; filename="${ascii || "fichier"}"; filename*=UTF-8''${encodeURIComponent(nom)}`,
-      "cache-control": "private, max-age=300",
+      // Un fichier ne change jamais : le remplacer en cree un autre, sous un
+      // autre identifiant. Une fois telecharge, il l'est pour toujours.
+      "cache-control": "private, max-age=31536000, immutable",
       "x-content-type-options": "nosniff",
     },
   });
