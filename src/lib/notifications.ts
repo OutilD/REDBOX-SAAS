@@ -2,7 +2,7 @@ import webpush from "web-push";
 import { codeCanal, euros, FUSEAU, q, q1 } from "@/db";
 import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
-import { NOM_RANG, evaluerBadges, rangDe } from "./communaute";
+import { NOM_RANG, evaluerBadges, rangDe, SQL_REDBOX_ATTRIBUEE } from "./communaute";
 import { hotes, type Produit } from "./produits";
 
 /**
@@ -392,7 +392,7 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
          AND ((a.utilisateur_id = $1
                AND EXISTS (SELECT 1 FROM membre mb JOIN borne b ON b.compte_id = mb.compte_id
                             WHERE mb.utilisateur_id = a.utilisateur_id
-                              AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))
+                              AND ${SQL_REDBOX_ATTRIBUEE}))
               OR EXISTS (SELECT 1 FROM membre mb JOIN compte k ON k.id = mb.compte_id
                           WHERE mb.utilisateur_id = a.utilisateur_id AND k.editeur))`,
       [salon.utilisateur_id, m.utilisateur_id]);
@@ -403,7 +403,7 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
         JOIN compte k ON k.id = mb.compte_id
        WHERE a.annonces AND a.utilisateur_id <> $1
          AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
-                                     AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`,
+                                     AND ${SQL_REDBOX_ATTRIBUEE}))`,
       [m.utilisateur_id]);
   } else {
     // La communaute : « tous », ou les comptes du groupe — proprietaires
@@ -415,7 +415,7 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
        WHERE a.messages AND a.utilisateur_id <> $2
          AND ($1 = 'tous' OR k.editeur OR
               ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
-                                                  AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`,
+                                                  AND ${SQL_REDBOX_ATTRIBUEE}))`,
       [salon.groupe ?? "tous", m.utilisateur_id]);
   }
   cibles = versLaBonneApplication(cibles, "connect");

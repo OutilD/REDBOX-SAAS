@@ -675,9 +675,18 @@ export async function niveauxDe(ids: number[]): Promise<Map<number, Signature>> 
 }
 
 /** Le groupe de communaute d'un compte : proprietaire d'au moins une vraie borne, ou prospect. */
+/**
+ * UNE VRAIE REDBOX, A UN COMPTE — appairee ou pas encore. Une machine que le
+ * super-admin a attribuee (commandee, bientot installee) fait deja de son
+ * compte un redboxer : #redboxers, #developpeurs, les annonces et le SAV
+ * s'ouvrent des l'attribution, pas le jour de l'appairage. Les bornes de
+ * demonstration (jeton `demo_`) ne comptent jamais. Alias `b` sur `borne`.
+ */
+export const SQL_REDBOX_ATTRIBUEE = "(b.jeton IS NULL OR b.jeton NOT LIKE 'demo\\_%')";
+
 export async function groupeDuCompte(compte_id: number): Promise<"proprietaires" | "prospects"> {
   const r = await q1<{ n: number }>(`
-    SELECT COUNT(*)::int AS n FROM borne
-     WHERE compte_id = $1 AND jeton IS NOT NULL AND jeton NOT LIKE 'demo\\_%'`, [compte_id]);
+    SELECT COUNT(*)::int AS n FROM borne b
+     WHERE b.compte_id = $1 AND ${SQL_REDBOX_ATTRIBUEE}`, [compte_id]);
   return (r?.n ?? 0) > 0 ? "proprietaires" : "prospects";
 }

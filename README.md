@@ -357,6 +357,16 @@ téléphone (sujet « Messages » des notifications).
 
 ## Communauté
 
+**Qui est redboxer** : un compte auquel le super-admin a attribué au moins une
+vraie RedBox — commandée, bientôt installée ou installée, appairée ou pas
+encore (`SQL_REDBOX_ATTRIBUEE` dans `lib/communaute.ts`, alias `b`). Les
+bornes de démonstration ne comptent jamais. Une seule condition, lue par
+`groupeDuCompte` (salons, académie, SAV), par le comptage des lecteurs, par le
+ciblage des notifications d’annonces et de communauté, et par la page
+d’arrivée à la connexion. Avant, il fallait une machine appairée : un client
+dont la machine était commandée restait devant un cadenas jusqu’au jour de
+l’installation.
+
 **Léger au téléphone.** Les badges se dessinent depuis des vignettes WebP
 (`public/badges/petit`, 96 px, 82 Ko pour toute la page au lieu de 2,2 Mo ;
 `moyen`, 192 px, pour les tailles intermédiaires) ; la pièce en 3D

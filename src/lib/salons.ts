@@ -1,7 +1,7 @@
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
 import { MESSAGES_PAR_LOT } from "./fil";
-import { groupeDuCompte, niveauxDe, type BadgeMontre } from "./communaute";
+import { groupeDuCompte, niveauxDe, type BadgeMontre, SQL_REDBOX_ATTRIBUEE } from "./communaute";
 import { EMOJIS, ESTAMPILLE, type Reaction } from "./reactions";
 
 /**
@@ -612,7 +612,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon,
         FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
        WHERE x.email NOT LIKE '%@redbox.invalid'
          AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
-                                     AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))`);
+                                     AND ${SQL_REDBOX_ATTRIBUEE}))`);
     total = n?.n ?? 0;
     gens = await q<Lecteur>(`
       SELECT ${COLONNES_LECTEUR}, false AS choisi FROM utilisateur x JOIN compte k ON k.id = x.compte_id
@@ -627,7 +627,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon,
          WHERE x.email NOT LIKE '%@redbox.invalid'
            AND ($1 = 'tous' OR k.editeur OR
                 ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
-                                                   AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%')))
+                                                   AND ${SQL_REDBOX_ATTRIBUEE})))
       SELECT x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) AS pseudo,
              x.image_id, x.couleur, x.editeur, false AS choisi, COUNT(*) OVER ()::int AS total
         FROM lecteurs x ORDER BY x.editeur DESC, pseudo LIMIT ${LIMITE}`, [groupe]);

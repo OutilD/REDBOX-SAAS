@@ -2,6 +2,8 @@ import { q1 } from "@/db";
 import { concorde, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
 import { PRODUITS, adresse, hoteDes, produitDeLHote } from "@/lib/produits";
 
+import { SQL_REDBOX_ATTRIBUEE } from "@/lib/communaute";
+
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
       SELECT 1 FROM membre m JOIN compte k ON k.id = m.compte_id
        WHERE m.utilisateur_id = $1
          AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
-                                     AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'))) AS oui`, [l.id]);
+                                     AND ${SQL_REDBOX_ATTRIBUEE}))) AS oui`, [l.id]);
   // Deux hotes : on reste dans l'application ou l'on s'est connecte — qui ouvre
   // Connect veut Connect, meme avec dix machines. Seul un prospect qui se
   // connecte cote Gestion est conduit a Connect.
