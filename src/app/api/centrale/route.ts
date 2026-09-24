@@ -1,7 +1,8 @@
+import { revalidateTag } from "next/cache";
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { NOM_MAX, TEXTE_MAX, champ, deplacer, goutsDe, idsDe, lien, ordonner, peutEditerCentrale, rangSuivant,
-         type GoutSaisi } from "@/lib/centrale";
+         type GoutSaisi, ETIQUETTE_CENTRALE } from "@/lib/centrale";
 import { rangerImage } from "@/lib/image";
 import { centimes } from "@/lib/prix";
 
@@ -16,6 +17,13 @@ export const dynamic = "force-dynamic";
  * super-admins.
  */
 export async function POST(req: Request) {
+  const r = await traiter(req);
+  // Toute ecriture vide le cache de la centrale : la page suivante relit la base.
+  revalidateTag(ETIQUETTE_CENTRALE);
+  return r;
+}
+
+async function traiter(req: Request): Promise<Response> {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
   if (!peutEditerCentrale(u)) return versPage(req, "/centrale");

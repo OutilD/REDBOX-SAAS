@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { q, q1, transaction, type PgClient } from "@/db";
 import type { Utilisateur } from "./auth";
 import { GOUTS_MAX, GOUT_MAX, type Etiquette, type Gout } from "./gouts";
@@ -82,7 +83,7 @@ function typer(p: Produit): Produit {
 }
 
 /** Les produits qui repondent au filtre, dans l'ordre demande. */
-export async function produits(f: Filtre = {}): Promise<Produit[]> {
+async function lire_produits(f: Filtre = {}): Promise<Produit[]> {
   const ordre = f.tri && ORDRES[f.tri] ? ORDRES[f.tri] : "p.disponible DESC, f.ordre, p.ordre, p.id";
   const motif = f.q ? `%${f.q.trim().replace(/[%_\\]/g, (m) => `\\${m}`)}%` : null;
   const lignes = await q<Produit>(`
@@ -96,14 +97,14 @@ export async function produits(f: Filtre = {}): Promise<Produit[]> {
   return lignes.map(typer);
 }
 
-export async function produitDe(id: number): Promise<Produit | null> {
+async function lire_produitDe(id: number): Promise<Produit | null> {
   if (!Number.isInteger(id)) return null;
   const p = await q1<Produit>(`SELECT ${COLONNES} ${JOINTURES} WHERE p.id = $1`, [id]);
   return p ? typer(p) : null;
 }
 
 /** D'autres produits du meme rayon, les disponibles d'abord. */
-export async function similaires(p: Produit, n = 4): Promise<Produit[]> {
+async function lire_similaires(p: Produit, n = 4): Promise<Produit[]> {
   const lignes = await q<Produit>(`
     SELECT ${COLONNES} ${JOINTURES}
      WHERE p.id <> $1 AND (p.categorie_id = $2 OR ($2::bigint IS NULL AND p.fournisseur_id = $3))
@@ -112,20 +113,40 @@ export async function similaires(p: Produit, n = 4): Promise<Produit[]> {
   return lignes.map(typer);
 }
 
-export async function categories(): Promise<Categorie[]> {
+async function lire_categories(): Promise<Categorie[]> {
   return (await q<Categorie>(`
     SELECT c.id, c.nom, c.ordre,
            (SELECT COUNT(*)::int FROM centrale_produit p WHERE p.categorie_id = c.id) AS produits
       FROM centrale_categorie c ORDER BY c.ordre, c.id`)).map((c) => ({ ...c, id: Number(c.id) }));
 }
 
-export async function fournisseurs(): Promise<Fournisseur[]> {
+async function lire_fournisseurs(): Promise<Fournisseur[]> {
   return (await q<Fournisseur>(`
     SELECT f.id, f.nom, f.url, f.texte, f.image_id, f.ordre,
            (SELECT COUNT(*)::int FROM centrale_produit p WHERE p.fournisseur_id = f.id) AS produits
       FROM centrale_fournisseur f ORDER BY f.ordre, f.id`))
     .map((f) => ({ ...f, id: Number(f.id), image_id: f.image_id === null ? null : Number(f.image_id) }));
 }
+
+/* ------------------------------------------------------------------- le cache
+ *
+ * LA CENTRALE SE LIT BEAUCOUP ET S'ECRIT PEU : chaque redboxer la parcourt,
+ * seuls les super-admins la modifient. Ses lectures sont donc gardees en cache,
+ * sous l'etiquette « centrale », que la route d'ecriture vide apres chaque
+ * modification (voir /api/centrale). Rien de ce qui est enregistre ne reste
+ * invisible ; le reste du temps, la page ne va plus jusqu'a la base.
+ *
+ * L'heure de garde n'est qu'un filet, pour le cas ou une ecriture passerait
+ * par un autre chemin (un script, la base directement).
+ */
+export const ETIQUETTE_CENTRALE = "centrale";
+const garder = { tags: [ETIQUETTE_CENTRALE], revalidate: 3600 };
+
+export const produits = unstable_cache(lire_produits, ["centrale-produits"], garder);
+export const produitDe = unstable_cache(lire_produitDe, ["centrale-produit"], garder);
+export const similaires = unstable_cache(lire_similaires, ["centrale-similaires"], garder);
+export const categories = unstable_cache(lire_categories, ["centrale-categories"], garder);
+export const fournisseurs = unstable_cache(lire_fournisseurs, ["centrale-fournisseurs"], garder);
 
 /* ----------------------------------------------------------------- affichage */
 
