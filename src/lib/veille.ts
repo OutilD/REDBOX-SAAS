@@ -1,6 +1,8 @@
 import { transaction } from "@/db";
 import { signaler } from "./notifications";
 import { apres } from "./apres";
+import { q } from "@/db";
+import { SEUIL_J, urgencesParBorne } from "./autonomie";
 
 /**
  * LA RONDE : QUELLE MACHINE S'EST TUE ?
@@ -50,7 +52,38 @@ export async function veiller(): Promise<number> {
                    [{ genre: "silence", depuis: b.vue_le }])
       .catch((e) => console.error("ronde :", e instanceof Error ? e.message : e));
   }
+  await annoncerRuptures().catch((e) => console.error("ruptures :", e instanceof Error ? e.message : e));
   return tues.length;
+}
+
+/**
+ * CE QUI VA MANQUER. Pour chaque vraie machine du parc, les spires qui seront
+ * vides sous SEUIL_J jours au rythme ou elles vendent ; annonce au plus une
+ * fois par jour et par machine (rupture_annoncee_le), et seulement s'il y a
+ * quelque chose a dire. Une machine deja vide est l'affaire des alertes
+ * « epuise » ; ici on parle AVANT.
+ */
+async function annoncerRuptures(): Promise<number> {
+  const bornes = await q<{ id: number; nom: string; compte_id: number }>(`
+    SELECT id, nom, compte_id FROM borne
+     WHERE compte_id IS NOT NULL AND jeton IS NOT NULL AND jeton NOT LIKE 'demo\\_%'
+       AND vue_le > now() - interval '2 days'
+       AND (rupture_annoncee_le IS NULL OR rupture_annoncee_le < now() - interval '23 hours')`);
+  let annoncees = 0;
+  const parCompte = new Map<number, typeof bornes>();
+  for (const b of bornes) parCompte.set(Number(b.compte_id), [...(parCompte.get(Number(b.compte_id)) ?? []), b]);
+  for (const [compte_id, liste] of parCompte) {
+    const urgences = await urgencesParBorne(compte_id, liste.map((b) => Number(b.id)));
+    for (const b of liste) {
+      const u = urgences.get(Number(b.id));
+      if (!u || u.pressees === 0) continue;
+      await q("UPDATE borne SET rupture_annoncee_le = now() WHERE id = $1", [b.id]);
+      await signaler(compte_id, { id: Number(b.id), nom: b.nom },
+                     [{ genre: "rupture", canaux: u.detail.filter((d) => d.jours <= SEUIL_J) }]);
+      annoncees++;
+    }
+  }
+  return annoncees;
 }
 
 /**

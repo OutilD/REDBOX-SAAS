@@ -68,6 +68,8 @@ export type Evenement =
   | { genre: "demarrage";   quand: Date | string | null }
   /** Son terminal de paiement ne repond plus (`ok` faux), ou repond a nouveau. */
   | { genre: "paiement";    ok: boolean }
+  /** Des spires vont manquer sous quelques jours, au rythme ou elles vendent. */
+  | { genre: "rupture";     canaux: { lane: number; nom: string; jours: number; quantite: number }[] }
   /** Son application a change de version. */
   | { genre: "version";     avant: string; apres: string };
 
@@ -249,6 +251,20 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                corps: `Elle a redémarré${e.quand ? ` à ${heure(e.quand)}` : ""} : remise sous tension, ou application relancée. `
                     + "Si personne n’y a touché, vérifiez son alimentation.",
                url: `/bornes/${borne.id}`, tag: `ligne-${borne.id}` };
+    // ELLE VA MANQUER : au rythme des deux dernieres semaines, ces spires
+    // seront vides sous trois jours. C'est la ronde qui le dit, une fois par
+    // jour, le temps de passer avant la rupture plutot qu'apres.
+    case "rupture": {
+      if (e.canaux.length === 0) return null;
+      const dit = (c: typeof e.canaux[number]) =>
+        `${c.nom} (spire ${c.lane}) ${c.jours <= 0 ? "aujourd’hui" : `dans ${c.jours} j`}`;
+      const liste = e.canaux.slice(0, 3).map(dit).join(", ");
+      return { genre: "vides",
+               titre: e.canaux.length === 1 ? `Bientôt en rupture · ${b}` : `${e.canaux.length} spires bientôt vides · ${b}`,
+               corps: `${liste}${e.canaux.length > 3 ? ` et ${e.canaux.length - 3} autre${e.canaux.length > 4 ? "s" : ""}` : ""}. `
+                    + "Au rythme des deux dernières semaines. Prévoyez le réassort.",
+               url: `/bornes/${borne.id}/charger`, tag: `rupture-${borne.id}` };
+    }
     // LE TERMINAL NE REPOND PLUS ALORS QUE LA MACHINE PARLE. C'est la panne
     // qu'on ne voit pas de loin : la borne est en ligne, ses ecrans tournent,
     // et personne ne peut payer. La machine le dit a chaque releve

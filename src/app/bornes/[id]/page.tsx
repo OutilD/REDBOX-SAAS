@@ -4,6 +4,7 @@ import { Entete, NavBasse } from "../../chrome";
 import { q, q1, euros, depuis, enLigne, codeCanal, SQL_MINUIT } from "@/db";
 import { estSuperAdmin, peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
 import { canauxDe, type LigneCanal } from "@/lib/stock";
+import { SEUIL_J, autonomieCanaux, joursTexte } from "@/lib/autonomie";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
 import { ORDRE_VALIDITE_MIN, VERSION_ORDRES, dernierOrdre, enAttente, saitRecevoirDesOrdres } from "@/lib/ordres";
@@ -80,6 +81,8 @@ export default async function Detail({
   if (!b) notFound();
 
   const canaux = await canauxDe(id, u.compte_id);
+  // Combien de jours avant que chaque spire soit vide, a son propre rythme.
+  const jours = new Map((await autonomieCanaux(u.compte_id, [id])).map((a) => [a.lane, a.jours_restants]));
   const resetTerminal = await dernierOrdre(id, "reset_paiement");
   const jour = await q1<{ n: number; total: number }>(`
     SELECT COUNT(*)::int n, COALESCE(SUM(prix_c),0)::int total FROM vente
@@ -465,7 +468,7 @@ export default async function Detail({
               </div>
               <div className="lignes">
                 {liste.map((c) => (
-                  <Canal key={c.canal_id} c={c} borne={id} peut={peutCharger(u)} />
+                  <Canal key={c.canal_id} c={c} borne={id} peut={peutCharger(u)} jours={jours.get(c.lane) ?? null} />
                 ))}
               </div>
             </div>
@@ -702,7 +705,7 @@ function Avis({ titre, children }: { titre: string; children: React.ReactNode })
  * laisse l'exploitant devant un chiffre qu'il sait faux et qu'il ne peut
  * qu'attendre.
  */
-function Canal({ c, borne, peut }: { c: LigneCanal; borne: number; peut: boolean }) {
+function Canal({ c, borne, peut, jours }: { c: LigneCanal; borne: number; peut: boolean; jours: number | null }) {
   const part = c.capacite ? Math.round((c.quantite / c.capacite) * 100) : 0;
   const etat = c.produit_id === null ? "libre"
              : c.quantite === 0 ? "vide"
@@ -734,6 +737,15 @@ function Canal({ c, borne, peut }: { c: LigneCanal; borne: number; peut: boolean
             </b>
           ) : null}
           {c.releve_le ? ` · relevé ${depuis(c.releve_le)}` : ""}
+          {/* AU RYTHME OU ELLE VEND : ce qu'il reste, en jours. Rouge sous le
+              seuil de la tournee. Une spire qui n'a rien vendu en deux
+              semaines ne dit rien — on ne devine pas. */}
+          {jours !== null && c.quantite > 0 ? (
+            <b className={`autonomie${jours <= SEUIL_J ? " presse" : ""}`}
+               title={`Au rythme des 14 derniers jours, cette spire sera vide ${jours <= 0 ? "aujourd’hui" : `dans ${jours} jour${jours > 1 ? "s" : ""}`}`}>
+              {" · "}{joursTexte(jours)}
+            </b>
+          ) : null}
           {mot ? <b className="mot-etat">{mot}</b> : null}
         </div>
         {c.produit_id !== null ? (

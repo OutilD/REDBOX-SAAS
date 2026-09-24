@@ -5,6 +5,7 @@ import { q, q1, depuis, enLigne } from "@/db";
 import { utilisateur } from "@/lib/auth";
 import { Repli } from "../repli";
 import { IcoBorne } from "../icones";
+import { SEUIL_J, joursTexte, urgencesParBorne } from "@/lib/autonomie";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,12 @@ export default async function Reassort({
        AND ($2::bigint[] IS NULL OR b.id = ANY($2))
      GROUP BY b.id ORDER BY vides DESC, sous_seuil DESC, b.nom`, [u.compte_id, u.bornes]);
 
-  const servables = bornes.filter((b) => b.canaux > 0);
+  // Ce qui va manquer, au rythme ou chaque spire vend : c'est ce qui decide
+  // de la tournee, avant meme ce qui est deja vide.
+  const urgences = await urgencesParBorne(u.compte_id, u.bornes);
+  const presse = (id: number) => urgences.get(Number(id))?.pressees ?? 0;
+  const servables = bornes.filter((b) => b.canaux > 0)
+    .sort((a, b) => presse(b.id) - presse(a.id) || b.vides - a.vides || b.sous_seuil - a.sous_seuil || a.nom.localeCompare(b.nom));
 
   return (
     <>
@@ -90,9 +96,10 @@ export default async function Reassort({
               {servables.map((b) => {
                 // Cible par un produit : ce sont ses bornes qui decident, pas
                 // l'urgence generale — on est venu pour lui.
+                const ur = urgences.get(Number(b.id));
                 const urgent = cible
                   ? visees.includes(Number(b.id))
-                  : b.vides > 0 || b.sous_seuil > 0;
+                  : b.vides > 0 || b.sous_seuil > 0 || (ur?.pressees ?? 0) > 0;
                 return (
                   <label className="ligne choix" key={b.id} htmlFor={`b_${b.id}`}>
                     <input type="checkbox" id={`b_${b.id}`} name="b" value={b.id}
@@ -105,6 +112,13 @@ export default async function Reassort({
                       </div>
                     </div>
                     <div className="fin etats-borne">
+                      {ur && ur.pressees > 0
+                        ? <span className="pilule mal" title={ur.detail.map((d) => `${d.nom} : ${joursTexte(d.jours)}`).join(" · ")}>
+                            <i />{ur.pressees} en rupture sous {SEUIL_J} j
+                          </span>
+                        : ur?.jours_min !== null && ur?.jours_min !== undefined
+                          ? <span className="pilule"><i />{joursTexte(ur.jours_min)} avant la première rupture</span>
+                          : null}
                       {b.vides > 0
                         ? <span className="pilule mal"><i />{b.vides} vide{b.vides > 1 ? "s" : ""}</span>
                         : null}

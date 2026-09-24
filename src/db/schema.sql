@@ -1279,3 +1279,7 @@ ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS gouts JSONB NOT NULL DEFAU
 -- plateforme sont rouverts ; le code fait pareil a chaque ouverture desormais.
 UPDATE salon SET archive_le = NULL
  WHERE compte_id IS NULL AND nom IN ('annonces', 'futurs-redboxers', 'redboxers', 'developpeurs');
+
+-- La derniere fois qu'on a prevenu qu'une spire de cette machine allait
+-- manquer sous trois jours : une fois par jour, pas a chaque ronde.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS rupture_annoncee_le TIMESTAMPTZ;
