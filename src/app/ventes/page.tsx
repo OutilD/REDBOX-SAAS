@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q, q1, euros, depuis, FUSEAU } from "@/db";
-import { peutCharger, utilisateur } from "@/lib/auth";
+import { peutCharger, utilisateur, type Utilisateur } from "@/lib/auth";
+import { Suspense } from "react";
+import { SqBloc, Squelette } from "../squelette";
 import { Repli } from "../repli";
 import { IcoBorne, IcoVentes } from "../icones";
 import { AVORTEES, LIBELLES, NOMS, SQL_AVORTEE, SQL_A_REGARDER } from "@/lib/ventes";
@@ -64,75 +66,6 @@ export default async function Ventes(
     [Number(b), u.compte_id, u.bornes]) : null;
   const portee = choisie ? [choisie.id] : u.bornes;
 
-  const p = [u.compte_id, `${fen.jours} days`, portee];
-  const PORTEE = "AND ($3::bigint[] IS NULL OR b.id = ANY($3))";
-
-  const total = await q1<{ n: number; total: number }>(`
-    SELECT COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= ${DEBUT}`, p);
-
-  const jours = await q<Jour>(`
-    SELECT to_char(${JOUR}, 'DD/MM') AS jour,
-           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= ${DEBUT}
-     GROUP BY ${JOUR} ORDER BY ${JOUR}`, p);
-
-  // La marge se calcule au dernier prix d'achat connu. C'est le chiffre qui dit
-  // quoi arreter de vendre.
-  const parProduit = await q<ParProduit>(`
-    SELECT pr.nom, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total,
-           SUM(v.prix_c - COALESCE(a.prix_achat_c, 0))::int AS marge
-      FROM vente v
-      JOIN borne b   ON b.id = v.borne_id
-      LEFT JOIN produit pr ON pr.id = v.produit_id
-      LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= ${DEBUT}
-     GROUP BY pr.nom ORDER BY total DESC`, p);
-
-  // Les soucis ne sont pas bornes a la fenetre : un probleme non traite reste un
-  // probleme, meme vieux d'un mois.
-  const soucis = await q<Souci>(`
-    SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
-           v.prix_c, v.statut, v.faite_le
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-      LEFT JOIN produit pr ON pr.id = v.produit_id
-     WHERE b.compte_id = $1 AND ${SQL_A_REGARDER}
-       AND ($2::bigint[] IS NULL OR b.id = ANY($2))
-     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, portee]);
-
-  // Les ventes avortees, elles, se lisent sur la fenetre : ce n'est pas une
-  // liste a vider, c'est un compteur. Un client reparti sans payer ne coute
-  // rien a la caisse ; dix par soir disent que le terminal ou le lecteur
-  // d'identite font fuir des clients.
-  const avortees = await q<Avortee>(`
-    SELECT v.statut, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
-       AND v.faite_le >= ${DEBUT}
-     GROUP BY v.statut`, p);
-  const avorteesDetail = await q<Souci>(`
-    SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
-           v.prix_c, v.statut, v.faite_le
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-      LEFT JOIN produit pr ON pr.id = v.produit_id
-     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
-       AND v.faite_le >= ${DEBUT}
-     ORDER BY v.faite_le DESC LIMIT 60`, p);
-  const nAvortees = avortees.reduce((s, x) => s + x.n, 0);
-  // Dans l'ordre de la liste, pas dans l'ordre des chiffres : on retrouve un
-  // motif a la meme ligne d'une semaine a l'autre.
-  const parMotif = AVORTEES.map((st) => avortees.find((a) => a.statut === st))
-                           .filter((a): a is Avortee => !!a);
-
-  const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
-  const sommet = Math.max(1, ...jours.map((j) => j.total));
-  const marge = parProduit.reduce((s, x) => s + (x.marge ?? 0), 0);
-
   return (
     <>
       <Entete page="ventes" borne={choisie ? String(choisie.id) : ""} fenetre={fen.cle} />
@@ -152,6 +85,105 @@ export default async function Ventes(
           ))}
         </nav>
 
+        <Suspense fallback={<SqueletteVentes />}>
+          <Corps u={u} fen={fen} choisie={choisie} portee={portee} />
+        </Suspense>
+      </main>
+      <NavBasse page="ventes" />
+    </>
+  );
+}
+
+function SqueletteVentes() {
+  return (
+    <Squelette>
+      <SqBloc h={96} />
+      <SqBloc h={190} />
+      <SqBloc h={160} />
+    </Squelette>
+  );
+}
+
+/**
+ * Tout ce qui lit la base — six lectures, lancees ENSEMBLE : a la suite, elles
+ * coutaient six allers-retours vers la base, pres de deux secondes.
+ */
+async function Corps({ u, fen, choisie, portee }: {
+  u: Utilisateur; fen: (typeof FENETRES)[number]; choisie: { id: number } | null; portee: number[] | null;
+}) {
+  const p = [u.compte_id, `${fen.jours} days`, portee];
+  const PORTEE = "AND ($3::bigint[] IS NULL OR b.id = ANY($3))";
+
+
+
+  // La marge se calcule au dernier prix d'achat connu. C'est le chiffre qui dit
+  // quoi arreter de vendre.
+
+  // Les soucis ne sont pas bornes a la fenetre : un probleme non traite reste un
+  // probleme, meme vieux d'un mois.
+
+  // Les ventes avortees, elles, se lisent sur la fenetre : ce n'est pas une
+  // liste a vider, c'est un compteur. Un client reparti sans payer ne coute
+  // rien a la caisse ; dix par soir disent que le terminal ou le lecteur
+  // d'identite font fuir des clients.
+  const [total, jours, parProduit, soucis, avortees, avorteesDetail] = await Promise.all([
+    q1<{ n: number; total: number }>(`
+    SELECT COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
+       AND v.faite_le >= ${DEBUT}`, p),
+    q<Jour>(`
+    SELECT to_char(${JOUR}, 'DD/MM') AS jour,
+           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
+       AND v.faite_le >= ${DEBUT}
+     GROUP BY ${JOUR} ORDER BY ${JOUR}`, p),
+    q<ParProduit>(`
+    SELECT pr.nom, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total,
+           SUM(v.prix_c - COALESCE(a.prix_achat_c, 0))::int AS marge
+      FROM vente v
+      JOIN borne b   ON b.id = v.borne_id
+      LEFT JOIN produit pr ON pr.id = v.produit_id
+      LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
+     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
+       AND v.faite_le >= ${DEBUT}
+     GROUP BY pr.nom ORDER BY total DESC`, p),
+    q<Souci>(`
+    SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
+           v.prix_c, v.statut, v.faite_le
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+      LEFT JOIN produit pr ON pr.id = v.produit_id
+     WHERE b.compte_id = $1 AND ${SQL_A_REGARDER}
+       AND ($2::bigint[] IS NULL OR b.id = ANY($2))
+     ORDER BY v.faite_le DESC LIMIT 40`, [u.compte_id, portee]),
+    q<Avortee>(`
+    SELECT v.statut, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
+       AND v.faite_le >= ${DEBUT}
+     GROUP BY v.statut`, p),
+    q<Souci>(`
+    SELECT v.id, v.borne_id, b.nom AS borne, v.commande_id, v.lane, pr.nom,
+           v.prix_c, v.statut, v.faite_le
+      FROM vente v JOIN borne b ON b.id = v.borne_id
+      LEFT JOIN produit pr ON pr.id = v.produit_id
+     WHERE b.compte_id = $1 AND ${SQL_AVORTEE} ${PORTEE}
+       AND v.faite_le >= ${DEBUT}
+     ORDER BY v.faite_le DESC LIMIT 60`, p),
+  ]);
+  const nAvortees = avortees.reduce((s, x) => s + x.n, 0);
+  // Dans l'ordre de la liste, pas dans l'ordre des chiffres : on retrouve un
+  // motif a la meme ligne d'une semaine a l'autre.
+  const parMotif = AVORTEES.map((st) => avortees.find((a) => a.statut === st))
+                           .filter((a): a is Avortee => !!a);
+
+  const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
+  const sommet = Math.max(1, ...jours.map((j) => j.total));
+  const marge = parProduit.reduce((s, x) => s + (x.marge ?? 0), 0);
+
+  return (
+    <>
         <div className="bandeau quatre">
           <div><div className="stat">
             <span className="valeur num petite">{euros(total?.total ?? 0)}</span>
@@ -310,8 +342,6 @@ export default async function Ventes(
           le client est parti ou a annulé. « Carte refusée » : le terminal a dit non. « Interrompue
           avant la spirale » : une RedBox d’avant la 5.13, qui ne précisait pas le motif.
         </p>
-      </main>
-      <NavBasse page="ventes" />
     </>
   );
 }

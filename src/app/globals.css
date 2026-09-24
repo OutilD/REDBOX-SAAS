@@ -1961,6 +1961,16 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
   background: var(--rouge); animation: parcourt 1.15s ease-in-out infinite;
 }
 @keyframes respire { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+/* Le fil rouge en haut de l'ecran pendant qu'une page suivante se prepare :
+   la page courante reste la, on sait juste qu'on a ete entendu. */
+.progression {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 70; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--rouge) 30%, var(--rouge-vif) 70%, transparent);
+  background-size: 50% 100%; background-repeat: no-repeat;
+  animation: progression 1.1s ease-in-out infinite;
+}
+@keyframes progression { 0% { background-position: -50% 0; } 100% { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .progression { animation: none; background: var(--rouge); background-size: 100% 100%; } }
 @keyframes parcourt {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(330%); }
@@ -8034,3 +8044,21 @@ html { touch-action: manipulation; }
 
 /* Le fil d'un salon pas encore en memoire, le temps d'un aller-retour. */
 .fil-attente .messages { opacity: .6; }
+
+/* ------------------------------------------------------------------ squelettes
+   La forme d'une page avant ses chiffres : des blocs gris qui respirent, a la
+   taille de ce qu'ils remplacent, pour que rien ne saute a l'arrivee. */
+.sq { display: block; border-radius: var(--r-m); background: var(--surface-2); position: relative; overflow: hidden; }
+.sq::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--texte) 6%, transparent), transparent);
+  transform: translateX(-100%); animation: sq-brille 1.4s ease-in-out infinite;
+}
+@keyframes sq-brille { to { transform: translateX(100%); } }
+.sq-ligne { display: inline-block; border-radius: 6px; margin: 4px 0; max-width: 100%; }
+.sq-bloc { width: 100%; margin-top: 14px; border-radius: var(--r-l); border: 1px solid var(--bord); background: var(--surface); }
+.sq-bloc.sq-periodes { width: 320px; max-width: 100%; margin-top: 0; border-radius: 10px; }
+.sq-carte { display: flex; flex-direction: column; gap: 4px; padding: 16px; border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface); }
+.sq-grille { display: grid; gap: 12px; margin-top: 14px; }
+.squelette .tete-tableau .quoi h1 { margin-bottom: 4px; }
+@media (prefers-reduced-motion: reduce) { .sq::after { animation: none; } }

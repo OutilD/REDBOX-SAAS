@@ -64,22 +64,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/* `useSearchParams` exige une frontiere differee : sans elle, Next
             refuse de rendre la page cote serveur. */}
         <Suspense fallback={null}><Notif /></Suspense>
-        {/*
-          Filet sans JavaScript.
-
-          `loading.tsx` place la page dans une frontiere differee : le serveur
-          envoie d'abord l'ecran d'attente, puis le vrai contenu dans un bloc
-          masque que React devoile. Sans JavaScript, personne ne le devoile — et
-          l'ecran d'attente resterait pour toujours.
-
-          Ces deux regles renversent la situation : l'attente disparait, le bloc
-          differe s'affiche. Le contenu est deja dans la page, il ne manquait que
-          la permission de le montrer.
-        */}
-        <noscript>
-          <style>{`.ecran-chargement{display:none!important}
-                   body>div[hidden]{display:block!important}`}</style>
-        </noscript>
         {children}
         <Occupe />
         <Pwa />

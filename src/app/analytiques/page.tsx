@@ -4,7 +4,9 @@ import { Entete, NavBasse } from "../chrome";
 import { BarresClassees, Courbes } from "../graphes";
 import { IcoBorne, IcoFleche, IcoStock, IcoVentes } from "../icones";
 import { q, euros } from "@/db";
-import { utilisateur } from "@/lib/auth";
+import { utilisateur, type Utilisateur } from "@/lib/auth";
+import { Suspense } from "react";
+import { SqBloc, Squelette } from "../squelette";
 import { autonomie, categoriesDansLeTemps, FENETRES, parBorne, parProduit, periodeDe,
          pasDe, pasCategories, NOM_PAS, serie, DEFAUT } from "@/lib/tableau";
 import { Repli } from "../repli";
@@ -46,19 +48,6 @@ export default async function Analytiques(
 
   const lien = (chg: { f?: string; vue?: string }) =>
     adresse("/analytiques", p, choisie?.id ?? null, graphe ? "graphe" : "", chg);
-
-  const [points, bornes, categories, stocks, produits] = await Promise.all([
-    serie(u.compte_id, p, portee),
-    parBorne(u.compte_id, p, portee),
-    categoriesDansLeTemps(u.compte_id, p, portee),
-    sienDuCompte ? autonomie(u.compte_id, p) : [],
-    parProduit(u.compte_id, p, portee),
-  ]);
-
-  const ventes = points.reduce((s, d) => s + d.n, 0);
-  const classees = [...categories.series].sort((a, b) => b.total - a.total);
-  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
-  const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
 
   return (
     <>
@@ -115,6 +104,47 @@ export default async function Analytiques(
         {/* --------------------------------------------------- le decoupage du temps */}
         {/* Le titre suit le pas : sur quatre heures de vente, « Jour par jour »
             annoncait une barre unique et donnait tort au graphe qui suivait. */}
+        <Suspense fallback={<SqueletteAnalytiques />}>
+          <Corps u={u} p={p} pas={pas} perso={perso} portee={portee} choisie={choisie}
+                 sienDuCompte={sienDuCompte} graphe={graphe} lien={lien} />
+        </Suspense>
+      </main>
+      <NavBasse page="analytiques" />
+    </>
+  );
+}
+
+function SqueletteAnalytiques() {
+  return (
+    <Squelette>
+      <SqBloc h={220} />
+      <SqBloc h={160} />
+      <SqBloc h={160} />
+    </Squelette>
+  );
+}
+
+/** Tout ce qui lit la base : rendu quand les cinq lectures sont la ; la tete de page n'attend pas. */
+async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, lien }: {
+  u: Utilisateur; p: Awaited<ReturnType<typeof periodeDe>>; pas: ReturnType<typeof pasDe>; perso: boolean;
+  portee: number[] | null; choisie: { id: number; nom: string } | null; sienDuCompte: boolean; graphe: boolean;
+  lien: (chg: { f?: string; vue?: string }) => string;
+}) {
+  const [points, bornes, categories, stocks, produits] = await Promise.all([
+    serie(u.compte_id, p, portee),
+    parBorne(u.compte_id, p, portee),
+    categoriesDansLeTemps(u.compte_id, p, portee),
+    sienDuCompte ? autonomie(u.compte_id, p) : [],
+    parProduit(u.compte_id, p, portee),
+  ]);
+
+  const ventes = points.reduce((s, d) => s + d.n, 0);
+  const classees = [...categories.series].sort((a, b) => b.total - a.total);
+  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
+  const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
+
+  return (
+    <>
         <h2 style={{ marginTop: 0 }}>{NOM_PAS[pas]}</h2>
         <div className="carte">
           {ventes === 0 ? (
@@ -293,8 +323,6 @@ export default async function Analytiques(
         ) : null}
         </>
         ) : null}
-      </main>
-      <NavBasse page="analytiques" />
     </>
   );
 }

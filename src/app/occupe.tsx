@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ENTETE_ENVOI } from "@/lib/envoi";
 
@@ -29,6 +29,13 @@ import { ENTETE_ENVOI } from "@/lib/envoi";
  * neutralise donc les clics suivants par le style, ce qui protege du double
  * envoi sans toucher aux donnees envoyees. Le verrou se leve a l'arrivee de la
  * page suivante, et de toute facon au bout de quinze secondes.
+ *
+ * LES LIENS AUSSI. Un clic sur un lien de la console passe par la meme
+ * transition : la page courante reste affichee, avec un fil rouge qui avance
+ * en haut de l'ecran, jusqu'a ce que la suivante soit prete. L'ecran d'attente
+ * au logo ne sert plus qu'au premier chargement. Le fil n'apparait qu'apres
+ * un dixieme de seconde : une page prechargee arrive avant, et il ne
+ * clignote pas pour rien.
  */
 
 /** Ce qui doit recharger la page entiere : la session, le theme, le produit — tout ce que la mise en page lit une fois. */
@@ -37,9 +44,17 @@ const RECHARGENT = ["/api/session", "/api/inscription", "/api/rejoindre", "/api/
 export default function Occupe() {
   const router = useRouter();
   const [enCours, transition] = useTransition();
+  const [fil, montrerFil] = useState(false);
   // L'ancre a rejoindre une fois la nouvelle page la, quand l'adresse ne
   // change pas : le routeur ne defile que s'il navigue vraiment.
   const ancre = useRef<string | null>(null);
+
+  // Le fil, un dixieme de seconde apres le depart ; retire des l'arrivee.
+  useEffect(() => {
+    if (!enCours) { montrerFil(false); return; }
+    const t = window.setTimeout(() => montrerFil(true), 120);
+    return () => window.clearTimeout(t);
+  }, [enCours]);
 
   // La page suivante est arrivee : plus rien n'attend, et on va a l'ancre.
   useEffect(() => {
@@ -115,14 +130,23 @@ export default function Occupe() {
         });
     };
 
-    // Un lien de navigation peut lui aussi mettre une seconde a repondre.
-    // On ignore ceux qui ouvrent ailleurs ou qui sont modifies au clavier :
-    // ils ne remplacent pas la page, donc rien n'attend.
+    // UN LIEN DE LA CONSOLE part par la transition. On ecoute en capture,
+    // avant le gestionnaire de <Link>, qui s'efface devant un `preventDefault`.
+    // On laisse au navigateur ce qui n'est pas une page de la console : autre
+    // site, nouvel onglet, telechargement, clic modifie au clavier, simple
+    // ancre dans la page, ou un lien qui demande a recharger.
     const surClic = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const a = (e.target as Element)?.closest?.("a.bouton, a.produit-ligne, a.lieu-ligne");
-      if (!a || (a as HTMLAnchorElement).target === "_blank") return;
-      marquer(a);
+      const a = (e.target as Element)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a.target === "_blank" || a.hasAttribute("download") || a.hasAttribute("data-recharge")) return;
+      const u = new URL(a.href, location.href);
+      if (u.origin !== location.origin || u.pathname.startsWith("/api/")) return;
+      if (u.pathname === location.pathname && u.search === location.search && u.hash) return;
+      if (RECHARGENT.some((p) => u.pathname === p || u.pathname.startsWith(p + "/"))) return;
+      e.preventDefault();
+      if (a.matches("a.bouton, a.produit-ligne, a.lieu-ligne")) marquer(a);
+      ancre.current = u.hash ? decodeURIComponent(u.hash.slice(1)) : null;
+      transition(() => router.push(u.pathname + u.search + u.hash));
     };
 
     // La page a change : plus rien n'attend.
@@ -138,7 +162,7 @@ export default function Occupe() {
     };
   }, [router, transition]);
 
-  return null;
+  return fil ? <div className="progression" role="progressbar" aria-label="Chargement" aria-busy="true" /> : null;
 }
 
 function liberer(el: Element) {

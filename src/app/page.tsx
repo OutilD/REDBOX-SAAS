@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "./chrome";
 import { IcoAnalyses, IcoFleche } from "./icones";
 import { q, euros } from "@/db";
-import { utilisateur } from "@/lib/auth";
+import { utilisateur, type Utilisateur } from "@/lib/auth";
+import { Suspense } from "react";
+import { SqBloc, SqLigne, Squelette } from "./squelette";
 import { autonomie, avancement, comparaison, entete, FENETRES, periodeDe, serie,
          type Avancement, type Point } from "@/lib/tableau";
 import { adresse, Delta } from "./analyses";
@@ -67,6 +69,42 @@ export default async function Tableau(
   const lien = (chg: { f?: string } = {}) => adresse("/", p, choisie?.id ?? null, "", chg);
   const versAnalytiques = adresse("/analytiques", p, choisie?.id ?? null, "");
 
+  return (
+    <>
+      <Entete page="tableau" borne={choisie ? String(choisie.id) : ""} periode={p} />
+      <main className="ecran">
+        {/* LE RESTE ARRIVE PAR MORCEAUX. Les cinq lectures de la page partent
+            ensemble mais prennent leur temps ; le titre, lui, n'attend rien.
+            Le squelette tient la place, a la meme taille, jusqu'aux chiffres. */}
+        <Suspense fallback={<SqueletteTableau />}>
+          <Corps u={u} p={p} perso={perso} portee={portee} choisie={choisie}
+                 sienDuCompte={sienDuCompte} lien={lien} versAnalytiques={versAnalytiques} />
+        </Suspense>
+      </main>
+      <NavBasse page="tableau" />
+    </>
+  );
+}
+
+function SqueletteTableau() {
+  return (
+    <Squelette>
+      <div className="tete-tableau">
+        <div className="quoi"><h1>Tableau de bord</h1><SqLigne l="45%" /></div>
+        <SqBloc h={40} className="sq-periodes" />
+      </div>
+      <SqBloc h={150} />
+      <SqBloc h={110} />
+    </Squelette>
+  );
+}
+
+/** Tout ce qui lit la base : rendu quand les cinq lectures sont la. */
+async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAnalytiques }: {
+  u: Utilisateur; p: Awaited<ReturnType<typeof periodeDe>>; perso: boolean;
+  portee: number[] | null; choisie: { id: number; nom: string } | null; sienDuCompte: boolean;
+  lien: (chg?: { f?: string }) => string; versAnalytiques: string;
+}) {
   const [avance, tete, avant, points, stocks] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id) : null,
     entete(u.compte_id, p, portee),
@@ -160,26 +198,18 @@ export default async function Tableau(
   if (enRoute && avance) {
     return (
       <>
-        <Entete page="tableau" borne={choisie ? String(choisie.id) : ""}
-                periode={p} />
-        <main className="ecran">
-          <h1>Bienvenue</h1>
-          <p className="sous">
-            Compte {u.compte} — voici ce qu’il reste à faire pour que vos RedBox se mettent
-            à vendre.
-          </p>
-          <PremiersPas a={avance} />
-        </main>
-        <NavBasse page="tableau" />
+        <h1>Bienvenue</h1>
+        <p className="sous">
+          Compte {u.compte} — voici ce qu’il reste à faire pour que vos RedBox se mettent
+          à vendre.
+        </p>
+        <PremiersPas a={avance} />
       </>
     );
   }
 
   return (
     <>
-      <Entete page="tableau" borne={choisie ? String(choisie.id) : ""}
-                periode={p} />
-      <main className="ecran">
         {/*
           LA TETE : QUI, QUOI, QUAND — ET LE CHOIX DE LA FENETRE A COTE.
 
@@ -279,8 +309,6 @@ export default async function Tableau(
             <span className="fleche"><IcoFleche /></span>
           </Link>
         </div>
-      </main>
-      <NavBasse page="tableau" />
     </>
   );
 }
