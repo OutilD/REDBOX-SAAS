@@ -12,6 +12,10 @@ import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
 import { clesVapid } from "@/lib/notifications";
 import InviteNotifications from "./invite-notifications";
+import Recherche from "./recherche";
+
+/** Les deux produits, pour que la recherche trouve aussi les pages de l'autre. */
+const PRODUITS_TOUS: Produit[] = ["gestion", "connect"];
 import { BISCUIT_PRODUIT, PRODUITS, adresse, hoteDes, produitDeLHote, type Produit } from "@/lib/produits";
 
 export { PRODUITS, type Produit };
@@ -456,6 +460,14 @@ export async function Entete({ page, borne, fenetre, periode }:
                   </form>
                 </noscript>
               </>
+            ) : null}
+
+            {/* LA LOUPE : tout ce que la console connait, depuis n'importe
+                quelle page. Les pages du menu lui sont donnees d'ici — c'est
+                l'en-tete qui sait ce que cette personne a le droit d'ouvrir. */}
+            {u ? (
+              <Recherche pages={PRODUITS_TOUS.flatMap((pr) => planDe(u, pr).flatMap((s) =>
+                s.items.map((i) => ({ nom: i.nom, vers: pr === produit ? i.vers : vers(pr, i.vers), section: s.titre }))))} />
             ) : null}
 
             {/* La messagerie a sa bulle dans l'en-tete : elle n'a pas de place

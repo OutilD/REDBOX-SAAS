@@ -8062,3 +8062,41 @@ html { touch-action: manipulation; }
 .sq-grille { display: grid; gap: 12px; margin-top: 14px; }
 .squelette .tete-tableau .quoi h1 { margin-bottom: 4px; }
 @media (prefers-reduced-motion: reduce) { .sq::after { animation: none; } }
+
+/* ------------------------------------------------------------------ recherche globale
+   La loupe de l'en-tete, ⌘K : une boite en haut de l'ecran, les reponses
+   rangees par famille, la ligne choisie surlignee. */
+.modale.recherche-globale {
+  width: min(640px, calc(100vw - 32px)); max-height: min(72vh, 640px);
+  margin: 10vh auto auto; padding: 0;
+}
+.recherche-globale .champ-recherche {
+  border: 0; border-bottom: 1px solid var(--bord); border-radius: 0; background: none; padding: 6px 14px 6px 16px;
+  min-height: 56px; flex: none;
+}
+.recherche-globale .champ-recherche:focus-within { box-shadow: none; border-color: var(--bord); }
+.recherche-globale .champ-recherche input { font-size: 17px; }
+.recherche-globale .champ-recherche kbd {
+  font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--texte-3);
+  padding: 4px 6px; border: 1px solid var(--bord); border-radius: 5px; background: var(--surface-2);
+}
+.recherche-globale .resultats { overflow-y: auto; padding: 8px 8px 12px; flex: 1; min-height: 0; }
+.recherche-globale .resultats h3 {
+  margin: 8px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-3);
+}
+.recherche-globale .resultats a {
+  display: flex; align-items: baseline; gap: 10px; min-height: 42px; padding: 9px 10px; border-radius: var(--r-m);
+  color: var(--texte); text-decoration: none; cursor: pointer;
+}
+.recherche-globale .resultats a .nom { font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.recherche-globale .resultats a .sous { font-size: 12.5px; color: var(--texte-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: right; }
+.recherche-globale .resultats a[data-choisi] { background: var(--surface-2); }
+.recherche-globale .resultats a[data-choisi] .nom { color: var(--rouge-vif); }
+:root[data-theme="light"] .recherche-globale .resultats a[data-choisi] .nom { color: var(--rouge); }
+.recherche-globale .resultats .rien { margin: 14px 12px; font-size: 14px; color: var(--texte-2); }
+.recherche-globale .resultats .rien.attente { margin-top: 6px; font-size: 12.5px; }
+.entete .bouton.icone.loupe { display: inline-grid; }
+@media (max-width: 600px) {
+  .modale.recherche-globale { width: calc(100vw - 16px); margin: 8px auto auto; max-height: 80vh; }
+  .recherche-globale .champ-recherche kbd { display: none; }
+}
