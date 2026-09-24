@@ -1,3 +1,4 @@
+import { ENTETE_ENVOI } from "./envoi";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
@@ -295,7 +296,13 @@ export function estSuperAdmin(u: Utilisateur): boolean {
   return u.superAdmin;
 }
 
-/** Retour a une page apres un formulaire : 303, donc rechargement en GET. */
+/**
+ * Retour a une page apres un formulaire : 303, donc rechargement en GET.
+ *
+ * SAUF si le formulaire est parti par notre script : il recoit alors la meme
+ * adresse en JSON — et les memes biscuits — et fait la navigation lui-meme,
+ * sans recharger la page entiere. Sans JavaScript, rien ne change.
+ */
 export function versPage(req: Request, chemin: string, biscuit?: string | string[]): Response {
   // L'adresse se compose depuis l'hote que le client a tape, pas depuis
   // `req.url` : Next y met parfois le nom de la machine, et avec deux hotes pour
@@ -303,7 +310,14 @@ export function versPage(req: Request, chemin: string, biscuit?: string | string
   const hote = hoteDes(req.headers);
   const local = !hote || hote.startsWith("localhost") || hote.includes(".localhost") || hote.startsWith("127.");
   const base = hote ? `${req.headers.get("x-forwarded-proto") ?? (local ? "http" : "https")}://${hote}` : req.url;
-  const entetes = new Headers({ Location: new URL(chemin, base).toString() });
+  const vers = new URL(chemin, base).toString();
+  const entetes = new Headers();
   for (const b of biscuit === undefined ? [] : [biscuit].flat()) entetes.append("Set-Cookie", b);
+  if (req.headers.get(ENTETE_ENVOI) === "1") {
+    entetes.set("Content-Type", "application/json; charset=utf-8");
+    entetes.set("Cache-Control", "no-store");
+    return new Response(JSON.stringify({ vers }), { status: 200, headers: entetes });
+  }
+  entetes.set("Location", vers);
   return new Response(null, { status: 303, headers: entetes });
 }

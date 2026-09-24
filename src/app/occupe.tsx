@@ -1,32 +1,59 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ENTETE_ENVOI } from "@/lib/envoi";
 
 /**
- * Le retour d'attente sur les boutons.
+ * LES FORMULAIRES PARTENT SANS RECHARGER LA PAGE.
+ *
+ * La console s'ecrit en formulaires ordinaires — ils marchent sans
+ * JavaScript, et chaque action passe par une route qui repond « va la ».
+ * Mais un rechargement complet a chaque clic, avec une base de l'autre cote
+ * de l'Atlantique, c'est une seconde d'ecran fige par action, et une page qui
+ * revient tout en haut.
  *
  * Un seul ecouteur, pose une fois sur le document, plutot qu'un composant a
- * envelopper autour de chaque formulaire : il y en a une vingtaine, et celui
- * qu'on oublierait serait justement celui qui frustre.
+ * envelopper autour de chaque formulaire : il y en a une centaine, et celui
+ * qu'on oublierait serait justement celui qui frustre. Il envoie le formulaire
+ * lui-meme, demande a la route son adresse de retour (voir `versPage`), et y
+ * va par le routeur de Next : seul le contenu change, l'ecran ne clignote pas,
+ * et la page reste ou elle etait si l'adresse ne bouge pas.
  *
- * On NE DESACTIVE PAS le bouton. Un `disabled` pose pendant la soumission fait
+ * On ecoute en phase de remontee, apres React : un formulaire que la page gere
+ * elle-meme (la messagerie) a deja dit `preventDefault`, on le laisse.
+ *
+ * ON NE DESACTIVE PAS LE BOUTON. Un `disabled` pose pendant la soumission fait
  * perdre son `name`/`value` au bouton qui l'a declenchee — et plusieurs de nos
  * formulaires s'en servent (« Supprimer » porte l'identifiant de la ligne). On
  * neutralise donc les clics suivants par le style, ce qui protege du double
- * envoi sans toucher aux donnees envoyees.
- *
- * Le verrou se leve tout seul au bout de quinze secondes : si la navigation
- * echoue, l'ecran ne doit pas rester bloque pour toujours.
+ * envoi sans toucher aux donnees envoyees. Le verrou se leve a l'arrivee de la
+ * page suivante, et de toute facon au bout de quinze secondes.
  */
+
+/** Ce qui doit recharger la page entiere : la session, le theme, le produit — tout ce que la mise en page lit une fois. */
+const RECHARGENT = ["/api/session", "/api/inscription", "/api/rejoindre", "/api/theme", "/api/rail", "/api/compte", "/api/demo"];
+
 export default function Occupe() {
+  const router = useRouter();
+  const [enCours, transition] = useTransition();
+  // L'ancre a rejoindre une fois la nouvelle page la, quand l'adresse ne
+  // change pas : le routeur ne defile que s'il navigue vraiment.
+  const ancre = useRef<string | null>(null);
+
+  // La page suivante est arrivee : plus rien n'attend, et on va a l'ancre.
+  useEffect(() => {
+    if (enCours) return;
+    document.querySelectorAll(".occupe").forEach(liberer);
+    if (ancre.current) {
+      const cible = document.getElementById(ancre.current);
+      ancre.current = null;
+      cible?.scrollIntoView({ block: "start" });
+    }
+  }, [enCours]);
+
   useEffect(() => {
     const LEVEE_MS = 15_000;
-
-    const liberer = (el: Element) => {
-      el.classList.remove("occupe");
-      el.removeAttribute("aria-busy");
-      el.closest("form")?.classList.remove("forme-occupee");
-    };
 
     const marquer = (el: Element | null) => {
       if (!el || el.classList.contains("occupe")) return;
@@ -36,21 +63,56 @@ export default function Occupe() {
       window.setTimeout(() => liberer(el), LEVEE_MS);
     };
 
-    // UN FORMULAIRE QUE LE SCRIPT GERE LUI-MEME N'ATTEND RIEN.
-    //
-    // On ecoute en capture, donc AVANT le gestionnaire React : a cet instant on
-    // ne sait pas encore s'il va empecher l'envoi. On regarde juste apres, au
-    // tour suivant. Un envoi empeche ne remplace pas la page — la messagerie
-    // envoie en arriere-plan —, et marquer son bouton le laissait tourner,
-    // inerte, pendant quinze secondes : aucune page suivante ne venait le
-    // liberer, et le deuxieme message ne partait plus.
-    const surEnvoi = (e: Event) => {
+    /** Rejoindre l'adresse rendue par la route, sans recharger si l'on peut. */
+    const aller = (vers: string) => {
+      const u = new URL(vers, location.href);
+      if (u.origin !== location.origin) { location.assign(u.href); return; }
+      // Une boite de dialogue ouverte le resterait par-dessus la page suivante.
+      document.querySelectorAll<HTMLDialogElement>("dialog[open]").forEach((d) => d.close());
+      const meme = u.pathname === location.pathname && u.search === location.search;
+      ancre.current = u.hash ? decodeURIComponent(u.hash.slice(1)) : null;
+      transition(() => {
+        if (meme) router.refresh();
+        else router.push(u.pathname + u.search + u.hash, { scroll: !ancre.current && u.pathname !== location.pathname });
+      });
+    };
+
+    const surEnvoi = (e: SubmitEvent) => {
+      if (e.defaultPrevented) return;
       const forme = e.target as HTMLFormElement;
-      const sub = (e as SubmitEvent).submitter;
-      window.setTimeout(() => {
-        if (e.defaultPrevented) return;
-        marquer(sub ?? forme.querySelector("button[type=submit], button:not([type])"));
-      }, 0);
+      const sub = e.submitter as HTMLButtonElement | HTMLInputElement | null;
+      const bouton = sub ?? forme.querySelector("button[type=submit], button:not([type])");
+      const methode = (forme.getAttribute("method") ?? "get").toLowerCase();
+      const action = forme.getAttribute("action") ?? "";
+      const parNous = methode === "post" && action.startsWith("/api/") && !forme.hasAttribute("data-recharge")
+        && !RECHARGENT.some((p) => action === p || action.startsWith(p + "/"));
+      marquer(bouton);
+      if (!parNous) return;
+
+      e.preventDefault();
+      // Le bouton qui a envoye compte parmi les champs, comme pour un envoi
+      // natif : « Supprimer » porte l'identifiant de sa ligne.
+      let donnees: FormData;
+      try { donnees = new FormData(forme, sub ?? undefined); }
+      catch {
+        donnees = new FormData(forme);
+        if (sub?.name) donnees.append(sub.name, sub.value);
+      }
+      fetch(action, { method: "POST", body: donnees, credentials: "same-origin", headers: { [ENTETE_ENVOI]: "1" } })
+        .then(async (r) => {
+          if (r.ok && (r.headers.get("content-type") ?? "").includes("application/json")) {
+            const j = await r.json().catch(() => null) as { vers?: unknown } | null;
+            if (j && typeof j.vers === "string") { aller(j.vers); return; }
+          }
+          // Pas notre reponse : la route a fait autre chose, on recharge comme avant.
+          if (r.redirected) location.assign(r.url); else location.reload();
+        })
+        .catch(() => {
+          // Reseau tombe avant que la route ne reponde : l'envoi natif, qui
+          // saura afficher l'erreur du navigateur.
+          if (bouton) liberer(bouton);
+          forme.submit();
+        });
     };
 
     // Un lien de navigation peut lui aussi mettre une seconde a repondre.
@@ -66,15 +128,21 @@ export default function Occupe() {
     // La page a change : plus rien n'attend.
     const surRetour = () => document.querySelectorAll(".occupe").forEach(liberer);
 
-    document.addEventListener("submit", surEnvoi, true);
+    document.addEventListener("submit", surEnvoi);
     document.addEventListener("click", surClic, true);
     window.addEventListener("pageshow", surRetour);
     return () => {
-      document.removeEventListener("submit", surEnvoi, true);
+      document.removeEventListener("submit", surEnvoi);
       document.removeEventListener("click", surClic, true);
       window.removeEventListener("pageshow", surRetour);
     };
-  }, []);
+  }, [router, transition]);
 
   return null;
+}
+
+function liberer(el: Element) {
+  el.classList.remove("occupe");
+  el.removeAttribute("aria-busy");
+  el.closest("form")?.classList.remove("forme-occupee");
 }
