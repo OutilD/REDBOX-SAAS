@@ -8168,3 +8168,17 @@ html.js .sans-js { display: none; }
 .sante-legende i { width: 10px; height: 10px; border-radius: 2px; background: var(--surface-3); }
 .sante-legende i.ok { background: var(--vert); } .sante-legende i.attente { background: var(--ambre); } .sante-legende i.mal { background: var(--rouge-vif); }
 .ligne > .pilule { flex: none; margin-right: 10px; }
+
+/* ------------------------------------------------------------------ objectif du mois */
+.objectif { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface); }
+.objectif .tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.objectif .tete h2 { margin: 0; }
+.objectif .ligne-chiffre { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.objectif .chiffre { font-size: 26px; font-weight: 800; letter-spacing: -.03em; }
+.objectif .sur { font-size: 13.5px; color: var(--texte-2); }
+.jauge-objectif { position: relative; height: 10px; margin-top: 10px; border-radius: 999px; background: var(--surface-3); overflow: visible; }
+.jauge-objectif > span { display: block; height: 100%; border-radius: 999px; background: var(--rouge); transition: width .4s ease; }
+.jauge-objectif > span[data-ok] { background: var(--vert); }
+.jauge-objectif .repere { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--texte-3); border-radius: 1px; }
+.objectif > p { margin: 10px 0 0; font-size: 13px; }
+.objectif.sans > p { margin-top: 6px; }

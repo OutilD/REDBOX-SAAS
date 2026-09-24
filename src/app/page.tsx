@@ -8,6 +8,9 @@ import { filtreRetenu } from "@/lib/filtre";
 import { cookies } from "next/headers";
 import { BISCUIT_DEMARRAGE, etapesDemarrage } from "@/lib/demarrage";
 import Masquer from "./masquer";
+import Modale from "./modale";
+import { moisEnCours, objectifDe } from "@/lib/objectif";
+import { peutConfigurer } from "@/lib/auth";
 import { Suspense } from "react";
 import { SqBloc, SqLigne, Squelette } from "./squelette";
 import { autonomie, avancement, comparaison, entete, FENETRES, periodeDe, serie,
@@ -113,13 +116,19 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   portee: number[] | null; choisie: { id: number; nom: string } | null; sienDuCompte: boolean;
   lien: (chg?: { f?: string }) => string; versAnalytiques: string;
 }) {
-  const [avance, tete, avant, points, stocks] = await Promise.all([
+  const [avance, tete, avant, points, stocks, objectif, mois] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id, u.id) : null,
     entete(u.compte_id, p, portee),
     comparaison(u.compte_id, p, portee),
     serie(u.compte_id, p, portee),
     sienDuCompte ? autonomie(u.compte_id, p) : [],
+    objectifDe(u.compte_id, choisie?.id ?? null),
+    moisEnCours(u.compte_id, portee),
   ]);
+  // L'OBJECTIF DU MOIS : ou l'on en est, et ou l'on irait a ce rythme.
+  const pctObjectif = objectif ? Math.min(999, Math.round((mois.ca / objectif) * 100)) : 0;
+  const projection = mois.jour > 0 ? Math.round((mois.ca / mois.jour) * mois.jours) : 0;
+  const peutFixer = sienDuCompte && peutConfigurer(u);
 
   // PAR JOUR, PAS PAR BARRE. C'etait `ca / nombre de barres` : juste tant qu'une
   // barre valait un jour, faux des qu'elle vaut une heure — quatre heures de
@@ -337,6 +346,48 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
                     delta={<Delta ici={panier} avant={panierAvant} />} />
           </div>
         </section>
+
+        {objectif || peutFixer ? (
+          <section className={`objectif${objectif ? "" : " sans"}`} aria-label="Objectif du mois">
+            <div className="tete">
+              <h2>Objectif de {mois.nom}{choisie ? ` · ${choisie.nom}` : ""}</h2>
+              {peutFixer ? (
+                <Modale titre={`Objectif du mois${choisie ? ` · ${choisie.nom}` : ""}`} ouvrir={objectif ? "Modifier" : "Fixer un objectif"} classeBouton="bouton petit">
+                  <form method="post" action="/api/objectif">
+                    <input type="hidden" name="retour" value={lien()} />
+                    {choisie ? <input type="hidden" name="borne_id" value={choisie.id} /> : null}
+                    <div className="champ">
+                      <label htmlFor="obj-montant">Chiffre d’affaires visé, chaque mois (€)</label>
+                      <input id="obj-montant" name="montant" inputMode="numeric" defaultValue={objectif ? String(objectif / 100) : ""} placeholder="1 500" />
+                      <p className="aide">{choisie ? "Pour cette RedBox seulement." : "Pour tout le compte."} Vide : plus d’objectif.</p>
+                    </div>
+                    <div className="rangee-actions" style={{ marginTop: 14, justifyContent: "flex-end" }}>
+                      <button className="bouton primaire">Enregistrer</button>
+                    </div>
+                  </form>
+                </Modale>
+              ) : null}
+            </div>
+            {objectif ? (
+              <>
+                <div className="ligne-chiffre">
+                  <span className="chiffre num">{euros(mois.ca)}</span>
+                  <span className="sur num">sur {euros(objectif)} · {pctObjectif} %</span>
+                </div>
+                <div className="jauge-objectif" role="progressbar" aria-valuenow={pctObjectif} aria-valuemin={0} aria-valuemax={100}>
+                  <span style={{ width: `${Math.min(100, pctObjectif)}%` }} data-ok={pctObjectif >= 100 ? "" : undefined} />
+                  <i className="repere" style={{ left: `${Math.round((mois.jour / mois.jours) * 100)}%` }} title={`Jour ${mois.jour} sur ${mois.jours}`} />
+                </div>
+                <p className="faible">
+                  Jour {mois.jour} sur {mois.jours}. À ce rythme, le mois finirait à <b className="num">{euros(projection)}</b>
+                  {projection >= objectif ? " : objectif atteint." : ` : il manquerait ${euros(objectif - projection)}.`}
+                </p>
+              </>
+            ) : (
+              <p className="faible">Un chiffre à viser chaque mois, et sa progression ici.</p>
+            )}
+          </section>
+        ) : null}
 
         {/*
           LA PORTE VERS LE RESTE. Une seule, en bas : les graphes et les

@@ -13,6 +13,8 @@
 export const FAIT: Record<string, string> = {
   enregistre: "Enregistré",
   adopte:     "Ajouté à votre catalogue — posez-le sur une spirale quand vous voulez",
+  objectif:   "Objectif du mois enregistré",
+  objectif_retire: "Objectif retiré",
   deja:       "Déjà dans votre catalogue",
   ajoute:     "Ajouté",
   supprime:   "Supprimé",

@@ -1283,3 +1283,27 @@ UPDATE salon SET archive_le = NULL
 -- La derniere fois qu'on a prevenu qu'une spire de cette machine allait
 -- manquer sous trois jours : une fois par jour, pas a chaque ronde.
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS rupture_annoncee_le TIMESTAMPTZ;
+
+-- L'OBJECTIF DU MOIS. Un montant a atteindre chaque mois, pour le compte
+-- (borne_id nul) ou pour une machine ; le tableau de bord dit ou l'on en est.
+CREATE TABLE IF NOT EXISTS objectif (
+  compte_id   BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  borne_id    BIGINT REFERENCES borne(id) ON DELETE CASCADE,
+  montant_c   INTEGER NOT NULL,
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS objectif_unique ON objectif (compte_id, COALESCE(borne_id, 0));
+
+-- LE JOURNAL DES ACTIONS DU COMPTE : qui a fait quoi, quand. Une ligne par
+-- action reussie dans la console (un prix change, un reassort, une invitation),
+-- posee au moment ou la route confirme (« fait=… »). Utile des qu'on est deux.
+CREATE TABLE IF NOT EXISTS action (
+  id             BIGSERIAL PRIMARY KEY,
+  compte_id      BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  utilisateur_id BIGINT REFERENCES utilisateur(id) ON DELETE SET NULL,
+  quand          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fait           TEXT NOT NULL,     -- la cle du message de confirmation
+  route          TEXT NOT NULL,     -- la route de l'API qui l'a faite
+  page           TEXT               -- la page vers laquelle on est revenu
+);
+CREATE INDEX IF NOT EXISTS action_compte ON action (compte_id, quand DESC);
