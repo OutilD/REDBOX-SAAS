@@ -13,6 +13,8 @@ import { nonLus } from "@/lib/salons";
 import { clesVapid } from "@/lib/notifications";
 import InviteNotifications from "./invite-notifications";
 import Recherche from "./recherche";
+import PlusTard from "./plus-tard";
+import { BISCUIT_PSEUDO_REPORTE } from "@/lib/pseudo";
 
 /** Les deux produits, pour que la recherche trouve aussi les pages de l'autre. */
 const PRODUITS_TOUS: Produit[] = ["gestion", "connect"];
@@ -524,7 +526,7 @@ export async function Entete({ page, borne, fenetre, periode }:
             l'inscription s'affichaient sous le debut de leur adresse mail : on
             les invite a choisir le nom sous lequel tout le monde les verra,
             partout sauf sur la page ou on le choisit. */}
-        {u && !(u.pseudo ?? "").trim() && page !== "communaute" ? (
+        {u && !(u.pseudo ?? "").trim() && page !== "communaute" && !biscuits.get(BISCUIT_PSEUDO_REPORTE) ? (
           <div className="demo-bandeau" role="note">
             <IcoCommunaute size={18} />
             <div className="dit">
@@ -533,6 +535,7 @@ export async function Entete({ page, borne, fenetre, periode }:
               <span className="bref">À la place de votre adresse.</span>
             </div>
             <Link href="/communaute/moi" className="bouton petit">Choisir</Link>
+            <PlusTard />
           </div>
         ) : null}
         {u?.demo ? (
