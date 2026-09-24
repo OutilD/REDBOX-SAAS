@@ -243,6 +243,34 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
           </div>
         </div>
 
+        {/* ---------------------------------------------------------- a traiter */}
+        {aTraiter.length > 0 ? (
+          <>
+            <h2>À faire aujourd’hui</h2>
+            <ul className="a-traiter">
+              {aTraiter.map((a) => (
+                <li key={a.cle} className={a.niveau}>
+                  <Link href={a.vers}>
+                    <span className="pastille" aria-hidden="true" />
+                    <span className="dit">
+                      <span className="tete">
+                        <b className="num">{a.n}</b> {a.quoi}
+                      </span>
+                      <span className="pourquoi">{a.pourquoi}</span>
+                    </span>
+                    <span className="faire">{a.faire} <IcoFleche size={13} /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="tout-va-bien" role="status">
+            <span className="pastille" aria-hidden="true" />
+            Rien à faire aujourd’hui : les RedBox parlent, rien n’est en litige, rien ne manque.
+          </p>
+        )}
+
         {/* ------------------------------------------------------- les chiffres */}
         <section className="chiffres-cle" aria-label="Chiffres de la période">
           <div className="phare">
@@ -274,29 +302,6 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
                     delta={<Delta ici={panier} avant={panierAvant} />} />
           </div>
         </section>
-
-        {/* ---------------------------------------------------------- a traiter */}
-        {aTraiter.length > 0 ? (
-          <>
-            <h2>À traiter</h2>
-            <ul className="a-traiter">
-              {aTraiter.map((a) => (
-                <li key={a.cle} className={a.niveau}>
-                  <Link href={a.vers}>
-                    <span className="pastille" aria-hidden="true" />
-                    <span className="dit">
-                      <span className="tete">
-                        <b className="num">{a.n}</b> {a.quoi}
-                      </span>
-                      <span className="pourquoi">{a.pourquoi}</span>
-                    </span>
-                    <span className="faire">{a.faire} <IcoFleche size={13} /></span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
 
         {/*
           LA PORTE VERS LE RESTE. Une seule, en bas : les graphes et les

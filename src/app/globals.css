@@ -8115,3 +8115,11 @@ html.js .sans-js { display: none; }
 [data-glisser] > .glisser-avant { box-shadow: 0 -3px 0 0 var(--rouge) !important; }
 [data-glisser] > .glisser-apres { box-shadow: 0 3px 0 0 var(--rouge) !important; }
 .demo-bandeau .bouton.discret { color: inherit; opacity: .8; }
+/* Le tableau de bord n'a rien a faire faire : une ligne, pas une boite vide. */
+.tout-va-bien {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 12px 14px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  font-size: 14px; color: var(--texte-2);
+}
+.tout-va-bien .pastille { width: 9px; height: 9px; border-radius: 50%; background: var(--vert); flex: none; box-shadow: 0 0 0 4px var(--vert-fond); }
+.a-traiter { margin-bottom: 16px; }
