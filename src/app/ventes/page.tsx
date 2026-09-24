@@ -81,13 +81,24 @@ export default async function Ventes(
 
         {/* Le meme segment que le tableau de bord : quatre etats d'un seul
             reglage, pas quatre boutons detaches. */}
-        <nav className="periodes" aria-label="Période observée" style={{ marginBottom: 16 }}>
-          {FENETRES.map((x) => (
-            <Link key={x.cle}
-                  href={choisie ? `/ventes?f=${x.cle}&b=${choisie.id}` : `/ventes?f=${x.cle}`}
-                  aria-current={x.cle === fen.cle ? "true" : undefined}>{x.nom}</Link>
-          ))}
-        </nav>
+        <div className="rangee-actions" style={{ marginBottom: 16 }}>
+          <nav className="periodes" aria-label="Période observée">
+            {FENETRES.map((x) => (
+              <Link key={x.cle}
+                    href={choisie ? `/ventes?f=${x.cle}&b=${choisie.id}` : `/ventes?f=${x.cle}`}
+                    aria-current={x.cle === fen.cle ? "true" : undefined}>{x.nom}</Link>
+            ))}
+          </nav>
+          {/* L'EXPORT COMPTABLE : la periode ligne par ligne, ou les douze
+              derniers mois en resume. Un fichier CSV pour Excel, pas une page. */}
+          <span className="pousse" />
+          <a href={`/api/ventes/export?f=${fen.cle}${choisie ? `&b=${choisie.id}` : ""}`} className="bouton petit" download>
+            Exporter la période (CSV)
+          </a>
+          <a href={`/api/ventes/export?resume=1${choisie ? `&b=${choisie.id}` : ""}`} className="bouton petit" download>
+            Résumé mensuel (CSV)
+          </a>
+        </div>
 
         <Suspense fallback={<SqueletteVentes />}>
           <Corps u={u} fen={fen} choisie={choisie} portee={portee} />

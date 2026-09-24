@@ -86,7 +86,7 @@ export default async function Sante({ params }: { params: Promise<{ id: string }
   const parJour = new Map<string, Genre[]>();
   for (const e of evenements) parJour.set(jourDe(e.quand), [...(parJour.get(jourDe(e.quand)) ?? []), e.genre]);
   const ventesParJour = new Map(ventes.map((v) => [v.jour, v.n]));
-  const cases: { jour: string; ton: "mal" | "attente" | "ok" | "vide"; titre: string }[] = [];
+  const cases: { jour: string; ton: "mal" | "attente" | "ok" | "rien"; titre: string }[] = [];
   for (let i = JOURS - 1; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86_400_000);
     const jour = jourDe(d);
@@ -94,7 +94,7 @@ export default async function Sante({ params }: { params: Promise<{ id: string }
     const n = ventesParJour.get(jour) ?? 0;
     const grave = g.some((x) => x === "coupure" || x === "terminal_panne");
     const moyen = g.some((x) => x === "redemarrage" || x === "reset" || x === "service");
-    const ton = grave ? "mal" : moyen ? "attente" : n > 0 || g.length > 0 ? "ok" : "vide";
+    const ton = grave ? "mal" : moyen ? "attente" : n > 0 || g.length > 0 ? "ok" : "rien";
     const dit = [n ? `${n} vente${n > 1 ? "s" : ""}` : "aucune vente", ...g.map((x) => NOMS[x])].join(" · ");
     cases.push({ jour, ton, titre: `${new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: FUSEAU })} : ${dit}` });
   }
@@ -134,7 +134,7 @@ export default async function Sante({ params }: { params: Promise<{ id: string }
             <span><i className="ok" /> vend, sans incident</span>
             <span><i className="attente" /> redémarrage ou réglage</span>
             <span><i className="mal" /> coupure ou terminal en panne</span>
-            <span><i className="vide" /> aucune vente</span>
+            <span><i className="rien" /> aucune vente</span>
           </div>
         </div>
 
