@@ -61,7 +61,8 @@ export function SelecteurBorne(
   // une borne ramenait le tableau a trente jours.
   const vers = (id: string) => {
     const a = new URLSearchParams(garde ?? {});
-    if (id) a.set("b", id);
+    // « Toutes » s'ecrit `b=` vide : c'est un choix, que le navigateur retient.
+    a.set("b", id);
     const q = a.toString();
     return q ? `${base}?${q}` : base;
   };

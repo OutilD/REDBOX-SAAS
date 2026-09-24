@@ -4,6 +4,7 @@ import { Entete, NavBasse } from "./chrome";
 import { IcoAnalyses, IcoFleche } from "./icones";
 import { q, euros } from "@/db";
 import { utilisateur, type Utilisateur } from "@/lib/auth";
+import { filtreRetenu } from "@/lib/filtre";
 import { Suspense } from "react";
 import { SqBloc, SqLigne, Squelette } from "./squelette";
 import { autonomie, avancement, comparaison, entete, FENETRES, periodeDe, serie,
@@ -35,7 +36,11 @@ export default async function Tableau(
   const u = await utilisateur();
   if (!u) redirect("/connexion");
 
-  const { f, b, du, au } = await searchParams;
+  const sp = await searchParams;
+  const retenu = await filtreRetenu();
+  const { du, au } = sp;
+  const f = sp.f ?? (du && au ? undefined : retenu.f);
+  const b = sp.b ?? retenu.b;
 
   /**
    * LA PERIODE, RESOLUE UNE FOIS POUR TOUTE LA PAGE.

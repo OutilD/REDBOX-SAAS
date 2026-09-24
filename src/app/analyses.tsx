@@ -27,6 +27,9 @@ export function adresse(base: string, p: Periode, borne: number | null, vue: str
   const fe = chg.f ?? (perso ? "" : p.cle);
   if (chg.f === undefined && perso) {
     a.set("du", p.saisie.du); a.set("au", p.saisie.au);
+  } else if (chg.f !== undefined) {
+    // Un choix, meme celui du defaut, s'ecrit : c'est lui que le navigateur retient.
+    a.set("f", chg.f);
   } else if (fe && fe !== DEFAUT.cle) {
     a.set("f", fe);
   }

@@ -5,6 +5,7 @@ import { BarresClassees, Courbes } from "../graphes";
 import { IcoBorne, IcoFleche, IcoStock, IcoVentes } from "../icones";
 import { q, euros } from "@/db";
 import { utilisateur, type Utilisateur } from "@/lib/auth";
+import { filtreRetenu } from "@/lib/filtre";
 import { Suspense } from "react";
 import { SqBloc, Squelette } from "../squelette";
 import { autonomie, categoriesDansLeTemps, FENETRES, parBorne, parProduit, periodeDe,
@@ -31,7 +32,11 @@ export default async function Analytiques(
   const u = await utilisateur();
   if (!u) redirect("/connexion");
 
-  const { f, b, vue, du, au } = await searchParams;
+  const sp = await searchParams;
+  const retenu = await filtreRetenu();
+  const { vue, du, au } = sp;
+  const f = sp.f ?? (du && au ? undefined : retenu.f);
+  const b = sp.b ?? retenu.b;
 
   const p = await periodeDe(f, du, au);
   const perso = p.cle === "perso";

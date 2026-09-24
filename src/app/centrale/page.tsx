@@ -112,7 +112,7 @@ export default async function Centrale({ searchParams }: {
               <input type="checkbox" name="dispo" value="1" defaultChecked={dispo} />
               <span>Disponibles seulement</span>
             </label>
-            <button className="bouton petit">Appliquer</button>
+            <button className="bouton petit sans-js">Appliquer</button>
             {filtre ? <Link href={lienVers({ q: null, f: null, tri: null, dispo: null })} className="bouton petit discret">Effacer</Link> : null}
           </form>
           <div className="ctr-compte faible">

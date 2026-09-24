@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { q, q1, euros, depuis, FUSEAU } from "@/db";
 import { peutCharger, utilisateur, type Utilisateur } from "@/lib/auth";
+import { filtreRetenu } from "@/lib/filtre";
 import { Suspense } from "react";
 import { SqBloc, Squelette } from "../squelette";
 import { Repli } from "../repli";
@@ -40,7 +41,10 @@ export default async function Ventes(
   { searchParams }: { searchParams: Promise<{ f?: string; b?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const { f, b } = await searchParams;
+  const sp = await searchParams;
+  const retenu = await filtreRetenu();
+  const f = sp.f ?? retenu.f;
+  const b = sp.b ?? retenu.b;
   // Nommee, pas prise au rang : ajouter « aujourd'hui » en tete aurait fait
   // glisser le defaut de trente jours a sept.
   const fen = FENETRES.find((x) => x.cle === f) ?? FENETRES.find((x) => x.cle === "30")!;

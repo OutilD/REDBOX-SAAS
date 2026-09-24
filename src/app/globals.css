@@ -8100,3 +8100,6 @@ html { touch-action: manipulation; }
   .modale.recherche-globale { width: calc(100vw - 16px); margin: 8px auto auto; max-height: 80vh; }
   .recherche-globale .champ-recherche kbd { display: none; }
 }
+/* Ce qui ne sert qu'a un navigateur sans script : le bouton « Appliquer » d'un
+   filtre qui, avec le script, s'applique au changement. */
+html.js .sans-js { display: none; }

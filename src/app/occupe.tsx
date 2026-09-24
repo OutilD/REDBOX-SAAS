@@ -38,6 +38,10 @@ import { ENTETE_ENVOI } from "@/lib/envoi";
  * clignote pas pour rien.
  */
 
+/** Les pages dont on retient la periode et la RedBox choisies (voir `lib/filtre.ts`). */
+const FILTREES = new Set(["/", "/analytiques", "/ventes"]);
+const BISCUIT_FILTRE = "rbx_filtre";
+
 /** Ce qui doit recharger la page entiere : la session, le theme, le produit — tout ce que la mise en page lit une fois. */
 const RECHARGENT = ["/api/session", "/api/inscription", "/api/rejoindre", "/api/theme", "/api/rail", "/api/compte", "/api/demo"];
 
@@ -56,10 +60,12 @@ export default function Occupe() {
     return () => window.clearTimeout(t);
   }, [enCours]);
 
-  // La page suivante est arrivee : plus rien n'attend, et on va a l'ancre.
+  // La page suivante est arrivee : plus rien n'attend, on va a l'ancre, et
+  // l'on retient le filtre que l'adresse porte.
   useEffect(() => {
     if (enCours) return;
     document.querySelectorAll(".occupe").forEach(liberer);
+    retenirFiltre();
     if (ancre.current) {
       const cible = document.getElementById(ancre.current);
       ancre.current = null;
@@ -69,6 +75,10 @@ export default function Occupe() {
 
   useEffect(() => {
     const LEVEE_MS = 15_000;
+    // Le style sait desormais que le script est la : un bouton « Appliquer »
+    // qui ne sert qu'a un navigateur sans script peut se cacher.
+    document.documentElement.classList.add("js");
+    retenirFiltre();
 
     const marquer = (el: Element | null) => {
       if (!el || el.classList.contains("occupe")) return;
@@ -99,7 +109,24 @@ export default function Occupe() {
       const bouton = sub ?? forme.querySelector("button[type=submit], button:not([type])");
       const methode = (forme.getAttribute("method") ?? "get").toLowerCase();
       const action = forme.getAttribute("action") ?? "";
-      const parNous = methode === "post" && action.startsWith("/api/") && !forme.hasAttribute("data-recharge")
+      if (forme.hasAttribute("data-recharge")) { marquer(bouton); return; }
+
+      // UN FORMULAIRE GET EST UN FILTRE : l'adresse qu'il compose, on y va par
+      // le routeur, comme pour un lien. Les champs vides ne l'encombrent pas.
+      if (methode === "get" && !action.startsWith("/api/") && !action.startsWith("http")) {
+        e.preventDefault();
+        const u = new URL(action || location.pathname, location.href);
+        if (u.origin !== location.origin) { forme.submit(); return; }
+        const a = new URLSearchParams();
+        for (const [k, v] of new FormData(forme, sub ?? undefined)) if (typeof v === "string" && (v !== "" || k === "b")) a.append(k, v);
+        u.search = a.toString();
+        ancre.current = u.hash ? u.hash.slice(1) : null;
+        if (bouton?.matches("button.bouton")) marquer(bouton);
+        transition(() => router.push(u.pathname + u.search + u.hash, { scroll: false }));
+        return;
+      }
+
+      const parNous = methode === "post" && action.startsWith("/api/")
         && !RECHARGENT.some((p) => action === p || action.startsWith(p + "/"));
       marquer(bouton);
       if (!parNous) return;
@@ -149,20 +176,57 @@ export default function Occupe() {
       transition(() => router.push(u.pathname + u.search + u.hash));
     };
 
+    // UN FILTRE S'APPLIQUE AU CHANGEMENT. Une liste deroulante ou une case
+    // dans un formulaire GET n'attend pas qu'on appuie sur « Appliquer » : le
+    // choix EST l'action. Un champ de texte ou de date garde son Entree — on
+    // n'envoie pas une adresse a moitie tapee.
+    const surChangement = (e: Event) => {
+      const el = e.target as HTMLElement;
+      if (!el.matches("select, input[type=checkbox], input[type=radio]")) return;
+      const forme = el.closest("form");
+      if (!forme || (forme.getAttribute("method") ?? "get").toLowerCase() !== "get" || forme.hasAttribute("data-manuel")) return;
+      forme.requestSubmit();
+    };
+
     // La page a change : plus rien n'attend.
     const surRetour = () => document.querySelectorAll(".occupe").forEach(liberer);
 
     document.addEventListener("submit", surEnvoi);
+    document.addEventListener("change", surChangement);
     document.addEventListener("click", surClic, true);
     window.addEventListener("pageshow", surRetour);
     return () => {
       document.removeEventListener("submit", surEnvoi);
+      document.removeEventListener("change", surChangement);
       document.removeEventListener("click", surClic, true);
       window.removeEventListener("pageshow", surRetour);
     };
   }, [router, transition]);
 
   return fil ? <div className="progression" role="progressbar" aria-label="Chargement" aria-busy="true" /> : null;
+}
+
+/**
+ * Retenir la periode et la RedBox que l'adresse porte, sur les pages qui les
+ * partagent. Seulement ce que l'adresse DIT : un lien du menu, sans rien,
+ * n'efface pas le choix de tout a l'heure ; « Toutes les RedBox », qui ecrit
+ * `b=` vide, l'efface. Une periode sur mesure (du/au) ne se retient pas.
+ */
+function retenirFiltre() {
+  if (!FILTREES.has(location.pathname)) return;
+  const a = new URLSearchParams(location.search);
+  // Le biscuit porte « f=7&b=15 » tel quel : ces caracteres passent dans un
+  // biscuit, et l'encoder une fois de plus le rendait illisible au retour.
+  const brut = document.cookie.split("; ").find((c) => c.startsWith(BISCUIT_FILTRE + "="))?.slice(BISCUIT_FILTRE.length + 1) ?? "";
+  const ancien = new URLSearchParams((() => { try { return decodeURIComponent(brut); } catch { return brut; } })());
+  const memo = new URLSearchParams();
+  for (const k of ["f", "b"]) { const v = ancien.get(k); if (v) memo.set(k, v); }
+  let change = false;
+  const f = a.get("f");
+  if (f !== null && !a.has("du")) { memo.set("f", f); change = true; }
+  const b = a.get("b");
+  if (b !== null) { if (b) memo.set("b", b); else memo.delete("b"); change = true; }
+  if (change) document.cookie = `${BISCUIT_FILTRE}=${memo.toString()}; Path=/; Max-Age=31536000; SameSite=Lax`;
 }
 
 function liberer(el: Element) {
