@@ -8155,3 +8155,16 @@ html.js .sans-js { display: none; }
 .demarrage li:not(.faite):hover { border-color: var(--bord-fort); }
 .demarrage li:not(.faite) a:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; border-radius: 4px; }
 .demarrage > p { margin: 10px 0 0; font-size: 13px; }
+
+/* ------------------------------------------------------------------ sante d'une machine
+   Trente jours, une case par jour. */
+.sante-bande { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 3px; }
+.sante-bande .case { display: block; aspect-ratio: 1 / 1.6; border-radius: 3px; background: var(--surface-3); }
+.sante-bande .case.ok { background: var(--vert); opacity: .85; }
+.sante-bande .case.attente { background: var(--ambre); }
+.sante-bande .case.mal { background: var(--rouge-vif); }
+.sante-legende { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; }
+.sante-legende span { display: inline-flex; align-items: center; gap: 6px; }
+.sante-legende i { width: 10px; height: 10px; border-radius: 2px; background: var(--surface-3); }
+.sante-legende i.ok { background: var(--vert); } .sante-legende i.attente { background: var(--ambre); } .sante-legende i.mal { background: var(--rouge-vif); }
+.ligne > .pilule { flex: none; margin-right: 10px; }

@@ -398,6 +398,8 @@ export default async function Detail({
               : null}
             {/* Ce que la machine a ecrit, sans ouvrir la porte. */}
             <Link href={`/bornes/${id}/journal`} className="bouton">Journal</Link>
+            {/* Coupures, redemarrages, pannes de terminal : les trente derniers jours en une page. */}
+            <Link href={`/bornes/${id}/sante`} className="bouton">Santé</Link>
             {b.jeton ? (
               <form method="post" action="/api/bornes/reveiller">
                 <input type="hidden" name="id" value={id} />
