@@ -5,6 +5,9 @@ import { IcoAnalyses, IcoFleche } from "./icones";
 import { q, euros } from "@/db";
 import { utilisateur, type Utilisateur } from "@/lib/auth";
 import { filtreRetenu } from "@/lib/filtre";
+import { cookies } from "next/headers";
+import { BISCUIT_DEMARRAGE, etapesDemarrage } from "@/lib/demarrage";
+import Masquer from "./masquer";
 import { Suspense } from "react";
 import { SqBloc, SqLigne, Squelette } from "./squelette";
 import { autonomie, avancement, comparaison, entete, FENETRES, periodeDe, serie,
@@ -111,7 +114,7 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   lien: (chg?: { f?: string }) => string; versAnalytiques: string;
 }) {
   const [avance, tete, avant, points, stocks] = await Promise.all([
-    sienDuCompte ? avancement(u.compte_id) : null,
+    sienDuCompte ? avancement(u.compte_id, u.id) : null,
     entete(u.compte_id, p, portee),
     comparaison(u.compte_id, p, portee),
     serie(u.compte_id, p, portee),
@@ -206,6 +209,12 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   // de ces mains-la, et la lui montrer serait lui demander de faire un travail
   // qu'il ne peut pas faire. `avance` est nul pour lui, et on passe.
   const enRoute = avance !== null && (avance.produits === 0 || avance.appairees === 0);
+  // LA CHECKLIST, une fois les deux premieres marches franchies : tant qu'une
+  // etape manque, et tant qu'on ne l'a pas masquee. Un compte qui vend depuis
+  // un mois n'a plus rien a en apprendre.
+  const etapes = avance && !enRoute ? etapesDemarrage(avance, u) : [];
+  const restantes = etapes.filter((e) => !e.fait);
+  const demarrage = restantes.length > 0 && !(await cookies()).get(BISCUIT_DEMARRAGE) && avance!.ventes < 200;
   if (enRoute && avance) {
     return (
       <>
@@ -248,6 +257,26 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
             </nav>
           </div>
         </div>
+
+        {demarrage ? (
+          <section className="demarrage" aria-label="Pour bien démarrer">
+            <div className="tete">
+              <h2>Pour bien démarrer <span className="num faible">{etapes.length - restantes.length}/{etapes.length}</span></h2>
+              <Masquer biscuit={BISCUIT_DEMARRAGE} cible=".demarrage">Masquer</Masquer>
+            </div>
+            <ol>
+              {etapes.map((e) => (
+                <li key={e.cle} className={e.fait ? "faite" : ""}>
+                  <span className="puce" aria-hidden="true">{e.fait ? "✓" : ""}</span>
+                  {e.fait ? <span className="nom">{e.nom}</span> : (
+                    <Link href={e.vers} className="nom" title={e.quoi}>{e.nom} <IcoFleche size={12} /></Link>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <p className="faible">{restantes[0]?.quoi}</p>
+          </section>
+        ) : null}
 
         {/* ---------------------------------------------------------- a traiter */}
         {aTraiter.length > 0 ? (

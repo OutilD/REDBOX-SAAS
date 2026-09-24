@@ -509,6 +509,8 @@ export async function categoriesDansLeTemps(compte_id: number, p: Periode,
 export type Avancement = {
   categories: number; produits: number; recu: number;
   bornes: number; appairees: number; chargees: number; ventes: number;
+  /** Les appareils de CETTE personne qui recoivent les notifications. */
+  notifs: number;
 };
 
 /**
@@ -518,9 +520,10 @@ export type Avancement = {
  * « il n'y a rien parce que rien ne s'est passe ». Ce ne sont pas les memes
  * ecrans : le premier appelle une marche a suivre, le second une explication.
  */
-export async function avancement(compte_id: number): Promise<Avancement> {
+export async function avancement(compte_id: number, utilisateur_id: number | null = null): Promise<Avancement> {
   return (await q1<Avancement>(`
     SELECT
+      (SELECT COUNT(*)::int FROM abonnement_push WHERE utilisateur_id = $2)         AS notifs,
       (SELECT COUNT(*)::int FROM categorie WHERE compte_id = $1)                    AS categories,
       (SELECT COUNT(*)::int FROM produit WHERE compte_id = $1 AND actif)            AS produits,
       (SELECT COUNT(*)::int FROM mouvement WHERE compte_id = $1
@@ -535,5 +538,5 @@ export async function avancement(compte_id: number): Promise<Avancement> {
         WHERE b.compte_id = $1 AND c.produit_id IS NOT NULL)                        AS chargees,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1)                                                     AS ventes
-  `, [compte_id]))!;
+  `, [compte_id, utilisateur_id]))!;
 }
