@@ -69,7 +69,7 @@ export default async function Ressources({ searchParams }: {
           </div>
         ) : (
           <>
-            <div className="aca-ressources">
+            <div className="aca-ressources" data-glisser={l.editeur ? "/api/academie/ressource" : undefined} data-action="ordonner" data-prefixe="r">
               {tout.map((r, j) => (
                 <div key={r.id} id={`r${r.id}`} className="aca-ressource-case">
                   <Link href={`/academie/ressources/${r.id}`} className="aca-ressource"

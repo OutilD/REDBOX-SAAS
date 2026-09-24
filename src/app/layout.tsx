@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { ENTETE_PRODUIT } from "@/lib/produits";
 import "./globals.css";
 import Occupe from "./occupe";
+import Glisser from "./glisser";
 import { Suspense } from "react";
 import Notif from "./notif";
 import Pwa from "./pwa";
@@ -66,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Suspense fallback={null}><Notif /></Suspense>
         {children}
         <Occupe />
+        <Glisser />
         <Pwa />
         {/* iPhone : la barre du bas et l'en-tete restent a leur place apres le clavier. */}
         <HauteurEcran />

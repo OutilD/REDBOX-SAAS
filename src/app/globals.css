@@ -8103,3 +8103,15 @@ html { touch-action: manipulation; }
 /* Ce qui ne sert qu'a un navigateur sans script : le bouton « Appliquer » d'un
    filtre qui, avec le script, s'applique au changement. */
 html.js .sans-js { display: none; }
+
+/* ------------------------------------------------------------------ glisser-deposer
+   Les listes qui se classent, a la souris : la ligne prise palit, un trait
+   rouge dit ou elle va se poser. Au doigt, les fleches font le travail. */
+@media (hover: hover) and (pointer: fine) {
+  [data-glisser] > .glissable { cursor: grab; }
+  [data-glisser] > .glissable:active { cursor: grabbing; }
+}
+[data-glisser] > .glisser-en-cours { opacity: .45; }
+[data-glisser] > .glisser-avant { box-shadow: 0 -3px 0 0 var(--rouge) !important; }
+[data-glisser] > .glisser-apres { box-shadow: 0 3px 0 0 var(--rouge) !important; }
+.demo-bandeau .bouton.discret { color: inherit; opacity: .8; }

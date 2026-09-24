@@ -432,6 +432,29 @@ export async function deplacer(table: Table, id: number, sens: "monter" | "desce
   });
 }
 
+
+/**
+ * TOUT L'ORDRE D'UN COUP : la liste telle qu'on l'a posee en glissant. Les
+ * lignes doivent etre de la meme liste — un meme parent — sinon on ne touche
+ * a rien ; celles qu'on ne cite pas gardent leur rang.
+ */
+export async function ordonner(table: Table, ids: number[]): Promise<void> {
+  if (ids.length < 2) return;
+  const col = PARENT[table];
+  if (col) {
+    const r = await q1<{ n: number }>(`SELECT COUNT(DISTINCT ${col})::int AS n FROM ${table} WHERE id = ANY($1::bigint[])`, [ids]);
+    if (!r || r.n !== 1) return;
+  }
+  await q(`
+    UPDATE ${table} t SET ordre = x.o FROM unnest($1::bigint[]) WITH ORDINALITY AS x(id, o)
+     WHERE t.id = x.id`, [ids]);
+}
+
+/** Les identifiants d'un formulaire de classement : « 3,1,2 ». */
+export function idsDe(f: FormData): number[] {
+  return String(f.get("ids") ?? "").split(",").map((x) => Number(x.trim())).filter((n) => Number.isInteger(n) && n > 0);
+}
+
 /**
  * Range un fichier televerse et rend son identifiant, ou la raison du refus.
  * `images` restreint aux photos, pour un bloc image.

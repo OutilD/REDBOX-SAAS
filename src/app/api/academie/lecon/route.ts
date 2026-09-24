@@ -1,6 +1,6 @@
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { RESUME_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, peutEditer,
+import { RESUME_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, idsDe, ordonner, peutEditer,
          rangSuivant } from "@/lib/academie";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,13 @@ export async function POST(req: Request) {
       return r.rows[0].id;
     });
     return versPage(req, `/academie/editer/lecon/${nouvelle}`);
+  }
+
+  if (action === "ordonner") {
+    const ids = idsDe(f);
+    const l = ids.length ? await q1<{ module_id: number }>("SELECT module_id FROM academie_lecon WHERE id = $1", [ids[0]]) : null;
+    if (l) await ordonner("academie_lecon", ids);
+    return versPage(req, l ? `/academie/editer/module/${l.module_id}#lecons` : "/academie/editer");
   }
 
   const id = Number(f.get("id"));

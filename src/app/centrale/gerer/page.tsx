@@ -110,7 +110,7 @@ export default async function Gerer({ searchParams }: { searchParams: Promise<{ 
         <section className="ctr-section" id="fournisseurs">
           <div className="titre-section"><h2>Fournisseurs</h2><span className="faible">{fours.length}</span></div>
           {fours.length === 0 ? <p className="vide">Aucun fournisseur.</p> : (
-            <div className="ctr-liste">
+            <div className="ctr-liste" data-glisser="/api/centrale" data-action="fournisseur_ordonner" data-prefixe="f" data-retour="/centrale/gerer">
               {fours.map((f, i) => (
                 <details key={f.id} id={`f${f.id}`} className="ctr-ligne-pliable" open={fOuvert === f.id || undefined}>
                   <summary className="ctr-ligne">
@@ -156,9 +156,9 @@ export default async function Gerer({ searchParams }: { searchParams: Promise<{ 
         <section className="ctr-section" id="categories">
           <div className="titre-section"><h2>Rayons</h2><span className="faible">{cats.length}</span></div>
           {cats.length === 0 ? <p className="vide">Aucun rayon.</p> : (
-            <div className="ctr-liste">
+            <div className="ctr-liste" data-glisser="/api/centrale" data-action="categorie_ordonner" data-prefixe="c" data-retour="/centrale/gerer">
               {cats.map((c, i) => (
-                <div key={c.id} className="ctr-cat">
+                <div key={c.id} id={`c${c.id}`} className="ctr-cat">
                   <form method="post" action="/api/centrale" className="rangee">
                     <input type="hidden" name="action" value="categorie_maj" />
                     <input type="hidden" name="id" value={c.id} />

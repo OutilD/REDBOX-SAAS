@@ -1,6 +1,6 @@
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { NOM_MAX, TEXTE_MAX, champ, deplacer, goutsDe, lien, peutEditerCentrale, rangSuivant,
+import { NOM_MAX, TEXTE_MAX, champ, deplacer, goutsDe, idsDe, lien, ordonner, peutEditerCentrale, rangSuivant,
          type GoutSaisi } from "@/lib/centrale";
 import { rangerImage } from "@/lib/image";
 import { centimes } from "@/lib/prix";
@@ -33,6 +33,7 @@ export async function POST(req: Request) {
 
   /* ------------------------------------------------------------ categories */
   if (cible === "categorie") {
+    if (action === "ordonner") { await ordonner("centrale_categorie", idsDe(f)); return vers("", "categories"); }
     if (action === "creer") {
       if (!nom) return vers("e=nom");
       await transaction(async (c) => {
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
 
   /* ----------------------------------------------------------- fournisseurs */
   if (cible === "fournisseur") {
+    if (action === "ordonner") { await ordonner("centrale_fournisseur", idsDe(f)); return vers("", "fournisseurs"); }
     if (url === false) return vers("e=lien", action === "creer" ? undefined : `f${id}`);
     const fichier = f.get("image");
     const envoye = fichier instanceof File && fichier.size > 0 ? fichier : null;

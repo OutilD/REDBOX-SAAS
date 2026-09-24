@@ -70,7 +70,7 @@ export default async function EditerModule({ params, searchParams }: {
         {lecons.length === 0 ? (
           <p className="vide">Aucune leçon. Créez la première ci-dessous.</p>
         ) : (
-          <div className="aca-ed-liste">
+          <div className="aca-ed-liste" data-glisser="/api/academie/lecon" data-action="ordonner" data-prefixe="l">
             {lecons.map((x, j) => {
               const n = lus.get(x.id) ?? 0;
               return (

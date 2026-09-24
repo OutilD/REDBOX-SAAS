@@ -90,7 +90,7 @@ export default async function EditerLecon({ params, searchParams }: {
         {blocs.length === 0 ? (
           <p className="vide">Aucun bloc : ajoutez un texte, une vidéo ou un document ci-dessous.</p>
         ) : (
-          <div className="aca-ed-blocs">
+          <div className="aca-ed-blocs" data-glisser="/api/academie/bloc" data-action="ordonner" data-prefixe="b">
             {blocs.map((b, j) => (
               <section key={b.id} id={`b${b.id}`} className="aca-ed-bloc">
                 <div className="tete">

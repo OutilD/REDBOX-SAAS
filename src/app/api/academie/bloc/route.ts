@@ -1,6 +1,6 @@
 import { q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { TEXTE_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, estGenre, peutEditer,
+import { TEXTE_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, estGenre, idsDe, ordonner, peutEditer,
          rangSuivant, rangerFichier, videoDe, type Genre } from "@/lib/academie";
 import { lienDrive } from "@/lib/drive";
 
@@ -26,6 +26,13 @@ export async function POST(req: Request) {
   const f = await req.formData();
   const action = String(f.get("action") ?? "");
   const id = Number(f.get("id"));
+
+  if (action === "ordonner") {
+    const ids = idsDe(f);
+    const b = ids.length ? await q1<{ lecon_id: number }>("SELECT lecon_id FROM academie_bloc WHERE id = $1", [ids[0]]) : null;
+    if (b) await ordonner("academie_bloc", ids);
+    return versPage(req, b ? `/academie/editer/lecon/${b.lecon_id}#blocs` : "/academie/editer");
+  }
 
   // La lecon d'ou l'on vient : fournie a la creation, relue sinon.
   const existant = action !== "creer" && Number.isInteger(id)

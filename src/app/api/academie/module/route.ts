@@ -1,6 +1,6 @@
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { RESUME_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, estIcone, peutEditer,
+import { RESUME_MAX, TITRE_MAX, balayerFichiers, champ, deplacer, estIcone, idsDe, ordonner, peutEditer,
          rangSuivant } from "@/lib/academie";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,10 @@ export async function POST(req: Request) {
   const icone = String(f.get("icone") ?? "");
   const acces = String(f.get("acces")) === "redboxers" ? "redboxers" : "tous";
 
+  if (action === "ordonner") {
+    await ordonner("academie_module", idsDe(f));
+    return versPage(req, "/academie/editer");
+  }
   if (action === "creer") {
     if (!titre) return versPage(req, "/academie/editer?e=titre");
     const nouveau = await transaction(async (c) => {

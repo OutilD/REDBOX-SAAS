@@ -59,7 +59,7 @@ export default async function EditerAcademie({ searchParams }: { searchParams: P
         ) : (
           <>
             <div className="titre-section"><h2>Modules</h2><span className="faible">{mods.length}</span></div>
-            <div className="aca-ed-liste">
+            <div className="aca-ed-liste" data-glisser="/api/academie/module" data-action="ordonner" data-prefixe="m">
               {mods.map((m, i) => (
                 <div key={m.id} id={`m${m.id}`} className="aca-ed-ligne">
                   <span className="aca-picto petit" aria-hidden="true"><IconeModule icone={m.icone} size={18} /></span>

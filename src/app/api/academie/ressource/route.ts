@@ -1,6 +1,6 @@
 import { q, q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { RESUME_MAX, TITRE_MAX, champ, deplacer, estIcone, peutEditer, rangSuivant } from "@/lib/academie";
+import { RESUME_MAX, TITRE_MAX, champ, deplacer, estIcone, idsDe, ordonner, peutEditer, rangSuivant } from "@/lib/academie";
 import { lienDrive } from "@/lib/drive";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,10 @@ export async function POST(req: Request) {
   const icone = String(f.get("icone") ?? "");
   const acces = String(f.get("acces")) === "redboxers" ? "redboxers" : "tous";
 
+  if (action === "ordonner") {
+    await ordonner("academie_ressource", idsDe(f));
+    return versPage(req, "/academie/ressources");
+  }
   if (action === "creer") {
     if (!titre) return versPage(req, "/academie/ressources?e=titre");
     if (!lienDrive(url)) return versPage(req, "/academie/ressources?e=drive");
