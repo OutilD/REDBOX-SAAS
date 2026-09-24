@@ -228,17 +228,24 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   const vus = useRef<number[]>([]);
   vus.current = messages.filter((m) => m.id > 0).map((m) => m.id);
 
+  // L'empreinte du salon au dernier tour : tant qu'elle ne bouge pas, le
+  // serveur repond « inchange » sans rien relire.
+  const empreinte = useRef("");
+  useEffect(() => { empreinte.current = ""; }, [salon.id]);
   const rafraichir = useCallback(async () => {
     if (document.visibilityState !== "visible") return;
     try {
       // Les cinquante derniers suffisent : au-dela on ne regarde plus, et
       // l'adresse ne doit pas grandir sans fin.
       const derniers = vus.current.slice(-50).join(",");
-      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}&vus=${derniers}`,
-                            { cache: "no-store" });
+      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}&vus=${derniers}`
+                            + `&v=${encodeURIComponent(empreinte.current)}`, { cache: "no-store" });
       if (!r.ok) return;
-      const { messages: neufs, reactions } = await r.json() as
-        { messages: Message[]; reactions?: Record<number, Reaction[]> };
+      const rep = await r.json() as
+        { inchange?: boolean; v?: string; messages?: Message[]; reactions?: Record<number, Reaction[]> };
+      if (rep.inchange) return;
+      const neufs = rep.messages ?? [], reactions = rep.reactions;
+      empreinte.current = rep.v ?? "";
       poser((m) => {
         const connus = new Set(m.map((x) => x.id));
         // Les reactions des messages deja la : le serveur fait foi, il a vu les

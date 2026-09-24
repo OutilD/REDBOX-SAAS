@@ -1,7 +1,7 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
-import { deposer, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
+import { deposer, empreinteSalon, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 import { MESSAGES_PAR_LOT } from "@/lib/fil";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +28,15 @@ export async function GET(req: Request) {
   if (!Number.isInteger(salon_id) || !Number.isInteger(depuis)) {
     return Response.json({ erreur: "paramètres" }, { status: 400 });
   }
-  const s = await salonDe(u, salon_id);
+  // LE DROIT ET L'EMPREINTE, ENSEMBLE. Si l'empreinte est celle que le
+  // navigateur connait deja, rien n'a bouge dans le salon : on repond tout de
+  // suite, sans relire messages, niveaux ni reactions. C'est le cas de
+  // presque tous les tours.
+  const [s, empreinte] = await Promise.all([salonDe(u, salon_id), empreinteSalon(salon_id)]);
   if (!s) return Response.json({ erreur: "salon inconnu" }, { status: 404 });
+  if (url.searchParams.get("v") === empreinte && !url.searchParams.get("avant")) {
+    return Response.json({ inchange: true, v: empreinte });
+  }
   // En remontant le fil : le lot d'avant `avant`, et rien d'autre — ni lecture
   // a noter, ni reactions a rafraichir.
   const avant = Number(url.searchParams.get("avant"));
@@ -46,7 +53,7 @@ export async function GET(req: Request) {
   const lu = Number(url.searchParams.get("lu"));
   const dernier = messages.at(-1)?.id ?? (Number.isInteger(lu) && lu > 0 ? lu : undefined);
   if (dernier !== undefined) await marquerLu(u.id, salon_id, dernier);
-  return Response.json({ messages, reactions });
+  return Response.json({ messages, reactions, v: empreinte });
 }
 
 /**

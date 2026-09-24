@@ -319,6 +319,23 @@ export async function salonDe(u: Utilisateur, id: number): Promise<Salon | null>
      WHERE ${VISIBLE} AND s.id = $6`, [...await portee(u), id]);
 }
 
+/**
+ * L'EMPREINTE D'UN SALON : ce qui change quand quelque chose s'y passe — un
+ * message arrive (le dernier identifiant), un message est retire (le dernier
+ * retrait), une reaction est posee ou otee (leur nombre et la derniere). Une
+ * seule lecture, legere : le navigateur la renvoie a chaque tour, et tant
+ * qu'elle ne bouge pas, rien d'autre n'est relu.
+ */
+export async function empreinteSalon(salon_id: number): Promise<string> {
+  const r = await q1<{ e: string }>(`
+    SELECT concat_ws(':',
+      (SELECT COALESCE(MAX(id), 0) FROM message WHERE salon_id = $1),
+      (SELECT COALESCE(extract(epoch FROM MAX(supprime_le))::bigint, 0) FROM message WHERE salon_id = $1),
+      (SELECT COUNT(*) || '.' || COALESCE(extract(epoch FROM MAX(r.cree_le))::bigint, 0)
+         FROM reaction r JOIN message m ON m.id = r.message_id WHERE m.salon_id = $1)) AS e`, [salon_id]);
+  return r?.e ?? "";
+}
+
 /** Ce que tout le monde n'a pas lu, tous salons confondus : la pastille de l'en-tete. */
 export async function nonLus(u: Utilisateur): Promise<number> {
   const r = await q1<{ n: number }>(`
