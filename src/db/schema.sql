@@ -1307,3 +1307,16 @@ CREATE TABLE IF NOT EXISTS action (
   page           TEXT               -- la page vers laquelle on est revenu
 );
 CREATE INDEX IF NOT EXISTS action_compte ON action (compte_id, quand DESC);
+
+-- LE RELEVE DE SANTE DE LA CONSOLE : les requetes lentes a la base et les
+-- erreurs du serveur, gardes quatorze jours pour la page Plateforme → Santé.
+-- Le texte d'une requete, jamais ses parametres : rien de personnel ici.
+CREATE TABLE IF NOT EXISTS releve_perf (
+  id        BIGSERIAL PRIMARY KEY,
+  quand     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  genre     TEXT NOT NULL CHECK (genre IN ('sql_lente', 'erreur')),
+  duree_ms  INTEGER,
+  texte     TEXT NOT NULL,
+  route     TEXT
+);
+CREATE INDEX IF NOT EXISTS releve_perf_quand ON releve_perf (quand DESC);

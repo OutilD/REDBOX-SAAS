@@ -66,7 +66,29 @@ export async function q<T extends QueryResultRow>(
   if (ms >= LENTE_MS || process.env.REDBOX_TRACE_SQL) {
     console[ms >= LENTE_MS ? "warn" : "log"](`[sql ${ms} ms] ${sql.replace(/\s+/g, " ").trim().slice(0, 90)}`);
   }
+  if (ms >= RELEVE_MS) relever("sql_lente", sql, ms);
   return r.rows;
+}
+
+/**
+ * LE RELEVE DE SANTE. Une requete de plus d'une seconde, ou une erreur du
+ * serveur, s'ecrit dans `releve_perf` pour la page Plateforme → Santé : les
+ * journaux du serveur, personne ne les lit. Sans attendre, sans jamais faire
+ * echouer ce qui l'appelle, et pas plus d'une fois par minute pour une meme
+ * requete — une page lente sur chaque clic ne doit pas remplir la table.
+ */
+const RELEVE_MS = 1000;
+const dejaReleve = new Map<string, number>();
+export function relever(genre: "sql_lente" | "erreur", texte: string, duree_ms: number | null, route: string | null = null): void {
+  const propre = texte.replace(/\s+/g, " ").trim().slice(0, 400);
+  const cle = `${genre}:${route ?? ""}:${propre.slice(0, 120)}`;
+  const avant = dejaReleve.get(cle);
+  if (avant && Date.now() - avant < 60_000) return;
+  dejaReleve.set(cle, Date.now());
+  if (dejaReleve.size > 500) dejaReleve.clear();
+  pool().query("INSERT INTO releve_perf (genre, duree_ms, texte, route) VALUES ($1, $2, $3, $4)",
+               [genre, duree_ms, propre, route?.slice(0, 200) ?? null])
+    .catch(() => { /* la table n'existe pas encore, ou la base est loin : tant pis */ });
 }
 
 /** La premiere ligne, ou null. Pour les lectures dont on sait qu'elles sont uniques. */

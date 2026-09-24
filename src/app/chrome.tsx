@@ -28,7 +28,7 @@ export type Page =
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
-  | "admin" | "admin_parc" | "admin_comptes";
+  | "admin" | "admin_parc" | "admin_comptes" | "admin_sante";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -152,6 +152,9 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
         droit: estSuperAdmin },
       { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
         droit: estSuperAdmin },
+      // La console elle-meme : ce qui est lent, ce qui plante.
+      { cle: "admin_sante", nom: "Santé", icone: <IcoAlerte />, vers: "/admin/sante",
+        droit: estSuperAdmin },
     ],
   },
 ];
@@ -238,7 +241,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
-  admin: "menu", admin_parc: "menu", admin_comptes: "menu",
+  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_sante: "menu",
   academie_editer: "academie",
 };
 
@@ -269,6 +272,7 @@ const FIL: Record<Page, [string, string?]> = {
   admin:      ["Tableau de bord", "Plateforme"],
   admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
+  admin_sante: ["Santé", "Plateforme"],
   academie:   ["Académie", "Connect"],
   academie_editer: ["Édition", "Académie"],
 };

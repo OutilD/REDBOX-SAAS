@@ -4,6 +4,7 @@ import { ENTETE_PRODUIT } from "@/lib/produits";
 import "./globals.css";
 import Occupe from "./occupe";
 import Glisser from "./glisser";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import Notif from "./notif";
 import Pwa from "./pwa";
@@ -68,6 +69,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {children}
         <Occupe />
         <Glisser />
+        {/* Le temps de chargement vu par les vrais utilisateurs, page par page,
+            dans le tableau de bord Vercel (onglet Speed Insights, a activer une
+            fois). Hors de Vercel, il ne fait rien. */}
+        <SpeedInsights />
         <Pwa />
         {/* iPhone : la barre du bas et l'en-tete restent a leur place apres le clavier. */}
         <HauteurEcran />
