@@ -6,7 +6,7 @@ import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe,
          type Utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
 import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale, IcoListe } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
@@ -25,7 +25,7 @@ export { PRODUITS, type Produit };
 export type Page =
   | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger" | "centrale"
   | "bornes" | "carte" | "ventes" | "messages" | "communaute"
-  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications"
+  | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
   | "admin" | "admin_parc" | "admin_comptes";
@@ -136,6 +136,9 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
         droit: peutGererEquipe },
       // Personnel, pas propre au compte : chacun regle ses appareils.
       { cle: "notifications", nom: "Notifications", icone: <IcoCloche />, vers: "/reglages/notifications" },
+      // Qui a fait quoi dans le compte : des qu'on est deux, on veut le savoir.
+      { cle: "journal", nom: "Journal", icone: <IcoListe />, vers: "/reglages/journal",
+        droit: peutConfigurer },
     ],
   },
   {
@@ -234,7 +237,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   analytiques: "tableau",
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
-  sav: "menu", notifications: "menu", profil: "menu", demo: "menu",
+  sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_parc: "menu", admin_comptes: "menu",
   academie_editer: "academie",
 };
@@ -258,6 +261,7 @@ const FIL: Record<Page, [string, string?]> = {
   equipe:     ["Équipe", "Configuration"],
   pub:        ["Écran d’accueil", "Configuration"],
   sav:        ["Assistance", "Configuration"],
+  journal:    ["Journal", "Configuration"],
   notifications: ["Notifications", "Configuration"],
   profil:     ["Mon compte"],
   demo:       ["Mode démo", "Réglages"],

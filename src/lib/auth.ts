@@ -1,4 +1,5 @@
 import { ENTETE_ENVOI } from "./envoi";
+import { noterAction } from "./journal-actions";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
@@ -311,6 +312,15 @@ export function versPage(req: Request, chemin: string, biscuit?: string | string
   const local = !hote || hote.startsWith("localhost") || hote.includes(".localhost") || hote.startsWith("127.");
   const base = hote ? `${req.headers.get("x-forwarded-proto") ?? (local ? "http" : "https")}://${hote}` : req.url;
   const vers = new URL(chemin, base).toString();
+  // UNE ACTION REUSSIE S'ECRIT AU JOURNAL. La cle « fait » de l'adresse de
+  // retour dit laquelle ; qui l'a faite se relit dans le biscuit. Sans
+  // attendre : la reponse part, le journal suit.
+  const fait = new URL(vers).searchParams.get("fait");
+  if (fait) {
+    const route = new URL(req.url).pathname;
+    void utilisateurDe(req).then((u) => u && noterAction(u, fait, route, new URL(vers).pathname + new URL(vers).search))
+      .catch((e) => console.error("journal :", e instanceof Error ? e.message : e));
+  }
   const entetes = new Headers();
   for (const b of biscuit === undefined ? [] : [biscuit].flat()) entetes.append("Set-Cookie", b);
   if (req.headers.get(ENTETE_ENVOI) === "1") {
