@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { utilisateur } from "@/lib/auth";
+import { peutConfigurer, utilisateur } from "@/lib/auth";
+import { q } from "@/db";
+import Modale from "../../../modale";
 import { categories as lireCategories, estNouveau, fournisseurs as lireFournisseurs, lienAchat,
          peutEditerCentrale, produitDe, similaires } from "@/lib/centrale";
 import { ListeGouts } from "../../vues";
@@ -25,7 +27,16 @@ export default async function FicheProduit({ params, searchParams }: {
   const p = await produitDe(Number(id));
   if (!p) notFound();
   const editeur = peutEditerCentrale(u);
-  const [autres, cats, fours] = await Promise.all([similaires(p, 4), lireCategories(), lireFournisseurs()]);
+  // Peut-il le mettre dans SON catalogue ? Le proprietaire ou le gerant du
+  // compte, pas quelqu'un restreint a une machine : le catalogue est au compte.
+  const adopte = peutConfigurer(u) && u.bornes === null;
+  const [autres, cats, fours, miennes, dejaLa] = await Promise.all([
+    similaires(p, 4), lireCategories(), lireFournisseurs(),
+    adopte ? q<{ id: number; nom: string }>("SELECT id, nom FROM categorie WHERE compte_id = $1 ORDER BY ordre, nom", [u.compte_id]) : [],
+    adopte ? q<{ n: number }>("SELECT COUNT(*)::int AS n FROM produit WHERE compte_id = $1 AND (nom = $2 OR nom LIKE $2 || ' · %')", [u.compte_id, p.nom]).then((r) => r[0]?.n ?? 0) : 0,
+  ]);
+  const memeRayon = miennes.find((c) => p.categorie && c.nom.trim().toLowerCase() === p.categorie.trim().toLowerCase());
+  const age18 = /vape|puff|popper|alcool|tabac|cigarette/i.test(`${p.categorie ?? ""} ${p.nom}`);
   const achat = p.disponible ? lienAchat(p) : null;
   const erreur = sp.e ? ERREURS[sp.e] ?? "Impossible." : null;
   const ici = `/centrale/produit/${p.id}`;
@@ -82,6 +93,58 @@ export default async function FicheProduit({ params, searchParams }: {
                 {p.disponible ? "Lien d’achat à venir" : "En rupture chez le fournisseur"}
               </span>
             )}
+            {adopte ? (
+              <div className="ctr-fiche-adopter">
+                <Modale titre="Ajouter à mon catalogue" ouvrir={dejaLa > 0 ? "Ajouter encore à mon catalogue" : "＋ Ajouter à mon catalogue"}
+                        classeBouton="bouton large">
+                  <form method="post" action="/api/centrale/adopter">
+                    <input type="hidden" name="produit_id" value={p.id} />
+                    <p className="aide" style={{ marginTop: 0 }}>
+                      Le nom, la photo, la description et le prix conseillé arrivent dans votre catalogue.
+                      Il restera à le poser sur une spirale (RedBox → Emplacements).
+                    </p>
+                    <div className="champ">
+                      <label htmlFor="ad-cat">Dans quelle catégorie</label>
+                      <select id="ad-cat" name="categorie_id" defaultValue={memeRayon ? String(memeRayon.id) : "nouvelle"}>
+                        {miennes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                        <option value="nouvelle">＋ Nouvelle catégorie « {p.categorie ?? "Divers"} »</option>
+                      </select>
+                    </div>
+                    <div className="champs" style={{ marginTop: 14 }}>
+                      <div className="c-court">
+                        <label htmlFor="ad-prix">Prix de vente (€)</label>
+                        <input id="ad-prix" name="prix" inputMode="decimal"
+                               defaultValue={p.prix_conseille_c ? (p.prix_conseille_c / 100).toFixed(2).replace(".", ",") : ""} placeholder="4,50" />
+                      </div>
+                      <div className="c-court">
+                        <label htmlFor="ad-age">Âge minimum</label>
+                        <select id="ad-age" name="age_min" defaultValue={age18 ? "18" : "0"}>
+                          <option value="0">Tout public</option>
+                          <option value="18">18 ans</option>
+                        </select>
+                      </div>
+                    </div>
+                    {p.gouts.length > 0 ? (
+                      <fieldset className="ctr-adopter-gouts">
+                        <legend>Un produit par goût</legend>
+                        <div className="liste">
+                          {p.gouts.map((g) => (
+                            <label key={g.nom}>
+                              <input type="checkbox" name="gout" value={g.nom} defaultChecked={g.etiquette === "best" || p.gouts.length <= 4} />
+                              <span>{g.nom}</span>
+                              {g.etiquette === "best" ? <small>best-seller</small> : g.etiquette === "nouveau" ? <small>nouveau</small> : null}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="aide">Aucun goût coché : un seul produit, au nom du modèle.</p>
+                      </fieldset>
+                    ) : null}
+                    <div className="ctr-bas"><span /><button className="bouton primaire">Ajouter à mon catalogue</button></div>
+                  </form>
+                </Modale>
+                {dejaLa > 0 ? <p className="ctr-fiche-note faible">Déjà dans votre catalogue ({dejaLa}).</p> : null}
+              </div>
+            ) : null}
             <p className="ctr-fiche-note faible">
               {achat
                 ? <>Vous achetez directement sur {hote ?? "le site du fournisseur"}, dans un nouvel onglet. RedBox ne prend aucune commission.</>

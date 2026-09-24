@@ -12,6 +12,8 @@
  */
 export const FAIT: Record<string, string> = {
   enregistre: "Enregistré",
+  adopte:     "Ajouté à votre catalogue — posez-le sur une spirale quand vous voulez",
+  deja:       "Déjà dans votre catalogue",
   ajoute:     "Ajouté",
   supprime:   "Supprimé",
   retire:     "Retiré",
