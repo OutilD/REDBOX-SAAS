@@ -128,7 +128,8 @@ export async function lecteur(u: Utilisateur, apercu?: string | null): Promise<L
   const editeur = peutEditer(u);
   if (editeur && apercu === "prospect") return { id: u.id, redboxer: false, editeur: false, apercu: true };
   if (editeur) return { id: u.id, redboxer: true, editeur: true, apercu: false };
-  const redboxer = (await groupeDuCompte(u.compte_id)) === "proprietaires";
+  // L'equipe RedBox est redboxer partout, depuis n'importe lequel de ses comptes.
+  const redboxer = editeur || (await groupeDuCompte(u.compte_id)) === "proprietaires";
   return { id: u.id, redboxer, editeur: false, apercu: false };
 }
 

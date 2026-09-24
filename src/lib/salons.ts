@@ -143,15 +143,22 @@ async function groupeGarde(compte_id: number): Promise<string> {
   return groupe;
 }
 
-/** Les cinq parametres de VISIBLE, dans l'ordre. $5 est la personne. */
+/**
+ * Les cinq parametres de VISIBLE, dans l'ordre. $5 est la personne.
+ *
+ * UN SUPER-ADMIN EST DE L'EQUIPE REDBOX, QUEL QUE SOIT LE COMPTE OU IL SE
+ * TROUVE : les salons de la plateforme lui sont ouverts meme depuis un compte
+ * qui n'a pas de machine. Sans cela, une personne de l'equipe membre d'un
+ * second compte tombait sur des cadenas des qu'elle y passait.
+ */
 async function portee(u: Utilisateur): Promise<unknown[]> {
-  return [u.compte_id, u.bornes, u.editeur, await groupeGarde(u.compte_id), u.id];
+  return [u.compte_id, u.bornes, u.editeur || u.superAdmin, await groupeGarde(u.compte_id), u.id];
 }
 
 /** Peut-elle ecrire la ? Les annonces sont a l'editeur ; le reste, a qui n'est pas en lecture seule. */
 export function peutEcrire(u: Utilisateur, s: Salon): boolean {
   if (u.role === "lecture") return false;
-  if (s.portee === "annonces") return u.editeur;
+  if (s.portee === "annonces") return u.editeur || u.superAdmin;
   return true;
 }
 

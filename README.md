@@ -366,6 +366,10 @@ ciblage des notifications d’annonces et de communauté, et par la page
 d’arrivée à la connexion. Avant, il fallait une machine appairée : un client
 dont la machine était commandée restait devant un cadenas jusqu’au jour de
 l’installation.
+Un **super-admin est de l’équipe RedBox quel que soit le compte** où il se
+trouve : salons de la plateforme ouverts, écriture dans les annonces, académie
+complète, même depuis un second compte sans machine (`portee`, `peutEcrire`,
+`lecteur`).
 
 **Léger au téléphone.** Les badges se dessinent depuis des vignettes WebP
 (`public/badges/petit`, 96 px, 82 Ko pour toute la page au lieu de 2,2 Mo ;
