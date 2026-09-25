@@ -15,6 +15,12 @@ export const dynamic = "force-dynamic";
  * de produit, de categorie ou de publicite reste, elle, fermee a son compte.
  * Les photos de la centrale d'achat sont a tout le monde aussi : c'est un
  * catalogue de la plateforme.
+ *
+ * Et une image que les produits ou les categories DU COMPTE designent : les
+ * demos et la vitrine pointent vers les photos du compte modele plutot que de
+ * les recopier (`catalogueModele`). Aucune route ne laisse un compte poser
+ * l'image d'un autre — `rangerImage` range toujours chez soi —, cette porte
+ * ne s'ouvre donc que sur ce que la plateforme a elle-meme partage.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await utilisateur();
@@ -28,6 +34,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         AND (i.compte_id = $2
              OR EXISTS (SELECT 1 FROM utilisateur x WHERE x.image_id = i.id)
              OR EXISTS (SELECT 1 FROM centrale_produit cp WHERE cp.image_id = i.id)
-             OR EXISTS (SELECT 1 FROM centrale_fournisseur cf WHERE cf.image_id = i.id))`,
+             OR EXISTS (SELECT 1 FROM centrale_fournisseur cf WHERE cf.image_id = i.id)
+             OR EXISTS (SELECT 1 FROM produit p WHERE p.image_id = i.id AND p.compte_id = $2)
+             OR EXISTS (SELECT 1 FROM categorie k WHERE k.image_id = i.id AND k.compte_id = $2))`,
     [id, u.compte_id]));
 }

@@ -1435,6 +1435,8 @@ input[type="radio"]:focus, input[type="checkbox"]:focus {
   outline: none; box-shadow: none; border-color: var(--bord-fort);
 }
 .champ + .champ { margin-top: 14px; }
+/* Dans une grille, l'ecart est celui de la grille : la marge s'y ajoutait et decalait les champs. */
+.grille > .champ + .champ { margin-top: 0; }
 
 /* ----------------------------------------------------------------- pilules */
 
@@ -8182,3 +8184,241 @@ html.js .sans-js { display: none; }
 .jauge-objectif .repere { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--texte-3); border-radius: 1px; }
 .objectif > p { margin: 10px 0 0; font-size: 13px; }
 .objectif.sans > p { margin-top: 6px; }
+
+/* ------------------------------------------------------------ choix a chercher
+   Le dessin du selecteur de RedBox, pour un champ de formulaire (`choix.tsx`) :
+   la hauteur et le fond d'un champ, le menu, la recherche et la coche. */
+.choix-champ { position: relative; }
+.choix-champ .choix-valeur {
+  position: absolute; inset: auto 0 0 0; width: 100%; height: 1px; min-height: 0;
+  padding: 0; border: 0; opacity: 0; pointer-events: none;
+}
+.choix-champ .declencheur {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: var(--touche); padding: 0 12px 0 14px;
+  background: var(--surface-2); border: 1px solid var(--bord); border-radius: var(--r-m);
+  color: var(--texte); font: inherit; font-size: 15px; text-align: left; cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
+}
+.choix-champ .declencheur:hover { border-color: var(--bord-fort); }
+.choix-champ .declencheur:focus-visible,
+.choix-champ[data-ouvert] .declencheur { outline: none; border-color: var(--rouge); box-shadow: 0 0 0 3px var(--rouge-fond); }
+.choix-champ .declencheur .nom {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Pas « .vide » : la classe globale des etats vides centre et rembourre de 46 px. */
+.choix-champ .declencheur .nom.sans-choix { color: var(--texte-3); }
+.choix-champ .detail { margin-left: 8px; font-size: 12.5px; color: var(--texte-3); font-weight: 500; }
+.choix-champ .declencheur .chevron { display: grid; place-items: center; color: var(--texte-3); flex: none; }
+/* L'icone pointe a droite : couchee, elle dit « ca se deroule » ; ouverte, elle remonte. */
+.choix-champ .declencheur .chevron svg { transform: rotate(90deg); transition: transform .14s; }
+.choix-champ[data-ouvert] .declencheur .chevron svg { transform: rotate(-90deg); }
+.choix-champ .menu {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 60; min-width: 220px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface); overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0,0,0,.34), 0 2px 8px rgba(0,0,0,.22);
+  animation: choix-ouvre .12s ease-out;
+}
+@keyframes choix-ouvre { from { opacity: 0; transform: translateY(-4px); } }
+.choix-champ .chercher {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--bord); color: var(--texte-3);
+}
+.choix-champ .chercher input {
+  flex: 1; min-width: 0; min-height: 0; border: none; background: none; padding: 0;
+  font: inherit; font-size: 14px; color: var(--texte); box-shadow: none;
+}
+.choix-champ .chercher input:focus { outline: none; box-shadow: none; }
+.choix-champ .choix { max-height: 280px; overflow-y: auto; padding: 6px; }
+.choix-champ .choix:focus { outline: none; }
+.choix-champ .choix button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: var(--r-m); background: none;
+  color: var(--texte); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+}
+.choix-champ .choix button .etiquette {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 0; padding: 0; border-radius: 0; font-size: inherit; font-weight: inherit;
+  letter-spacing: normal; color: inherit; background: none; text-transform: none;
+}
+.choix-champ .choix button.survol { background: var(--surface-2); }
+.choix-champ .choix button.actif { color: var(--rouge-vif); font-weight: 650; }
+.choix-champ .choix button svg { flex: none; }
+.choix-champ .choix .rien { margin: 0; padding: 14px 10px; font-size: 12.5px; color: var(--texte-3); text-align: center; }
+@media (max-width: 760px) { .choix-champ .chercher input { font-size: 16px; } }
+
+/* ----------------------------------------------------------------- la vitrine */
+.vitrine-ecran .carte { margin-top: 16px; }
+.vitrine-ecran h2 { margin: 0 0 4px; }
+.etiquette-bilan {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--texte-3); margin-bottom: 4px;
+}
+
+.vitrine-etat { padding: 0; overflow: hidden; }
+.vitrine-qui { display: flex; align-items: center; gap: 14px; padding: 18px 18px 16px; flex-wrap: wrap; }
+.vitrine-pastille {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; flex: none;
+  background: var(--degrade, var(--rouge)); color: #fff; font-weight: 800; letter-spacing: .02em;
+}
+.vitrine-nom { font-size: 18px; font-weight: 750; letter-spacing: -.01em; }
+.vitrine-connexion { font-size: 13px; color: var(--texte-2); margin-top: 2px; overflow-wrap: anywhere; }
+.vitrine-connexion b { color: var(--texte); font-weight: 650; }
+.vitrine-chiffres {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--bord); border-bottom: 1px solid var(--bord);
+}
+.vitrine-chiffres > div { padding: 14px 18px; min-width: 0; }
+.vitrine-chiffres > div + div { border-left: 1px solid var(--bord); }
+.vitrine-chiffres b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+@media (max-width: 760px) {
+  .vitrine-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vitrine-chiffres > div:nth-child(3) { border-left: 0; }
+  .vitrine-chiffres > div:nth-child(n+3) { border-top: 1px solid var(--bord); }
+  .vitrine-chiffres b { font-size: 19px; }
+}
+.vitrine-repartition { padding: 16px 18px 4px; }
+.repartition-barre { display: flex; gap: 3px; height: 10px; border-radius: 6px; overflow: hidden; }
+.repartition-barre span { background: var(--rouge); min-width: 4px; }
+.repartition-legende { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.repartition-legende li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.repartition-legende i { width: 10px; height: 10px; border-radius: 3px; background: var(--rouge); }
+.repartition-legende .jour { color: var(--texte-2); }
+.vitrine-note { margin: 0; padding: 12px 18px 16px; font-size: 12.5px; color: var(--texte-3); }
+
+.vitrine-reglage { padding: 18px; }
+.vitrine-bloc { border: 0; margin: 0; padding: 18px 0 0; min-width: 0; }
+.vitrine-bloc + .vitrine-bloc { border-top: 1px solid var(--bord); margin-top: 18px; }
+.vitrine-bloc legend {
+  float: left; width: 100%; margin: 0 0 12px; padding: 0;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--texte-3);
+}
+.vitrine-bloc legend + * { clear: both; }
+.vitrine-grille { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vitrine-grille .champ + .champ { margin-top: 0; }
+@media (max-width: 760px) { .vitrine-grille { grid-template-columns: minmax(0, 1fr); } }
+.vitrine-aide { margin: 10px 0 0; font-size: 12.5px; color: var(--texte-3); }
+.vitrine-bloc > .vitrine-aide:first-of-type { margin: 0 0 12px; }
+
+.avec-unite { position: relative; display: flex; align-items: center; }
+.avec-unite input { padding-right: 64px; text-align: left; }
+.avec-unite span {
+  position: absolute; right: 14px; pointer-events: none;
+  font-size: 13px; font-weight: 600; color: var(--texte-3);
+}
+
+.vitrine-semaine { display: grid; gap: 14px; }
+.semaine-jours { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.semaine-jour {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0;
+  padding: 10px 8px; border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface-2);
+}
+.semaine-jour.ferme { background: none; }
+.semaine-barre {
+  position: relative; height: 64px; border-radius: 6px; overflow: hidden;
+  background: color-mix(in srgb, var(--texte-3) 12%, transparent);
+}
+.semaine-barre span {
+  position: absolute; left: 0; right: 0; bottom: 0; border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--rouge-vif), var(--rouge));
+  transition: height .18s ease;
+}
+.semaine-jour label { margin: 0; text-align: center; font-size: 12px; }
+.semaine-jour label .court { display: none; }
+.semaine-jour input { min-height: 38px; padding: 0 4px; text-align: center; font-size: 15px; }
+.semaine-jour.ferme input { color: var(--texte-3); }
+.semaine-euros { text-align: center; font-size: 11.5px; color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.semaine-jour.ferme .semaine-euros { color: var(--texte-3); }
+/* Au telephone, sept colonnes tronquaient « 1.6 » en « 1 » : une ligne par soir,
+   le nom, la barre couchee, le poids, et ce que le soir rapporte. */
+@media (max-width: 760px) {
+  .semaine-jours { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .semaine-jour {
+    display: grid; grid-template-columns: 74px minmax(0, 1fr) 64px 76px; align-items: center; gap: 10px;
+    padding: 6px 10px;
+  }
+  .semaine-jour label { order: 1; text-align: left; font-size: 13px; }
+  .semaine-barre { order: 2; height: 8px; border-radius: 4px; }
+  .semaine-barre span { top: 0; right: auto; bottom: 0; height: 100% !important; width: var(--l); border-radius: 4px;
+                        background: linear-gradient(90deg, var(--rouge), var(--rouge-vif)); }
+  .semaine-jour input { order: 3; font-size: 16px; min-height: 36px; }
+  .semaine-euros { order: 4; text-align: right; font-size: 12px; }
+}
+.semaine-bilan {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px;
+  padding: 12px 14px; border-radius: var(--r-m); background: var(--surface-2);
+}
+.semaine-bilan b { font-size: 17px; font-weight: 750; }
+.semaine-bilan .pilule { margin-left: auto; }
+@media (max-width: 760px) { .semaine-bilan .pilule { margin-left: 0; } }
+
+.vitrine-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--bord); }
+.vitrine-pied .vitrine-aide { margin: 0; flex: 1 1 280px; }
+
+.vitrine-danger {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px;
+  border-color: color-mix(in srgb, var(--rouge) 35%, var(--bord));
+}
+.vitrine-danger .pousse { flex: 1 1 320px; min-width: 0; }
+.vitrine-danger .bouton.danger { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+.vitrine-vide h2 { margin-bottom: 6px; }
+
+/* -------------------------------------------------- l'attribution des badges */
+.attribution-aide { flex: 1 1 100%; margin: -6px 0 0; font-size: 13px; color: var(--texte-2); max-width: 720px; }
+.merite {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  background: var(--vert-fond); color: var(--vert); font-size: 10.5px; font-weight: 700;
+}
+.tuile form { margin: 0; }
+.tuile-bouton {
+  width: 100%; padding: 0; border: 0; background: none; font: inherit; cursor: pointer;
+}
+.tuile-bouton:hover .tuile-cadre { border-color: var(--teinte); transform: translateY(-2px); }
+.tuile[data-etat="verrouille"] .tuile-bouton:hover .tuile-cadre { border-color: var(--bord-fort); }
+.tuile-bouton .tuile-sceau { font-size: 12px; font-weight: 800; line-height: 1; }
+.tuile-geste {
+  display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 18px;
+  font-size: 10.5px; color: var(--texte-3);
+}
+.tuile-geste .agir {
+  font-weight: 700; letter-spacing: .02em; opacity: 0; transition: opacity .12s;
+}
+.tuile-bouton:hover .agir, .tuile-bouton:focus-visible .agir { opacity: 1; }
+.tuile[data-etat="debloque"] .tuile-geste .agir { color: var(--rouge-vif); }
+.tuile[data-etat="verrouille"] .tuile-geste .agir { color: var(--vert); }
+/* Au doigt, pas de survol : le geste se lit toujours. */
+@media (hover: none) { .tuile-geste .agir { opacity: 1; } }
+.tuile:target .tuile-cadre { outline: 2px solid var(--teinte); outline-offset: 3px; }
+
+.badges-resume {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 36px;
+  padding: 4px 12px 4px 8px; border: 1px solid var(--bord); border-radius: 999px;
+  background: var(--surface); color: var(--texte); text-decoration: none; font-size: 12.5px; font-weight: 650;
+  transition: border-color .12s, background .12s;
+}
+.badges-resume:hover { border-color: var(--bord-fort); background: var(--surface-2); }
+.badges-resume .pieces { display: inline-flex; }
+.badges-resume .pieces > * + * { margin-left: -6px; }
+.badges-resume .combien { color: var(--texte-3); font-weight: 600; }
+.badges-resume .agir::after { content: " →"; color: var(--texte-3); }
+
+/* Sans bulle au survol sur cette page, le nom reste ecrit sous la tuile. */
+.tuile-bouton .tuile-nom {
+  position: static; width: auto; height: auto; overflow: hidden; clip: auto; white-space: normal;
+}
+.tuile-bouton { display: flex; flex-direction: column; align-items: center; gap: 6px; color: inherit; }
+
+/* L'en-tete de la vitrine : au telephone, la pastille « generee » passe dessous. */
+.vitrine-qui .pousse { flex: 1 1 200px; min-width: 0; }
+
+/* Les personnes d'un compte : au telephone, le nom prend la ligne, les gestes suivent. */
+.comptes-membres li .pousse { flex: 1 1 220px; }
+@media (max-width: 620px) { .comptes-membres li .pousse { flex-basis: 100%; } }
+
+/* Le catalogue des demos : le texte a gauche, le choix a droite. */
+.vitrine-catalogue { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; }
+.vitrine-catalogue .pousse { flex: 1 1 360px; min-width: 0; }
+.vitrine-catalogue .sous b { color: var(--texte); }
+.vitrine-modele { display: flex; gap: 8px; align-items: center; flex: 1 1 300px; max-width: 420px; }
+.vitrine-modele .choix-champ { flex: 1; min-width: 0; }
+@media (max-width: 760px) { .vitrine-modele { max-width: none; } }

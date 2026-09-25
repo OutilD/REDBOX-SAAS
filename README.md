@@ -496,6 +496,38 @@ dossier lisible sur le serveur.
 `REDBOX_SANS_DEMO=1` dans l’environnement ouvre les comptes vides, comme avant.
 Tout est dans `src/lib/demo.ts`.
 
+### Le compte vitrine
+
+Celui qu’on ouvre devant un prospect (Plateforme → **Vitrine**). Un compte
+ordinaire, créé par l’inscription : **rien dans sa console ne dit « démo »** —
+pas de bandeau, pas de mention à côté du nom. Le super-admin règle ce qu’il
+montre — un chiffre d’affaires, une période en mois qui finit aujourd’hui, le
+nombre de RedBox, les heures d’ouverture, une progression, et le **poids de
+chaque soir** (0 : fermé ; jeudi 1, vendredi 1,6, samedi 1,9 par défaut) — et
+l’histoire est réinventée : catalogue, bornes, réceptions et tournées qui
+suivent les ventes, ventes réparties selon ces poids et l’affluence de la
+soirée, à quelques euros près du montant demandé. Une soirée en
+cours n’a que ses heures passées.
+
+**Le catalogue vient d’un vrai compte.** Sur la même page, « Catalogue des
+démos » désigne un compte modèle (`compte.catalogue_modele`) : la démo de chaque
+inscription et la vitrine reprennent ses produits actifs, ses prix, ses photos,
+ses prix d’achat et le planogramme de sa RedBox la mieux garnie
+(`catalogueModele` dans `lib/demo.ts`). Les photos ne sont pas recopiées : les
+produits de la démo pointent vers celles du modèle, et `api/image/[id]` sert à
+un compte les images que ses produits et catégories désignent. Sans modèle, le
+catalogue intégré et ses tuiles dessinées.
+
+Un seul compte vitrine (index unique). Ses bornes ont un jeton `vitrine_` ; elles
+restent en ligne mais ne vendent pas entre deux visites, pour que le chiffre
+reste celui du réglage. La plateforme l’écarte de ses chiffres (`compte.vitrine`,
+`SQL_VRAIE`). Refusé pour l’éditeur et pour un compte qui porte une vraie
+machine. Tout est dans `src/lib/vitrine.ts`.
+
+Les **badges** se donnent et se reprennent tous depuis Plateforme → Comptes,
+objectif atteint ou non. Un badge repris que les faits méritent revient à la
+prochaine évaluation.
+
 ## Carte
 
 `/carte` pose les RedBox du compte sur une vraie carte : Leaflet et les tuiles

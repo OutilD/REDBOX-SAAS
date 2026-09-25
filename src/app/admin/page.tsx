@@ -93,7 +93,7 @@ export default async function TableauPlateforme({ searchParams }:
                                               AND b.jeton IS NOT NULL
                                               AND b.jeton NOT LIKE '${PREFIXE_JETON}%'))::int AS redboxers,
              COUNT(*) FILTER (WHERE c.cree_le >= now() - make_interval(days => $1::int))::int AS nouveaux
-        FROM compte c WHERE NOT c.demo`, [N]),
+        FROM compte c WHERE NOT c.demo AND NOT c.vitrine`, [N]),
     // Jour par jour, heure de Paris ; un jour sans vente garde sa colonne.
     q<PointSerie>(`
       WITH serie AS (
@@ -127,7 +127,7 @@ export default async function TableauPlateforme({ searchParams }:
           WHERE ${SQL_VRAIE} ORDER BY b.statut_le DESC LIMIT 8)
         UNION ALL
         (SELECT 'compte'::text, c.cree_le, c.id, c.nom, NULL::text, NULL::text
-           FROM compte c WHERE NOT c.demo ORDER BY c.cree_le DESC LIMIT 8)
+           FROM compte c WHERE NOT c.demo AND NOT c.vitrine ORDER BY c.cree_le DESC LIMIT 8)
       ) a ORDER BY quand DESC LIMIT 10`),
   ]);
   const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0 };

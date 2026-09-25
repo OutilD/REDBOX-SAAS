@@ -4,9 +4,9 @@ import { STATUTS, type Statut } from "./statuts";
 
 export { STATUTS, CLES, statutValide, nomDuStatut, type Statut } from "./statuts";
 
-/** Les machines de la demo ne sont pas des machines : on les ecarte de tout compte. */
+/** Les machines de la demo et de la vitrine ne sont pas des machines : on les ecarte de tout compte. */
 export const SQL_VRAIE = `(b.jeton IS NULL OR b.jeton NOT LIKE '${PREFIXE_JETON}%')
-       AND NOT EXISTS (SELECT 1 FROM compte cd WHERE cd.id = b.compte_id AND cd.demo)`;
+       AND NOT EXISTS (SELECT 1 FROM compte cd WHERE cd.id = b.compte_id AND (cd.demo OR cd.vitrine))`;
 
 /** Combien de machines a chaque stade, sur tout le parc. */
 export async function compteurs(): Promise<Record<Statut, number>> {

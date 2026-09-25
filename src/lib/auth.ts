@@ -21,7 +21,8 @@ export function concorde(mdp: string, stocke: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type Appartenance = { compte_id: number; compte: string; role: string; demo: boolean; editeur: boolean };
+export type Appartenance = { compte_id: number; compte: string; role: string; demo: boolean; editeur: boolean;
+                             vitrine: boolean };
 
 export type Utilisateur = {
   id: number; compte_id: number; email: string; role: string; compte: string;
@@ -161,7 +162,7 @@ async function lireSession(jeton: string): Promise<Utilisateur | null> {
   }
 
   const lire = () => q<Appartenance>(`
-    SELECT m.compte_id, c.nom AS compte, m.role, c.demo, c.editeur
+    SELECT m.compte_id, c.nom AS compte, m.role, c.demo, c.editeur, c.vitrine
       FROM membre m JOIN compte c ON c.id = m.compte_id
      WHERE m.utilisateur_id = $1
      ORDER BY (m.compte_id = $2) DESC, c.nom`, [l.id, l.origine]);
@@ -199,8 +200,9 @@ async function lireSession(jeton: string): Promise<Utilisateur | null> {
   // requetes qu'il coute, elle verra le resultat a la suivante, comme avec une
   // vraie machine qui se synchronise toutes les cinq minutes. Rien ne part si
   // elles sont passees il y a moins d'une minute, et un passage qui echoue ne
-  // ferme pas la console : on le note.
-  if (choisi.demo) {
+  // ferme pas la console : on le note. Celles de la vitrine ne vendent pas,
+  // mais restent en ligne et confirment les chargements de la meme facon.
+  if (choisi.demo || choisi.vitrine) {
     void animerDemo(choisi.compte_id)
       .catch((e) => console.error("bornes fictives :", e instanceof Error ? e.message : e));
   }

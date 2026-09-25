@@ -42,13 +42,20 @@ export default function Notif() {
       const q = reste.toString();
       router.replace(q ? `${chemin}?${q}` : chemin, { scroll: false });
     }
-
-    const glisse = setTimeout(() => sortir(true), 3200);
-    const fin = setTimeout(() => poser(null), 3600);
-    return () => { clearTimeout(glisse); clearTimeout(fin); };
     // `params` change a chaque replace : on ne depend que des deux valeurs lues.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fait, rate]);
+
+  // LA DISPARITION DEPEND DU MESSAGE, PAS DE L'ADRESSE. Les minuteurs vivaient
+  // dans l'effet du dessus : retirer `fait` le relancait, son nettoyage les
+  // annulait, et le second passage sortait aussitot faute de `fait` — le
+  // bandeau restait pour toujours. Cinq secondes, puis il glisse et s'en va.
+  useEffect(() => {
+    if (!mot) return;
+    const glisse = setTimeout(() => sortir(true), 5000);
+    const fin = setTimeout(() => poser(null), 5400);
+    return () => { clearTimeout(glisse); clearTimeout(fin); };
+  }, [mot]);
 
   if (!mot) return null;
   return (

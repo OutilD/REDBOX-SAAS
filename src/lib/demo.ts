@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { q1, transaction, FUSEAU, type PgClient } from "@/db";
+import type { QueryResultRow } from "pg";
+import { q, q1, transaction, FUSEAU, codeCanal, type PgClient } from "@/db";
 import { empreinteDe } from "./borne";
 import { IMAGES_DEMO } from "./demo-images";
 import { DOMAINE } from "./invente";
@@ -43,7 +44,9 @@ import { A_REGARDER } from "./ventes";
 
 /** Ce que porte le jeton d'une borne fictive. `LIKE 'demo\_%'` en SQL. */
 export const PREFIXE_JETON = "demo_";
-const SQL_FICTIVE = "b.jeton LIKE 'demo\\_%'";
+/** Celui des bornes du compte vitrine (`lib/vitrine.ts`) : fictives elles aussi. */
+export const PREFIXE_VITRINE = "vitrine_";
+const SQL_FICTIVE = "(b.jeton LIKE 'demo\\_%' OR b.jeton LIKE 'vitrine\\_%')";
 
 /** Les adresses inventees finissent la : `.invalid` ne se livre jamais. */
 export { DOMAINE };
@@ -53,8 +56,8 @@ export { DOMAINE };
 const adresseReassort = (compte_id: number) => `sami.reassort.${compte_id}@${DOMAINE}`;
 const adresseInvitee  = (compte_id: number) => `lea.martin.${compte_id}@${DOMAINE}`;
 
-const SAV_TEL = "06 12 34 56 78";
-const SAV_TEXTE = "Un souci avec la machine ? Appelez-nous";
+export const SAV_TEL = "06 12 34 56 78";
+export const SAV_TEXTE = "Un souci avec la machine ? Appelez-nous";
 
 /** Combien de jours d'histoire on invente a l'ouverture. */
 const JOURS = 21;
@@ -71,7 +74,27 @@ const PAUSE_S = 45;
 
 // ------------------------------------------------------------- le catalogue
 
-const CATEGORIES = [
+/**
+ * LE CATALOGUE DES DEMOS VIENT D'UN VRAI COMPTE.
+ *
+ * Le super-admin designe un compte modele (/admin/vitrine, `compte.catalogue_modele`) :
+ * la demo de chaque inscription et la vitrine en reprennent les categories, les
+ * produits — noms, prix, ages, descriptions, mentions, photos —, les prix
+ * d'achat de ses dernieres receptions et le planogramme de sa RedBox la mieux
+ * garnie. Un prospect voit ce qu'on vend vraiment.
+ *
+ * LES PHOTOS NE SONT PAS COPIEES : les produits de la demo pointent vers celles
+ * du modele (quatorze megaoctets par inscription, sinon), et la route des images
+ * sert a un compte les images que SES produits designent. Sans compte modele, ou
+ * s'il est vide, le catalogue integre ci-dessous, avec ses tuiles dessinees.
+ */
+export type Categorie = { nom: string; ordre: number; icone: string | null;
+  /** Une image du modele ; `undefined` : la tuile integree ; `null` : aucune. */
+  image_id?: number | null };
+export type Spire = { rangee: number; colonne: number; sku: string; capacite: number };
+export type Catalogue = { categories: Categorie[]; produits: Produit[]; plan: Spire[]; modele: number | null };
+
+const CATEGORIES: Categorie[] = [
   { nom: "Vapes",       ordre: 10, icone: "vape" },
   { nom: "Poppers",     ordre: 20, icone: "popper" },
   { nom: "Batteries",   ordre: 30, icone: "batterie" },
@@ -80,10 +103,11 @@ const CATEGORIES = [
   { nom: "Accessoires", ordre: 60, icone: "cable" },
 ];
 
-type Produit = {
+export type Produit = {
   sku: string; nom: string; cat: string; prix: number; age: number;
-  achat: number; achete: number; icone: string;
-  description?: string; mention?: string;
+  achat: number; achete: number; icone: string | null;
+  description?: string | null; mention?: string | null;
+  image_id?: number | null;
 };
 
 const MENTION_VAPE = "Produit contenant de la nicotine, substance qui crée une forte dépendance. "
@@ -117,8 +141,16 @@ const PRODUITS: Produit[] = [
     description: "USB-C vers USB-C, 60 W, tressé." },
 ];
 
-/** La seconde livraison, une semaine avant aujourd'hui : on rachete ce qui part. */
-const RELIVRAISON: Record<string, number> = { "VAPE-MEN": 120, "VAPE-FRU": 120, "POP-15": 60, "HYG-PRE": 60 };
+/**
+ * La seconde livraison, une semaine avant aujourd'hui : on rachete ce qui part —
+ * les quatre produits qui tiennent le plus de place dans les machines.
+ */
+function relivraisonDe(cat: Catalogue): Record<string, number> {
+  const place = new Map<string, number>();
+  for (const x of cat.plan) place.set(x.sku, (place.get(x.sku) ?? 0) + x.capacite);
+  return Object.fromEntries([...place.entries()].sort((a, z) => z[1] - a[1]).slice(0, 4)
+    .map(([sku, n]) => [sku, Math.ceil((n * 6) / 10) * 10]));
+}
 
 /**
  * Le planogramme, sur les dix spires que porte une RedBox — cinq rangees de
@@ -129,7 +161,7 @@ const RELIVRAISON: Record<string, number> = { "VAPE-MEN": 120, "VAPE-FRU": 120, 
  * restent en reserve, sans spire : il y a toujours un produit qu'on a achete
  * et pas encore place.
  */
-const PLAN: { rangee: number; colonne: number; sku: string; capacite: number }[] = [
+const PLAN: Spire[] = [
   { rangee: 1, colonne: 1, sku: "VAPE-MEN", capacite: 10 },
   { rangee: 1, colonne: 2, sku: "VAPE-MEN", capacite: 10 },
   { rangee: 2, colonne: 1, sku: "VAPE-FRU", capacite: 10 },
@@ -142,12 +174,86 @@ const PLAN: { rangee: number; colonne: number; sku: string; capacite: number }[]
   { rangee: 5, colonne: 2, sku: "BRQ-TEMP", capacite: 10 },
 ];
 
+const CATALOGUE_INTEGRE: Catalogue = { categories: CATEGORIES, produits: PRODUITS, plan: PLAN, modele: null };
+
+/** Les grilles d'une RedBox : cinq rangees de deux. Pour un modele sans planogramme. */
+const GRILLE = Array.from({ length: 10 }, (_, i) => ({ rangee: Math.floor(i / 2) + 1, colonne: (i % 2) + 1 }));
+
+/**
+ * LE CATALOGUE DU COMPTE MODELE, pret a semer. Ses produits actifs et les
+ * categories qui en portent ; le planogramme de sa borne la mieux garnie
+ * (les spires vides en sont retirees : une demo ne montre pas une spire
+ * abandonnee) ; le prix d'achat de la derniere reception, ou un tiers du prix
+ * de vente. Ce qu'on « achete » a l'ouverture : huit pleins de chaque spire —
+ * trois machines, une tournee par semaine ; a trois pleins, la moitie des
+ * spires etaient vides des la deuxieme semaine.
+ */
+export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
+  const lire = async <T extends QueryResultRow>(sql: string, p: unknown[]): Promise<T[]> =>
+    c ? (await c.query<T>(sql, p)).rows : q<T>(sql, p);
+  const k = (await lire<{ id: number }>("SELECT id FROM compte WHERE catalogue_modele LIMIT 1", []))[0];
+  if (!k) return CATALOGUE_INTEGRE;
+
+  const [produits, categories, plan] = await Promise.all([
+    lire<{ sku: string; nom: string; cat: string; prix: number; age: number; icone: string | null;
+           description: string | null; mention: string | null; image_id: number | null; achat: number | null }>(`
+      SELECT p.sku, p.nom, k.nom AS cat, p.prix_vente_c AS prix, p.age_min AS age, p.icone,
+             p.description, p.mention, p.image_id,
+             (SELECT m.prix_achat_c FROM mouvement m
+               WHERE m.produit_id = p.id AND m.motif = 'reception' AND m.prix_achat_c IS NOT NULL
+               ORDER BY m.fait_le DESC LIMIT 1) AS achat
+        FROM produit p JOIN categorie k ON k.id = p.categorie_id
+       WHERE p.compte_id = $1 AND p.actif
+       ORDER BY k.ordre, p.ordre, p.id`, [k.id]),
+    lire<{ nom: string; ordre: number; icone: string | null; image_id: number | null }>(`
+      SELECT k.nom, k.ordre, k.icone, k.image_id FROM categorie k
+       WHERE k.compte_id = $1
+         AND EXISTS (SELECT 1 FROM produit p WHERE p.categorie_id = k.id AND p.actif)
+       ORDER BY k.ordre, k.id`, [k.id]),
+    lire<{ rangee: number; colonne: number; sku: string; capacite: number }>(`
+      SELECT c.rangee, c.colonne, p.sku, c.capacite
+        FROM canal c JOIN produit p ON p.id = c.produit_id AND p.actif
+       WHERE c.borne_id = (SELECT b.id FROM borne b JOIN canal x ON x.borne_id = b.id
+                            WHERE b.compte_id = $1 AND x.produit_id IS NOT NULL
+                            GROUP BY b.id ORDER BY COUNT(*) DESC, b.id LIMIT 1)
+       ORDER BY c.rangee, c.colonne`, [k.id]),
+  ]);
+  if (produits.length === 0) return CATALOGUE_INTEGRE;
+
+  // Sans planogramme, les dix premiers produits sur les dix spires.
+  const spires: Spire[] = plan.length > 0
+    ? plan.map((x) => ({ rangee: Number(x.rangee), colonne: Number(x.colonne), sku: x.sku, capacite: Number(x.capacite) }))
+    : produits.slice(0, GRILLE.length).map((p, i) => ({ ...GRILLE[i], sku: p.sku, capacite: 10 }));
+  const place = new Map<string, number>();
+  for (const x of spires) place.set(x.sku, (place.get(x.sku) ?? 0) + x.capacite);
+
+  return {
+    modele: Number(k.id),
+    categories: categories.map((x) => ({ nom: x.nom, ordre: Number(x.ordre), icone: x.icone,
+                                         image_id: x.image_id === null ? null : Number(x.image_id) })),
+    produits: produits.map((p) => ({
+      sku: p.sku, nom: p.nom, cat: p.cat, prix: Number(p.prix), age: Number(p.age), icone: p.icone,
+      description: p.description, mention: p.mention,
+      image_id: p.image_id === null ? null : Number(p.image_id),
+      achat: p.achat !== null ? Number(p.achat) : Math.round(Number(p.prix) / 3),
+      achete: Math.max(10, Math.ceil(((place.get(p.sku) ?? 2) * 8) / 10) * 10),
+    })),
+    plan: spires,
+  };
+}
+
+/** Ce qu'une RedBox pleine rapporte si tout part : la limite d'un soir, en centimes. */
+export function capaciteSoir(cat: Catalogue): number {
+  const prix = new Map(cat.produits.map((p) => [p.sku, p.prix]));
+  return cat.plan.reduce((s, x) => s + x.capacite * (prix.get(x.sku) ?? 0), 0);
+}
+
 /**
  * Les trois machines. La cadence est relative : un bar de nuit passant, un
  * bar de quartier, et un troisieme ferme pour travaux depuis deux jours — la
  * borne y est mise hors service, mais elle parle toujours.
  */
-const MACHINES = [
+export const MACHINES = [
   { nom: "RedBox — Le Duplex",     adresse: "Paris 11e", cadence: 1, lat: 48.859, lng: 2.380, ville: "Paris",
     description: "Au fond à gauche, derrière le flipper. Le patron ouvre à 17 h." },
   { nom: "RedBox — Le Sous-Marin", adresse: "Montreuil", cadence: 0.55, lat: 48.861, lng: 2.443, ville: "Montreuil",
@@ -187,14 +293,28 @@ function imageDemo(cle: string): { cle: string; type: string; octets: Buffer; em
 
 // --------------------------------------------------------------- le hasard
 
-/** Un tirage reproductible : la meme graine donne la meme histoire. */
-function graine(n: number): () => number {
-  let g = (20260901 + n * 7919) % 2147483648;
-  return () => (g = (g * 1103515245 + 12345) % 2147483648) / 2147483648;
+/**
+ * Un tirage reproductible : la meme graine donne la meme histoire.
+ *
+ * Mulberry32, en entiers de 32 bits (`Math.imul`). L'ancien generateur
+ * multipliait deux nombres dont le produit depasse 2^53 : les flottants
+ * perdaient les bits de poids faible et la suite bouclait au bout d'environ
+ * onze mille tirages. Les memes numeros de commande revenaient, et
+ * `insererVentes` ecartait les doublons sans bruit — une vitrine a 200 000 €
+ * en montrait 182 000.
+ */
+export function graine(n: number): () => number {
+  let g = (20260901 + n * 7919) >>> 0;
+  return () => {
+    g = (g + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(g ^ (g >>> 15), 1 | g);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /** Un numero de commande tel que la borne les ecrit : ORD- et huit hexadecimaux. */
-function commande(tir: () => number): string {
+export function commande(tir: () => number): string {
   let s = "";
   for (let i = 0; i < 8; i++) s += "0123456789ABCDEF"[Math.floor(tir() * 16)];
   return "ORD-" + s;
@@ -215,7 +335,7 @@ function poisson(lambda: number, tir: () => number): number {
  * ce qui a tourne court avant la spirale. Un age refuse n'a de sens que sur un
  * produit qui demande un age.
  */
-function statutAuSort(tir: () => number, age: number): string {
+export function statutAuSort(tir: () => number, age: number): string {
   const d = tir();
   if (d < 0.018) return "litige";
   if (d < 0.033) return "chute_non_detectee";
@@ -239,7 +359,7 @@ function tauxHoraire(heure: number, weekend: boolean): number {
 // ------------------------------------------------------------------ le temps
 
 /** L'heure murale de Paris d'un instant, en morceaux. */
-function aParis(d: Date): { a: number; m: number; j: number; h: number; mi: number; s: number; dow: number } {
+export function aParis(d: Date): { a: number; m: number; j: number; h: number; mi: number; s: number; dow: number } {
   const f = new Intl.DateTimeFormat("en-US", {
     timeZone: FUSEAU, hourCycle: "h23", weekday: "short",
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -252,7 +372,7 @@ function aParis(d: Date): { a: number; m: number; j: number; h: number; mi: numb
 }
 
 /** L'instant qui correspond a une heure murale de Paris. */
-function deParis(a: number, m: number, j: number, h: number, mi: number, s = 0): Date {
+export function deParis(a: number, m: number, j: number, h: number, mi: number, s = 0): Date {
   const devine = Date.UTC(a, m - 1, j, h, mi, s);
   const vu = aParis(new Date(devine));
   const local = Date.UTC(vu.a, vu.m - 1, vu.j, vu.h, vu.mi, vu.s);
@@ -272,7 +392,7 @@ function estWeekend(d: Date): boolean {
 
 // ---------------------------------------------------------------- le journal
 
-type LigneJ = { borne: number; source: "commandes" | "diagnostic"; quand: Date; commande: string | null; ligne: string };
+export type LigneJ = { borne: number; source: "commandes" | "diagnostic"; quand: Date; commande: string | null; ligne: string };
 
 /** Le mot que la machine ecrit pour chaque issue de spirale. */
 const ISSUE: Record<string, string> = {
@@ -297,7 +417,7 @@ const MMDD = (d: Date) => {
  * au format exact de `OrderJournal` — epoch|TYPE|cle=valeur —, et quelques
  * lignes de diagnostic autour. C'est ce que montre la page « Journal ».
  */
-function journalDe(borne: number, cmd: string, quand: Date, sku: string, lane: number | null,
+export function journalDe(borne: number, cmd: string, quand: Date, sku: string, lane: number | null,
                    prix: number, statut: string): LigneJ[] {
   const t = (ms: number) => new Date(quand.getTime() + ms);
   const L = (ms: number, texte: string): LigneJ =>
@@ -347,7 +467,7 @@ function journalDe(borne: number, cmd: string, quand: Date, sku: string, lane: n
  * etait, et chaque ligne avance de sa longueur — la somme glissante le
  * calcule en base, borne par borne, dans l'ordre des lignes.
  */
-async function ecrireJournal(c: PgClient, lignes: LigneJ[]): Promise<void> {
+export async function ecrireJournal(c: PgClient, lignes: LigneJ[]): Promise<void> {
   if (lignes.length === 0) return;
   lignes.sort((a, z) => a.borne - z.borne || a.quand.getTime() - z.quand.getTime());
   await c.query(`
@@ -369,7 +489,7 @@ async function ecrireJournal(c: PgClient, lignes: LigneJ[]): Promise<void> {
 
 // ----------------------------------------------------------------- les ventes
 
-type Vente = {
+export type Vente = {
   borne: number; cmd: string; article: number; lane: number | null; produit: number;
   prix: number; statut: string; quand: Date; traite: Date | null; note: string | null;
 };
@@ -379,7 +499,7 @@ type Vente = {
  * celles qui ont distribue — rattache a la vente, donc jamais compte deux
  * fois. `RETURNING` ne rend que ce qui est entre : un doublon ne fait rien.
  */
-async function insererVentes(c: PgClient, compte_id: number, ventes: Vente[], par: string): Promise<void> {
+export async function insererVentes(c: PgClient, compte_id: number, ventes: Vente[], par: string): Promise<void> {
   if (ventes.length === 0) return;
   await c.query(`
     WITH v AS (
@@ -419,36 +539,48 @@ async function insererVentes(c: PgClient, compte_id: number, ventes: Vente[], pa
 export async function semerDemo(c: PgClient, compte_id: number, par: string): Promise<void> {
   const tir = graine(compte_id);
   const reserve = await reserveDe(compte_id, c);
+  const cat = await catalogueModele(c);
+  const pid = await semerCatalogue(c, compte_id, cat);
+  await semerHistoire(c, compte_id, par, tir, reserve, pid, cat);
+}
 
-  // Les categories, puis les produits qui s'y rangent, en une requete.
+/**
+ * Les categories, les produits qui s'y rangent, et leurs images. Rend
+ * l'identifiant de chaque SKU. Le meme catalogue pour la demo et la vitrine.
+ */
+export async function semerCatalogue(c: PgClient, compte_id: number, cat: Catalogue): Promise<Map<string, number>> {
+  // Les categories, puis les produits qui s'y rangent, en une requete. Une
+  // image du modele se designe directement : elle n'est pas recopiee.
+  const img = (x: { image_id?: number | null }) => (typeof x.image_id === "number" ? x.image_id : null);
   const produits = (await c.query<{ id: number; sku: string }>(`
     WITH k AS (
-      INSERT INTO categorie (compte_id, nom, ordre, icone)
-      SELECT $1, k.nom, k.ordre, k.icone
-        FROM unnest($2::text[], $3::int[], $4::text[]) AS k(nom, ordre, icone)
+      INSERT INTO categorie (compte_id, nom, ordre, icone, image_id)
+      SELECT $1, k.nom, k.ordre, k.icone, k.image
+        FROM unnest($2::text[], $3::int[], $4::text[], $13::bigint[]) AS k(nom, ordre, icone, image)
       ON CONFLICT (compte_id, nom) DO UPDATE SET ordre = EXCLUDED.ordre
       RETURNING id, nom)
     INSERT INTO produit (compte_id, sku, nom, categorie_id, prix_vente_c, age_min, icone,
-                         description, mention, ordre)
-    SELECT $1, p.sku, p.nom, k.id, p.prix, p.age, p.icone, p.description, p.mention, p.o * 10
+                         description, mention, ordre, image_id)
+    SELECT $1, p.sku, p.nom, k.id, p.prix, p.age, p.icone, p.description, p.mention, p.o * 10, p.image
       FROM unnest($5::text[], $6::text[], $7::text[], $8::int[], $9::smallint[], $10::text[],
-                  $11::text[], $12::text[]) WITH ORDINALITY
-           AS p(sku, nom, cat, prix, age, icone, description, mention, o)
+                  $11::text[], $12::text[], $14::bigint[]) WITH ORDINALITY
+           AS p(sku, nom, cat, prix, age, icone, description, mention, image, o)
       JOIN k ON k.nom = p.cat
     ON CONFLICT (compte_id, sku) DO UPDATE SET nom = EXCLUDED.nom
     RETURNING id, sku`,
-    [compte_id, CATEGORIES.map((k) => k.nom), CATEGORIES.map((k) => k.ordre), CATEGORIES.map((k) => k.icone),
-     PRODUITS.map((p) => p.sku), PRODUITS.map((p) => p.nom), PRODUITS.map((p) => p.cat),
-     PRODUITS.map((p) => p.prix), PRODUITS.map((p) => p.age), PRODUITS.map((p) => p.icone),
-     PRODUITS.map((p) => p.description ?? null), PRODUITS.map((p) => p.mention ?? null)])).rows;
+    [compte_id, cat.categories.map((k) => k.nom), cat.categories.map((k) => k.ordre), cat.categories.map((k) => k.icone),
+     cat.produits.map((p) => p.sku), cat.produits.map((p) => p.nom), cat.produits.map((p) => p.cat),
+     cat.produits.map((p) => p.prix), cat.produits.map((p) => p.age), cat.produits.map((p) => p.icone),
+     cat.produits.map((p) => p.description ?? null), cat.produits.map((p) => p.mention ?? null),
+     cat.categories.map(img), cat.produits.map(img)])).rows;
   const pid = new Map(produits.map((p) => [p.sku, p.id]));
-  const prix = new Map(PRODUITS.map((p) => [p.sku, p.prix]));
 
-  // Leurs images : une tuile par categorie et par produit, dessinees a partir
-  // des pictogrammes de la machine. La borne les recevra comme des photos.
-  // Une seule requete : les octets entrent, puis chaque cle — nom de categorie
-  // ou SKU, ils ne se ressemblent pas — retrouve son identifiant par l'empreinte.
-  const tuiles = [...CATEGORIES.map((k) => k.nom), ...PRODUITS.map((p) => p.sku)]
+  // Le catalogue integre a ses tuiles, dessinees a partir des pictogrammes de
+  // la machine. La borne les recevra comme des photos. Une seule requete : les
+  // octets entrent, puis chaque cle — nom de categorie ou SKU, ils ne se
+  // ressemblent pas — retrouve son identifiant par l'empreinte.
+  const tuiles = [...cat.categories.filter((k) => k.image_id === undefined).map((k) => k.nom),
+                  ...cat.produits.filter((p) => p.image_id === undefined).map((p) => p.sku)]
     .map(imageDemo).filter((i): i is NonNullable<typeof i> => i !== null);
   if (tuiles.length > 0) {
     await c.query(`
@@ -469,6 +601,83 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
       [compte_id, tuiles.map((t) => t.type), tuiles.map((t) => t.octets),
        tuiles.map((t) => t.empreinte), tuiles.map((t) => t.cle)]);
   }
+  return pid;
+}
+
+/** Une borne a semer : ou elle est, et, pour la demo, si elle est fermee. */
+export type MachineSemee = {
+  nom: string; adresse: string; description: string; lat: number; lng: number; ville: string;
+  horsService?: string; fermeeDepuisJ?: number;
+};
+
+/**
+ * Les lieux, les bornes qui s'y trouvent, et leurs dix spires — une requete.
+ * Rend les bornes dans l'ordre des machines. Les spires naissent vides : c'est
+ * l'histoire qui les remplit, puis `recompterCanaux` qui les compte.
+ */
+export async function semerBornes(c: PgClient, compte_id: number, machines: MachineSemee[], o: {
+  prefixe: string; appairee_le: Date; serie: (i: number) => string; tir: () => number; plan: Spire[];
+}): Promise<{ id: number; lieu: number }[]> {
+  const PLAN = o.plan;
+  const sante = (fermee: boolean) => JSON.stringify({
+    vend: !fermee, paiement: "pret", tarif_essai: false, distributeur: "en_ligne",
+    paiement_port: "/dev/ttyS3", paiement_pertes: 0, lecteur_identite: "pret",
+    reponses_intruses: 0, ventes_en_attente: 0,
+  });
+  return (await c.query<{ id: number; lieu: number; o: number }>(`
+    WITH l AS (
+      INSERT INTO lieu (compte_id, genre, nom)
+      SELECT $1, 'borne', m.nom FROM unnest($2::text[]) AS m(nom)
+      RETURNING id, nom),
+    b AS (
+      INSERT INTO borne (compte_id, lieu_id, nom, adresse, description, jeton, machine,
+                         appairee_le, vue_le, version, sante,
+                         maintenance_pin, maintenance_pin_le, maintenance_vu,
+                         hors_service, hors_service_texte, hors_service_le,
+                         latitude, longitude, ville, situee_pour)
+      SELECT $1, l.id, m.nom, m.adresse, m.description, m.jeton, m.machine,
+             $3, now(), '5.13', m.sante::jsonb, m.pin, now(), m.pin,
+             m.hs IS NOT NULL, m.hs, m.hs_le,
+             m.lat, m.lng, m.ville, m.adresse
+        FROM unnest($2::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[],
+                    $9::text[], $10::text[], $11::timestamptz[], $17::float8[], $18::float8[], $19::text[]) WITH ORDINALITY
+             AS m(nom, adresse, description, jeton, machine, sante, pin, hs, hs_le, lat, lng, ville, o)
+        JOIN l ON l.nom = m.nom
+      RETURNING id, lieu_id, nom),
+    k AS (
+      INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, quantite_borne,
+                         capacite, seuil_bas, releve_le, releve_borne_le)
+      SELECT b.id, s.lane, s.rangee, s.colonne, p.id, 0, 0, s.capacite, 2, now(), now()
+        FROM b
+        CROSS JOIN unnest($12::int[], $13::smallint[], $14::smallint[], $15::text[], $16::int[])
+                   AS s(lane, rangee, colonne, sku, capacite)
+        JOIN produit p ON p.compte_id = $1 AND p.sku = s.sku)
+    SELECT b.id, b.lieu_id AS lieu, m.o
+      FROM b JOIN unnest($2::text[]) WITH ORDINALITY AS m(nom, o) ON m.nom = b.nom
+     ORDER BY m.o`,
+    [compte_id, machines.map((m) => m.nom), o.appairee_le,
+     machines.map((m) => m.adresse), machines.map((m) => m.description),
+     machines.map(() => o.prefixe + randomBytes(18).toString("base64url")),
+     machines.map((_, i) => o.serie(i)),
+     machines.map((m) => sante(Boolean(m.horsService))),
+     machines.map(() => String(100000 + Math.floor(o.tir() * 900000))),
+     machines.map((m) => m.horsService ?? null),
+     machines.map((m) => (m.horsService ? instant(m.fermeeDepuisJ ?? 0, 18, 30) : null)),
+     PLAN.map((s) => laneDe(s.rangee, s.colonne)), PLAN.map((s) => s.rangee), PLAN.map((s) => s.colonne),
+     PLAN.map((s) => s.sku), PLAN.map((s) => s.capacite),
+     // Leur place sur la carte, sans passer par le geocodeur : la demo doit
+     // marcher hors ligne, et « Paris 11e » n'a pas besoin d'etre cherche.
+     machines.map((m) => m.lat), machines.map((m) => m.lng), machines.map((m) => m.ville)])).rows
+    .map((b) => ({ id: b.id, lieu: b.lieu }));
+}
+
+/** Trois semaines d'exploitation inventees sur le catalogue tout juste seme. */
+async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: () => number,
+                             reserve: number, pid: Map<string, number>, cat: Catalogue): Promise<void> {
+  const PRODUITS = cat.produits;
+  const PLAN = cat.plan;
+  const RELIVRAISON = relivraisonDe(cat);
+  const prix = new Map(PRODUITS.map((p) => [p.sku, p.prix]));
   const age = new Map(PRODUITS.map((p) => [p.sku, p.age]));
   const achat = new Map(PRODUITS.map((p) => [p.sku, p.achat]));
 
@@ -501,61 +710,15 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
     [compte_id, reassort, "demo:" + randomBytes(32).toString("hex"),
      adresseInvitee(compte_id), randomBytes(9).toString("base64url"), par]);
 
-  // Les lieux, les bornes qui s'y trouvent, et leurs dix spires — une requete.
-  const sante = (fermee: boolean) => JSON.stringify({
-    vend: !fermee, paiement: "pret", tarif_essai: false, distributeur: "en_ligne",
-    paiement_port: "/dev/ttyS3", paiement_pertes: 0, lecteur_identite: "pret",
-    reponses_intruses: 0, ventes_en_attente: 0,
-  });
-  const bornes = (await c.query<{ id: number; lieu: number; o: number }>(`
-    WITH l AS (
-      INSERT INTO lieu (compte_id, genre, nom)
-      SELECT $1, 'borne', m.nom FROM unnest($2::text[]) AS m(nom)
-      RETURNING id, nom),
-    b AS (
-      INSERT INTO borne (compte_id, lieu_id, nom, adresse, description, jeton, machine,
-                         appairee_le, vue_le, version, sante,
-                         maintenance_pin, maintenance_pin_le, maintenance_vu,
-                         hors_service, hors_service_texte, hors_service_le,
-                         latitude, longitude, ville, situee_pour)
-      SELECT $1, l.id, m.nom, m.adresse, m.description, m.jeton, m.machine,
-             $3, now(), '5.13', m.sante::jsonb, m.pin, now(), m.pin,
-             m.hs IS NOT NULL, m.hs, m.hs_le,
-             m.lat, m.lng, m.ville, m.adresse
-        FROM unnest($2::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[],
-                    $9::text[], $10::text[], $11::timestamptz[], $17::float8[], $18::float8[], $19::text[]) WITH ORDINALITY
-             AS m(nom, adresse, description, jeton, machine, sante, pin, hs, hs_le, lat, lng, ville, o)
-        JOIN l ON l.nom = m.nom
-      RETURNING id, lieu_id, nom),
-    k AS (
-      INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, quantite_borne,
-                         capacite, seuil_bas, releve_le, releve_borne_le)
-      SELECT b.id, s.lane, s.rangee, s.colonne, p.id, 0, 0, s.capacite, 2, now(), now()
-        FROM b
-        CROSS JOIN unnest($12::int[], $13::smallint[], $14::smallint[], $15::text[], $16::int[])
-                   AS s(lane, rangee, colonne, sku, capacite)
-        JOIN produit p ON p.compte_id = $1 AND p.sku = s.sku)
-    SELECT b.id, b.lieu_id AS lieu, m.o
-      FROM b JOIN unnest($2::text[]) WITH ORDINALITY AS m(nom, o) ON m.nom = b.nom
-     ORDER BY m.o`,
-    [compte_id, MACHINES.map((m) => m.nom), instant(JOURS, 11, 0),
-     MACHINES.map((m) => m.adresse), MACHINES.map((m) => m.description),
-     MACHINES.map(() => PREFIXE_JETON + randomBytes(18).toString("base64url")),
-     MACHINES.map((_, i) => `demo-${compte_id}-${i + 1}`),
-     MACHINES.map((m) => sante(Boolean(m.horsService))),
-     MACHINES.map(() => String(100000 + Math.floor(tir() * 900000))),
-     MACHINES.map((m) => m.horsService ?? null),
-     MACHINES.map((m) => (m.horsService ? instant(m.fermeeDepuisJ ?? 0, 18, 30) : null)),
-     PLAN.map((s) => laneDe(s.rangee, s.colonne)), PLAN.map((s) => s.rangee), PLAN.map((s) => s.colonne),
-     PLAN.map((s) => s.sku), PLAN.map((s) => s.capacite),
-     // Leur place sur la carte, sans passer par le geocodeur : la demo doit
-     // marcher hors ligne, et « Paris 11e » n'a pas besoin d'etre cherche.
-     MACHINES.map((m) => m.lat), MACHINES.map((m) => m.lng), MACHINES.map((m) => m.ville)])).rows
-    .map((b, i) => ({ id: b.id, lieu: b.lieu, cadence: MACHINES[i].cadence,
-                      fermeeDepuisJ: MACHINES[i].fermeeDepuisJ ?? -1 }));
+  const bornes = (await semerBornes(c, compte_id, MACHINES, {
+    prefixe: PREFIXE_JETON, appairee_le: instant(JOURS, 11, 0),
+    serie: (i) => `demo-${compte_id}-${i + 1}`, tir, plan: PLAN,
+  })).map((b, i) => ({ id: b.id, lieu: b.lieu, cadence: MACHINES[i].cadence,
+                       fermeeDepuisJ: MACHINES[i].fermeeDepuisJ ?? -1 }));
 
-  // La seconde borne vend les vapes un euro plus cher : un prix propre.
-  const vapes = PRODUITS.filter((p) => p.cat === "Vapes").map((p) => p.sku);
+  // La seconde borne vend un euro plus cher les produits de la premiere
+  // categorie qui demandent un age — les vapes, d'ordinaire : un prix propre.
+  const vapes = PRODUITS.filter((p) => p.cat === PRODUITS[0].cat && p.age >= 18).map((p) => p.sku);
   await c.query(`
     INSERT INTO prix_borne (borne_id, produit_id, prix_c, par, pose_le)
     SELECT $1, p.produit, p.prix, $2, $3 FROM unnest($4::bigint[], $5::int[]) AS p(produit, prix)`,
@@ -654,9 +817,9 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
   // sur une vraie machine. Toutes pleines — ca n'arrive pas apres trois
   // semaines de ventes — et il n'y a rien en route.
   const spire = [...placeDuplex.entries()].sort((a, z) => z[1] - a[1])[0];
-  const skuSpire = PLAN.find((s) => laneDe(s.rangee, s.colonne) === spire?.[0])?.sku ?? "VAPE-PAS";
+  const skuSpire = PLAN.find((s) => laneDe(s.rangee, s.colonne) === spire?.[0])?.sku ?? PLAN[0].sku;
   const enRoute = { produit: pid.get(skuSpire)!, quantite: Math.min(4, spire?.[1] ?? 0, enReserve.get(skuSpire) ?? 0),
-                    lane: spire?.[0] ?? laneDe(2, 1), quand: new Date(maintenant - 40 * 60e3), lieu: bornes[0].lieu };
+                    lane: spire?.[0] ?? laneDe(PLAN[0].rangee, PLAN[0].colonne), quand: new Date(maintenant - 40 * 60e3), lieu: bornes[0].lieu };
   await c.query(`
     INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
                            motif, lane, par, fait_le, confirme_le)
@@ -674,7 +837,8 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
      transferts.map((t) => t.produit), transferts.map((t) => t.quantite),
      transferts.map((t) => t.lane), transferts.map((t) => t.quand), transferts.map((t) => t.lieu),
      enRoute.produit, enRoute.lieu, enRoute.quantite, enRoute.lane, par, enRoute.quand,
-     pid.get("HYG-LIN")!, instant(5, 14, 20)]);
+     // La casse tombe sur le produit le moins cher : un carton ecrase de tampons, pas de vapes.
+     pid.get([...PRODUITS].sort((x, z) => x.prix - z.prix)[0].sku)!, instant(5, 14, 20)]);
   // La casse porte sa raison.
   await c.query(`
     UPDATE mouvement SET note = 'Carton écrasé à la livraison'
@@ -684,7 +848,7 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
   await ecrireJournal(c, journal);
   await recompterCanaux(c, compte_id);
   await semerPub(c, compte_id, bornes[0].id);
-  await semerSalons(c, compte_id, par, reassort, bornes.map((b, i) => ({ id: b.id, nom: MACHINES[i].nom })));
+  await semerSalons(c, compte_id, par, reassort, bornes.map((b, i) => ({ id: b.id, nom: MACHINES[i].nom })), cat);
 
   // Le numero d'assistance — sans ecraser un vrai — et le drapeau.
   await c.query(`
@@ -699,7 +863,7 @@ export async function semerDemo(c: PgClient, compte_id: number, par: string): Pr
  * la machine, lui, a aussi perdu les spirales qui ont tourne sans que rien ne
  * tombe — c'est l'ecart que la page du plateau sait montrer.
  */
-async function recompterCanaux(c: PgClient, compte_id: number): Promise<void> {
+export async function recompterCanaux(c: PgClient, compte_id: number): Promise<void> {
   await c.query(`
     UPDATE canal c SET
       quantite       = GREATEST(0, t.entre - t.vendu),
@@ -726,7 +890,7 @@ async function recompterCanaux(c: PgClient, compte_id: number): Promise<void> {
  * pour le vapotage est interdite en France, et une demo qui en montrerait une
  * apprendrait le mauvais geste.
  */
-async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promise<void> {
+export async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promise<void> {
   // rang de playlist, image, nom, duree
   const voulus: [number, string, string, number][] = [
     [0, "affiche-bienvenue", "Touchez l’écran", 7],
@@ -763,7 +927,19 @@ async function semerPub(c: PgClient, compte_id: number, borne_id: number): Promi
  * qu'on l'explique, que le salon d'une borne est le sien.
  */
 async function semerSalons(c: PgClient, compte_id: number, par: string, reassort: string,
-                           bornes: { id: number; nom: string }[]): Promise<void> {
+                           bornes: { id: number; nom: string }[], cat: Catalogue): Promise<void> {
+  // Ce que les machines racontent parle des produits du catalogue seme.
+  const nomDe = (sku: string) => cat.produits.find((p) => p.sku === sku)?.nom ?? sku;
+  const enMachine = [...new Set(cat.plan.map((x) => x.sku))].map(nomDe);
+  const liste = (noms: string[], autres: number) =>
+    `${noms.slice(0, 4).join(", ")}${autres > 0 ? ` et ${autres} autre${autres > 1 ? "s" : ""}` : ""}`;
+  // L'incident porte sur le produit le plus cher en machine : c'est celui qu'on rembourse.
+  const prixSku = (sku: string) => cat.produits.find((p) => p.sku === sku)?.prix ?? 0;
+  const incident = [...cat.plan].sort((x, z) => prixSku(z.sku) - prixSku(x.sku))[0];
+  const prixIncident = cat.produits.find((p) => p.sku === incident.sku)?.prix ?? 0;
+  const spireIncident = codeCanal(incident.rangee, incident.colonne);
+  const horsMachine = cat.produits.find((p) => !cat.plan.some((x) => x.sku === p.sku)) ?? cat.produits[cat.produits.length - 1];
+  const eur = (c: number) => (c / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
   const qui = (await c.query<{ id: number; email: string }>(
     "SELECT id, email FROM utilisateur WHERE email = ANY($1::text[])", [[par, reassort]])).rows;
   const moi = qui.find((x) => x.email === par)?.id ?? null;
@@ -792,7 +968,7 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
     { salon: general, qui: sami, quand: instant(6, 9, 15),
       texte: "Reçu. Je fais la tournée du Duplex et du Sous-Marin jeudi." },
     { salon: general, qui: sami, quand: instant(3, 18, 40),
-      texte: "Duplex rechargé. Il ne reste presque plus de câbles USB-C en réserve." },
+      texte: `Duplex rechargé. Il ne reste presque plus de « ${horsMachine.nom} » en réserve.` },
     { salon: general, qui: moi, quand: instant(3, 18, 52), texte: "Je passe commande demain." },
     { salon: general, qui: sami, quand: instant(1, 22, 5),
       texte: "Chez Marcel est fermé pour travaux jusqu’à lundi, j’ai mis la RedBox hors service depuis la console." },
@@ -801,16 +977,16 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
     const b = courtNom(bornes[0].nom);
     lignes.push(
       { salon: duplex, qui: null, quand: instant(2, 23, 58),
-        texte: `${b} · 11 ventes · 142,90 €\nPuff 600 · Menthe, Puff 600 · Fruits rouges, Poppers 15 ml, Briquet tempête et 7 autres` },
+        texte: `${b} · 11 ventes · 142,90 €\n${liste(enMachine, 7)}` },
       { salon: duplex, qui: null, quand: instant(1, 21, 17),
-        texte: `Incident · ${b}\n12,90 € · payé, la spirale a tourné, chute non détectée (spire 201)` },
+        texte: `Incident · ${b}\n${eur(prixIncident)} · payé, la spirale a tourné, chute non détectée (spire ${spireIncident})` },
       { salon: duplex, qui: sami, quand: instant(1, 21, 30),
-        texte: "La spire 201 accroche un peu, je regarde jeudi." },
+        texte: `La spire ${spireIncident} accroche un peu, je regarde jeudi.` },
     );
   }
   if (sousMarin) {
     lignes.push({ salon: sousMarin, qui: null, quand: instant(1, 23, 40),
-      texte: `${courtNom(bornes[1].nom)} · 6 ventes · 79,40 €\nPuff 600 · Pastèque, Préservatifs x3, Lingettes x10 et 3 autres` });
+      texte: `${courtNom(bornes[1].nom)} · 6 ventes · 79,40 €\n${liste([...enMachine].reverse(), 3)}` });
   }
   lignes.sort((a, z) => a.quand.getTime() - z.quand.getTime());
   await c.query(`
@@ -924,7 +1100,7 @@ export async function animerDemo(compte_id: number): Promise<void> {
     SELECT COALESCE(array_agg(b.id ORDER BY b.id), '{}') AS ids,
            COALESCE(array_agg(b.nom ORDER BY b.id), '{}') AS noms
       FROM borne b JOIN compte k ON k.id = b.compte_id
-     WHERE b.compte_id = $1 AND k.demo AND ${SQL_FICTIVE}
+     WHERE b.compte_id = $1 AND (k.demo OR k.vitrine) AND ${SQL_FICTIVE}
        AND (k.demo_vie IS NULL OR k.demo_vie < now() - ($2 || ' seconds')::interval)`,
     [compte_id, String(PAUSE_S)]);
   if (!fictives || fictives.ids.length === 0) return;
@@ -942,11 +1118,11 @@ export async function animerDemo(compte_id: number): Promise<void> {
     fictives.ids.map(async (id) => ({ id, empreinte: await empreinteDe(compte_id, id) })));
 
   await transaction(async (c) => {
-    const k = (await c.query<{ demo: boolean; demo_vie: Date | null; tard: boolean }>(`
-      SELECT demo, demo_vie,
+    const k = (await c.query<{ demo: boolean; vitrine: boolean; demo_vie: Date | null; tard: boolean }>(`
+      SELECT demo, vitrine, demo_vie,
              (demo_vie IS NULL OR demo_vie < now() - ($2 || ' seconds')::interval) AS tard
         FROM compte WHERE id = $1 FOR UPDATE`, [compte_id, String(PAUSE_S)])).rows[0];
-    if (!k?.demo || !k.tard) return;
+    if (!(k?.demo || k?.vitrine) || !k.tard) return;
     const depuis = k.demo_vie ? new Date(k.demo_vie) : new Date(Date.now() - 3600e3);
 
     // 1. Ce qui est arrive dans les machines, et ce qu'on leur a fait corriger.
@@ -993,7 +1169,8 @@ export async function animerDemo(compte_id: number): Promise<void> {
         [corriges.map((k) => k.borne_id), corriges.map((k) => k.lane), corriges.map((k) => k.quantite)]);
     }
 
-    // 2. Ce qui s'est vendu depuis le dernier passage.
+    // 2. Ce qui s'est vendu depuis le dernier passage. La vitrine ne vend pas
+    //    toute seule : ses chiffres sont ceux du reglage, pas un de plus.
     const spires = await c.query<{
       borne_id: number; lane: number; produit_id: number; quantite: number; seuil_bas: number;
       prix_c: number; age_min: number; sku: string; nom: string; rang: number;
@@ -1006,12 +1183,12 @@ export async function animerDemo(compte_id: number): Promise<void> {
         JOIN borne b ON b.id = c.borne_id
         JOIN produit p ON p.id = c.produit_id AND p.actif
         LEFT JOIN prix_borne pb ON pb.borne_id = b.id AND pb.produit_id = p.id
-       WHERE b.compte_id = $1 AND ${SQL_FICTIVE} AND NOT b.hors_service
+       WHERE b.compte_id = $1 AND ${SQL_FICTIVE} AND NOT b.hors_service AND $2::boolean
          AND c.quantite > 0
          AND NOT EXISTS (SELECT 1 FROM borne_masque bm
                           WHERE bm.borne_id = b.id
                             AND (bm.produit_id = p.id OR bm.categorie_id = p.categorie_id))`,
-      [compte_id]);
+      [compte_id, k.demo]);
 
     const parBorne = new Map<number, typeof spires.rows>();
     for (const s of spires.rows) (parBorne.get(s.borne_id) ?? parBorne.set(s.borne_id, []).get(s.borne_id)!).push(s);

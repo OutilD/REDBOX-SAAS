@@ -309,6 +309,16 @@ const SQL_FAITS = `
   ) vx
   WHERE u.id = $1`;
 
+/**
+ * Ce qu'on sait d'une personne, et les badges que ces faits meritent : ce que
+ * l'ecran d'attribution de l'equipe montre a cote de chaque tuile. Un badge
+ * merite, repris a la main, reviendrait a la prochaine evaluation.
+ */
+export async function faitsEtMerites(utilisateur_id: number): Promise<{ faits: Faits; merites: string[] } | null> {
+  const f = await q1<Faits>(SQL_FAITS, [utilisateur_id, DOMAINE]);
+  return f ? { faits: f, merites: meritesPar(f) } : null;
+}
+
 /** Les badges que ces faits meritent. */
 function meritesPar(f: Faits): string[] {
   const out: string[] = [];

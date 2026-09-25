@@ -1320,3 +1320,21 @@ CREATE TABLE IF NOT EXISTS releve_perf (
   route     TEXT
 );
 CREATE INDEX IF NOT EXISTS releve_perf_quand ON releve_perf (quand DESC);
+
+-- LE COMPTE VITRINE : celui qu'on montre aux prospects. Un compte ordinaire —
+-- aucun bandeau, aucune mention de demonstration dans la console —, dont
+-- l'histoire est inventee selon un reglage que le super-admin choisit
+-- (/admin/vitrine) : un chiffre d'affaires, une periode, les soirs ou l'on
+-- vend. Ses bornes portent un jeton `vitrine_` qu'aucune machine ne presentera ;
+-- la plateforme l'ecarte de ses chiffres comme un compte de demo. Un seul.
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS vitrine         BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS vitrine_reglage JSONB;
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS vitrine_le      TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS compte_vitrine_unique ON compte ((true)) WHERE vitrine;
+
+-- LE CATALOGUE DES DEMOS. Un compte modele, designe depuis /admin/vitrine :
+-- la demo de chaque inscription et la vitrine reprennent ses produits, ses
+-- prix, ses photos (par reference, sans copie) et son planogramme
+-- (`catalogueModele` dans lib/demo.ts). Aucun : le catalogue integre. Un seul.
+ALTER TABLE compte ADD COLUMN IF NOT EXISTS catalogue_modele BOOLEAN NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS compte_catalogue_modele_unique ON compte ((true)) WHERE catalogue_modele;

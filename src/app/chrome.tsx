@@ -5,7 +5,7 @@ import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
-import { IcoAlerte, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoOeil, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale, IcoListe } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -28,7 +28,7 @@ export type Page =
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
-  | "admin" | "admin_parc" | "admin_comptes" | "admin_sante";
+  | "admin" | "admin_parc" | "admin_comptes" | "admin_vitrine" | "admin_sante";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -152,6 +152,9 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
         droit: estSuperAdmin },
       { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
         droit: estSuperAdmin },
+      // Le compte qu'on montre aux prospects, et ce qu'il doit montrer.
+      { cle: "admin_vitrine", nom: "Vitrine", icone: <IcoOeil />, vers: "/admin/vitrine",
+        droit: estSuperAdmin },
       // La console elle-meme : ce qui est lent, ce qui plante.
       { cle: "admin_sante", nom: "Santé", icone: <IcoAlerte />, vers: "/admin/sante",
         droit: estSuperAdmin },
@@ -241,7 +244,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
-  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_sante: "menu",
+  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_vitrine: "menu", admin_sante: "menu",
   academie_editer: "academie",
 };
 
@@ -272,6 +275,7 @@ const FIL: Record<Page, [string, string?]> = {
   admin:      ["Tableau de bord", "Plateforme"],
   admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
+  admin_vitrine: ["Vitrine", "Plateforme"],
   admin_sante: ["Santé", "Plateforme"],
   academie:   ["Académie", "Connect"],
   academie_editer: ["Édition", "Académie"],
