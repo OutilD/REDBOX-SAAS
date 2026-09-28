@@ -1,5 +1,5 @@
 import { BISCUIT, detruireSession, enTeteBiscuit, versPage } from "@/lib/auth";
-import { MARQUE_PARTAGE } from "@/lib/produits";
+import { MARQUE_PARTAGE, hoteDes } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,5 @@ export async function POST(req: Request) {
       await detruireSession(v.startsWith(MARQUE_PARTAGE) ? v.slice(MARQUE_PARTAGE.length) : v);
     }
   }
-  return versPage(req, "/connexion", enTeteBiscuit(null));
+  return versPage(req, "/connexion", enTeteBiscuit(null, hoteDes(req.headers)));
 }

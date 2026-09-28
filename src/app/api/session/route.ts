@@ -29,5 +29,5 @@ export async function POST(req: Request) {
   // connecte cote Gestion est conduit a Connect.
   const hote = hoteDes(req.headers), ici = produitDeLHote(hote);
   const produit = ici === "connect" || !gere?.oui ? "connect" : "gestion";
-  return versPage(req, adresse(produit, PRODUITS[produit].accueil, hote), enTeteBiscuit(await creerSession(l.id)));
+  return versPage(req, adresse(produit, PRODUITS[produit].accueil, hote), enTeteBiscuit(await creerSession(l.id), hote));
 }

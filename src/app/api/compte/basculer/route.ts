@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   let jeton = "";
   for (const morceau of brut.split(";")) {
     const [nom, ...reste] = morceau.trim().split("=");
-    if (nom === BISCUIT) jeton = jetonDuBiscuit(decodeURIComponent(reste.join("="))) ?? "";
+    if (nom === BISCUIT && !jeton) jeton = jetonDuBiscuit(decodeURIComponent(reste.join("="))) ?? "";
   }
   if (!jeton) return versPage(req, "/connexion");
 

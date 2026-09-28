@@ -75,5 +75,5 @@ export async function POST(req: Request) {
 
   if (issue.souci) return vers(issue.souci);
   // Un compte neuf n'a pas de machine : il arrive dans Connect (voir api/session).
-  return versPage(req, adresse("connect", "/communaute", hoteDes(req.headers)), enTeteBiscuit(await creerSession(issue.id)));
+  return versPage(req, adresse("connect", "/communaute", hoteDes(req.headers)), enTeteBiscuit(await creerSession(issue.id), hoteDes(req.headers)));
 }

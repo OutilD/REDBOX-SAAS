@@ -82,6 +82,23 @@ export function domaineBiscuit(): string | null {
 }
 
 /**
+ * LE DOMAINE A POSER SUR UN BISCUIT SERVI PAR CET HOTE, OU NULL.
+ *
+ * Un navigateur refuse un biscuit dont le domaine ne couvre pas l'hote qui le
+ * pose. Or l'ancienne adresse sert toujours tout, connexion comprise : y poser
+ * la session « pour le domaine », c'etait la voir jetee aussitot, et renvoyer a
+ * la connexion, sans un mot, quiconque ouvrait l'application installee avant
+ * le passage aux deux adresses. Hors du domaine, le biscuit vaut pour l'hote
+ * seul — il garde sa marque, pour rester lisible par `jetonDuBiscuit`.
+ */
+export function domaineDe(hote: string | null | undefined): string | null {
+  const d = domaineBiscuit();
+  if (!d) return null;
+  const ici = propre(hote).replace(/:\d+$/, ""), racine = d.replace(/^\./, "").toLowerCase();
+  return ici === racine || ici.endsWith("." + racine) ? d : null;
+}
+
+/**
  * LA MARQUE DU BISCUIT DE SESSION PARTAGE. Un navigateur connecte avant le
  * passage au domaine garde un biscuit d'hote, que rien ne distingue d'un
  * biscuit de domaine dans une requete — et il aurait pu rester connecte d'un
@@ -100,8 +117,8 @@ export function jetonDuBiscuit(valeur: string | null | undefined): string | null
 }
 
 /** Un biscuit de preference (theme, rail), partage sous le domaine s'il y en a un. */
-export function biscuitPartage(nom: string, valeur: string, maxAge: number): string {
-  const d = domaineBiscuit();
+export function biscuitPartage(nom: string, valeur: string, maxAge: number, hote: string | null): string {
+  const d = domaineDe(hote);
   return `${nom}=${valeur}; Path=/; SameSite=Lax${d ? `; Domain=${d}` : ""}; Max-Age=${maxAge}`;
 }
 

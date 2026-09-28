@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { q, q1 } from "@/db";
 import { animerDemo } from "./demo";
-import { MARQUE_PARTAGE, domaineBiscuit, hoteDes, jetonDuBiscuit } from "./produits";
+import { MARQUE_PARTAGE, domaineBiscuit, domaineDe, hoteDes, jetonDuBiscuit } from "./produits";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
 export function chiffrer(mdp: string): string {
@@ -97,10 +97,12 @@ export async function detruireSession(jeton: string): Promise<void> {
  * le passage au domaine garde un biscuit d'hote, qu'un effacement « de domaine »
  * ne touche pas — il serait reste connecte apres avoir clique « Se deconnecter ».
  */
-export function enTeteBiscuit(jeton: string | null): string[] {
+export function enTeteBiscuit(jeton: string | null, hote: string | null): string[] {
   const commun = "Path=/; HttpOnly; SameSite=Lax";
-  const domaine = domaineBiscuit();
-  const portee = domaine ? `; Domain=${domaine}` : "";
+  // Le mode domaine decide de la marque ; l'hote, de la portee : hors du
+  // domaine, le biscuit marque ne vaut que pour cet hote (voir `domaineDe`).
+  const domaine = domaineBiscuit(), couvert = domaineDe(hote);
+  const portee = couvert ? `; Domain=${couvert}` : "";
   const efface = `${BISCUIT}=; ${commun}; Max-Age=0`;
   if (jeton) {
     // En mode domaine, le biscuit porte sa marque, et l'eventuel biscuit d'hote
@@ -265,8 +267,25 @@ export function peutVoirBorne(u: Utilisateur, borne_id: number): boolean {
  * rendu — trois requetes a la base au lieu de neuf, sur chaque page.
  */
 export const utilisateur = cache(async (): Promise<Utilisateur | null> => {
-  return parJeton(jetonDuBiscuit((await cookies()).get(BISCUIT)?.value));
+  return parJeton(premierJeton((await cookies()).getAll(BISCUIT).map((c) => c.value)));
 });
+
+/**
+ * LE PREMIER BISCUIT DE SESSION VALABLE, PAS LE PREMIER TOUT COURT.
+ *
+ * Un navigateur peut en presenter deux sous le meme nom : le biscuit de
+ * domaine, et un vestige d'hote d'avant le domaine — pose sur l'autre hote,
+ * que la connexion d'ici n'a pas pu effacer. Le vestige passe souvent en
+ * premier ; ne lire que lui, c'etait renvoyer a la connexion a chaque page
+ * quelqu'un dont la session, juste derriere, etait parfaitement bonne.
+ */
+function premierJeton(valeurs: string[]): string | null {
+  for (const v of valeurs) {
+    const jeton = jetonDuBiscuit(v);
+    if (jeton) return jeton;
+  }
+  return null;
+}
 
 /**
  * Cote route : on lit l'en-tete Cookie de la requete elle-meme.
@@ -278,11 +297,12 @@ export const utilisateur = cache(async (): Promise<Utilisateur | null> => {
  */
 export async function utilisateurDe(req: Request): Promise<Utilisateur | null> {
   const brut = req.headers.get("cookie") ?? "";
+  const valeurs: string[] = [];
   for (const morceau of brut.split(";")) {
     const [nom, ...reste] = morceau.trim().split("=");
-    if (nom === BISCUIT) return parJeton(jetonDuBiscuit(decodeURIComponent(reste.join("="))));
+    if (nom === BISCUIT) valeurs.push(decodeURIComponent(reste.join("=")));
   }
-  return null;
+  return parJeton(premierJeton(valeurs));
 }
 
 export function peutCharger(u: Utilisateur): boolean {

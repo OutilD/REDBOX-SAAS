@@ -1,6 +1,7 @@
 import { transaction } from "@/db";
 import { chiffrer, creerSession, enTeteBiscuit, utilisateurDe, versPage } from "@/lib/auth";
 import { offrirBienvenue } from "@/lib/communaute";
+import { hoteDes } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -79,5 +80,5 @@ export async function POST(req: Request) {
 
   if (issue.souci) return vers(issue.souci);
   if (!issue.neuf) return versPage(req, "/");
-  return versPage(req, "/", enTeteBiscuit(await creerSession(issue.id)));
+  return versPage(req, "/", enTeteBiscuit(await creerSession(issue.id), hoteDes(req.headers)));
 }

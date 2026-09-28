@@ -1,5 +1,5 @@
 import { versPage } from "@/lib/auth";
-import { biscuitPartage } from "@/lib/produits";
+import { biscuitPartage, hoteDes } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,6 @@ export async function POST(req: Request) {
   const actuel = String(f.get("actuel") ?? "dark");
   const retour = String(f.get("retour") ?? "/");
   const prochain = SUITE[actuel] ?? "light";
-  const biscuit = biscuitPartage("rbx_theme", prochain, 365 * 24 * 3600);
+  const biscuit = biscuitPartage("rbx_theme", prochain, 365 * 24 * 3600, hoteDes(req.headers));
   return versPage(req, retour, biscuit);
 }
