@@ -111,6 +111,12 @@ export default function Occupe() {
       const action = forme.getAttribute("action") ?? "";
       if (forme.hasAttribute("data-recharge")) { marquer(bouton); return; }
 
+      // LE CLAVIER SE FERME A L'ENVOI. Sans rechargement, le champ gardait le
+      // focus : sur iPhone, `hauteur-ecran.tsx` croyait le clavier encore ouvert
+      // et laissait la barre du bas au milieu de l'ecran.
+      const champ = document.activeElement as HTMLElement | null;
+      if (champ && forme.contains(champ) && champ.matches("input, textarea, select")) champ.blur();
+
       // UN FORMULAIRE GET EST UN FILTRE : l'adresse qu'il compose, on y va par
       // le routeur, comme pour un lien. Les champs vides ne l'encombrent pas.
       if (methode === "get" && !action.startsWith("/api/") && !action.startsWith("http")) {

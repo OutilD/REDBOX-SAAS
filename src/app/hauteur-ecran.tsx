@@ -9,6 +9,26 @@ function estChamp(el: Element | null): boolean {
 }
 
 /**
+ * La hauteur que la fenetre DEVRAIT avoir, dans l'application installee sur
+ * iPhone : barre d'etat fondue et `viewport-fit=cover`, elle couvre tout
+ * l'ecran. `visualViewport` ne suffit pas pour reperer la fenetre raccourcie :
+ * iOS la raccourcit parfois avec, et l'ecart mesure valait zero.
+ *
+ * Hors de l'application iOS (`navigator.standalone` n'existe que la), ou dans
+ * une fenetre qui n'occupe pas toute la largeur (iPad partage), on rend la
+ * hauteur courante : aucun ecart.
+ */
+function hauteurPleinEcran(): number {
+  const courante = window.innerHeight;
+  if (!(navigator as Navigator & { standalone?: boolean }).standalone) return courante;
+  const { width: w, height: h } = window.screen;
+  const portrait = window.innerHeight >= window.innerWidth;
+  const [largeur, hauteur] = portrait ? [Math.min(w, h), Math.max(w, h)] : [Math.max(w, h), Math.min(w, h)];
+  if (Math.abs(window.innerWidth - largeur) > 1) return courante;
+  return hauteur;
+}
+
+/**
  * LA BARRE DU BAS RESTE EN BAS SUR IPHONE.
  *
  * Dans l'application installee (iOS 26), apres la fermeture du clavier —
@@ -49,7 +69,9 @@ export default function HauteurEcran() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const neutre = estChamp(document.activeElement) || vv.scale > 1.01;
-        const bas = neutre ? 0 : Math.round(vv.height + vv.offsetTop - window.innerHeight);
+        const bas = neutre ? 0 : Math.max(
+          Math.round(vv.height + vv.offsetTop - window.innerHeight),
+          Math.round(hauteurPleinEcran() - window.innerHeight));
         const haut = neutre ? 0 : Math.round(vv.offsetTop);
         const b = Math.max(0, bas), h = Math.max(0, haut);
         if (b !== dernier.bas) { dernier.bas = b; racine.style.setProperty("--ecart-bas", `${b}px`); }
@@ -71,6 +93,7 @@ export default function HauteurEcran() {
 
     vv.addEventListener("resize", mesurer);
     vv.addEventListener("scroll", mesurer);
+    window.addEventListener("resize", mesurer);
     window.addEventListener("orientationchange", mesurer);
     window.addEventListener("pageshow", mesurer);
     document.addEventListener("focusin", mesurer);
@@ -82,6 +105,7 @@ export default function HauteurEcran() {
       window.clearTimeout(minuterie);
       vv.removeEventListener("resize", mesurer);
       vv.removeEventListener("scroll", mesurer);
+      window.removeEventListener("resize", mesurer);
       window.removeEventListener("orientationchange", mesurer);
       window.removeEventListener("pageshow", mesurer);
       document.removeEventListener("focusin", mesurer);
