@@ -3,6 +3,8 @@ import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
 import { deposer, empreinteSalon, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 import { MESSAGES_PAR_LOT } from "@/lib/fil";
+import { transaction } from "@/db";
+import { rangerImage } from "@/lib/image";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +59,10 @@ export async function GET(req: Request) {
 }
 
 /**
- * POST /api/messages   (formulaire : salon_id, texte — ou JSON)
+ * POST /api/messages   (formulaire : salon_id, texte, photo — ou JSON)
+ *
+ * La photo part en multipart, avec ou sans texte ; le navigateur l'a reduite
+ * avant. Le navigateur demande alors du JSON par `accept`.
  *
  * Le formulaire ordinaire revient au salon ; le JSON, que le navigateur
  * envoie quand il a du JavaScript, rend le message tel qu'il s'affiche, pour
@@ -66,16 +71,19 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
-  const json = (req.headers.get("content-type") ?? "").includes("application/json");
+  const corpsJson = (req.headers.get("content-type") ?? "").includes("application/json");
+  const json = corpsJson || (req.headers.get("accept") ?? "").includes("application/json");
   if (!u) return json ? Response.json({ erreur: "non connecté" }, { status: 401 }) : versPage(req, "/connexion");
 
-  let salon_id: number, texte: string;
-  if (json) {
+  let salon_id: number, texte: string, photo: File | null = null;
+  if (corpsJson) {
     const c = await req.json().catch(() => ({})) as { salon_id?: unknown; texte?: unknown };
     salon_id = Number(c.salon_id); texte = String(c.texte ?? "");
   } else {
     const f = await req.formData();
     salon_id = Number(f.get("salon_id")); texte = String(f.get("texte") ?? "");
+    const p = f.get("photo");
+    if (p instanceof File && p.size > 0) photo = p;
   }
   texte = texte.replace(/\r\n?/g, "\n").trim();
   const refus = (code: number, e: string) =>
@@ -83,13 +91,21 @@ export async function POST(req: Request) {
          : versPage(req, Number.isInteger(salon_id) ? `/messages/${salon_id}?e=${e}` : "/messages");
 
   if (!Number.isInteger(salon_id)) return refus(400, "salon");
-  if (!texte) return refus(400, "vide");
+  if (!texte && !photo) return refus(400, "vide");
   if (texte.length > TEXTE_MAX) return refus(400, "long");
   const s = await salonDe(u, salon_id);
   if (!s) return refus(404, "salon");
   if (!peutEcrire(u, s)) return refus(403, "lecture");
 
-  const m = await deposer(salon_id, u.id, texte);
+  // La photo et son message ensemble : une image refusee ne laisse pas un
+  // message vide derriere elle.
+  const m = photo
+    ? await transaction(async (c) => {
+        const img = await rangerImage(c, u.compte_id, photo);
+        return img === null ? null : deposer(salon_id, u.id, texte, c, img);
+      })
+    : await deposer(salon_id, u.id, texte);
+  if (!m) return refus(400, "photo");
   // Ses propres messages ne comptent jamais comme non lus : avancer le curseur
   // n'est pas urgent, et attendre la base pour le faire retardait la reponse.
   apres("lecture", () => marquerLu(u.id, salon_id, m.id));

@@ -891,6 +891,13 @@ CREATE TABLE IF NOT EXISTS message (
 );
 CREATE INDEX IF NOT EXISTS i_message_salon ON message (salon_id, id DESC);
 
+-- UNE PHOTO PAR MESSAGE. Une panne se montre mieux qu'elle ne se decrit : la
+-- spire coincee, l'ecran qui affiche une erreur. L'image est rangee chez le
+-- compte de l'auteur, comme les autres ; elle ne sort que par
+-- /api/messages/photo, qui verifie qu'on lit bien ce salon. Le texte peut
+-- alors rester vide.
+ALTER TABLE message ADD COLUMN IF NOT EXISTS photo_id BIGINT REFERENCES image(id) ON DELETE SET NULL;
+
 -- OU CHACUN EN EST. Le dernier message lu, par salon : c'est ce qui fait la
 -- pastille, et ce qui distingue « rien de neuf » de « rien du tout ».
 CREATE TABLE IF NOT EXISTS salon_lecture (

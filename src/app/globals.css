@@ -7544,6 +7544,35 @@ details.groupe-salons .liste { display: grid; gap: 1px; padding: 2px 0 4px; }
   font-size: 13px; color: var(--texte-3); background: var(--surface); border: 1px solid var(--bord);
 }
 
+/* LA PHOTO JOINTE. Le bouton ouvre le choix de fichier — et, au telephone,
+   l'appareil photo ; le champ est transparent par-dessus, pas escamote, pour
+   marcher sans script. La miniature attend au-dessus de la boite, avec sa
+   croix. */
+.composeur .boite-composeur:has(.joindre) { padding-left: 6px; }
+.composeur .joindre {
+  position: relative; flex: none; width: 42px; height: 42px; border-radius: 13px;
+  display: grid; place-items: center; color: var(--texte-2); cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.composeur .joindre:hover { background: var(--surface-2); color: var(--texte); }
+.composeur .joindre:focus-within { outline: 2px solid var(--rouge-vif); outline-offset: 2px; }
+.composeur .joindre input {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0;
+}
+.composeur .photo-a-joindre {
+  position: relative; display: inline-block; margin: 0 0 8px 6px;
+  border-radius: 12px; overflow: hidden; border: 1px solid var(--bord-fort); background: var(--surface);
+}
+.composeur .photo-a-joindre img { display: block; max-height: 96px; max-width: 160px; object-fit: cover; }
+.composeur .photo-a-joindre .attente { display: block; padding: 12px 16px; font-size: 13px; color: var(--texte-3); }
+.composeur .oter-photo {
+  position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; font-size: 16px; line-height: 1;
+  background: rgba(0, 0, 0, .65); color: #fff;
+}
+.msg .photo-msg { display: block; margin: 5px -7px 6px; border-radius: 13px; overflow: hidden; }
+.msg .photo-msg img { display: block; width: 100%; max-width: 280px; max-height: 340px; object-fit: cover; }
+
 /* ----------------------------------------------------------- grand ecran */
 @media (min-width: 980px) {
   .ecran.messagerie { padding: 0 26px 0 0; grid-template-columns: 320px minmax(0, 1fr); gap: 26px; }

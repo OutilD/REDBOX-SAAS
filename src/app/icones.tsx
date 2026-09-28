@@ -486,6 +486,15 @@ export const IcoPlus = ({ size = 18 }: P) => (
   <svg {...base(size)}><path d="M10 4.5v11M4.5 10h11" /></svg>
 );
 
+/** Joindre une photo : un cadre, un soleil, une colline. */
+export const IcoPhoto = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <rect x="2.5" y="4" width="15" height="12" rx="2" />
+    <circle cx="7" cy="8.2" r="1.4" />
+    <path d="m17.5 13-4-4-7.5 7" />
+  </svg>
+);
+
 /** Envoyer : l'avion en papier. */
 export const IcoEnvoyer = ({ size = 18 }: P) => (
   <svg {...base(size)}>

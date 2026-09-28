@@ -452,7 +452,7 @@ export async function signalerMessage(salon: Salon, m: MessageSalon): Promise<vo
   }
   cibles = versLaBonneApplication(cibles, "connect");
   if (cibles.length === 0) return;
-  const texte = m.texte.replace(/\s+/g, " ").trim();
+  const texte = m.texte.replace(/\s+/g, " ").trim() || (m.photo ? "📷 Photo" : "");
   const message: Message = {
     genre: salon.portee === "annonces" ? "annonces" : "messages",
     titre: `#${salon.nom} · ${m.auteur ?? "quelqu’un"}`,

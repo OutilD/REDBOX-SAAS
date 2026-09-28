@@ -8,7 +8,8 @@ import { initiales } from "@/lib/personnes";
 import { Badge } from "../communaute/badge";
 import { FUSEAU } from "@/lib/fuseau";
 import { CADENCE_CALME_MS, CADENCE_VIVE_MS, CALME_APRES_MS, MESSAGES_PAR_LOT } from "@/lib/fil";
-import { IcoBas, IcoBorne, IcoCoche, IcoCorbeille, IcoEnvoyer, IcoHorloge, IcoSourire } from "../icones";
+import { IcoBas, IcoBorne, IcoCoche, IcoCorbeille, IcoEnvoyer, IcoHorloge, IcoPhoto, IcoSourire } from "../icones";
+import { preparerPhoto } from "./photo";
 
 type Salon = {
   id: number; nom: string; sujet: string | null; borne: string | null;
@@ -23,6 +24,8 @@ type Ligne = Message & {
   raison?: string;
   /** Vrai si l'echec tient au reseau ou au serveur : le retour du reseau le relance. */
   relancable?: boolean;
+  /** La photo d'un envoi, gardee pour une relance, et son apercu local. */
+  fichier?: Blob; apercu?: string;
 };
 
 /** Au-dela, un envoi sans reponse est tenu pour rate : la bulle le dit, et on peut reessayer. */
@@ -85,6 +88,7 @@ function raisonDe(e: unknown): { raison: string; relancable: boolean } {
     if (e.code === "long") return { raison: "message trop long", relancable: false };
     if (e.code === "lecture") return { raison: "vous ne pouvez plus écrire ici", relancable: false };
     if (e.code === "salon") return { raison: "salon introuvable", relancable: false };
+    if (e.code === "photo" || e.statut === 413) return { raison: "photo refusée (JPEG, PNG ou WebP, 8 Mo au plus)", relancable: false };
     if (e.statut >= 500) return { raison: "erreur du serveur", relancable: true };
     return { raison: "refusé par le serveur", relancable: false };
   }
@@ -131,6 +135,10 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
 }) {
   const [messages, poser] = useState<Ligne[]>(initial);
   const [texte, ecrire] = useState("");
+  // La photo choisie, deja reduite, en attente d'envoi avec le texte.
+  const [photo, poserPhoto] = useState<{ blob: Blob; url: string } | null>(null);
+  const [preparation, poserPreparation] = useState(false);
+  const champPhoto = useRef<HTMLInputElement>(null);
   const enBas = useRef(true);
   const zone = useRef<HTMLTextAreaElement>(null);
   const provisoires = useRef(0);
@@ -209,6 +217,20 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 
+  /** Une photo choisie : reduite tout de suite, montree au-dessus du champ, partie avec le message. */
+  async function choisirPhoto() {
+    const f = champPhoto.current?.files?.[0];
+    if (!f) return;
+    poserPreparation(true);
+    try {
+      const blob = await preparerPhoto(f);
+      poserPhoto((avant) => { if (avant) URL.revokeObjectURL(avant.url); return { blob, url: URL.createObjectURL(blob) }; });
+    } finally {
+      poserPreparation(false);
+      if (champPhoto.current) champPhoto.current.value = "";
+    }
+  }
+
   function descendre() {
     enBas.current = true;
     poserArrives(0);
@@ -257,8 +279,9 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
         // Un de mes envois peut revenir par ce tour avant sa propre reponse :
         // la version du serveur prend la place de la provisoire, sinon la meme
         // phrase s'afficherait deux fois le temps d'une seconde.
-        const arrives = new Set(ajouts.filter((x) => x.utilisateur_id === moi).map((x) => x.texte));
-        const base = a_jour.filter((x) => !(x.id < 0 && arrives.has(x.texte)));
+        const cle = (x: Message) => `${x.photo ? "1" : "0"}${x.texte}`;
+        const arrives = new Set(ajouts.filter((x) => x.utilisateur_id === moi).map(cle));
+        const base = a_jour.filter((x) => !(x.id < 0 && arrives.has(cle(x))));
         return ajouts.length > 0 ? [...base, ...ajouts] : base;
       });
     } catch { /* le prochain tour reessaiera */ }
@@ -304,15 +327,18 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   function soumettre(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const propre = texte.trim();
-    if (!propre) return;
+    if (!propre && !photo) return;
+    if (preparation) return;
     const provisoire: Ligne = {
       id: -(++provisoires.current), salon_id: salon.id, utilisateur_id: moi, auteur: null,
       image_id: null, compte: null, grade: null, niveau: null, editeur: false, couleur: null,
       badge: null, texte: propre, cree_le: new Date().toISOString(), supprime: false,
+      photo: Boolean(photo), fichier: photo?.blob, apercu: photo?.url,
       reactions: [], envoi: true,
     };
     poser((m) => [...m, provisoire]);
     ecrire("");
+    poserPhoto(null);
     enBas.current = true;
     zone.current?.focus();
     envoyer(provisoire);
@@ -331,13 +357,24 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
     const coupe = new AbortController();
     const minuterie = window.setTimeout(() => coupe.abort(), DELAI_ENVOI_MS);
     try {
-      const r = await fetch("/api/messages", {
-        method: "POST", headers: { "content-type": "application/json" },
-        // Le salon de la bulle, pas celui qu'on regarde : une relance peut
-        // partir apres qu'on a change de salon.
-        body: JSON.stringify({ salon_id: p.salon_id, texte: p.texte }),
-        signal: coupe.signal,
-      });
+      // Le salon de la bulle, pas celui qu'on regarde : une relance peut
+      // partir apres qu'on a change de salon.
+      let r: Response;
+      if (p.fichier) {
+        const corps = new FormData();
+        corps.append("salon_id", String(p.salon_id));
+        corps.append("texte", p.texte);
+        corps.append("photo", p.fichier, "photo.jpg");
+        r = await fetch("/api/messages", {
+          method: "POST", headers: { accept: "application/json" }, body: corps, signal: coupe.signal,
+        });
+      } else {
+        r = await fetch("/api/messages", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ salon_id: p.salon_id, texte: p.texte }),
+          signal: coupe.signal,
+        });
+      }
       if (!r.ok) {
         const { erreur } = await r.json().catch(() => ({})) as { erreur?: string };
         throw new Refus(r.status, erreur);
@@ -345,9 +382,11 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       const { message } = await r.json() as { message: Message };
       // A sa place dans le fil ; si le rafraichissement l'a deja apporte, la
       // provisoire s'efface simplement.
+      // L'apercu local reste a l'ecran : la meme photo, sans la retelecharger
+      // ni la voir clignoter.
       poser((m) => m.some((x) => x.id === message.id)
         ? m.filter((x) => x.id !== p.id)
-        : m.map((x) => (x.id === p.id ? message : x)));
+        : m.map((x) => (x.id === p.id ? { ...message, apercu: p.apercu } : x)));
     } catch (e) {
       const { raison, relancable } = raisonDe(e);
       poser((m) => m.map((x) => (x.id === p.id
@@ -408,7 +447,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ id, salon_id: salon.id }),
     });
-    if (r.ok) poser((m) => m.map((x) => (x.id === id ? { ...x, texte: "", supprime: true } : x)));
+    if (r.ok) poser((m) => m.map((x) => (x.id === id ? { ...x, texte: "", supprime: true, photo: false, apercu: undefined } : x)));
   }
 
   // Le regroupement : un message ouvre une serie s'il change d'auteur, de
@@ -499,9 +538,25 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       {peutEcrire ? (
         <div className="composeur">
           {erreur ? <p className="erreur" style={{ margin: "0 0 8px" }}>{erreur}</p> : null}
-          <form method="post" action="/api/messages" onSubmit={soumettre} className="boite-composeur">
+          {photo || preparation ? (
+            <div className="photo-a-joindre">
+              {photo ? <img src={photo.url} alt="Photo à envoyer" /> : <span className="attente">Préparation…</span>}
+              {photo ? (
+                <button type="button" className="oter-photo" aria-label="Retirer la photo" title="Retirer la photo"
+                        onClick={() => { URL.revokeObjectURL(photo.url); poserPhoto(null); }}>×</button>
+              ) : null}
+            </div>
+          ) : null}
+          <form method="post" action="/api/messages" encType="multipart/form-data" onSubmit={soumettre} className="boite-composeur">
             <input type="hidden" name="salon_id" value={salon.id} />
-            <textarea ref={zone} name="texte" rows={1} required maxLength={LONGUEUR_MAX}
+            {/* Un label, pas un bouton : il ouvre le choix de fichier sans
+                script, et sur telephone propose l'appareil photo. */}
+            <label className="joindre" title="Joindre une photo" aria-label="Joindre une photo">
+              <input ref={champPhoto} type="file" name="photo" accept="image/jpeg,image/png,image/webp"
+                     onChange={(e) => { e.preventDefault(); void choisirPhoto(); }} />
+              <IcoPhoto size={18} />
+            </label>
+            <textarea ref={zone} name="texte" rows={1} required={!photo} maxLength={LONGUEUR_MAX}
                       placeholder={`Écrire dans #${salon.nom}`} aria-label="Message"
                       value={texte} onChange={(e) => ecrire(e.target.value)}
                       onKeyDown={(e) => {
@@ -510,7 +565,7 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
                           e.currentTarget.form?.requestSubmit();
                         }
                       }} />
-            <button className="envoyer" aria-label="Envoyer" title="Envoyer (Entrée)" disabled={!texte.trim()}>
+            <button className="envoyer" aria-label="Envoyer" title="Envoyer (Entrée)" disabled={preparation || (!texte.trim() && !photo)}>
               <IcoEnvoyer size={18} />
             </button>
           </form>
@@ -621,9 +676,19 @@ function Bulle({ m, salon, suite, mien, oter, reagir, reessayer, abandonner }: {
         )}
         <div className="bulle-ligne" ref={ligne}>
           <div className="bulle" onClick={toucher}>
+            {!m.supprime && (m.photo || m.apercu) ? (
+              m.id > 0 ? (
+                <a href={`/api/messages/photo/${m.id}`} target="_blank" rel="noreferrer" className="photo-msg">
+                  <img src={m.apercu ?? `/api/messages/photo/${m.id}`} alt="Photo" loading="lazy" decoding="async" />
+                </a>
+              ) : (
+                <span className="photo-msg"><img src={m.apercu} alt="Photo" /></span>
+              )
+            ) : null}
             {m.supprime ? (
               <div className="texte retire">message retiré</div>
-            ) : machine && reste.length > 0 ? (
+            ) : !m.texte && (m.photo || m.apercu) ? null
+            : machine && reste.length > 0 ? (
               <div className="texte"><b>{premiere}</b>{"\n"}{avecLiens(reste.join("\n"))}</div>
             ) : (
               <div className="texte">{avecLiens(m.texte)}</div>

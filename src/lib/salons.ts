@@ -63,6 +63,8 @@ export type Message = {
   /** Le badge le plus rare qu'il porte — un seul se lit a cote d'un nom. */
   badge: BadgeMontre | null;
   texte: string; cree_le: string; supprime: boolean;
+  /** Une photo jointe, servie par /api/messages/photo/<id>. Faux une fois le message retire. */
+  photo: boolean;
   reactions: Reaction[];
 };
 
@@ -294,7 +296,8 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
            d.apercu, d.apercu_de, COALESCE(d.apercu_mien, false) AS apercu_mien
       FROM salon s
       LEFT JOIN LATERAL (
-        SELECT left(regexp_replace(m.texte, '[[:space:]]+', ' ', 'g'), 90) AS apercu,
+        SELECT CASE WHEN m.texte = '' AND m.photo_id IS NOT NULL THEN '📷 Photo'
+                    ELSE left(regexp_replace(m.texte, '[[:space:]]+', ' ', 'g'), 90) END AS apercu,
                CASE WHEN m.utilisateur_id IS NULL THEN NULL
                     ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS apercu_de,
                (m.utilisateur_id = $5::bigint) AS apercu_mien
@@ -361,7 +364,8 @@ const COLONNES = `
   x.image_id, x.couleur, kx.nom AS compte, COALESCE(kx.editeur, false) AS editeur,
   CASE WHEN m.supprime_le IS NULL THEN m.texte ELSE '' END AS texte,
   to_char(m.cree_le AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cree_le,
-  (m.supprime_le IS NOT NULL) AS supprime`;
+  (m.supprime_le IS NOT NULL) AS supprime,
+  (m.photo_id IS NOT NULL AND m.supprime_le IS NULL) AS photo`;
 const JOINTURES = `LEFT JOIN utilisateur x ON x.id = m.utilisateur_id LEFT JOIN compte kx ON kx.id = x.compte_id`;
 
 /**
@@ -509,11 +513,11 @@ export async function reagir(message_id: number, utilisateur_id: number, emoji: 
 
 /** Un message de plus, rendu tel qu'il s'affiche. */
 export async function deposer(salon_id: number, utilisateur_id: number | null, texte: string,
-                              c?: PgClient): Promise<Message> {
+                              c?: PgClient, photo_id: number | null = null): Promise<Message> {
   const sql = `
-    WITH n AS (INSERT INTO message (salon_id, utilisateur_id, texte) VALUES ($1, $2, $3) RETURNING *)
+    WITH n AS (INSERT INTO message (salon_id, utilisateur_id, texte, photo_id) VALUES ($1, $2, $3, $4) RETURNING *)
     SELECT ${COLONNES} FROM n m ${JOINTURES}`;
-  const p = [salon_id, utilisateur_id, texte];
+  const p = [salon_id, utilisateur_id, texte, photo_id];
   const r = c ? (await c.query<Brut>(sql, p)).rows[0] : await q1<Brut>(sql, p);
   // Rendu sans grade ni reactions : il revient a son auteur, dont la bulle
   // n'affiche ni nom, ni niveau, ni badge — et un message ne a l'instant n'a
