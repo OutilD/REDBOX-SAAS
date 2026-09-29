@@ -8556,3 +8556,138 @@ html.js .sans-js { display: none; }
 .legende-lecons i { display: inline-block; width: 10px; height: 6px; border-radius: 2px; }
 .legende-lecons i.vue { background: color-mix(in srgb, var(--rouge) 30%, var(--surface-3)); }
 .legende-lecons i.finie { background: var(--rouge); margin-left: 6px; }
+
+/* ------------------------------------------------------------------ les prospects sur la carte
+   Un rond, jamais un carre : on ne confond pas une personne et une machine.
+   Orange plein, un futur redboxer (il a fini une lecon) ; cercle clair, un
+   curieux ; un halo quand il est chaud. */
+:root { --gens-futur: #ff8a1f; --gens-curieux: #c7cbd4; }
+.rond-personnes {
+  display: flex; align-items: center; justify-content: center;
+  width: var(--t); height: var(--t); border-radius: 50%;
+  font-size: 11px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 5px rgba(0,0,0,.45);
+}
+.rond-personnes[data-genre="futur"] { background: var(--gens-futur); border: 2px solid #fff; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.rond-personnes[data-genre="curieux"] { background: rgba(20, 20, 24, .55); border: 2.5px solid var(--gens-curieux); color: #fff; }
+.rond-personnes[data-genre="mixte"] {
+  background: conic-gradient(var(--gens-futur) 0 50%, rgba(20,20,24,.6) 50% 100%); border: 2px solid #fff; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.rond-personnes[data-chaud] { box-shadow: 0 0 0 4px color-mix(in srgb, var(--gens-futur) 35%, transparent), 0 1px 5px rgba(0,0,0,.45); }
+.rond-point { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.rond-point[data-genre="futur"] { background: var(--gens-futur); }
+.rond-point[data-genre="curieux"] { box-shadow: inset 0 0 0 2px var(--gens-curieux); }
+.filtre-gens[data-genre="futur"] { --stade: var(--gens-futur); }
+.filtre-gens[data-genre="curieux"] { --stade: var(--gens-curieux); }
+.filtre-gens i { border-radius: 50%; }
+.pilule[data-temp="froid"] { background: var(--surface-3); color: var(--texte-2); border-color: transparent; }
+.pilule[data-temp="froid"] i { background: var(--texte-3); }
+.aca-sans-ville summary { cursor: pointer; font-size: 14px; }
+.aca-sans-ville .liste-a-situer { margin-top: 12px; }
+.aca-ville { display: flex; gap: 6px; }
+.aca-ville input { width: 150px; min-height: 34px; padding: 0 10px; }
+@media (max-width: 640px) { .aca-ville { width: 100%; } .aca-ville input { flex: 1; width: auto; } }
+
+/* ------------------------------------------------------------------ la fiche d'un compte */
+.fil-retour { margin: 14px 0 -4px; font-size: 13px; }
+.fil-retour a { color: var(--texte-3); font-weight: 600; }
+.fil-retour a:hover { color: var(--texte); }
+.fiche-etiquettes { display: inline-flex; gap: 6px; margin-left: 10px; vertical-align: middle; }
+.fiche-etiquettes .pilule { font-size: 12px; }
+
+/* ------------------------------------------------------------------ le rapport du mois
+   Une feuille blanche, quel que soit le theme : ce qui s'envoie a la direction
+   et s'imprime. Les jetons sont redefinis sur la feuille seule — les
+   composants du tableau de bord (tuiles, classements, serie) la suivent. A
+   l'impression, tout le reste de la page disparait. */
+.rapport {
+  --fond: #eef0f3; --surface: #ffffff; --surface-2: #f4f5f7; --surface-3: #e7e9ee;
+  --bord: #e3e5ea; --bord-fort: #cdd0d8;
+  --texte: #111318; --texte-2: #4f535e; --texte-3: #7c808c;
+  --vert-fond: rgba(53,180,106,.12); --ambre-fond: rgba(224,165,0,.16); --rouge-fond: rgba(215,0,5,.08);
+  --bleu: #1d63d8; --violet: #7433d4;
+  /* Les couleurs de la marque, meme a l'impression : la regle d'impression de
+     la console les passe au noir pour economiser l'encre, pas le rapport. */
+  --rouge: #d70005; --rouge-vif: #e0161c; --ambre: #c98f00; --vert: #2f9e5d;
+  page: rapport;
+  min-height: 100vh; background: var(--fond); color: var(--texte); padding: 0 16px 40px;
+  color-scheme: light;
+}
+.rapport-barre {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: 1040px; margin: 0 auto; padding: 12px 0; background: var(--fond);
+}
+.rapport-barre .periodes { flex: 1; min-width: 0; }
+.rapport-feuille {
+  max-width: 1040px; margin: 4px auto 0; padding: 34px 38px 26px; background: var(--surface);
+  border: 1px solid var(--bord); border-radius: var(--r-l); box-shadow: 0 10px 40px rgba(17, 19, 24, .08);
+}
+.rapport-tete { display: flex; align-items: center; gap: 22px; padding-bottom: 20px; border-bottom: 3px solid var(--rouge); }
+.rapport-tete img { width: 96px; height: auto; flex: none; }
+.rapport-tete h1 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+.rapport-tete p { margin: 4px 0 0; font-size: 13px; color: var(--texte-3); }
+.rapport-faits { margin: 22px 0 6px; padding: 16px 20px; border-radius: var(--r-l); background: var(--rouge-fond); border: 1px solid color-mix(in srgb, var(--rouge) 20%, transparent); }
+.rapport-faits h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--rouge); }
+.rapport-faits ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14.5px; line-height: 1.45; }
+.rapport-tuiles { margin-top: 18px; }
+@media (min-width: 760px) { .rapport .adm-tuiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.rapport .adm-tuile .dessous { color: var(--texte-2); }
+.rapport-bloc { margin-top: 14px; box-shadow: none; break-inside: avoid; }
+.rapport-trois, .rapport-deux { display: grid; gap: 14px; }
+@media (min-width: 900px) {
+  .rapport-trois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rapport-deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.rapport-trois .rapport-bloc, .rapport-deux .rapport-bloc { margin-top: 14px; }
+.rapport .adm-rang .nom, .rapport .adm-rang .bas { white-space: normal; overflow: visible; }
+.rapport-liste { list-style: none; margin: 0; padding: 0; }
+.rapport-liste li { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; color: var(--texte-2); }
+.rapport-liste li + li { border-top: 1px solid var(--bord); }
+.rapport-liste b { margin-left: auto; font-size: 15px; font-weight: 800; color: var(--texte); }
+.rapport-liste li.total { font-weight: 700; color: var(--texte); }
+.rapport-note { margin: 12px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--texte-2); }
+.rapport-pied { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--bord); font-size: 11.5px; color: var(--texte-3); }
+@media (max-width: 640px) {
+  .rapport { padding: 0 10px 30px; }
+  .rapport-feuille { padding: 20px 16px; }
+  .rapport-tete { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .rapport-tete h1 { font-size: 21px; }
+}
+
+@page rapport { size: A4 portrait; margin: 12mm; }
+@media print {
+  html, body { background: #fff !important; }
+  body:has(.rapport) > :not(.rapport):not(:has(.rapport)) { display: none !important; }
+  .rapport { padding: 0; min-height: 0; background: #fff; }
+  .rapport-barre { display: none; }
+  .rapport-feuille { max-width: none; margin: 0; padding: 0; border: 0; box-shadow: none; }
+  .rapport * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rapport .adm-tuiles { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .rapport .adm-tuile { padding: 10px 10px 12px; }
+  .rapport .adm-tuile .chiffre, .rapport .adm-tuile.accent .chiffre { font-size: 19px; }
+  .rapport-tete { padding-bottom: 14px; }
+  .rapport-faits { margin-top: 14px; padding: 12px 16px; }
+  .rapport-trois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rapport-deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rapport-bloc, .rapport-faits, .rapport-tuiles { break-inside: avoid; }
+}
+
+/* Le futur redboxer dit ou il veut se lancer : une bande, pas une fenetre. */
+.aca-ou {
+  display: flex; align-items: center; gap: 14px 20px; flex-wrap: wrap; margin: 14px 0;
+  padding: 14px 16px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--bord);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.aca-ou .dit { display: flex; flex-direction: column; gap: 4px; flex: 1 1 320px; min-width: 0; font-size: 13px; line-height: 1.45; }
+.aca-ou .dit b { font-size: 15px; }
+.aca-ou .champ { display: flex; gap: 8px; flex: 1 1 260px; max-width: 400px; }
+.aca-ou .champ input { flex: 1; min-width: 0; min-height: 40px; padding: 0 12px; }
+
+/* Une carte sans rien a montrer le dit, au lieu d'un fond de carte muet. */
+.carte-vide {
+  position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: min(360px, calc(100% - 32px)); padding: 12px 16px; border-radius: var(--r-l); text-align: center;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--bord-fort);
+  font-size: 13.5px; line-height: 1.45; color: var(--texte-2); box-shadow: 0 4px 18px rgba(0,0,0,.25); pointer-events: none;
+}

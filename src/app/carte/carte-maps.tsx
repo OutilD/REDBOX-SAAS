@@ -171,6 +171,50 @@ function filtrer(groupes: Groupe[], masques: Set<string>, classe: (p: Point) => 
 }
 
 /**
+ * UNE PERSONNE SUR LA CARTE, a sa ville : un prospect de la plateforme. Futur
+ * redboxer s'il a fini une lecon de l'academie, curieux sinon ; « chaud » s'il
+ * avance vite. Un rond, pour ne jamais se confondre avec le carre d'une machine.
+ */
+export type PointPersonne = {
+  cle: number; nom: string; href: string; genre: "futur" | "curieux"; chaud: boolean;
+  ville: string; latitude: number; longitude: number;
+  /** Ce qu'on lit sous son nom : son compte, ou il en est. */
+  sous: string;
+};
+const GENRES_GENS = [
+  { cle: "futur", nom: "Futurs redboxers" }, { cle: "curieux", nom: "Curieux" },
+] as const;
+
+/** Les personnes d'une meme ville font un seul rond, au chiffre de leur nombre. */
+function villesDeGens(gens: PointPersonne[]): { ville: string; gens: PointPersonne[]; latitude: number; longitude: number }[] {
+  const par = new Map<string, PointPersonne[]>();
+  for (const p of gens) par.set(p.ville.toLowerCase(), [...(par.get(p.ville.toLowerCase()) ?? []), p]);
+  return [...par.values()].map((g) => ({
+    ville: g[0].ville, gens: g,
+    latitude: g.reduce((t, p) => t + p.latitude, 0) / g.length,
+    longitude: g.reduce((t, p) => t + p.longitude, 0) / g.length,
+  }));
+}
+
+function rondPersonnes(taille: number, gens: PointPersonne[]): string {
+  const futurs = gens.filter((p) => p.genre === "futur").length;
+  const genre = futurs === 0 ? "curieux" : futurs === gens.length ? "futur" : "mixte";
+  const chaud = gens.some((p) => p.chaud);
+  return `<span class="rond-personnes" data-genre="${genre}"${chaud ? " data-chaud" : ""} style="--t:${taille}px">` +
+    `${gens.length > 1 ? gens.length : ""}</span>`;
+}
+
+function survolPersonnes(ville: string, gens: PointPersonne[]): string {
+  const tri = [...gens].sort((a, b) => Number(b.chaud) - Number(a.chaud) || (a.genre === "futur" ? -1 : 1));
+  return `<div class="survol-nom">${html(ville)} <span class="combien">${gens.length} prospect${gens.length > 1 ? "s" : ""}</span></div>` +
+    `<ul>${tri.slice(0, 8).map((p) =>
+      `<li><span class="rond-point" data-genre="${p.genre}"></span><span class="n">${html(p.nom)}</span>` +
+      `<span class="pilule" data-temp="${p.chaud ? "chaud" : p.genre === "futur" ? "tiede" : "froid"}"><i></i>` +
+      `${p.chaud ? "chaud" : p.genre === "futur" ? "futur redboxer" : "curieux"}</span></li>`).join("")}</ul>` +
+    (gens.length > 8 ? `<div class="ou">et ${gens.length - 8} autres : touchez pour la liste</div>` : "");
+}
+
+/**
  * UNE VRAIE CARTE, AVEC LES RUES. Leaflet et les tuiles d'OpenStreetMap : on
  * zoome jusqu'au bar, on reconnait le quartier.
  *
@@ -188,7 +232,8 @@ function filtrer(groupes: Groupe[], masques: Set<string>, classe: (p: Point) => 
  * dans le navigateur. Sans JavaScript, la liste par ville sous la carte dit
  * la meme chose.
  */
-export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; lectures?: boolean }) {
+export function CarteMaps({ groupes, lectures = false, personnes = [], vide }:
+  { groupes: Groupe[]; lectures?: boolean; personnes?: PointPersonne[]; vide?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const carteRef = useRef<import("leaflet").Map | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
@@ -199,6 +244,8 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
   const [masques, poserMasques] = useState<Set<string>>(new Set());
   const [plein, poserPlein] = useState(false);
   const [lecture, poserLecture] = useState<Lecture>("stade");
+  const [gensMasques, poserGensMasques] = useState<Set<string>>(new Set());
+  const gensVisibles = useMemo(() => personnes.filter((p) => !gensMasques.has(p.genre)), [personnes, gensMasques]);
 
   const machines = useMemo(() => groupes.flatMap((g) => g.machines), [groupes]);
   // Ce que les boutons du haut filtrent : le stade, ou la sante. Le CA ne filtre
@@ -225,6 +272,8 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
       }).addTo(c);
       // La fiche du survol a son calque, au-dessus des etiquettes des villes voisines.
       c.createPane("survol").style.zIndex = "660";
+      // Les prospects sous les machines : un carre ne disparait jamais sous un rond.
+      c.createPane("personnes").style.zIndex = "590";
       LRef.current = L;
       carteRef.current = c;
       poserPret(true);
@@ -234,7 +283,7 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
 
   // De nouvelles machines : la carte se recadre sur elles. Declare AVANT les
   // carres, pour que le recadrage parte de la bonne liste.
-  useEffect(() => { cadreRef.current = null; }, [groupes]);
+  useEffect(() => { cadreRef.current = null; }, [groupes, personnes]);
 
   // Les carres : refaits quand les machines ou les stades montres changent.
   useEffect(() => {
@@ -289,7 +338,23 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
       survol(m, survolMachine(p), t);
       return m;
     }));
-    calquesRef.current = [villes, unes];
+    const gens = L.layerGroup(villesDeGens(gensVisibles).map((v) => {
+      const n = v.gens.length;
+      const t = n <= 1 ? 16 : n <= 3 ? 22 : n <= 9 ? 26 : 30;
+      const m = L.marker([v.latitude, v.longitude], {
+        pane: "personnes",
+        icon: L.divIcon({ className: "marqueur-redbox", html: rondPersonnes(t, v.gens),
+                          iconSize: [t, t], iconAnchor: [t / 2, t / 2], popupAnchor: [0, -t / 2] }),
+      });
+      m.bindPopup(`<b class="ville-bulle">${html(v.ville)}</b><ul class="machines-bulle">` +
+        v.gens.map((p) => `<li><a href="${html(p.href)}">${html(p.nom)}</a>` +
+          `<span class="pilule" data-temp="${p.chaud ? "chaud" : p.genre === "futur" ? "tiede" : "froid"}"><i></i>` +
+          `${p.chaud ? "chaud" : p.genre === "futur" ? "futur redboxer" : "curieux"}</span>` +
+          `<div class="ou">${html(p.sous)}</div></li>`).join("") + "</ul>", { maxWidth: 320 });
+      survol(m, survolPersonnes(v.ville, v.gens), t);
+      return m;
+    })).addTo(c);
+    calquesRef.current = [villes, unes, gens];
 
     const selonZoom = () => {
       if (c.getZoom() >= ZOOM_RUE) { villes.remove(); unes.addTo(c); }
@@ -301,12 +366,12 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
     c.on("zoomend", selonZoom);
     // Le cadre ne bouge qu'a l'arrivee des machines, pas quand on masque un stade.
     if (!cadreRef.current) {
-      cadreRef.current = machines.map((p) => [p.latitude, p.longitude]);
+      cadreRef.current = [...machines, ...personnes].map((p) => [p.latitude, p.longitude]);
       if (cadreRef.current.length > 0) c.fitBounds(L.latLngBounds(cadreRef.current).pad(0.35), { maxZoom: 11 });
       else c.fitBounds(FRANCE);
     }
     selonZoom();
-  }, [pret, visibles, machines, lecture, sommetCa]);
+  }, [pret, visibles, machines, lecture, sommetCa, gensVisibles, personnes]);
 
   // Plein ecran : la carte prend la fenetre, la molette zoome, Echap en sort.
   useEffect(() => {
@@ -324,7 +389,7 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
   function recentrer() {
     const L = LRef.current, c = carteRef.current;
     if (!L || !c) return;
-    const pts = visibles.flatMap((g) => g.machines).map((p) => [p.latitude, p.longitude] as [number, number]);
+    const pts = [...visibles.flatMap((g) => g.machines), ...gensVisibles].map((p) => [p.latitude, p.longitude] as [number, number]);
     if (pts.length > 0) c.flyToBounds(L.latLngBounds(pts).pad(0.35), { maxZoom: 13, duration: .6 });
     else c.flyToBounds(FRANCE, { duration: .6 });
   }
@@ -332,6 +397,7 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
   return (
     <div className="carte-maps-cadre" data-plein={plein ? "" : undefined}>
       <div ref={ref} className="carte-maps" role="region" aria-label="Carte des RedBox" />
+      {vide && groupes.length === 0 && personnes.length === 0 ? <p className="carte-vide">{vide}</p> : null}
       <div className="carte-outils filtres" role="group" aria-label={lecture === "sante" ? "Santés montrées sur la carte" : "Stades montrés sur la carte"}>
         {lectures ? (
           <div className="carte-lectures" role="radiogroup" aria-label="Colorer la carte par">
@@ -353,6 +419,22 @@ export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; le
                       return n.size === classes.length ? new Set() : n;
                     })}>
               <i aria-hidden="true" />{x.nom}<b className="num">{x.n}</b>
+            </button>
+          );
+        }) : null}
+        {personnes.length > 0 ? GENRES_GENS.map((x) => {
+          const n = personnes.filter((p) => p.genre === x.cle).length;
+          if (n === 0) return null;
+          const montre = !gensMasques.has(x.cle);
+          return (
+            <button key={x.cle} type="button" className="filtre-stade filtre-gens" data-genre={x.cle} aria-pressed={montre}
+                    title={montre ? `Masquer : ${x.nom}` : `Montrer : ${x.nom}`}
+                    onClick={() => poserGensMasques((m) => {
+                      const s2 = new Set(m);
+                      if (s2.has(x.cle)) s2.delete(x.cle); else s2.add(x.cle);
+                      return s2;
+                    })}>
+              <i aria-hidden="true" />{x.nom}<b className="num">{n}</b>
             </button>
           );
         }) : null}

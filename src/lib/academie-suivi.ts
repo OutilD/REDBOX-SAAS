@@ -13,8 +13,9 @@ import { SQL_REDBOX_ATTRIBUEE } from "@/lib/communaute";
  * ouvert par l'editeur ne fait pas partie du parcours.
  */
 
-const SQL_GENS = `
+export const SQL_GENS = `
   SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, u.couleur, u.cree_le, u.compte_id, c.nom AS compte,
+         u.ville, u.latitude, u.longitude, u.situe_pour AS situe_ville,
          EXISTS (SELECT 1 FROM membre mb JOIN borne b ON b.compte_id = mb.compte_id
                   WHERE mb.utilisateur_id = u.id AND ${SQL_REDBOX_ATTRIBUEE}) AS redboxer
     FROM utilisateur u JOIN compte c ON c.id = u.compte_id
@@ -31,6 +32,7 @@ export type Apprenant = {
   id: number; pseudo: string | null; nom: string | null; email: string;
   image_id: number | null; couleur: string | null; cree_le: Date;
   compte_id: number; compte: string; redboxer: boolean;
+  ville: string | null; latitude: number | null; longitude: number | null; situe_ville: string | null;
   vues: number; finies: number; ouvertes: number;
   premier_module: boolean; debut: Date | null; derniere: Date | null;
 };
@@ -65,28 +67,39 @@ export function temperature(a: Apprenant): "chaud" | "tiede" | "froid" {
   return "froid";
 }
 
+/**
+ * CHAQUE PERSONNE, ce qu'elle a ouvert et fini, et si elle a boucle le premier
+ * module ouvert a tous — la porte d'entree du parcours. Filtre possible sur un
+ * compte : la fiche d'un compte ne lit que ses membres.
+ */
+export async function apprenants(compte_id: number | null = null): Promise<Apprenant[]> {
+  const r = await q<Apprenant>(`
+    WITH gens AS (${SQL_GENS}),
+         pub AS (${SQL_PUBLIEES}),
+         premier AS (SELECT p.id FROM pub p WHERE p.module_id = (
+                       SELECT module_id FROM pub WHERE ouverte_a_tous ORDER BY module_ordre, module_id LIMIT 1))
+    SELECT g.*,
+           COUNT(s.lecon_id)::int AS vues,
+           COUNT(s.fini_le)::int AS finies,
+           (SELECT COUNT(*)::int FROM pub p WHERE p.ouverte_a_tous OR g.redboxer) AS ouvertes,
+           (EXISTS (SELECT 1 FROM premier)
+            AND NOT EXISTS (SELECT 1 FROM premier pr WHERE NOT EXISTS (
+              SELECT 1 FROM academie_suivi x WHERE x.utilisateur_id = g.id AND x.lecon_id = pr.id AND x.fini_le IS NOT NULL))
+           ) AS premier_module,
+           MIN(s.vu_le) AS debut,
+           GREATEST(MAX(s.vu_le), MAX(s.fini_le)) AS derniere
+      FROM gens g
+      LEFT JOIN academie_suivi s ON s.utilisateur_id = g.id AND s.lecon_id IN (SELECT id FROM pub)
+     WHERE $1::bigint IS NULL
+        OR EXISTS (SELECT 1 FROM membre mb WHERE mb.utilisateur_id = g.id AND mb.compte_id = $1::bigint)
+     GROUP BY g.id, g.pseudo, g.nom, g.email, g.image_id, g.couleur, g.cree_le, g.compte_id, g.compte, g.redboxer,
+              g.ville, g.latitude, g.longitude, g.situe_ville`, [compte_id]);
+  return r.map((a) => ({ ...a, id: Number(a.id), compte_id: Number(a.compte_id) }));
+}
+
 export async function suivi(): Promise<Suivi> {
-  const [apprenants, lecons, modules, rythme, chiffres] = await Promise.all([
-    // Chaque personne, ce qu'elle a ouvert et fini, et si elle a boucle le
-    // premier module ouvert a tous — la porte d'entree du parcours.
-    q<Apprenant>(`
-      WITH gens AS (${SQL_GENS}),
-           pub AS (${SQL_PUBLIEES}),
-           premier AS (SELECT p.id FROM pub p WHERE p.module_id = (
-                         SELECT module_id FROM pub WHERE ouverte_a_tous ORDER BY module_ordre, module_id LIMIT 1))
-      SELECT g.*,
-             COUNT(s.lecon_id)::int AS vues,
-             COUNT(s.fini_le)::int AS finies,
-             (SELECT COUNT(*)::int FROM pub p WHERE p.ouverte_a_tous OR g.redboxer) AS ouvertes,
-             (EXISTS (SELECT 1 FROM premier)
-              AND NOT EXISTS (SELECT 1 FROM premier pr WHERE NOT EXISTS (
-                SELECT 1 FROM academie_suivi x WHERE x.utilisateur_id = g.id AND x.lecon_id = pr.id AND x.fini_le IS NOT NULL))
-             ) AS premier_module,
-             MIN(s.vu_le) AS debut,
-             GREATEST(MAX(s.vu_le), MAX(s.fini_le)) AS derniere
-        FROM gens g
-        LEFT JOIN academie_suivi s ON s.utilisateur_id = g.id AND s.lecon_id IN (SELECT id FROM pub)
-       GROUP BY g.id, g.pseudo, g.nom, g.email, g.image_id, g.couleur, g.cree_le, g.compte_id, g.compte, g.redboxer`),
+  const [gens, lecons, modules, rythme, chiffres] = await Promise.all([
+    apprenants(),
     // Lecon par lecon, dans l'ordre du parcours : ou l'on s'arrete.
     q<LeconSuivie>(`
       WITH gens AS (${SQL_GENS}), pub AS (${SQL_PUBLIEES})
@@ -135,9 +148,20 @@ export async function suivi(): Promise<Suivi> {
              (SELECT COUNT(*)::int FROM gens WHERE NOT redboxer) AS inscrits_prospects`),
   ]);
   return {
-    apprenants: apprenants.map((a) => ({ ...a, id: Number(a.id), compte_id: Number(a.compte_id) })),
+    apprenants: gens,
     lecons, modules, rythme,
     finies30: chiffres?.finies30 ?? 0, finies30avant: chiffres?.finies30avant ?? 0,
     inscrits: chiffres?.inscrits ?? 0, inscritsProspects: chiffres?.inscrits_prospects ?? 0,
   };
+}
+
+/**
+ * FUTUR REDBOXER OU CURIEUX. Un prospect qui a fini au moins une lecon s'est mis
+ * au travail : c'est un futur redboxer. Celui qui s'est inscrit sans rien finir
+ * est un curieux. Les redboxers n'en sont plus.
+ */
+export type Genre = "futur" | "curieux";
+export const NOM_GENRE: Record<Genre, string> = { futur: "futur redboxer", curieux: "curieux" };
+export function genreDe(a: Apprenant): Genre {
+  return a.finies > 0 ? "futur" : "curieux";
 }

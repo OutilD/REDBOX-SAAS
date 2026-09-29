@@ -1,5 +1,7 @@
 import { q } from "@/db";
+import { apres } from "@/lib/apres";
 import { utilisateurDe, versPage } from "@/lib/auth";
+import { situerPersonne } from "@/lib/geo";
 import { COULEURS, PSEUDO_MAX } from "@/lib/communaute";
 
 export const dynamic = "force-dynamic";
@@ -19,5 +21,7 @@ export async function POST(req: Request) {
      WHERE id = $1`,
     [u.id, pseudo || null, ville || null, bio || null, COULEURS.includes(couleur) ? couleur : null,
      f.get("public") === "on"]);
+  // Sa ville la pose sur la carte de la plateforme ; le geocodeur ne la fait pas attendre.
+  apres("situer la personne", () => situerPersonne(u.id));
   return versPage(req, `/communaute/${u.id}?fait=enregistre`);
 }

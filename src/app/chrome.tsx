@@ -28,7 +28,7 @@ export type Page =
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
-  | "admin" | "admin_parc" | "admin_comptes" | "admin_academie" | "admin_vitrine" | "admin_sante";
+  | "admin" | "admin_rapport" | "admin_parc" | "admin_comptes" | "admin_academie" | "admin_vitrine" | "admin_sante";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -148,6 +148,9 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
     items: [
       { cle: "admin",         nom: "Tableau", icone: <IcoTableau />, vers: "/admin",
         droit: estSuperAdmin },
+      // Le mois en une page, a envoyer : s'imprime et s'enregistre en PDF.
+      { cle: "admin_rapport", nom: "Rapport du mois", icone: <IcoListe />, vers: "/admin/rapport",
+        droit: estSuperAdmin },
       { cle: "admin_parc",    nom: "Parc",    icone: <IcoBorne />,  vers: "/admin/parc",
         droit: estSuperAdmin },
       { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
@@ -248,7 +251,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
-  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_academie: "menu", admin_vitrine: "menu", admin_sante: "menu",
+  admin: "menu", admin_rapport: "menu", admin_parc: "menu", admin_comptes: "menu", admin_academie: "menu", admin_vitrine: "menu", admin_sante: "menu",
   academie_editer: "academie",
 };
 
@@ -277,6 +280,7 @@ const FIL: Record<Page, [string, string?]> = {
   demo:       ["Mode démo", "Réglages"],
   menu:       ["Menu"],
   admin:      ["Tableau de bord", "Plateforme"],
+  admin_rapport: ["Rapport du mois", "Plateforme"],
   admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
   admin_academie: ["Académie", "Plateforme"],

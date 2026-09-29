@@ -8,13 +8,16 @@ import { q, q1, depuis, enLigne, euros, FUSEAU } from "@/db";
 import { apres } from "@/lib/apres";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
 import { PREFIXE_JETON } from "@/lib/demo";
-import { dansLeCadre, situerLesBornes } from "@/lib/geo";
+import { dansLeCadre, situerLesBornes, situerLesPersonnes } from "@/lib/geo";
+import { apprenants } from "@/lib/academie-suivi";
+import { pointsProspects } from "./prospects";
 import { SQL_VRAIE, STATUTS, compteurs, nomDuStatut, type Statut } from "@/lib/parc";
 import type { Point as PointSerie } from "@/lib/tableau";
 import {
   Legende, SQL_CHIFFRES, etatDe, grouper, lignesChiffres, type Chiffres, type Point,
 } from "../carte/carte-france";
 import { CarteMaps } from "../carte/carte-maps";
+import { Etincelle, Tuile } from "./tuiles";
 
 export const dynamic = "force-dynamic";
 
@@ -70,8 +73,9 @@ export default async function TableauPlateforme({ searchParams }:
   // par petit lot — apres la reponse : le geocodeur peut mettre quatre secondes
   // par adresse, la page ne l'attend plus. La machine apparait a la visite suivante.
   apres("situer les bornes", () => situerLesBornes(null));
+  apres("situer les personnes", () => situerLesPersonnes());
 
-  const [nombres, lignes, argent, gens, serie, classees, comptesClasses, activite] = await Promise.all([
+  const [nombres, lignes, argent, gens, serie, classees, comptesClasses, activite, lesGens] = await Promise.all([
     compteurs(),
     q<Ligne>(`
       SELECT b.id, b.numero, b.nom, b.adresse, b.ville, b.statut, b.statut_le, b.note_editeur,
@@ -131,7 +135,9 @@ export default async function TableauPlateforme({ searchParams }:
         (SELECT 'compte'::text, c.cree_le, c.id, c.nom, NULL::text, NULL::text
            FROM compte c WHERE NOT c.demo AND NOT c.vitrine ORDER BY c.cree_le DESC LIMIT 8)
       ) a ORDER BY quand DESC LIMIT 10`),
+    apprenants(),
   ]);
+  const prospects = pointsProspects(lesGens);
   const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0 };
   const g: Gens = gens ?? { comptes: 0, redboxers: 0, nouveaux: 0 };
 
@@ -229,6 +235,7 @@ export default async function TableauPlateforme({ searchParams }:
                 <Link key={f.cle} href={vers(f.cle)} aria-current={f.cle === fenetre.cle ? "page" : undefined}>{f.nom}</Link>
               ))}
             </nav>
+            <Link href="/admin/rapport" className="bouton petit">Rapport du mois</Link>
             <Link href="/admin/parc#nouvelle" className="bouton primaire petit">+ Nouvelle machine</Link>
           </div>
         </div>
@@ -336,9 +343,9 @@ export default async function TableauPlateforme({ searchParams }:
         {/* ------------------------------------------------------------ carte */}
         <div className="titre-section" id="carte">
           <h2>Carte du parc</h2>
-          <span className="faible" style={{ fontSize: 12.5 }}>colorez par stade, santé ou CA · survolez un carré pour son compte et son chiffre</span>
+          <span className="faible" style={{ fontSize: 12.5 }}>carrés : les machines, par stade, santé ou CA · ronds : les prospects · survolez pour le détail</span>
         </div>
-        <section className="carte-france"><CarteMaps groupes={groupes} lectures /><Legende groupes={groupes} /></section>
+        <section className="carte-france"><CarteMaps groupes={groupes} lectures personnes={prospects} /><Legende groupes={groupes} /></section>
 
         {aPlacer.length + deplacees.length > 0 ? (
           <section id="a-placer" className="carte a-situer ancre" style={{ marginTop: 14 }}>
@@ -426,7 +433,7 @@ export default async function TableauPlateforme({ searchParams }:
                     <span className="rang num">{i + 1}</span>
                     <span className="dit">
                       <span className="haut">
-                        <Link href={`/admin/comptes#c${c.id}`} className="nom">{c.nom}</Link>
+                        <Link href={`/admin/comptes/${c.id}`} className="nom">{c.nom}</Link>
                         <b className="num">{euros(c.ca)}</b>
                       </span>
                       <span className="piste" aria-hidden="true"><span style={{ width: `${(c.ca / sommetComptes) * 100}%` }} /></span>
@@ -481,7 +488,7 @@ export default async function TableauPlateforme({ searchParams }:
                     </span>
                     <span className="dit">
                       {e.genre === "compte" ? (
-                        <>Nouveau compte <Link href={`/admin/comptes#c${e.id}`}>{e.nom}</Link></>
+                        <>Nouveau compte <Link href={`/admin/comptes/${e.id}`}>{e.nom}</Link></>
                       ) : (
                         <>
                           <Link href={`/admin/parc#m${e.id}`}>{e.nom}</Link> passe <b>{nomDuStatut(e.detail ?? "")}</b>
@@ -499,39 +506,5 @@ export default async function TableauPlateforme({ searchParams }:
       </main>
       <NavBasse page="admin" />
     </>
-  );
-}
-
-/** Un chiffre, sa pente, sa ligne d'explication ; un lien quand il y a quelque chose derriere. */
-function Tuile({ titre, valeur, dessous, delta, vers, ton, accent, children }: {
-  titre: string; valeur: string; dessous: string; delta?: React.ReactNode; vers?: string;
-  ton?: "mal" | "attention"; accent?: boolean; children?: React.ReactNode;
-}) {
-  const corps = (
-    <>
-      <span className="titre-tuile">{titre}</span>
-      <span className="ligne"><b className="chiffre num" data-ton={ton}>{valeur}</b>{delta}</span>
-      <span className="dessous">{dessous}</span>
-      {children}
-    </>
-  );
-  const classe = `adm-tuile${accent ? " accent" : ""}`;
-  return vers
-    ? <a href={vers} className={`${classe} menant`}>{corps}</a>
-    : <div className={classe}>{corps}</div>;
-}
-
-/** La courbe du chiffre en miniature, sans axe : la forme de la fenetre, rien d'autre. */
-function Etincelle({ valeurs }: { valeurs: number[] }) {
-  if (valeurs.length < 2 || valeurs.every((v) => v === 0)) return null;
-  const max = Math.max(...valeurs);
-  const x = (i: number) => (i / (valeurs.length - 1)) * 100;
-  const y = (v: number) => 28 - (v / max) * 26;
-  const ligne = valeurs.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(" ");
-  return (
-    <svg className="adm-etincelle" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
-      <path className="aire" d={`${ligne} L100,30 L0,30 Z`} />
-      <path className="trait" d={ligne} />
-    </svg>
   );
 }

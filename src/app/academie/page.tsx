@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { q1 } from "@/db";
 import { Entete, NavBasse } from "../chrome";
 import { modules, ouverte, reprise, salonProspects, sommaire, type Module } from "@/lib/academie";
 import { IcoAcademie, IcoCadenas, IcoChevron, IcoCoche, IcoDocument, IcoHorloge, IcoLecture, IcoTrophee } from "../icones";
@@ -19,9 +20,11 @@ export const dynamic = "force-dynamic";
  * Le futur redboxer voit TOUT le programme, cadenas compris. Cacher ce qui lui
  * est ferme, ce serait lui cacher la moitie de la raison de s'equiper.
  */
-export default async function Academie() {
-  const { l, equipe } = await lecteurDePage();
-  const [mods, suite, lecons] = await Promise.all([modules(l), reprise(l), sommaire(l)]);
+export default async function Academie({ searchParams }: { searchParams: Promise<{ ok?: string; e?: string }> }) {
+  const { u, l, equipe } = await lecteurDePage();
+  const { ok, e } = await searchParams;
+  const [mods, suite, lecons, moi] = await Promise.all([modules(l), reprise(l), sommaire(l),
+    q1<{ ville: string | null }>("SELECT ville FROM utilisateur WHERE id = $1", [u.id])]);
   const bilan = bilanDe(lecons);
   const somme = (f: (m: Module) => number) => mods.reduce((s, m) => s + f(m), 0);
   const ouvertes = somme((m) => m.ouvertes);
@@ -73,6 +76,28 @@ export default async function Academie() {
         </section>
 
         <OngletsAcademie actif="parcours" equipe={equipe} apercu={l.apercu} retour="/academie" />
+
+        {/* OU VOULEZ-VOUS VOUS LANCER. Un futur redboxer sans ville : on la lui
+            demande une fois, ici, ou il vient se former. Elle rejoint son profil
+            et le pose sur la carte que regarde l'equipe RedBox. */}
+        {!l.redboxer && !(moi?.ville ?? "").trim() ? (
+          <form method="post" action="/api/academie/ville" className="aca-ou">
+            <div className="dit">
+              <b>Où voulez-vous lancer votre RedBox ?</b>
+              <span className="faible">
+                Votre ville aide l’équipe RedBox à vous mettre en relation avec les redboxers et les lieux près de chez vous.
+                Elle apparaît sur votre profil, vous pouvez la changer quand vous voulez.
+              </span>
+              {e === "ville" ? <span className="erreur">Ville introuvable : vérifiez l’orthographe.</span> : null}
+            </div>
+            <div className="champ">
+              <input name="ville" placeholder="Votre ville" aria-label="Votre ville" maxLength={60} required autoComplete="address-level2" />
+              <button className="bouton primaire">Enregistrer</button>
+            </div>
+          </form>
+        ) : ok === "ville" ? (
+          <div className="avis reussi"><div className="dit"><div className="titre">C’est noté : {moi?.ville}.</div></div></div>
+        ) : null}
 
         {!l.redboxer && fermees > 0 ? (
           <PorteFermee compacte salon={salon}

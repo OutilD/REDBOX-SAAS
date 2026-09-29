@@ -159,7 +159,7 @@ export default async function Comptes({ searchParams }:
                   {g.liste.map((c) => (
                     <tr key={c.id}>
                       <th>
-                        <a href={`#c${c.id}`}>{c.nom}</a>
+                        <Link href={`/admin/comptes/${c.id}`}>{c.nom}</Link>
                         {c.editeur ? <span className="pilule" style={{ marginLeft: 8 }}><i />éditeur</span> : null}
                       </th>
                       <td>{leJour(c.cree_le)}</td>
@@ -184,6 +184,7 @@ export default async function Comptes({ searchParams }:
                 <details key={c.id} id={`c${c.id}`} className="carte" style={{ marginTop: 12 }}>
                   <summary style={{ cursor: "pointer", fontWeight: 650 }}>
                     {c.nom} · {gens.length} personne{gens.length > 1 ? "s" : ""}
+                    <Link href={`/admin/comptes/${c.id}`} className="lien" style={{ marginLeft: 10, fontWeight: 600, fontSize: 13 }}>Fiche du compte →</Link>
                   </summary>
                   <ul className="liste-a-situer comptes-membres" style={{ marginTop: 12 }}>
                     {gens.map((m) => (

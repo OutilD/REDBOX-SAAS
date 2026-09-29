@@ -133,3 +133,48 @@ export async function situerLesBornes(compte_id: number | null, max = 8): Promis
 export function dansLeCadre(latitude: number, longitude: number): boolean {
   return latitude >= 41.2 && latitude <= 51.3 && longitude >= -5.4 && longitude <= 9.9;
 }
+
+/**
+ * UNE VILLE, PAS UNE ADRESSE : ou vit un prospect. La BAN limitee aux communes,
+ * pour que « Nice » tombe sur Nice et pas sur une rue de Nice ailleurs.
+ */
+export async function situerVille(ville: string): Promise<Position | null> {
+  const v = ville.trim();
+  if (v.length < 2) return null;
+  const r = await fetch(`${BAN}?q=${encodeURIComponent(v)}&type=municipality&limit=1`, {
+    signal: AbortSignal.timeout(DELAI_MS), headers: { accept: "application/json" },
+  });
+  if (!r.ok) throw new Error(`BAN ${r.status}`);
+  const f = ((await r.json()) as Reponse).features?.[0];
+  const c = f?.geometry?.coordinates;
+  const nom = f?.properties?.city?.trim();
+  if (!c || !nom || (f?.properties?.score ?? 0) < SCORE_MIN) return null;
+  return { longitude: c[0], latitude: c[1], ville: nom };
+}
+
+/** Situe une personne d'apres sa ville, si ce n'est pas deja fait pour elle. Ne jette jamais. */
+export async function situerPersonne(id: number): Promise<void> {
+  const u = await q1<{ ville: string | null; situe_pour: string | null }>(
+    "SELECT ville, situe_pour FROM utilisateur WHERE id = $1", [id]);
+  if (!u) return;
+  const ville = (u.ville ?? "").trim();
+  if (!ville) {
+    await q("UPDATE utilisateur SET latitude = NULL, longitude = NULL, situe_pour = NULL WHERE id = $1", [id]);
+    return;
+  }
+  if (u.situe_pour === ville) return;
+  let p: Position | null;
+  try { p = await situerVille(ville); }
+  catch { return; }
+  await q(`UPDATE utilisateur SET latitude = $2, longitude = $3, situe_pour = $4 WHERE id = $1 AND ville = $4`,
+          [id, p?.latitude ?? null, p?.longitude ?? null, ville]);
+}
+
+/** Les personnes dont la ville n'a pas encore ete cherchee, par petit lot. */
+export async function situerLesPersonnes(max = 10): Promise<void> {
+  const a = await q<{ id: number }>(`
+    SELECT id FROM utilisateur
+     WHERE COALESCE(ville, '') <> '' AND situe_pour IS DISTINCT FROM ville
+     ORDER BY id LIMIT $1`, [max]);
+  await Promise.all(a.map((u) => situerPersonne(Number(u.id))));
+}

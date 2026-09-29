@@ -1345,3 +1345,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS compte_vitrine_unique ON compte ((true)) WHERE
 -- (`catalogueModele` dans lib/demo.ts). Aucun : le catalogue integre. Un seul.
 ALTER TABLE compte ADD COLUMN IF NOT EXISTS catalogue_modele BOOLEAN NOT NULL DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS compte_catalogue_modele_unique ON compte ((true)) WHERE catalogue_modele;
+
+-- OU SONT LES PROSPECTS. La ville d'une personne — qu'elle ecrit sur son profil
+-- ou que le super-admin pose pour elle — donne un point sur la carte de la
+-- plateforme : futurs redboxers et curieux, a cote des machines. `situe_pour`
+-- retient la ville qui a servi, comme `borne.situee_pour`.
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS latitude  DOUBLE PRECISION;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS situe_pour TEXT;

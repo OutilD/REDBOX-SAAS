@@ -7,7 +7,12 @@ import { Repli } from "../../repli";
 import { Portrait } from "../../communaute/vignette-personne";
 import { depuis } from "@/db";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
-import { JOURS_CHAUD, suivi, temperature, type Apprenant } from "@/lib/academie-suivi";
+import { JOURS_CHAUD, NOM_GENRE, genreDe, suivi, temperature, type Apprenant } from "@/lib/academie-suivi";
+import { apres } from "@/lib/apres";
+import { situerLesPersonnes } from "@/lib/geo";
+import { CarteMaps } from "../../carte/carte-maps";
+import { pointsProspects } from "../prospects";
+import { Tuile } from "../tuiles";
 import { nomAffiche } from "@/lib/personnes";
 
 export const dynamic = "force-dynamic";
@@ -28,12 +33,21 @@ const PROSPECTS_MAX = 24;
  *
  * L'equipe RedBox, les comptes de demo et la vitrine n'y sont pas comptes.
  */
-export default async function SuiviAcademie() {
+export default async function SuiviAcademie({ searchParams }:
+  { searchParams: Promise<{ ok?: string; e?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   if (!estSuperAdmin(u)) redirect("/");
+  const { ok, e } = await searchParams;
+  apres("situer les personnes", () => situerLesPersonnes());
 
   const x = await suivi();
+  const surCarte = pointsProspects(x.apprenants);
+  // Les prospects sans ville, ceux qui avancent d'abord : ce sont eux qu'on veut voir sur la carte.
+  const sansVille = x.apprenants
+    .filter((a) => !a.redboxer && !(a.ville ?? "").trim())
+    .sort((a, b) => b.finies - a.finies || temps(b.derniere) - temps(a.derniere));
+  const introuvables = x.apprenants.filter((a) => !a.redboxer && (a.ville ?? "").trim() && a.situe_ville === a.ville && a.latitude === null);
   const actifs = x.apprenants.filter((a) => a.vues > 0);
   const prospects = x.apprenants.filter((a) => !a.redboxer);
   const prospectsActifs = prospects.filter((a) => a.vues > 0);
@@ -169,7 +183,7 @@ export default async function SuiviAcademie() {
                       </span>
                     </span>
                     <span className="gestes">
-                      <Link href={`/admin/comptes#c${a.compte_id}`} className="bouton petit">Compte</Link>
+                      <Link href={`/admin/comptes/${a.compte_id}`} className="bouton petit">Fiche</Link>
                       <Link href="/admin/parc#col-libre" className="bouton petit primaire"
                             title={`Attribuer une machine en stock au compte ${a.compte}`}>Attribuer une RedBox</Link>
                     </span>
@@ -179,6 +193,47 @@ export default async function SuiviAcademie() {
             </ul>
           )}
         </section>
+
+        {/* ------------------------------------------------- ou sont les prospects */}
+        <div className="titre-section ancre" id="carte-prospects" style={{ marginTop: 22 }}>
+          <h2>Où sont les prospects</h2>
+          <span className="faible" style={{ fontSize: 12.5 }}>
+            {surCarte.length} sur la carte · orange : futur redboxer (au moins une leçon finie) · cercle : curieux
+          </span>
+        </div>
+        {ok === "ville" ? <div className="avis reussi" style={{ marginBottom: 12 }}><div className="dit"><div className="titre">Ville enregistrée, la personne est sur la carte.</div></div></div> : null}
+        {e === "ville" ? <p className="erreur" style={{ marginBottom: 12 }}>Ville introuvable : vérifiez l’orthographe (« Bordeaux », « Saint-Étienne »).</p> : null}
+        <section className="carte-france"><CarteMaps groupes={[]} personnes={surCarte}
+          vide="Aucun prospect situé pour l’instant. Les prospects donnent leur ville depuis l’Académie ; vous pouvez aussi la poser ci-dessous." /></section>
+
+        {sansVille.length + introuvables.length > 0 ? (
+          <details className="carte aca-sans-ville" style={{ marginTop: 12 }} open={sansVille.some((a) => a.finies > 0)}>
+            <summary>
+              <b className="num">{sansVille.length + introuvables.length}</b> prospect{s(sansVille.length + introuvables.length)} sans ville
+              <span className="faible"> — posez la ville, la personne apparaît sur la carte (elle la verra sur son profil)</span>
+            </summary>
+            <ul className="liste-a-situer">
+              {[...introuvables, ...sansVille].map((a) => (
+                <li key={a.id}>
+                  <div className="pousse" style={{ minWidth: 0 }}>
+                    <Link href={`/admin/comptes/${a.compte_id}`} className="nom">{nomAffiche(a)}</Link>
+                    <div className="ou">
+                      {NOM_GENRE[genreDe(a)]} · {a.finies} leçon{s(a.finies)} finie{s(a.finies)} · inscrit {depuis(a.cree_le)}
+                      {a.ville ? ` · « ${a.ville} » introuvable` : ""}
+                    </div>
+                  </div>
+                  <form method="post" action="/api/admin/personne" className="aca-ville">
+                    <input type="hidden" name="id" value={a.id} />
+                    <input type="hidden" name="r" value="academie" />
+                    <input name="ville" defaultValue={a.ville ?? ""} placeholder="Ville" aria-label={`Ville de ${nomAffiche(a)}`}
+                           maxLength={60} required />
+                    <button className="bouton petit">Placer</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
 
         {/* ----------------------------------------- ou l'on decroche, les modules */}
         <div className="adm-deux">
@@ -253,19 +308,3 @@ export default async function SuiviAcademie() {
 
 const temps = (d: Date | null) => (d ? new Date(d).getTime() : 0);
 const rang = (a: Apprenant) => (temperature(a) === "chaud" ? 1 : 0);
-
-function Tuile({ titre, valeur, dessous, delta, vers, accent }: {
-  titre: string; valeur: string; dessous: string; delta?: React.ReactNode; vers?: string; accent?: boolean;
-}) {
-  const corps = (
-    <>
-      <span className="titre-tuile">{titre}</span>
-      <span className="ligne"><b className="chiffre num">{valeur}</b>{delta}</span>
-      <span className="dessous">{dessous}</span>
-    </>
-  );
-  const classe = `adm-tuile${accent ? " accent" : ""}`;
-  return vers
-    ? <a href={vers} className={`${classe} menant`}>{corps}</a>
-    : <div className={classe}>{corps}</div>;
-}
