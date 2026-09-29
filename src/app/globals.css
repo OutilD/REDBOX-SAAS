@@ -8451,3 +8451,108 @@ html.js .sans-js { display: none; }
 .vitrine-modele { display: flex; gap: 8px; align-items: center; flex: 1 1 300px; max-width: 420px; }
 .vitrine-modele .choix-champ { flex: 1; min-width: 0; }
 @media (max-width: 760px) { .vitrine-modele { max-width: none; } }
+
+/* ------------------------------------------------------------------ la carte, ses trois lectures
+   Le super-admin colore la carte par stade, par sante ou par CA. La sante a
+   ses couleurs, les memes que les pastilles ; une machine pas encore installee
+   reste grise. En lecture CA le marqueur est une pastille qui porte le
+   montant, et grandit avec lui. */
+:root {
+  --sante-ok: var(--vert); --sante-mal: var(--rouge-vif); --sante-hs: var(--ambre); --sante-non: #8a8f98;
+}
+[data-sante="ok"]  { --sante: var(--sante-ok); }
+[data-sante="mal"] { --sante: var(--sante-mal); }
+[data-sante="hs"]  { --sante: var(--sante-hs); }
+[data-sante="non"] { --sante: var(--sante-non); }
+.carre-redbox[data-sante] { background: var(--sante); }
+.carre-redbox[data-sante="non"] { opacity: .7; }
+.filtre-stade[data-sante] { --stade: var(--sante); }
+.carre-redbox.ca {
+  width: auto; min-width: var(--t); padding: 0 7px; border-radius: 999px; white-space: nowrap;
+  font-size: calc(var(--t) * .42); letter-spacing: -.01em;
+}
+.carte-lectures {
+  pointer-events: auto; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--bord-fort);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .22);
+}
+.carte-lectures button {
+  min-height: 28px; padding: 0 12px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--texte-2); font: inherit; font-size: 12.5px; font-weight: 650;
+}
+.carte-lectures button:hover { color: var(--texte); background: var(--surface-3); }
+.carte-lectures button[aria-checked="true"] { background: var(--rouge); color: #fff; }
+.carte-lectures button:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+.carte-note {
+  pointer-events: auto; align-self: center; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--bord); color: var(--texte-2);
+}
+@media (max-width: 640px) { .carte-lectures, .carte-note { flex: none; } }
+
+/* ------------------------------------------------------------------ l'academie vue de la plateforme
+   L'entonnoir des prospects, le rythme des lecons finies semaine par semaine,
+   les prospects a appeler, et lecon par lecon ce qui est ouvert et fini. */
+.aca-entonnoir { list-style: none; margin: 0; padding: 0; }
+.aca-entonnoir li {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 40px 44px; gap: 12px; align-items: center;
+  min-height: 42px;
+}
+.aca-entonnoir li + li { border-top: 1px solid var(--bord); }
+.aca-entonnoir .nom { font-size: 13.5px; font-weight: 600; color: var(--texte-2); }
+.aca-entonnoir .piste { display: block; height: 10px; border-radius: 5px; background: var(--surface-3); overflow: hidden; }
+.aca-entonnoir .piste > span { display: block; height: 100%; border-radius: 5px; background: var(--rouge); }
+.aca-entonnoir li:first-child .piste > span { background: var(--texte-3); }
+.aca-entonnoir b { text-align: right; font-size: 16px; font-weight: 800; }
+.aca-entonnoir .part { text-align: right; font-size: 12px; }
+@media (max-width: 560px) {
+  .aca-entonnoir li { grid-template-columns: minmax(0, 1fr) 36px 40px; row-gap: 6px; padding: 8px 0; }
+  .aca-entonnoir .piste { grid-column: 1 / -1; grid-row: 2; }
+}
+
+.aca-rythme { display: flex; align-items: stretch; gap: 4px; height: 170px; padding-top: 6px; }
+.aca-rythme .col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.aca-rythme .barre { display: block; width: 100%; max-width: 30px; min-height: 2px; border-radius: 4px 4px 1px 1px; background: var(--rouge); }
+.aca-rythme .n { font-size: 11px; font-weight: 700; color: var(--texte-2); min-height: 13px; }
+.aca-rythme .quand { font-size: 10.5px; color: var(--texte-3); min-height: 13px; white-space: nowrap; }
+
+.aca-prospects { list-style: none; margin: 0; padding: 0; }
+.aca-prospects li { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; }
+.aca-prospects li + li { border-top: 1px solid var(--bord); }
+.aca-prospects .dit { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.aca-prospects .haut { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.aca-prospects .nom { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aca-prospects .nom:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aca-prospects .piste { display: block; height: 5px; max-width: 360px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.aca-prospects .piste > span { display: block; height: 100%; border-radius: 3px; background: var(--rouge); }
+.aca-prospects .bas { font-size: 12px; color: var(--texte-3); line-height: 1.4; }
+.aca-prospects .gestes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pilule[data-temp="chaud"] { background: color-mix(in srgb, var(--rouge) 14%, transparent); color: var(--rouge-vif); border-color: transparent; }
+.pilule[data-temp="chaud"] i { background: var(--rouge-vif); }
+.pilule[data-temp="tiede"] { background: color-mix(in srgb, var(--ambre) 14%, transparent); color: var(--ambre); border-color: transparent; }
+.pilule[data-temp="tiede"] i { background: var(--ambre); }
+@media (max-width: 640px) {
+  .aca-prospects li { grid-template-columns: 38px minmax(0, 1fr); }
+  .aca-prospects .gestes { grid-column: 2; justify-content: flex-start; }
+}
+
+.aca-lecons { list-style: none; margin: 0; padding: 0; }
+.aca-lecons li {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 34%); gap: 4px 14px; align-items: center; padding: 4px 0;
+}
+.aca-lecons .module { grid-column: 1 / -1; }
+.aca-lecons .module {
+  margin-top: 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--texte-3);
+}
+.aca-lecons li:first-child .module { margin-top: 0; }
+.aca-lecons .haut { display: flex; align-items: baseline; gap: 10px; }
+.aca-lecons .nom { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aca-lecons .nom:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aca-lecons .num { font-size: 12px; }
+.piste.double { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.piste.double > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.piste.double .vue { background: color-mix(in srgb, var(--rouge) 30%, var(--surface-3)); }
+.piste.double .finie { background: var(--rouge); }
+.legende-lecons { display: inline-flex; align-items: center; gap: 6px; }
+.legende-lecons i { display: inline-block; width: 10px; height: 6px; border-radius: 2px; }
+.legende-lecons i.vue { background: color-mix(in srgb, var(--rouge) 30%, var(--surface-3)); }
+.legende-lecons i.finie { background: var(--rouge); margin-left: 6px; }

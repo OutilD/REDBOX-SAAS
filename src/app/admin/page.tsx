@@ -5,6 +5,7 @@ import { IcoAlerte, IcoBorne, IcoEquipe, IcoFleche, IcoVentes } from "../icones"
 import { Delta, SerieTemps } from "../analyses";
 import { Repli } from "../repli";
 import { q, q1, depuis, enLigne, euros, FUSEAU } from "@/db";
+import { apres } from "@/lib/apres";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
 import { PREFIXE_JETON } from "@/lib/demo";
 import { dansLeCadre, situerLesBornes } from "@/lib/geo";
@@ -66,8 +67,9 @@ export default async function TableauPlateforme({ searchParams }:
   const N = fenetre.jours;
 
   // Celles qui n'ont encore aucune place en recoivent une d'apres leur adresse,
-  // par petit lot ; si le geocodeur ne repond pas, la page s'ouvre quand meme.
-  await situerLesBornes(null).catch(() => {});
+  // par petit lot — apres la reponse : le geocodeur peut mettre quatre secondes
+  // par adresse, la page ne l'attend plus. La machine apparait a la visite suivante.
+  apres("situer les bornes", () => situerLesBornes(null));
 
   const [nombres, lignes, argent, gens, serie, classees, comptesClasses, activite] = await Promise.all([
     compteurs(),
@@ -334,9 +336,9 @@ export default async function TableauPlateforme({ searchParams }:
         {/* ------------------------------------------------------------ carte */}
         <div className="titre-section" id="carte">
           <h2>Carte du parc</h2>
-          <span className="faible" style={{ fontSize: 12.5 }}>survolez un carré pour son compte et son CA · touchez-le pour le re-situer</span>
+          <span className="faible" style={{ fontSize: 12.5 }}>colorez par stade, santé ou CA · survolez un carré pour son compte et son chiffre</span>
         </div>
-        <section className="carte-france"><CarteMaps groupes={groupes} /><Legende groupes={groupes} /></section>
+        <section className="carte-france"><CarteMaps groupes={groupes} lectures /><Legende groupes={groupes} /></section>
 
         {aPlacer.length + deplacees.length > 0 ? (
           <section id="a-placer" className="carte a-situer ancre" style={{ marginTop: 14 }}>

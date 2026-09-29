@@ -48,6 +48,57 @@ export function carreRedbox(taille: number, etat?: string | null, n?: number, st
          `${etat ? `<i data-etat="${etat}"></i>` : ""}</span>`;
 }
 
+/**
+ * LES TROIS LECTURES DE LA CARTE, pour le super-admin. Le stade dit ou en est
+ * chaque machine de l'usine au bar ; la sante, lesquelles tournent — vert en
+ * ligne, rouge silencieuse, ambre hors service, gris pas encore installee ; le
+ * CA, lesquelles rapportent — le carre grandit avec le chiffre des 30 jours.
+ */
+export type Lecture = "stade" | "sante" | "ca";
+const LECTURES: { cle: Lecture; nom: string }[] = [
+  { cle: "stade", nom: "Stade" }, { cle: "sante", nom: "Santé" }, { cle: "ca", nom: "CA 30 j" },
+];
+
+/** La sante d'un point pour la carte en lecture « sante » : une machine pas encore installee est « non ». */
+type Sante = "ok" | "mal" | "hs" | "non";
+const SANTES: { cle: Sante; nom: string }[] = [
+  { cle: "ok", nom: "En ligne" }, { cle: "mal", nom: "Silencieuse" },
+  { cle: "hs", nom: "Hors service" }, { cle: "non", nom: "Pas installée" },
+];
+function santeCarte(p: Point): Sante {
+  const e = santeDuPoint(p);
+  return e === "ok" || e === "mal" || e === "hs" ? e : "non";
+}
+
+/** Le carre en lecture « sante » : raye de la sante de ses machines, comme le carre d'un stade. */
+function carreSante(taille: number, santes: Sante[], n?: number): string {
+  const parts = SANTES.map((s) => ({ cle: s.cle, k: santes.filter((x) => x === s.cle).length })).filter((s) => s.k > 0);
+  const total = parts.reduce((t, p) => t + p.k, 0);
+  let attribut = "", fond = "";
+  if (parts.length === 1) attribut = ` data-sante="${parts[0].cle}"`;
+  else if (parts.length > 1) {
+    let de = 0;
+    fond = ";background:linear-gradient(90deg," + parts.map((p) => {
+      const a = de;
+      de += (p.k / total) * 100;
+      return `var(--sante-${p.cle}) ${a.toFixed(1)}% ${de.toFixed(1)}%`;
+    }).join(",") + ")";
+  }
+  return `<span class="carre-redbox"${attribut} style="--t:${taille}px${fond}">${n && n > 1 ? n : ""}</span>`;
+}
+
+/** Le CA en peu de signes, pour tenir dans un marqueur : « 84 € », « 1,2 k€ ». */
+function court(centimes: number): string {
+  const e = centimes / 100;
+  if (e >= 1000) return `${(e / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} k€`;
+  return `${Math.round(e).toLocaleString("fr-FR")} €`;
+}
+
+/** Le marqueur en lecture « CA » : une pastille rouge dont la hauteur suit la racine du chiffre. */
+function carreCa(taille: number, centimes: number): string {
+  return `<span class="carre-redbox ca" style="--t:${taille}px">${court(centimes)}</span>`;
+}
+
 /** Une pilule : la sante d'une machine installee, le stade des autres. */
 function pilule(x: Point): string {
   const sante = santeDuPoint(x);
@@ -100,14 +151,15 @@ function survolVille(g: Groupe): string {
 }
 
 /**
- * Les villes, sans les machines des stades qu'on a masques. Une ville videe
- * disparait ; une ville allegee se recentre sur ce qui lui reste et reprend la
- * sante de sa moins bien portante.
+ * Les villes, sans les machines des classes qu'on a masquees — un stade, ou
+ * une sante. Une ville videe disparait ; une ville allegee se recentre sur ce
+ * qui lui reste et reprend la sante de sa moins bien portante.
  */
-function filtrer(groupes: Groupe[], masques: Set<string>): Groupe[] {
-  if (masques.size === 0) return groupes;
+function filtrer(groupes: Groupe[], masques: Set<string>, classe: (p: Point) => string,
+                 garder: (p: Point) => boolean = () => true): Groupe[] {
+  if (masques.size === 0 && groupes.every((g) => g.machines.every(garder))) return groupes;
   return groupes.flatMap((g) => {
-    const machines = g.machines.filter((m) => !masques.has(stadeDuPoint(m)));
+    const machines = g.machines.filter((m) => garder(m) && !masques.has(classe(m)));
     if (machines.length === 0) return [];
     return [{
       ...g, machines,
@@ -136,7 +188,7 @@ function filtrer(groupes: Groupe[], masques: Set<string>): Groupe[] {
  * dans le navigateur. Sans JavaScript, la liste par ville sous la carte dit
  * la meme chose.
  */
-export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
+export function CarteMaps({ groupes, lectures = false }: { groupes: Groupe[]; lectures?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const carteRef = useRef<import("leaflet").Map | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
@@ -146,12 +198,19 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
   const [pret, poserPret] = useState(false);
   const [masques, poserMasques] = useState<Set<string>>(new Set());
   const [plein, poserPlein] = useState(false);
+  const [lecture, poserLecture] = useState<Lecture>("stade");
 
   const machines = useMemo(() => groupes.flatMap((g) => g.machines), [groupes]);
-  const stades = useMemo(() => STATUTS
-    .map((x) => ({ cle: x.cle, nom: x.nom, n: machines.filter((m) => stadeDuPoint(m) === x.cle).length }))
-    .filter((x) => x.n > 0), [machines]);
-  const visibles = useMemo(() => filtrer(groupes, masques), [groupes, masques]);
+  // Ce que les boutons du haut filtrent : le stade, ou la sante. Le CA ne filtre
+  // pas — il ne montre que les machines qui ont un chiffre.
+  const classe = lecture === "sante" ? santeCarte : stadeDuPoint;
+  const classes = useMemo(() => (lecture === "sante" ? SANTES : STATUTS)
+    .map((x) => ({ cle: x.cle as string, nom: x.nom, n: machines.filter((m) => classe(m) === x.cle).length }))
+    .filter((x) => x.n > 0), [machines, lecture, classe]);
+  const visibles = useMemo(() => lecture === "ca"
+    ? filtrer(groupes, new Set(), classe, (m) => m.ca30 !== undefined)
+    : filtrer(groupes, masques, classe), [groupes, masques, lecture, classe]);
+  const sommetCa = useMemo(() => Math.max(1, ...visibles.map((g) => g.machines.reduce((t, m) => t + (m.ca30 ?? 0), 0))), [visibles]);
 
   // La carte, une fois pour la vie du composant.
   useEffect(() => {
@@ -183,10 +242,23 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
     if (!pret || !L || !c) return;
     for (const x of calquesRef.current) x.remove();
 
-    const icone = (t: number, etat: string | null, n?: number, st?: string[]) => L.divIcon({
-      className: "marqueur-redbox", html: carreRedbox(t, etat, n, st),
-      iconSize: [t, t], iconAnchor: [t / 2, t / 2], popupAnchor: [0, -t / 2],
+    const divIcone = (t: number, dedans: string, l = t) => L.divIcon({
+      className: "marqueur-redbox", html: dedans,
+      iconSize: [l, t], iconAnchor: [l / 2, t / 2], popupAnchor: [0, -t / 2],
     });
+    /** Le marqueur de quelques machines, selon la lecture choisie. */
+    const marque = (ms: Point[], t: number) => {
+      const n = ms.length > 1 ? ms.length : undefined;
+      if (lecture === "sante") return { t, l: t, icone: divIcone(t, carreSante(t, ms.map(santeCarte), n)) };
+      if (lecture === "ca") {
+        const ca = ms.reduce((x, m) => x + (m.ca30 ?? 0), 0);
+        const h = Math.round(22 + 16 * Math.sqrt(ca / sommetCa));
+        const l = Math.round(Math.max(h, 16 + court(ca).length * h * .26));
+        return { t: h, l, icone: divIcone(h, carreCa(h, ca), l) };
+      }
+      const pastille = GRAVITE.find((e) => ms.some((x) => santeDuPoint(x) === e)) ?? null;
+      return { t, l: t, icone: divIcone(t, carreRedbox(t, pastille, n, ms.map(stadeDuPoint))) };
+    };
     const etiquette = (t: number) => ({
       permanent: true, direction: "right" as const, className: "etiquette-ville", offset: [t / 2 + 4, 0] as [number, number],
     });
@@ -199,10 +271,9 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
 
     const villes = L.layerGroup(visibles.map((g) => {
       const n = g.machines.length;
-      const t = n <= 1 ? 22 : n <= 3 ? 26 : n <= 9 ? 30 : 36;
-      const pastille = GRAVITE.find((e) => g.machines.some((x) => santeDuPoint(x) === e)) ?? null;
-      const m = L.marker([g.latitude, g.longitude], { icon: icone(t, pastille, n, g.machines.map(stadeDuPoint)) });
-      m.bindTooltip(html(g.ville) + (n > 1 ? ` · ${n}` : ""), etiquette(t));
+      const { t, l, icone } = marque(g.machines, n <= 1 ? 22 : n <= 3 ? 26 : n <= 9 ? 30 : 36);
+      const m = L.marker([g.latitude, g.longitude], { icon: icone });
+      m.bindTooltip(html(g.ville) + (n > 1 ? ` · ${n}` : ""), etiquette(l));
       m.bindPopup(`<b class="ville-bulle">${html(g.ville)}</b><ul class="machines-bulle">` +
                   g.machines.map(ligne).join("") + "</ul>", { maxWidth: 320 });
       survol(m, survolVille(g), t);
@@ -211,10 +282,11 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
 
     const points = visibles.flatMap((g) => g.machines);
     const unes = L.layerGroup(points.map((p) => {
-      const m = L.marker([p.latitude, p.longitude], { icon: icone(22, santeDuPoint(p), undefined, [stadeDuPoint(p)]) });
-      m.bindTooltip(html(p.nom), etiquette(22));
+      const { t, l, icone } = marque([p], 22);
+      const m = L.marker([p.latitude, p.longitude], { icon: icone });
+      m.bindTooltip(html(p.nom), etiquette(l));
       m.bindPopup(`<ul class="machines-bulle seule">${ligne(p)}</ul>`, { maxWidth: 320 });
-      survol(m, survolMachine(p), 22);
+      survol(m, survolMachine(p), t);
       return m;
     }));
     calquesRef.current = [villes, unes];
@@ -234,7 +306,7 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
       else c.fitBounds(FRANCE);
     }
     selonZoom();
-  }, [pret, visibles, machines]);
+  }, [pret, visibles, machines, lecture, sommetCa]);
 
   // Plein ecran : la carte prend la fenetre, la molette zoome, Echap en sort.
   useEffect(() => {
@@ -260,24 +332,34 @@ export function CarteMaps({ groupes }: { groupes: Groupe[] }) {
   return (
     <div className="carte-maps-cadre" data-plein={plein ? "" : undefined}>
       <div ref={ref} className="carte-maps" role="region" aria-label="Carte des RedBox" />
-      {stades.length > 1 ? (
-        <div className="carte-outils filtres" role="group" aria-label="Stades montrés sur la carte">
-          {stades.map((x) => {
-            const montre = !masques.has(x.cle);
-            return (
-              <button key={x.cle} type="button" className="filtre-stade" data-stade={x.cle} aria-pressed={montre}
-                      title={montre ? `Masquer : ${x.nom}` : `Montrer : ${x.nom}`}
-                      onClick={() => poserMasques((m) => {
-                        const n = new Set(m);
-                        if (n.has(x.cle)) n.delete(x.cle); else n.add(x.cle);
-                        return n.size === stades.length ? new Set() : n;
-                      })}>
-                <i aria-hidden="true" />{x.nom}<b className="num">{x.n}</b>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      <div className="carte-outils filtres" role="group" aria-label={lecture === "sante" ? "Santés montrées sur la carte" : "Stades montrés sur la carte"}>
+        {lectures ? (
+          <div className="carte-lectures" role="radiogroup" aria-label="Colorer la carte par">
+            {LECTURES.map((x) => (
+              <button key={x.cle} type="button" role="radio" aria-checked={lecture === x.cle}
+                      onClick={() => { poserLecture(x.cle); poserMasques(new Set()); }}>{x.nom}</button>
+            ))}
+          </div>
+        ) : null}
+        {lecture !== "ca" && classes.length > 1 ? classes.map((x) => {
+          const montre = !masques.has(x.cle);
+          return (
+            <button key={x.cle} type="button" className="filtre-stade"
+                    data-stade={lecture === "stade" ? x.cle : undefined} data-sante={lecture === "sante" ? x.cle : undefined}
+                    aria-pressed={montre} title={montre ? `Masquer : ${x.nom}` : `Montrer : ${x.nom}`}
+                    onClick={() => poserMasques((m) => {
+                      const n = new Set(m);
+                      if (n.has(x.cle)) n.delete(x.cle); else n.add(x.cle);
+                      return n.size === classes.length ? new Set() : n;
+                    })}>
+              <i aria-hidden="true" />{x.nom}<b className="num">{x.n}</b>
+            </button>
+          );
+        }) : null}
+        {lecture === "ca" ? (
+          <span className="carte-note">La taille suit le chiffre d’affaires des 30 derniers jours.</span>
+        ) : null}
+      </div>
       <div className="carte-outils gestes">
         <button type="button" className="bouton icone" onClick={recentrer} title="Recentrer sur les machines" aria-label="Recentrer sur les machines">
           <IcoCible />

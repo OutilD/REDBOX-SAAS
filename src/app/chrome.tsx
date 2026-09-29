@@ -28,7 +28,7 @@ export type Page =
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
   | "academie" | "academie_editer"
-  | "admin" | "admin_parc" | "admin_comptes" | "admin_vitrine" | "admin_sante";
+  | "admin" | "admin_parc" | "admin_comptes" | "admin_academie" | "admin_vitrine" | "admin_sante";
 
 type Item = {
   cle: Page; nom: string; icone: React.ReactNode; vers: string;
@@ -152,6 +152,9 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
         droit: estSuperAdmin },
       { cle: "admin_comptes", nom: "Comptes", icone: <IcoEquipe />, vers: "/admin/comptes",
         droit: estSuperAdmin },
+      // Qui suit l'academie, ou l'on decroche, et les prospects a appeler.
+      { cle: "admin_academie", nom: "Académie", icone: <IcoAcademie />, vers: "/admin/academie",
+        droit: estSuperAdmin },
       // Le compte qu'on montre aux prospects, et ce qu'il doit montrer.
       { cle: "admin_vitrine", nom: "Vitrine", icone: <IcoOeil />, vers: "/admin/vitrine",
         droit: estSuperAdmin },
@@ -171,6 +174,7 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
  */
 const PRECHARGEES: ReadonlySet<Page> = new Set<Page>([
   "tableau", "bornes", "ventes", "stock", "charger", "communaute", "messages", "academie", "carte",
+  "admin", "admin_academie",
 ]);
 
 /** Le plan, reduit a ce que cette personne a le droit d'ouvrir : le rail et la page Menu. */
@@ -244,7 +248,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
-  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_vitrine: "menu", admin_sante: "menu",
+  admin: "menu", admin_parc: "menu", admin_comptes: "menu", admin_academie: "menu", admin_vitrine: "menu", admin_sante: "menu",
   academie_editer: "academie",
 };
 
@@ -275,6 +279,7 @@ const FIL: Record<Page, [string, string?]> = {
   admin:      ["Tableau de bord", "Plateforme"],
   admin_parc: ["Parc", "Plateforme"],
   admin_comptes: ["Comptes", "Plateforme"],
+  admin_academie: ["Académie", "Plateforme"],
   admin_vitrine: ["Vitrine", "Plateforme"],
   admin_sante: ["Santé", "Plateforme"],
   academie:   ["Académie", "Connect"],
