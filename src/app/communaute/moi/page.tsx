@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q1 } from "@/db";
+import { q, q1 } from "@/db";
 import { utilisateur } from "@/lib/auth";
-import { COULEURS, PSEUDO_MAX } from "@/lib/communaute";
+import { BADGES, COULEURS, PSEUDO_MAX, VEDETTES_MAX, rangDe } from "@/lib/communaute";
+import { Badge } from "../badge";
 import { initiales } from "@/lib/personnes";
 import ChangerPhoto from "../../profil/changer-photo";
 
 export const dynamic = "force-dynamic";
 
-type Moi = { pseudo: string | null; ville: string | null; bio: string | null; couleur: string | null; profil_public: boolean };
+type Moi = { pseudo: string | null; ville: string | null; bio: string | null; couleur: string | null; profil_public: boolean;
+             badges_vedettes: string[] };
 
 /**
  * PERSONNALISER SON PROFIL. Le pseudo, la ville, deux lignes, une couleur,
@@ -21,8 +23,11 @@ export default async function Personnaliser({ searchParams }:
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { e } = await searchParams;
-  const moi = (await q1<Moi>(
-    "SELECT pseudo, ville, bio, couleur, profil_public FROM utilisateur WHERE id = $1", [u.id]))!;
+  const [moi, obtenus] = await Promise.all([
+    q1<Moi>("SELECT pseudo, ville, bio, couleur, profil_public, badges_vedettes FROM utilisateur WHERE id = $1", [u.id]),
+    q<{ badge: string }>("SELECT badge FROM badge_obtenu WHERE utilisateur_id = $1", [u.id]),
+  ]).then(([m, o]) => [m!, new Set(o.map((x) => x.badge))] as const);
+  const siens = BADGES.filter((b) => obtenus.has(b.cle));
 
   return (
     <>
@@ -42,7 +47,8 @@ export default async function Personnaliser({ searchParams }:
           <ChangerPhoto imageId={u.image_id} initiales={initiales(moi.pseudo || u.nom || u.email)}
                         couleur={moi.couleur} retour="/communaute/moi" taille={72} />
         </div>
-        {e ? <p className="erreur">{e === "pseudo" ? "Le pseudo est trop long (trente caractères)." : "Impossible."}</p> : null}
+        {e ? <p className="erreur">{e === "pseudo" ? "Le pseudo est trop long (trente caractères)."
+                                    : e === "vitrine" ? `Trois badges au plus dans la vitrine.` : "Impossible."}</p> : null}
 
         <form method="post" action="/api/communaute/profil" className="carte">
           <div className="champ">
@@ -78,6 +84,26 @@ export default async function Personnaliser({ searchParams }:
               ))}
             </div>
           </fieldset>
+          {siens.length > 0 ? (
+            <fieldset className="cadre-choix" id="vitrine" style={{ marginTop: 14 }}>
+              <legend>Vitrine · {VEDETTES_MAX} badges au plus</legend>
+              <p className="faible" style={{ fontSize: 12.5, margin: "0 0 10px" }}>
+                Ils s’affichent en grand sur votre profil, et le premier à côté de votre nom dans les
+                messages et le classement. Aucun coché : vos plus rares.
+              </p>
+              <div className="rangee" style={{ gap: 10, flexWrap: "wrap" }}>
+                {siens.map((b) => (
+                  <label key={b.cle} className="coche" title={b.quoi}
+                         style={{ display: "flex", alignItems: "center", gap: 6, margin: 0, minWidth: 150 }}>
+                    <input type="checkbox" name="vedette" value={b.cle}
+                           defaultChecked={(moi.badges_vedettes ?? []).includes(b.cle)} />
+                    <Badge forme={b.forme} taille={26} rang={rangDe(b)} />
+                    <span style={{ fontSize: 13 }}>{b.nom}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
           <label className="coche" style={{ marginTop: 14 }}>
             <input type="checkbox" name="public" defaultChecked={moi.profil_public} />
             <span><b>Profil ouvert</b> — les autres voient votre exploitation, votre ville et vos deux lignes. Fermé, ils ne voient que votre pseudo, votre grade et vos badges.</span>

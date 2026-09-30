@@ -1361,3 +1361,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS compte_catalogue_modele_unique ON compte ((tru
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS latitude  DOUBLE PRECISION;
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS situe_pour TEXT;
+
+-- ------------------------------------------------------------ defis du mois
+--
+-- UN OBJECTIF POUR TOUS, SUR UNE PERIODE : « 100 ventes en octobre ». Pose par
+-- l'editeur depuis /communaute/defis. La mesure se compte dans la fenetre
+-- [debut, fin] (jours inclus, heure de Paris) ; qui atteint l'objectif le garde
+-- pour toujours (`defi_reussi`), avec ses points, comme un badge.
+CREATE TABLE IF NOT EXISTS defi (
+  id        BIGSERIAL PRIMARY KEY,
+  titre     TEXT NOT NULL,
+  mesure    TEXT NOT NULL CHECK (mesure IN ('ventes', 'ca', 'ventes_nuit', 'messages', 'jours_actifs', 'reactions')),
+  objectif  INTEGER NOT NULL CHECK (objectif > 0),
+  debut     DATE NOT NULL,
+  fin       DATE NOT NULL CHECK (fin >= debut),
+  forme     TEXT NOT NULL DEFAULT 'trophee',
+  points    INTEGER NOT NULL DEFAULT 150 CHECK (points >= 0),
+  cree_par  BIGINT REFERENCES utilisateur(id) ON DELETE SET NULL,
+  cree_le   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS i_defi_periode ON defi (fin DESC, debut);
+
+CREATE TABLE IF NOT EXISTS defi_reussi (
+  defi_id         BIGINT NOT NULL REFERENCES defi(id) ON DELETE CASCADE,
+  utilisateur_id  BIGINT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+  reussi_le       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (defi_id, utilisateur_id)
+);
+CREATE INDEX IF NOT EXISTS i_defi_reussi_personne ON defi_reussi (utilisateur_id);
+
+-- LES BADGES QU'ON MET EN VITRINE sur son profil : trois au plus, choisis
+-- parmi ceux obtenus. Vide = les plus rares, comme avant.
+ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS badges_vedettes TEXT[] NOT NULL DEFAULT '{}';

@@ -5,6 +5,7 @@ import { utilisateur } from "@/lib/auth";
 import { badgesVus, classement, evaluerBadges, objectifs, profilDe,
          rangDe, rareteDesBadges, type Classe } from "@/lib/communaute";
 import { salonsDe } from "@/lib/salons";
+import { MESURES, avancement, evaluerDefis, joursRestants, lesDefis, rangDefi } from "@/lib/defis";
 import { Badge } from "./badge";
 import CarteMoi from "./carte-moi";
 import Collection from "./collection";
@@ -33,13 +34,16 @@ export default async function Communaute({ searchParams }:
   { searchParams: Promise<{ n?: string; classement?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const neufs = await evaluerBadges(u.id);
+  const [neufs] = await Promise.all([evaluerBadges(u.id), evaluerDefis(u.id)]);
   // Tout le monde, pas seulement le haut de liste : mon rang ne se lit que
   // dans la liste entiere, et la 34e place a autant besoin de se voir que la
   // 4e. Le calcul est en code, la limite n'est qu'une coupe.
-  const [moi, tous, salons, rarete] = await Promise.all([
-    profilDe(u.id, u), classement(1000), salonsDe(u), rareteDesBadges(),
+  const [moi, tous, salons, rarete, defis] = await Promise.all([
+    profilDe(u.id, u), classement(1000), salonsDe(u), rareteDesBadges(), lesDefis(),
   ]);
+  // Le defi du moment, et ou j'en suis : l'encart sous ma carte.
+  const defi = defis.enCours[0] ?? null;
+  const monDefi = defi ? await avancement(defi, u.id) : 0;
   if (!moi) redirect("/");
   const nouveaux = moi.badges.filter((b) => b.nouveau);
   if (nouveaux.length > 0) await badgesVus(u.id);
@@ -71,6 +75,31 @@ export default async function Communaute({ searchParams }:
 
         {/* ---------------------------------------------------------- moi */}
         <CarteMoi moi={moi} id={u.id} monRang={monRang} ecart={ecart} />
+
+        {/* ------------------------------------------------------ defi du mois */}
+        {defi ? (
+          <Link href="/communaute/defis" className={`objectif ${rangDefi(defi.points)}`}
+                style={{ marginTop: 12, display: "grid" }}>
+            <Badge forme={defi.forme} taille={44} rang={rangDefi(defi.points)} obtenu={monDefi >= defi.objectif} />
+            <div className="quoi">
+              <div className="nom">Défi du mois · {defi.titre}</div>
+              <div className="faible">
+                {joursRestants(defi.fin)} j restants · réussi par {defi.reussis} · voir le classement ›
+              </div>
+            </div>
+            <div className="ou">
+              <div className="piste"><span style={{ width: `${Math.min(100, Math.round((monDefi / defi.objectif) * 100))}%` }} /></div>
+              <div className="chiffres num">
+                <span><b>{Math.min(monDefi, defi.objectif)}</b> / {defi.objectif} {MESURES[defi.mesure].unite[1]}</span>
+                <span className="gain">+{defi.points} pts</span>
+              </div>
+            </div>
+          </Link>
+        ) : defis.passes.length > 0 || u.editeur ? (
+          <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>
+            <Link href="/communaute/defis">Défis du mois ›</Link>
+          </p>
+        ) : null}
 
         {/* ------------------------------------------------------ objectifs
             LES TROIS BADGES LES PLUS PROCHES. C'est la difference entre une

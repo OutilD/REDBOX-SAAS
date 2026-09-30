@@ -7,6 +7,7 @@ import { BADGES, classement, objectifs, prochainGrade, profilDe, rangDe } from "
 import { Badge } from "../badge";
 import { Portrait } from "../vignette-personne";
 import { AnneauNiveau, BarreNiveau } from "../niveau";
+import { defisReussisDe, rangDefi } from "@/lib/defis";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
   if (!u) redirect("/connexion");
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const [p, tous] = await Promise.all([profilDe(id, u), classement(1000)]);
+  const [p, tous, trophees] = await Promise.all([profilDe(id, u), classement(1000), defisReussisDe(id)]);
   if (!p) notFound();
   const ouvert = p.public || p.moi || u.editeur;
   const suivant = prochainGrade(p.bornes);
@@ -73,6 +74,18 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
                   {p.points} pts{rang > 0 ? ` · ${rang}${rang === 1 ? "er" : "e"} au classement` : ""}
                 </span>
               </div>
+              {/* LA VITRINE : trois badges, choisis par la personne ou, a defaut, ses plus rares. */}
+              {p.vedettes.length > 0 ? (
+                <div className="rangee" style={{ gap: 14, marginTop: 12, flexWrap: "wrap" }} aria-label="Vitrine">
+                  {p.vedettes.map((b) => (
+                    <Link key={b.cle} href={`/communaute/badges/${b.cle}`} title={`${b.nom} — ${b.quoi}`}
+                          style={{ display: "grid", justifyItems: "center", gap: 4, color: "inherit", textDecoration: "none", width: 84 }}>
+                      <Badge forme={b.forme} taille={58} rang={rangDe(b)} />
+                      <span style={{ fontSize: 12, fontWeight: 650, textAlign: "center", lineHeight: 1.2 }}>{b.nom}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
               <BarreNiveau points={p.points} />
               {ouvert && p.bio ? <p style={{ margin: "12px 0 0", fontSize: 14.5, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{p.bio}</p> : null}
               {!ouvert ? <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>Ce profil est fermé : son propriétaire ne montre que son grade et ses badges.</p> : null}
@@ -83,9 +96,9 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
             <div><div className="faible" style={{ fontSize: 12 }}>RedBox en service</div>
                  <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{p.bornes}</div>
                  {suivant ? <div className="faible" style={{ fontSize: 11.5 }}>{suivant.manque} de plus → {suivant.grade.nom}</div> : null}</div>
-            <div><div className="faible" style={{ fontSize: 12 }}>Redboxer depuis</div>
-                 <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{p.jours} j</div>
-                 <div className="faible" style={{ fontSize: 11.5 }}>le {leJour(p.cree_le)}</div></div>
+            <div><div className="faible" style={{ fontSize: 12 }}>Arrivée dans le réseau</div>
+                 <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{leJour(p.cree_le)}</div>
+                 <div className="faible" style={{ fontSize: 11.5 }}>il y a {p.jours} jour{p.jours > 1 ? "s" : ""}</div></div>
             <div><div className="faible" style={{ fontSize: 12 }}>Messages</div>
                  <div className="num" style={{ fontSize: 22, fontWeight: 750 }}>{ouvert ? p.messages : "—"}</div></div>
             <div><div className="faible" style={{ fontSize: 12 }}>Badges</div>
@@ -112,9 +125,28 @@ export default async function ProfilPublic({ params }: { params: Promise<{ id: s
           {p.moi ? (
             <p className="faible" style={{ margin: "12px 0 0", fontSize: 13 }}>
               <Link href="/communaute">Tous les badges et comment les gagner ›</Link>
+              {" · "}<Link href="/communaute/moi#vitrine">{p.vedettes_choisies ? "Changer ma vitrine" : "Choisir ma vitrine"} ›</Link>
             </p>
           ) : null}
         </div>
+
+        {/* LES TROPHEES : les defis du mois reussis, le plus recent d'abord. */}
+        {trophees.length > 0 ? (
+          <>
+            <div className="titre-section">
+              <h2>Défis réussis</h2>
+              <Link href="/communaute/defis" className="faible" style={{ fontSize: 12.5 }}>Défis du mois ›</Link>
+            </div>
+            <div className="badges-rangee">
+              {trophees.map((d) => (
+                <Link key={d.id} href="/communaute/defis" className="badge-item" title={`${d.titre} — réussi le ${leJour(d.reussi_le)}`}>
+                  <Badge forme={d.forme} taille={34} rang={rangDefi(d.points)} />
+                  <span>{d.titre}</span>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {vises.length > 0 ? (
           <>

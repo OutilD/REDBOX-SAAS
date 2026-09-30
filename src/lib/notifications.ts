@@ -3,6 +3,7 @@ import { codeCanal, euros, FUSEAU, q, q1 } from "@/db";
 import { deposerSysteme, type Message as MessageSalon, type Salon } from "./salons";
 import { LIBELLES } from "./ventes";
 import { NOM_RANG, evaluerBadges, rangDe, SQL_REDBOX_ATTRIBUEE } from "./communaute";
+import { evaluerDefis } from "./defis";
 import { hotes, type Produit } from "./produits";
 
 /**
@@ -517,10 +518,18 @@ export async function signalerReaction(r: {
  * A appeler sans l'attendre : `apres("badges", () => evaluerEtSignaler(id))`.
  */
 export async function evaluerEtSignaler(utilisateur_id: number): Promise<void> {
-  const neufs = await evaluerBadges(utilisateur_id);
-  if (neufs.length === 0) return;
+  const [neufs, defis] = await Promise.all([evaluerBadges(utilisateur_id), evaluerDefis(utilisateur_id)]);
+  if (neufs.length === 0 && defis.length === 0) return;
   const cibles = await appareilsCommunaute(utilisateur_id);
   if (cibles.length === 0) return;
+  // Un defi reussi s'annonce a part : c'est un evenement du mois, pas un badge de plus.
+  for (const d of defis) {
+    await Promise.allSettled(cibles.map((a) => pousser(a, {
+      genre: "communaute", titre: `Défi réussi : ${d.titre}`,
+      corps: `Objectif atteint${d.points > 0 ? ` · +${d.points} pts` : ""}. Votre trophée est sur votre profil.`,
+      url: "/communaute/defis", tag: `defi-${d.id}` })));
+  }
+  if (neufs.length === 0) return;
   const b = neufs[0];
   const m: Message = neufs.length === 1
     ? { genre: "communaute",

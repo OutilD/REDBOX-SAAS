@@ -224,6 +224,8 @@ export type Faits = {
   /** En euros : le meilleur mois civil d'une seule machine, et de tout le parc. */
   ca_machine_mois: number; ca_parc_mois: number;
   pionnier: boolean; ambassadeur: boolean; equipe: boolean;
+  /** Les points des defis du mois reussis (lib/defis). */
+  points_defis: number;
 };
 
 /** Les vraies bornes de tous les comptes ou la personne est membre. */
@@ -266,12 +268,18 @@ const SQL_JOURS_ACTIFS = `
 
 const SQL_ANCIENNETE = `GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86400)::int`;
 
-/** Les quatre colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
+/** Les points des defis du mois reussis (lib/defis). */
+const SQL_POINTS_DEFIS = `
+  (SELECT COALESCE(SUM(dd.points), 0)::int FROM defi_reussi rr JOIN defi dd ON dd.id = rr.defi_id
+    WHERE rr.utilisateur_id = u.id)`;
+
+/** Les colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
 const SQL_COMPTES = `
   ${SQL_BORNES} AS bornes,
   ${SQL_ANCIENNETE} AS jours,
   ${SQL_MESSAGES} AS messages,
-  ${SQL_REACTIONS} AS reactions`;
+  ${SQL_REACTIONS} AS reactions,
+  ${SQL_POINTS_DEFIS} AS points_defis`;
 
 /** Les ventes distribuees par les vraies machines de tous ses comptes. */
 const VRAIES_VENTES = `
@@ -496,9 +504,11 @@ export async function offrirBienvenue(utilisateur_id: number, c?: PgClient): Pro
  * sans eux, le classement recompenserait le volume, et le volume s'obtient en
  * parlant pour ne rien dire.
  */
-export function pointsDe(f: { bornes: number; messages: number; jours: number; reactions?: number },
+export function pointsDe(f: { bornes: number; messages: number; jours: number; reactions?: number;
+                                points_defis?: number },
                          badges: string[]): number {
   return f.bornes * 100
+       + (f.points_defis ?? 0)
        + badges.reduce((s, b) => s + (BADGE_PAR_CLE.get(b)?.points ?? 0), 0)
        + Math.min(f.messages, 500) * 2
        + Math.min(f.reactions ?? 0, 60) * 5
@@ -517,6 +527,21 @@ export function niveauProgres(points: number): { niveau: number; dans: number; r
 
 /** Les badges que l'equipe remet a la main. */
 export const BADGES_MANUELS = BADGES.filter((b) => b.manuel);
+
+/** Combien de badges une personne met en vitrine sur son profil. */
+export const VEDETTES_MAX = 3;
+
+/**
+ * LE BADGE QU'ON MONTRE A COTE D'UN NOM : le premier de sa vitrine s'il en a
+ * choisi une, sinon le plus cher qu'il porte.
+ */
+function badgeMontre(obtenus: string[], vedettes: string[] | null | undefined): Badge | null {
+  const a = new Set(obtenus);
+  const choisi = (vedettes ?? []).find((v) => a.has(v));
+  if (choisi) return BADGE_PAR_CLE.get(choisi) ?? null;
+  return obtenus.map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
+    .sort((x, z) => z.points - x.points)[0] ?? null;
+}
 
 /** Un badge par sa cle, ou rien si la cle n'existe pas. */
 export function badgeDe(cle: string): Badge | null {
@@ -559,6 +584,10 @@ export type Profil = {
   bornes: number; grade: Grade; points: number; niveau: number;
   messages: number; ventes: number; jours: number; reactions: number;
   badges: BadgeObtenu[];
+  /** Sa vitrine : les badges choisis, sinon ses trois plus rares. */
+  vedettes: BadgeObtenu[];
+  /** Vrai si la vitrine est choisie, faux si elle est deduite. */
+  vedettes_choisies: boolean;
   /** De quoi montrer ou l'on en est des badges qu'on n'a pas encore. */
   faits: Faits;
 };
@@ -583,10 +612,10 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
   const l = await q1<{
     id: number; pseudo: string | null; nom: string | null; email: string; image_id: number | null;
     compte: string; ville: string | null; bio: string | null; couleur: string | null;
-    cree_le: Date; profil_public: boolean; editeur: boolean;
+    cree_le: Date; profil_public: boolean; editeur: boolean; badges_vedettes: string[];
   }>(`
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, c.nom AS compte, u.ville, u.bio, u.couleur,
-           u.cree_le, u.profil_public, c.editeur
+           u.cree_le, u.profil_public, c.editeur, u.badges_vedettes
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
      WHERE u.id = $1 AND u.email NOT LIKE '%@' || $2`, [id, DOMAINE]);
   if (!l) return null;
@@ -597,6 +626,11 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
     .map((b) => { const o = obtenus.find((x) => x.badge === b.cle); return o ? { ...b, obtenu_le: o.obtenu_le, nouveau: o.vu_le === null } : null; })
     .filter((b): b is BadgeObtenu => b !== null);
   const points = pointsDe(f, badges.map((b) => b.cle));
+  const choisies = (l.badges_vedettes ?? [])
+    .map((c) => badges.find((b) => b.cle === c)).filter((b): b is BadgeObtenu => Boolean(b))
+    .slice(0, VEDETTES_MAX);
+  const vedettes = choisies.length > 0 ? choisies
+    : [...badges].sort((x, z) => z.points - x.points).slice(0, VEDETTES_MAX);
   const moi = spectateur.id === id;
   const ouvert = l.profil_public || moi || spectateur.editeur;
   return {
@@ -606,7 +640,7 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
     bornes: f.bornes, grade: gradeDe(f.bornes), points, niveau: niveauDe(points),
     messages: ouvert ? f.messages : 0, ventes: ouvert ? f.ventes : 0, jours: f.jours,
     reactions: ouvert ? f.reactions : 0,
-    badges, faits: f,
+    badges, vedettes, vedettes_choisies: choisies.length > 0, faits: f,
   };
 }
 
@@ -631,19 +665,18 @@ export async function classement(limite = 20): Promise<Classe[]> {
   const gens = await q<{
     id: number; pseudo: string | null; nom: string | null; email: string; image_id: number | null;
     compte: string; couleur: string | null; editeur: boolean; profil_public: boolean;
-    bornes: number; jours: number; messages: number; reactions: number; badges: string[];
+    bornes: number; jours: number; messages: number; reactions: number; points_defis: number;
+    badges: string[]; badges_vedettes: string[];
   }>(`
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, c.nom AS compte, u.couleur, c.editeur, u.profil_public,
-           ${SQL_COMPTES},
+           u.badges_vedettes, ${SQL_COMPTES},
            COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
      WHERE u.email NOT LIKE '%@' || $1`, [DOMAINE]);
   return gens
     .map((g) => {
       const points = pointsDe(g, g.badges);
-      const meilleur = g.badges
-        .map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
-        .sort((x, z) => z.points - x.points)[0] ?? null;
+      const meilleur = badgeMontre(g.badges, g.badges_vedettes);
       return { id: g.id, pseudo: pseudoDe(g), image_id: g.image_id, compte: g.profil_public ? g.compte : "",
                couleur: g.couleur, editeur: g.editeur, bornes: g.bornes, grade: gradeDe(g.bornes),
                points, niveau: niveauDe(points), badges: g.badges.length, meilleur };
@@ -668,16 +701,16 @@ export async function niveauxDe(ids: number[]): Promise<Map<number, Signature>> 
   const out = new Map<number, Signature>();
   const propres = [...new Set(ids)].filter((i) => Number.isInteger(i));
   if (propres.length === 0) return out;
-  const gens = await q<{ id: number; bornes: number; jours: number; messages: number; reactions: number; badges: string[] }>(`
-    SELECT u.id, ${SQL_COMPTES},
+  const gens = await q<{ id: number; bornes: number; jours: number; messages: number; reactions: number;
+                         points_defis: number; badges: string[]; badges_vedettes: string[] }>(`
+    SELECT u.id, u.badges_vedettes, ${SQL_COMPTES},
            COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
       FROM utilisateur u WHERE u.id = ANY($1::bigint[])`, [propres]);
   for (const g of gens) {
-    // Le badge le plus cher qu'elle porte : c'est celui qu'on montre a cote de
-    // son nom, parce qu'un seul se lit et que quinze ne se lisent pas.
-    const haut = g.badges
-      .map((b) => BADGE_PAR_CLE.get(b)).filter((b): b is Badge => Boolean(b))
-      .sort((x, z) => z.points - x.points)[0];
+    // Le badge de sa vitrine, sinon le plus cher qu'elle porte : c'est celui
+    // qu'on montre a cote de son nom, parce qu'un seul se lit et que quinze ne
+    // se lisent pas.
+    const haut = badgeMontre(g.badges, g.badges_vedettes);
     const meilleur = haut ? { ...haut, rang: rangDe(haut) } : null;
     out.set(Number(g.id), { niveau: niveauDe(pointsDe(g, g.badges)), grade: gradeDe(g.bornes).nom, meilleur });
   }
