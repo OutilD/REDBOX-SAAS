@@ -7,7 +7,7 @@ import { EMOJIS, type Reaction } from "@/lib/reactions";
 import { initiales } from "@/lib/personnes";
 import { Badge } from "../communaute/badge";
 import { FUSEAU } from "@/lib/fuseau";
-import { CADENCE_CALME_MS, CADENCE_VIVE_MS, CALME_APRES_MS, MESSAGES_PAR_LOT } from "@/lib/fil";
+import { CADENCE_CALME_MS, CADENCE_SECOURS_MS, CADENCE_VIVE_MS, CALME_APRES_MS, MESSAGES_PAR_LOT } from "@/lib/fil";
 import { IcoBas, IcoBorne, IcoCoche, IcoCorbeille, IcoEnvoyer, IcoHorloge, IcoPhoto, IcoSourire } from "../icones";
 import { preparerPhoto } from "./photo";
 
@@ -291,6 +291,14 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   // chose ; apres deux minutes sans message ni geste, toutes les douze. Un
   // retour sur l'onglet, un message : il repart vif. Un fil laisse ouvert
   // toute la nuit ne martele plus le serveur.
+  //
+  // LE TEMPS REEL, QUAND IL EST LA. Le serveur signale sur Pusher que le salon
+  // a bouge ; on relit aussitot par le meme chemin que le sondage. Tant que le
+  // canal est ouvert, le sondage tombe a trente secondes. La connexion suit le
+  // salon, pas chaque message : elle vit dans son propre effet, et parle au
+  // sondage par ces deux references.
+  const direct = useRef(false);
+  const relancer = useRef<() => void>(() => {});
   useEffect(() => {
     let vivant = true;
     let minuterie: number | undefined;
@@ -299,7 +307,9 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       await rafraichir();
       if (!vivant) return;
       const calme = Date.now() - dernierMouvement.current > CALME_APRES_MS;
-      minuterie = window.setTimeout(tour, calme ? CADENCE_CALME_MS : CADENCE_VIVE_MS);
+      window.clearTimeout(minuterie);
+      minuterie = window.setTimeout(tour,
+        direct.current ? CADENCE_SECOURS_MS : calme ? CADENCE_CALME_MS : CADENCE_VIVE_MS);
     };
     minuterie = window.setTimeout(tour, CADENCE_VIVE_MS);
     const reveil = () => {
@@ -308,10 +318,35 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
       window.clearTimeout(minuterie);
       void tour();
     };
+    relancer.current = reveil;
     document.addEventListener("visibilitychange", reveil);
     window.addEventListener("focus", reveil);
     return () => { vivant = false; window.clearTimeout(minuterie); document.removeEventListener("visibilitychange", reveil); window.removeEventListener("focus", reveil); };
   }, [rafraichir]);
+
+  useEffect(() => {
+    const cle = process.env.NEXT_PUBLIC_PUSHER_KEY, grappe = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+    if (!cle || !grappe) return;
+    let vivant = true;
+    let fermer = () => {};
+    void import("pusher-js").then(({ default: Pusher }) => {
+      if (!vivant) return;
+      const p = new Pusher(cle, { cluster: grappe,
+        channelAuthorization: { endpoint: "/api/temps-reel/auth", transport: "ajax" } });
+      const canal = p.subscribe(`private-salon-${salon.id}`);
+      canal.bind("pusher:subscription_succeeded", () => { direct.current = true; });
+      canal.bind("pusher:subscription_error", () => { direct.current = false; });
+      canal.bind("maj", () => relancer.current());
+      p.connection.bind("state_change", (e: { current: string }) => {
+        const avant = direct.current;
+        direct.current = e.current === "connected" && canal.subscribed;
+        // Revenu apres une coupure : on a pu manquer des signaux.
+        if (direct.current && !avant) relancer.current();
+      });
+      fermer = () => p.disconnect();
+    }).catch(() => { /* le sondage continue */ });
+    return () => { vivant = false; direct.current = false; fermer(); };
+  }, [salon.id]);
 
   /**
    * ENVOYER NE FAIT PLUS ATTENDRE. La bulle part a l'ecran tout de suite, telle

@@ -1,5 +1,7 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { retirer } from "@/lib/salons";
+import { apres } from "@/lib/apres";
+import { annoncer } from "@/lib/temps-reel";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,9 @@ export async function POST(req: Request) {
     const f = await req.formData();
     id = Number(f.get("id")); salon_id = Number(f.get("salon_id"));
   }
-  const ok = Number.isInteger(id) && await retirer(id, u.id);
+  const salon = Number.isInteger(id) ? await retirer(id, u.id) : null;
+  const ok = salon !== null;
+  if (salon !== null) apres("temps réel", () => annoncer([salon]));
   if (json) return Response.json({ ok });
   return versPage(req, Number.isInteger(salon_id) ? `/messages/${salon_id}` : "/messages");
 }

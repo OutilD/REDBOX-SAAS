@@ -1,4 +1,5 @@
 import { q, q1, transaction, type PgClient } from "@/db";
+import { annoncer } from "./temps-reel";
 import type { Utilisateur } from "./auth";
 import { MESSAGES_PAR_LOT } from "./fil";
 import { groupeDuCompte, niveauxDe, type BadgeMontre, SQL_REDBOX_ATTRIBUEE } from "./communaute";
@@ -527,12 +528,12 @@ export async function deposer(salon_id: number, utilisateur_id: number | null, t
   return { ...r!, grade: null, niveau: null, badge: null, reactions: [] };
 }
 
-/** Retire un de ses messages. Rend faux s'il n'est pas a elle. */
-export async function retirer(id: number, utilisateur_id: number): Promise<boolean> {
-  const r = await q(`
+/** Retire un de ses messages. Rend son salon, ou null s'il n'est pas a elle. */
+export async function retirer(id: number, utilisateur_id: number): Promise<number | null> {
+  const r = await q1<{ salon_id: number }>(`
     UPDATE message SET supprime_le = now()
-     WHERE id = $1 AND utilisateur_id = $2 AND supprime_le IS NULL RETURNING id`, [id, utilisateur_id]);
-  return r.length > 0;
+     WHERE id = $1 AND utilisateur_id = $2 AND supprime_le IS NULL RETURNING salon_id`, [id, utilisateur_id]);
+  return r ? Number(r.salon_id) : null;
 }
 
 /** Elle a lu jusque-la. Ne recule jamais. */
@@ -553,7 +554,7 @@ export async function marquerLu(utilisateur_id: number, salon_id: number, dernie
 export async function deposerSysteme(compte_id: number, borne: { id: number; nom: string },
                                      lignes: string[]): Promise<void> {
   if (lignes.length === 0) return;
-  await transaction(async (c) => {
+  const salon_id = await transaction(async (c) => {
     let s = (await c.query<{ id: number }>("SELECT id FROM salon WHERE borne_id = $1", [borne.id])).rows[0];
     if (!s) {
       const base = slug(borne.nom);
@@ -569,7 +570,10 @@ export async function deposerSysteme(compte_id: number, borne: { id: number; nom
     await c.query(`
       INSERT INTO message (salon_id, utilisateur_id, texte)
       SELECT $1, NULL, t FROM unnest($2::text[]) AS t`, [s.id, lignes]);
+    return Number(s.id);
   });
+  // Apres la validation : un navigateur previent trop tot relirait un salon vide.
+  await annoncer([salon_id]);
 }
 
 export type Lecteur = { id: number; pseudo: string; image_id: number | null; couleur: string | null; editeur: boolean; choisi: boolean };

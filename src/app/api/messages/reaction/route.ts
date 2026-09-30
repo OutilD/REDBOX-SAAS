@@ -2,6 +2,7 @@ import { utilisateurDe, versPage } from "@/lib/auth";
 import { peutReagir, reagir, salonDe } from "@/lib/salons";
 import { evaluerEtSignaler, signalerReaction } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
+import { annoncer } from "@/lib/temps-reel";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
 
   const r = await reagir(message_id, u.id, emoji);
   if (r === null) return refus(400, "réaction");
+  apres("temps réel", () => annoncer([salon_id]));
 
   // Une reaction POSEE previent l'auteur, et peut debloquer deux badges : le
   // sien (Applaudi) et celui de qui reagit (Genereux). Rien sur une reaction

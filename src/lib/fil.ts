@@ -10,3 +10,9 @@ export const MESSAGES_PAR_LOT = 40;
 export const CADENCE_VIVE_MS = 3000;
 export const CADENCE_CALME_MS = 12000;
 export const CALME_APRES_MS = 2 * 60_000;
+
+/**
+ * Avec le temps reel (Pusher, voir lib/temps-reel), le serveur previent : le
+ * sondage ne sert plus que de filet, si un signal se perd.
+ */
+export const CADENCE_SECOURS_MS = 30_000;

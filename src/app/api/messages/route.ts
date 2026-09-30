@@ -1,6 +1,7 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
 import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
+import { annoncer } from "@/lib/temps-reel";
 import { deposer, empreinteSalon, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 import { MESSAGES_PAR_LOT } from "@/lib/fil";
 import { transaction } from "@/db";
@@ -108,6 +109,7 @@ export async function POST(req: Request) {
   if (!m) return refus(400, "photo");
   // Ses propres messages ne comptent jamais comme non lus : avancer le curseur
   // n'est pas urgent, et attendre la base pour le faire retardait la reponse.
+  apres("temps réel", () => annoncer([salon_id]));
   apres("lecture", () => marquerLu(u.id, salon_id, m.id));
   apres("notifications", () => signalerMessage(s, m));
   // Ce message peut debloquer un badge — le premier, le centieme, la
