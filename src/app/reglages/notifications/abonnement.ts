@@ -7,6 +7,7 @@
  * Pas de « use client » : ce module ne rend rien. Il n'est importe que par des
  * composants clients, et touche des API qui n'existent que dans le navigateur.
  */
+import { chezLAutreApplication, dansLApplication } from "../../application";
 
 /** La cle VAPID, telle que `subscribe` la veut : des octets, pas du base64. */
 export function cleEnOctets(base64url: string): ArrayBuffer {
@@ -37,8 +38,15 @@ export type Situation = {
    * installe sans histoire — c'est vers lui qu'on envoie.
    */
   samsung: boolean;
+  /**
+   * Ouverte depuis l'autre application, dans sa vue navigateur : on ne peut
+   * pas installer d'ici. Il faut d'abord passer dans Safari ou Chrome.
+   */
+  chezLAutre: boolean;
   permission: NotificationPermission | "absente";
 };
+
+const INSTALLEE = "rbx_app_installee";
 
 export function situation(): Situation {
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -47,18 +55,22 @@ export function situation(): Situation {
   // console tourne DANS l'application ; un lien ouvert dans Safari ou Chrome
   // alors que l'icone est deja sur l'ecran d'accueil redemandait d'installer.
   // Une fois vue en application, ce telephone ne le demande plus.
-  const enApplication = (navigator as Navigator & { standalone?: boolean }).standalone === true
-    || window.matchMedia("(display-mode: standalone)").matches
-    || document.referrer.startsWith("android-app://");
+  //
+  // Mais pas dans la vue navigateur de l'AUTRE application (`application.ts`) :
+  // Connect ouverte depuis la Gestion s'y croyait installee, le retenait, et ne
+  // proposait plus jamais de s'installer. D'ou une nouvelle cle — l'ancienne a
+  // ete posee a tort sur l'adresse de Connect.
+  const enApplication = dansLApplication();
   let dejaVue = false;
   try {
-    if (enApplication) localStorage.setItem("rbx_installee", "1");
-    dejaVue = localStorage.getItem("rbx_installee") === "1";
+    if (enApplication) localStorage.setItem(INSTALLEE, "1");
+    dejaVue = localStorage.getItem(INSTALLEE) === "1";
   } catch { /* navigation privee : on ne retient rien */ }
   const installee = enApplication || dejaVue;
   const pousse = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const samsung = /SamsungBrowser/.test(navigator.userAgent);
   return { securise: window.isSecureContext, pousse, ios, installee, mobile, samsung,
+           chezLAutre: chezLAutreApplication(),
            permission: "Notification" in window ? Notification.permission : "absente" };
 }
 

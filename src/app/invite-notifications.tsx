@@ -56,12 +56,14 @@ export default function InviteNotifications({ publique, connect = false }: { pub
   const [occupe, occuper] = useState(false);
   const [ios, poserIos] = useState(false);
   const [samsung, poserSamsung] = useState(false);
+  const [chezLAutre, poserChezLAutre] = useState(false);
   const [, rafraichir] = useState(0);
 
   useEffect(() => {
     const s = situation();
     poserIos(s.ios);
     poserSamsung(s.samsung);
+    poserChezLAutre(s.chezLAutre);
     const le = (cle: string) => { const v = lire(cle, localStorage); return v ? Number(v) : null; };
     const d = decider(s, { installer: le(PLUS_TARD_INSTALL), activer: le(PLUS_TARD) },
                       lire(VUE, sessionStorage) === "1", Date.now());
@@ -140,6 +142,10 @@ export default function InviteNotifications({ publique, connect = false }: { pub
   // ------------------------------------------------ la grande fenetre (telephone)
   if (invite.forme === "fenetre") {
     const installe = invite.quoi === "installer";
+    const nom = connect ? "RedBox Connect" : "RedBox Gestion";
+    // Android, depuis la vue navigateur de l'autre application : on n'installe
+    // pas d'ici, on passe dans Chrome — comme depuis le navigateur Samsung.
+    const versChrome = installe && !ios && (samsung || chezLAutre);
     return (
       <div className="invite-fond" onClick={(e) => { if (e.target === e.currentTarget) taire(); }}>
         <div className="invite-fenetre" role="dialog" aria-modal="true" aria-labelledby="invite-titre">
@@ -148,15 +154,15 @@ export default function InviteNotifications({ publique, connect = false }: { pub
             <span className="sceau" aria-hidden="true">{installe ? <IcoInstaller size={26} /> : <IcoCloche size={26} />}</span>
             <div>
               <div className="sur">{installe ? "Application" : "Notifications"}</div>
-              <h2 id="invite-titre">{installe ? "Installez RedBox" : "Activez les notifications"}</h2>
+              <h2 id="invite-titre">{installe ? `Installez ${nom}` : "Activez les notifications"}</h2>
             </div>
           </div>
 
           <p className="quoi">
             {installe
               ? (connect
-                  ? "Ajoutez RedBox à votre écran d’accueil : ouverture en plein écran, et une notification quand on vous répond, pour les annonces et vos badges."
-                  : "Ajoutez RedBox à votre écran d’accueil : ouverture en plein écran, et une notification quand une machine vend, se vide, passe hors ligne ou coince.")
+                  ? "Une seconde application, à côté de RedBox Gestion : la communauté, les messages et l’académie, en plein écran, avec une notification quand on vous répond, pour les annonces et vos badges."
+                  : "Ajoutez RedBox Gestion à votre écran d’accueil : ouverture en plein écran, et une notification quand une machine vend, se vide, passe hors ligne ou coince.")
               : (connect
                   ? "Soyez prévenu quand on vous répond, quand l’équipe RedBox publie une annonce et quand vous débloquez un badge."
                   : "Soyez prévenu dès qu’une RedBox vend, se vide, passe hors ligne ou qu’un paiement coince — sans ouvrir la console.")}
@@ -164,18 +170,28 @@ export default function InviteNotifications({ publique, connect = false }: { pub
 
           {installe && ios ? (
             <ol className="etapes">
+              {chezLAutre ? (
+                // Ouverte depuis l'autre application : cette vue n'a pas « Sur
+                // l'ecran d'accueil ». Safari d'abord.
+                <li><span>Ouvrez cette page dans <b>Safari</b> : touchez l’icône Safari (la boussole) en bas de l’écran, ou <b className="points">···</b> → <b>« Ouvrir dans Safari »</b>.</span></li>
+              ) : null}
               <li><span>Touchez <IcoPartageIos size={17} /> <b>Partager</b>. Sur les iPhone récents, il est derrière <b className="points">···</b> à droite de la barre d’adresse.</span></li>
               <li><span>Touchez <IcoPlusCarre size={17} /> <b>« Sur l’écran d’accueil »</b> (faites défiler, ou « Plus… », s’il n’apparaît pas).</span></li>
               <li><span>Touchez <b>« Ajouter »</b>.</span></li>
+            </ol>
+          ) : versChrome && !samsung ? (
+            <ol className="etapes">
+              <li><span>Cette page s’est ouverte dans RedBox Gestion, d’où l’on ne peut pas installer. <b>Ouvrez-la dans Chrome</b>, avec le bouton ci-dessous.</span></li>
+              <li><span>Touchez <b>« Installer l’application »</b> quand {nom} vous le propose.</span></li>
             </ol>
           ) : installe && samsung ? (
             // Le bouton d'installation de Samsung Internet mene a un blocage de
             // Google Play Protect (voir `Situation.samsung`) : on ne le propose pas.
             <ol className="etapes">
               <li><span>Le navigateur Samsung ne sait plus installer d’application : Google Play Protect la bloque. <b>Passez par Chrome</b>, avec le bouton ci-dessous.</span></li>
-              <li><span>Connectez-vous dans Chrome, puis touchez <b>« Installer l’application »</b> quand RedBox vous le propose.</span></li>
+              <li><span>Connectez-vous dans Chrome, puis touchez <b>« Installer l’application »</b> quand {nom} vous le propose.</span></li>
             </ol>
-          ) : installe && !offre ? (
+          ) : installe && !offre && !versChrome ? (
             <ol className="etapes">
               <li><span>Ouvrez le menu <b className="points">⋮</b> de votre navigateur.</span></li>
               <li><span>Touchez <b>« Installer l’application »</b> ou <b>« Ajouter à l’écran d’accueil »</b>.</span></li>
@@ -184,20 +200,20 @@ export default function InviteNotifications({ publique, connect = false }: { pub
           ) : null}
 
           {installe ? (
-            <p className="suite">Ouvrez ensuite RedBox depuis votre écran d’accueil{ios ? " et reconnectez-vous une fois" : ""} : l’application vous proposera d’activer les notifications.</p>
+            <p className="suite">Ouvrez ensuite {nom} depuis votre écran d’accueil{ios ? " et reconnectez-vous une fois" : ""} : l’application vous proposera d’activer les notifications.</p>
           ) : (
             <p className="suite">Vous choisirez ensuite ce que vous recevez dans Réglages → Notifications. Rien n’est envoyé sans votre accord.</p>
           )}
 
           <div className="actions">
-            {installe && samsung ? (
+            {versChrome ? (
               // Une adresse « intent » : Android ouvre cette meme page dans Chrome.
               <a className="bouton primaire large"
                  href={`intent://${location.host}${location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}>
                 Ouvrir dans Chrome
               </a>
             ) : null}
-            {installe && !ios && !samsung && offre ? (
+            {installe && !ios && !versChrome && offre ? (
               <button type="button" className="bouton primaire large" onClick={installer} disabled={occupe}>
                 <IcoInstaller size={18} /> {occupe ? "Un instant…" : "Installer l’application"}
               </button>

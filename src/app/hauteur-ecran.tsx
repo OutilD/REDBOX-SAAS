@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { chezLAutreApplication } from "./application";
 
 /** Un champ qui ouvre le clavier : tant qu'il a le focus, on ne compense rien. */
 function estChamp(el: Element | null): boolean {
@@ -16,11 +17,14 @@ function estChamp(el: Element | null): boolean {
  *
  * Hors de l'application iOS (`navigator.standalone` n'existe que la), ou dans
  * une fenetre qui n'occupe pas toute la largeur (iPad partage), on rend la
- * hauteur courante : aucun ecart.
+ * hauteur courante : aucun ecart. De meme dans la vue navigateur que l'AUTRE
+ * application ouvre par-dessus elle (Connect ouverte depuis la Gestion) :
+ * `standalone` y vaut encore vrai, mais la barre du navigateur mange le bas de
+ * l'ecran, et compenser envoyait la barre du bas dessous (`application.ts`).
  */
 function hauteurPleinEcran(): number {
   const courante = window.innerHeight;
-  if (!(navigator as Navigator & { standalone?: boolean }).standalone) return courante;
+  if (!(navigator as Navigator & { standalone?: boolean }).standalone || chezLAutreApplication()) return courante;
   const { width: w, height: h } = window.screen;
   const portrait = window.innerHeight >= window.innerWidth;
   const [largeur, hauteur] = portrait ? [Math.min(w, h), Math.max(w, h)] : [Math.max(w, h), Math.min(w, h)];

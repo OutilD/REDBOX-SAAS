@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
-import { ENTETE_PRODUIT } from "@/lib/produits";
+import { ENTETE_PRODUIT, hoteDes, produitDeLHote } from "@/lib/produits";
 import "./globals.css";
 import Occupe from "./occupe";
 import Glisser from "./glisser";
@@ -10,18 +10,26 @@ import Notif from "./notif";
 import Pwa from "./pwa";
 import HauteurEcran from "./hauteur-ecran";
 
-export const metadata: Metadata = {
-  title: "RedBox",
-  description: "Stock, réassort et état des RedBox",
-  icons: { icon: "/favicon.png", apple: "/apple-touch-icon.png" },
-  // L'application installee : le manifeste pour Android et le bureau, et les
-  // trois lignes qu'iOS lit a la place — plein ecran, barre d'etat fondue,
-  // et le nom sous l'icone.
-  manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "RedBox" },
-  // Next ecrit la balise moderne ; les iPhone d'avant iOS 17 ne lisent que celle-ci.
-  other: { "apple-mobile-web-app-capable": "yes" },
-};
+/**
+ * L'application installee : le manifeste pour Android et le bureau, et les
+ * trois lignes qu'iOS lit a la place — plein ecran, barre d'etat fondue, et le
+ * nom sous l'icone. Comme le manifeste, elles suivent l'ADRESSE : posee depuis
+ * celle de Connect, l'icone est « RB Connect », blanche sur bleu nuit ; depuis
+ * l'autre, « RB Gestion », rouge sur noir.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const connect = produitDeLHote(hoteDes(await headers())) === "connect";
+  const dossier = connect ? "/connect" : "";
+  return {
+    title: connect ? "RedBox Connect" : "RedBox",
+    description: connect ? "La communauté, les messages et l’académie RedBox" : "Stock, réassort et état des RedBox",
+    icons: { icon: `${dossier}/favicon.png`, apple: `${dossier}/apple-touch-icon.png` },
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: connect ? "RB Connect" : "RB Gestion" },
+    // Next ecrit la balise moderne ; les iPhone d'avant iOS 17 ne lisent que celle-ci.
+    other: { "apple-mobile-web-app-capable": "yes" },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [

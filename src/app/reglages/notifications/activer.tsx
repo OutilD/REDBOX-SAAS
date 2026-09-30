@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { demanderEtAbonner } from "./abonnement";
+import { dansLApplication } from "../../application";
 
 type Etat =
   | "verif"          // on regarde ce que le navigateur sait faire
@@ -35,8 +36,7 @@ export default function Activer({ publique, connus }: { publique: string; connus
     (async () => {
       if (!window.isSecureContext) return poser("http");
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-      const installee = (navigator as Navigator & { standalone?: boolean }).standalone === true
-        || window.matchMedia("(display-mode: standalone)").matches;
+      const installee = dansLApplication();
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
         return poser(ios && !installee ? "ios-installer" : "sans");
       }
