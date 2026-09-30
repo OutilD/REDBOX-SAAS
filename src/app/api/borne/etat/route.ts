@@ -2,6 +2,7 @@ import { q1, transaction, type PgClient } from "@/db";
 import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
 import { evaluerLeCompte, signaler, type Evenement } from "@/lib/notifications";
+import { confirmerMisesAJour } from "@/lib/ordres";
 import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 import { SILENCE_MS, veillerSiLeMoment } from "@/lib/veille";
 import { apres } from "@/lib/apres";
@@ -96,6 +97,12 @@ export async function POST(req: Request) {
     if (r.version && avant?.version_avant && r.version !== avant.version_avant) {
       evenements.push({ genre: "version", avant: avant.version_avant, apres: r.version });
     }
+    // Une mise a jour demandee depuis la console reussit sans que la borne le
+    // dise : Android a remplace son processus. C'est sa version qui l'atteste,
+    // au premier releve ou elle change.
+    if (r.version && r.version !== avant?.version_avant) {
+      await confirmerMisesAJour(borne.id, r.version, (sql, p) => c.query(sql, p));
+    }
 
     // 0. Adoption du catalogue de la machine.
     //
@@ -166,6 +173,9 @@ export async function POST(req: Request) {
         RETURNING genre, par`, [o.id, borne.id, o.ok === true, detail])).rows[0];
       if (fait?.genre === "reset_paiement") {
         evenements.push({ genre: "reset_paiement", ok: o.ok === true, detail, par: fait.par });
+      }
+      if (fait?.genre === "mise_a_jour" && o.ok !== true) {
+        evenements.push({ genre: "mise_a_jour", detail, par: fait.par });
       }
     }
 

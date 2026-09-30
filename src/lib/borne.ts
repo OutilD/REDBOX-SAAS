@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { q, q1 } from "@/db";
+import { APK } from "./apk";
 import { COLONNES, RANGEES } from "./machine";
 import { jointurePrix } from "./prix";
 
@@ -44,12 +45,11 @@ export type Borne = {
  * seuil recopie finirait par diverger — la moitie du parc semblerait en retard
  * sur une page et a jour sur une autre.
  *
- * A RELEVER a chaque version de l'application de la borne. Tant que ce chiffre
- * n'est pas releve, une machine plus recente que la console s'affiche « a jour »,
- * ce qui est le bon defaut : la console ne peut pas connaitre l'avenir.
+ * La version attendue est celle de l'APK publie (public/apk/redbox.json) : elle
+ * suit toute seule `scripts/publier-apk.mjs`.
  */
 export const VERSION_MINIMALE = "5.13";
-export const VERSION_ATTENDUE = "5.15";
+export const VERSION_ATTENDUE = APK.version;
 
 /**
  * Compare deux versions « majeure.mineure ». Rend un nombre negatif si `a` est

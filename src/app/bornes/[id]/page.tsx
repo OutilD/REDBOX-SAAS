@@ -7,7 +7,9 @@ import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { SEUIL_J, autonomieCanaux, joursTexte } from "@/lib/autonomie";
 import { empreinteDe } from "@/lib/borne";
 import { ROTATION_MIN } from "@/lib/maintenance";
-import { ORDRE_VALIDITE_MIN, VERSION_ORDRES, dernierOrdre, enAttente, saitRecevoirDesOrdres } from "@/lib/ordres";
+import { ORDRE_VALIDITE_MIN, VERSION_ORDRES, dernierOrdre, empechementMiseAJour, enAttente,
+         miseAJourDisponible, saitRecevoirDesOrdres } from "@/lib/ordres";
+import { APK } from "@/lib/apk";
 import { SQL_A_REGARDER } from "@/lib/ventes";
 import { Repli } from "../../repli";
 import { IcoAlerte } from "../../icones";
@@ -60,7 +62,7 @@ export default async function Detail({
 }: { params: Promise<{ id: string }>;
      searchParams: Promise<{ charge?: string; canaux?: string; refuses?: string;
                              reveil?: string; delier?: string; pin?: string;
-                             reconcilie?: string; hs?: string; fiche?: string; e?: string; ordre?: string;
+                             reconcilie?: string; hs?: string; fiche?: string; e?: string; ordre?: string; maj?: string;
                              c?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
@@ -68,13 +70,13 @@ export default async function Detail({
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();
-  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche, ordre,
+  const { charge, canaux: nCanaux, refuses, reveil, delier, pin, reconcilie, hs, fiche, ordre, maj,
           c: filtre } = await searchParams;
 
   // HUIT LECTURES, ENSEMBLE. Aucune ne depend d'une autre — toutes partent de
   // l'identifiant —, et chacune coute un aller-retour vers une base de l'autre
   // cote de l'Atlantique : a la suite, la page mettait deux secondes a venir.
-  const [b, canaux, autonomies, resetTerminal, jour, soucis, enRoute, attendue] = await Promise.all([
+  const [b, canaux, autonomies, resetTerminal, jour, soucis, enRoute, attendue, miseAJour] = await Promise.all([
     q1<Borne>(
       `SELECT id, nom, adresse, vue_le, jeton, version, catalogue_version, sante,
               maintenance_pin, maintenance_pin_le, maintenance_vu,
@@ -102,6 +104,7 @@ export default async function Detail({
     // son empreinte a celle calculee maintenant. Sans ce reperage, une categorie
     // renommee ou un prix change peut dormir des heures sans qu'on le sache.
     empreinteDe(u.compte_id, id),
+    dernierOrdre(id, "mise_a_jour"),
   ]);
   if (!b) notFound();
   const jours = new Map(autonomies.map((a) => [a.lane, a.jours_restants]));
@@ -494,7 +497,7 @@ export default async function Detail({
           hors de vue — et c'etait la seule raison d'avoir clique.
         */}
         {b.jeton && peutCharger(u) ? (
-          <details className="groupe" style={{ marginTop: 22 }} open={pin !== undefined || ordre !== undefined}>
+          <details className="groupe" style={{ marginTop: 22 }} open={pin !== undefined || ordre !== undefined || maj !== undefined}>
             <summary>
               <span className="chevron">▶</span>
               <div className="pousse" style={{ minWidth: 0 }}>
@@ -644,6 +647,62 @@ export default async function Detail({
                     la {VERSION_ORDRES}. Mettez son application à jour pour en disposer.
                   </p>
                 )}
+              </div>
+
+              {/*
+                LA MISE A JOUR DE L'APPLICATION. La machine attend d'etre au
+                repos, ferme la vente une minute et redemarre dans la version
+                publiee. Seule une machine proprietaire de l'appareil le peut.
+              */}
+              <div className="carte" style={{ marginTop: 12 }} id="maj">
+                <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <strong>Mettre à jour l’application</strong>
+                  <span className="faible" style={{ fontSize: 13.5 }}>
+                    Version {b.version ?? "inconnue"} · dernière publiée : {APK.version}
+                  </span>
+                </div>
+                {maj === "ok" ? (
+                  <p style={{ margin: "10px 0 0", fontSize: 13.5 }}>
+                    Mise à jour demandée. La machine l’installe dès qu’elle est au repos ; elle
+                    ferme la vente environ une minute puis redémarre. Rechargez la page dans
+                    quelques minutes : la nouvelle version s’affichera ici.
+                  </p>
+                ) : null}
+                {(() => {
+                  const empeche = empechementMiseAJour({ jeton: b.jeton, version: b.version,
+                                                         sante: b.sante as { proprietaire?: unknown } | null });
+                  const attend = enAttente(miseAJour);
+                  if (empeche) {
+                    return (
+                      <p className="faible" style={{ margin: "8px 0 0", fontSize: 13 }}>
+                        {miseAJourDisponible(b.version) ? `Mise à jour à distance impossible : ${empeche}.` : "Cette RedBox a la dernière version publiée."}
+                        {maj === "non" ? " La demande n’a pas été envoyée." : ""}
+                      </p>
+                    );
+                  }
+                  return (
+                    <>
+                      <form method="post" action={`/api/bornes/${id}/ordre`} className="rangee-actions" style={{ marginTop: 12 }}>
+                        <input type="hidden" name="genre" value="mise_a_jour" />
+                        <button className="bouton" disabled={attend}>
+                          {attend ? "En cours…" : `Installer la ${APK.version}`}
+                        </button>
+                      </form>
+                      <p className="faible" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                        {maj === "deja" ? "Une mise à jour est déjà en cours. " : ""}
+                        {!miseAJour
+                          ? "Aucune vente n’est coupée : la machine attend que personne ne soit devant elle."
+                          : attend
+                            ? `Demandée ${depuis(miseAJour.demande_le)}${miseAJour.par ? ` par ${miseAJour.par}` : ""}. ${vivante ? "La machine s’en occupe." : `La machine est hors ligne : elle la prendra à son retour, s’il a lieu dans les ${ORDRE_VALIDITE_MIN} minutes.`}`
+                            : miseAJour.execute_le === null
+                              ? `La dernière demande (${depuis(miseAJour.demande_le)}) est restée sans réponse. Vous pouvez recommencer.`
+                              : miseAJour.ok
+                                ? `Dernière mise à jour ${depuis(miseAJour.execute_le)} : ${miseAJour.detail ?? "installée"}.`
+                                : `Dernière tentative ${depuis(miseAJour.execute_le)} : ${miseAJour.detail ?? "échec"}.`}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="carte" style={{ marginTop: 12 }}>

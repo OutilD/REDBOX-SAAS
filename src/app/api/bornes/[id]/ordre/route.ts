@@ -2,12 +2,16 @@ import { q1 } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
 import { nomAffiche } from "@/lib/personnes";
-import { donnerOrdre, saitRecevoirDesOrdres } from "@/lib/ordres";
+import { donnerOrdre, empechementMiseAJour, saitRecevoirDesOrdres, type Genre } from "@/lib/ordres";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/bornes/[id]/ordre   (formulaire : genre=reset_paiement)
+ * POST /api/bornes/[id]/ordre   (formulaire : genre=reset_paiement | mise_a_jour)
+ *
+ * `mise_a_jour` : installer l'APK publie (public/apk/redbox.json). La borne
+ * attend d'etre au repos, ferme la vente le temps de l'installation et
+ * redemarre dans la nouvelle version.
  *
  * Reinitialiser le terminal de paiement d'une machine sans y aller. L'ordre
  * est range, la machine reveillee : en ligne, elle le prend dans la seconde.
@@ -26,16 +30,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!peutVoirBorne(u, id)) return versPage(req, "/bornes");
 
   const f = await req.formData();
-  if (String(f.get("genre") ?? "") !== "reset_paiement") return versPage(req, `/bornes/${id}`);
+  const genre = String(f.get("genre") ?? "") as Genre;
+  if (genre !== "reset_paiement" && genre !== "mise_a_jour") return versPage(req, `/bornes/${id}`);
 
-  const b = await q1<{ version: string | null; jeton: string | null }>(
-    "SELECT version, jeton FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
+  const b = await q1<{ version: string | null; jeton: string | null; sante: { proprietaire?: unknown } | null }>(
+    "SELECT version, jeton, sante FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
   if (!b) return versPage(req, "/bornes");
   if (!b.jeton || !saitRecevoirDesOrdres(b.version)) return versPage(req, `/bornes/${id}?ordre=version#ordres`);
+  if (genre === "mise_a_jour" && empechementMiseAJour(b)) return versPage(req, `/bornes/${id}?maj=non#maj`);
 
-  const ordre = await donnerOrdre(id, "reset_paiement", { id: u.id, nom: nomAffiche(u) });
-  if (ordre === null) return versPage(req, `/bornes/${id}?ordre=deja#ordres`);
+  const ordre = await donnerOrdre(id, genre, { id: u.id, nom: nomAffiche(u) });
+  if (ordre === null) {
+    return versPage(req, genre === "mise_a_jour" ? `/bornes/${id}?maj=deja#maj` : `/bornes/${id}?ordre=deja#ordres`);
+  }
 
+  if (genre === "mise_a_jour") {
+    await reveiller(id, "mise à jour de l’application");
+    return versPage(req, `/bornes/${id}?maj=ok#maj`);
+  }
   await reveiller(id, "réinitialisation du terminal de paiement");
   return versPage(req, `/bornes/${id}?ordre=ok#ordres`);
 }

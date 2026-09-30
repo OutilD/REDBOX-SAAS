@@ -508,6 +508,14 @@ CREATE TABLE IF NOT EXISTS ordre_borne (
 );
 CREATE INDEX IF NOT EXISTS i_ordre_borne ON ordre_borne (borne_id, id DESC);
 
+-- La mise a jour de l'application (APK 5.17). `cible` = la version publiee au
+-- moment de l'ordre ; la borne ne remonte que ses echecs, la reussite se lit
+-- a la version de son releve suivant.
+ALTER TABLE ordre_borne ADD COLUMN IF NOT EXISTS cible TEXT;
+ALTER TABLE ordre_borne DROP CONSTRAINT IF EXISTS ordre_borne_genre_check;
+ALTER TABLE ordre_borne ADD CONSTRAINT ordre_borne_genre_check
+  CHECK (genre IN ('reset_paiement', 'mise_a_jour'));
+
 -- ------------------------------------------------------- mise hors service
 
 -- ARRETER LA VENTE SANS SE DEPLACER.

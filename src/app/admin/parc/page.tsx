@@ -5,6 +5,8 @@ import { q, depuis } from "@/db";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
 import { SQL_VRAIE, STATUTS, compteurs, type Statut } from "@/lib/parc";
 import { etatDe } from "../../carte/carte-france";
+import { APK } from "@/lib/apk";
+import { empechementMiseAJour } from "@/lib/ordres";
 import { TableauParc, type Compte, type Machine } from "../tableau-parc";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,7 @@ type Ligne = {
   statut: Statut; statut_le: Date; note_editeur: string | null;
   jeton: string | null; vue_le: Date | null; hors_service: boolean;
   latitude: number | null; compte_id: number | null; compte: string | null;
+  version: string | null; sante: { proprietaire?: unknown } | null;
 };
 
 const MESSAGES: Record<string, string> = {
@@ -39,17 +42,18 @@ const MESSAGES: Record<string, string> = {
  * Les bornes de la demo n'en font pas partie : elles sont inventees.
  */
 export default async function Parc({ searchParams }:
-  { searchParams: Promise<{ e?: string; ok?: string }> }) {
+  { searchParams: Promise<{ e?: string; ok?: string; n?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   if (!estSuperAdmin(u)) redirect("/");
-  const { e, ok } = await searchParams;
+  const { e, ok, n } = await searchParams;
 
   const [nombres, lignes, comptes] = await Promise.all([
     compteurs(),
     q<Ligne>(`
       SELECT b.id, b.numero, b.nom, b.adresse, b.statut, b.statut_le, b.note_editeur,
-             b.jeton, b.vue_le, b.hors_service, b.latitude, b.compte_id, c.nom AS compte
+             b.jeton, b.vue_le, b.hors_service, b.latitude, b.compte_id, c.nom AS compte,
+             b.version, b.sante
         FROM borne b LEFT JOIN compte c ON c.id = b.compte_id
        WHERE ${SQL_VRAIE}
        ORDER BY b.statut_le DESC, b.id DESC`),
@@ -67,6 +71,19 @@ export default async function Parc({ searchParams }:
   }));
 
   const total = Object.values(nombres).reduce((t, n) => t + n, 0);
+
+  // Les versions des machines appairees, et celles qu'on peut mettre a jour d'ici.
+  const appairees = lignes.filter((b) => b.jeton !== null);
+  const parVersion = new Map<string, string[]>();
+  for (const b of appairees) {
+    const v = b.version ?? "inconnue";
+    parVersion.set(v, [...(parVersion.get(v) ?? []), b.nom]);
+  }
+  const eligibles = appairees.filter((b) => !empechementMiseAJour(b));
+  const aLaMain = appairees.filter((b) => {
+    const r = empechementMiseAJour(b);
+    return r !== null && r !== "déjà à jour";
+  });
 
   return (
     <>
@@ -91,9 +108,39 @@ export default async function Parc({ searchParams }:
         {ok ? (
           <div className="avis reussi" style={{ marginTop: 14 }}>
             <div className="dit"><div className="titre">
-              {ok === "creee" ? "Machine enregistrée." : ok === "effacee" ? "Machine effacée." : ok === "situee" ? "Machine placée sur la carte." : "Enregistré."}
+              {ok === "maj" ? `Mise à jour demandée à ${n ?? 0} machine${Number(n) > 1 ? "s" : ""}. Chacune l’installe quand elle est au repos.` :
+               ok === "creee" ? "Machine enregistrée." : ok === "effacee" ? "Machine effacée." : ok === "situee" ? "Machine placée sur la carte." : "Enregistré."}
             </div></div>
           </div>
+        ) : null}
+
+        {appairees.length > 0 ? (
+          <section className="carte" id="versions" style={{ marginTop: 14 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap", justifyContent: "space-between" }}>
+              <div>
+                <strong>Versions de l’application</strong>
+                <span className="faible" style={{ fontSize: 13.5 }}> · dernière publiée : {APK.version}</span>
+              </div>
+              <form method="post" action="/api/admin/parc/mise-a-jour">
+                <button className="bouton primaire" disabled={eligibles.length === 0}>
+                  {eligibles.length === 0 ? "Rien à mettre à jour à distance"
+                    : `Mettre à jour ${eligibles.length} machine${eligibles.length > 1 ? "s" : ""}`}
+                </button>
+              </form>
+            </div>
+            <div className="lignes" style={{ marginTop: 8 }}>
+              {[...parVersion.entries()].sort(([a], [b]) => b.localeCompare(a, "fr", { numeric: true })).map(([v, noms]) => (
+                <div key={v} className="ligne" style={{ fontSize: 13.5 }}>
+                  <strong>{v}</strong> <span className="faible">· {noms.join(", ")}</span>
+                </div>
+              ))}
+            </div>
+            {aLaMain.length > 0 ? (
+              <p className="faible" style={{ margin: "8px 0 0", fontSize: 13 }}>
+                À faire sur place : {aLaMain.map((b) => `${b.nom} (${empechementMiseAJour(b)})`).join(" ; ")}.
+              </p>
+            ) : null}
+          </section>
         ) : null}
 
         {/* Les cinq chiffres, dans l'ordre de la vie d'une machine. */}

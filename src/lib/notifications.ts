@@ -64,6 +64,8 @@ export type Evenement =
   | { genre: "service";     actif: boolean; texte: string | null; par: string }
   /** L'issue d'une reinitialisation du terminal de paiement demandee depuis la console. */
   | { genre: "reset_paiement"; ok: boolean; detail: string | null; par: string | null }
+  /** Une mise a jour de l'application demandee depuis la console a echoue (la reussite passe par « version »). */
+  | { genre: "mise_a_jour"; detail: string | null; par: string | null }
   /** Elle vient de redemarrer : remise sous tension, ou application relancee. */
   | { genre: "demarrage";   quand: Date | string | null }
   /** Son terminal de paiement ne repond plus (`ok` faux), ou repond a nouveau. */
@@ -242,6 +244,11 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
                  : `${e.par ? `Demandé par ${e.par}. ` : ""}La machine répond : ${e.detail ?? "sans raison donnée"}.`
                    + (e.detail === "une vente est en cours" ? " Réessayez dans une minute." : " S’il reste figé, il faut couper son alimentation."),
                url: `/bornes/${borne.id}`, tag: `terminal-${borne.id}` };
+    case "mise_a_jour":
+      return { genre: "incidents",
+               titre: `Mise à jour non installée · ${b}`,
+               corps: `${e.par ? `Demandée par ${e.par}. ` : ""}La machine répond : ${e.detail ?? "sans raison donnée"}. Elle continue de vendre dans sa version actuelle.`,
+               url: `/bornes/${borne.id}#ordres`, tag: `maj-${borne.id}` };
     // UN REDEMARRAGE NE FAIT PAS UN SILENCE : debranchee puis rebranchee, la
     // machine reparle en cinq minutes, bien avant le seuil de la ronde. C'est
     // son journal qui le dit (« borne demarree »). Meme `tag` que la ligne :
