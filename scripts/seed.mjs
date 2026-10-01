@@ -1,10 +1,38 @@
-// Jeu d'essai. Efface tout et refait : la base de developpement doit pouvoir
-// repartir a zero sans ceremonie.
+// Jeu d'essai. Efface tout et refait.
+//
+// GARDE-FOUS. Ce script vide TOUTE la base, et .env.local pointe sur la
+// production : un `npm run seed` tape par reflexe effacerait le parc reel. Il
+// refuse donc de tourner sans REDBOX_SEED_EFFACER_TOUT=oui, et sur une base qui
+// porte deja la moindre vente. Le mot de passe des comptes d'essai vient de
+// REDBOX_SEED_MDP : plus de mot de passe connu de tous en dur.
 import { randomBytes, scryptSync } from "node:crypto";
 import pg from "pg";
 
+const refuser = (raison) => {
+  console.error(`seed refusé : ${raison}`);
+  process.exit(1);
+};
+if (process.env.REDBOX_SEED_EFFACER_TOUT !== "oui") {
+  refuser("ce script efface TOUTE la base. Pour confirmer, lancez-le avec "
+        + "REDBOX_SEED_EFFACER_TOUT=oui — et vérifiez d'abord que DATABASE_URL n'est pas la production.");
+}
+const MDP = process.env.REDBOX_SEED_MDP ?? "";
+if (!MDP) refuser("REDBOX_SEED_MDP absent : donnez le mot de passe des comptes d'essai.");
+
 const c = new pg.Client({ connectionString: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL });
 await c.connect();
+
+// Une base qui a deja vendu n'est pas une base d'essai.
+try {
+  const vendu = await c.query("SELECT 1 FROM vente LIMIT 1");
+  if ((vendu.rowCount ?? 0) > 0) {
+    await c.end();
+    refuser("la base contient des ventes : ce n'est pas une base d'essai, rien n'a été effacé.");
+  }
+} catch (e) {
+  await c.end().catch(() => {});
+  refuser(`impossible de vérifier la base (${e instanceof Error ? e.message : e}) : rien n'a été effacé.`);
+}
 
 const chiffrer = (mdp) => {
   const sel = randomBytes(16).toString("hex");
@@ -23,7 +51,6 @@ try {
   await c.query("BEGIN");
   await c.query("TRUNCATE mouvement, vente, canal, borne, lieu, produit, categorie, appairage, session, invitation, utilisateur, compte RESTART IDENTITY CASCADE");
 
-  const MDP = "redbox";
   const compte = (await un("INSERT INTO compte (nom) VALUES ($1) RETURNING id", ["Outil Digital"])).id;
   for (const [email, role] of [["contact.outildigital@gmail.com", "proprietaire"],
                                ["reassort@exemple.fr", "reassort"]])
@@ -233,8 +260,8 @@ try {
       (SELECT COUNT(*) FROM mouvement)::int AS mouvements,
       (SELECT COUNT(*) FROM vente)::int     AS ventes`);
   console.log("Base    :", (process.env.DATABASE_URL_UNPOOLED ?? "").split("@")[1]?.split("/")[0]);
-  console.log("Compte  : contact.outildigital@gmail.com / " + MDP + "   (propriétaire)");
-  console.log("          reassort@exemple.fr / " + MDP + "   (réassort)");
+  console.log("Compte  : contact.outildigital@gmail.com / (REDBOX_SEED_MDP)   (propriétaire)");
+  console.log("          reassort@exemple.fr / (REDBOX_SEED_MDP)   (réassort)");
   // Un jeu d'essai qui laisse un stock negatif ne prouve rien : il ferait passer
   // pour normal un etat qui ne doit jamais arriver.
   const negatif = await un("SELECT COUNT(*)::int n FROM v_stock WHERE quantite < 0");

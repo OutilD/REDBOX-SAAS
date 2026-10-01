@@ -555,9 +555,12 @@ CREATE TABLE IF NOT EXISTS membre (
   PRIMARY KEY (utilisateur_id, compte_id)
 );
 
--- La reprise de l'existant. Idempotente : elle peut tourner a chaque migration.
+-- La reprise de l'existant, UNE FOIS : seulement si la table est vide. Rejouee a
+-- chaque migration, elle remettait dans son compte d'origine — avec toutes les
+-- bornes — une personne que le proprietaire en avait retiree.
 INSERT INTO membre (utilisateur_id, compte_id, role)
   SELECT id, compte_id, role FROM utilisateur
+   WHERE NOT EXISTS (SELECT 1 FROM membre)
   ON CONFLICT (utilisateur_id, compte_id) DO NOTHING;
 
 -- L'ACCES PAR BORNE.
@@ -596,6 +599,50 @@ ALTER TABLE invitation ADD COLUMN IF NOT EXISTS borne_id BIGINT REFERENCES borne
 -- gauche, derriere le flipper », « le patron ouvre a 17 h », « prise derriere le
 -- comptoir ». La photo, elle, se reconnait avant d'etre lue.
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS description TEXT;
+-- ------------------------------------------------------ images et masques
+--
+-- Ces tables existaient en base sans etre creees ici : une base neuve ne
+-- passait pas cette ligne. Structure relevee sur Neon le 2 octobre 2026.
+CREATE TABLE IF NOT EXISTS image (
+  id         BIGSERIAL PRIMARY KEY,
+  compte_id  BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  type_mime  TEXT NOT NULL,
+  octets     BYTEA NOT NULL,
+  taille     INTEGER NOT NULL,
+  empreinte  TEXT NOT NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (compte_id, empreinte)
+);
+
+CREATE TABLE IF NOT EXISTS illustration (
+  compte_id  BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  ecran      TEXT NOT NULL,
+  type_mime  TEXT NOT NULL,
+  octets     BYTEA NOT NULL,
+  taille     INTEGER NOT NULL,
+  empreinte  TEXT NOT NULL,
+  cree_le    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (compte_id, ecran)
+);
+
+CREATE TABLE IF NOT EXISTS borne_masque (
+  borne_id      BIGINT NOT NULL REFERENCES borne(id) ON DELETE CASCADE,
+  categorie_id  BIGINT REFERENCES categorie(id) ON DELETE CASCADE,
+  produit_id    BIGINT REFERENCES produit(id) ON DELETE CASCADE,
+  CONSTRAINT borne_masque_check CHECK ((categorie_id IS NULL) <> (produit_id IS NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS masque_categorie ON borne_masque (borne_id, categorie_id) WHERE categorie_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS masque_produit   ON borne_masque (borne_id, produit_id)   WHERE produit_id IS NOT NULL;
+
+ALTER TABLE produit   ADD COLUMN IF NOT EXISTS ordre       INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE produit   ADD COLUMN IF NOT EXISTS icone       TEXT;
+ALTER TABLE produit   ADD COLUMN IF NOT EXISTS image_id    BIGINT REFERENCES image(id) ON DELETE SET NULL;
+ALTER TABLE categorie ADD COLUMN IF NOT EXISTS icone       TEXT;
+ALTER TABLE categorie ADD COLUMN IF NOT EXISTS image_id    BIGINT REFERENCES image(id) ON DELETE SET NULL;
+ALTER TABLE borne     ADD COLUMN IF NOT EXISTS machine     TEXT;
+ALTER TABLE borne     ADD COLUMN IF NOT EXISTS depairee_le TIMESTAMPTZ;
+ALTER TABLE appairage ADD COLUMN IF NOT EXISTS machine     TEXT;
+
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS image_id BIGINT REFERENCES image(id) ON DELETE SET NULL;
 
 -- ------------------------------------------------------------ le profil
@@ -1123,10 +1170,13 @@ ALTER TABLE borne ADD COLUMN IF NOT EXISTS note_editeur TEXT;
 -- proprietaires et gerants du compte editeur le sont d'office, et le restent —
 -- c'est par eux que le premier super-admin existe sans passer par la base.
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS super_admin BOOLEAN NOT NULL DEFAULT false;
+-- Seulement tant qu'il n'y en a aucun : rejoue, il annulait un retrait fait
+-- depuis /admin/comptes.
 UPDATE utilisateur u SET super_admin = true
   FROM membre m JOIN compte c ON c.id = m.compte_id
  WHERE m.utilisateur_id = u.id AND c.editeur AND m.role IN ('proprietaire', 'gerant')
-   AND NOT u.super_admin;
+   AND NOT u.super_admin
+   AND NOT EXISTS (SELECT 1 FROM utilisateur x WHERE x.super_admin);
 
 -- LA VILLE, A PART DE L'ADRESSE. La carte regroupe les machines par ville :
 -- il faut la connaitre sans la deviner dans un texte libre. Elle vient du
@@ -1134,15 +1184,16 @@ UPDATE utilisateur u SET super_admin = true
 -- par une version qui ne la demandait pas, ou sur un faux positif trop
 -- indulgent (« TEST » tombait sur un lieu-dit) : on les recherche.
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS ville TEXT;
-UPDATE borne SET situee_pour = NULL, latitude = NULL, longitude = NULL
- WHERE situee_pour IS NOT NULL AND ville IS NULL;
+-- (La remise a zero des machines situees sans ville a ete faite une fois, le
+-- 15 sept. 2026. Rejouee, elle effacait la place d'une machine posee au clic
+-- la ou la BAN ne rend pas de ville.)
 
 -- #DEVELOPPEURS EST AUX REDBOXERS. C'est l'acces direct au developpeur, plus
 -- un guichet ouvert a tous. Le code ne cree le salon qu'une fois (ON CONFLICT
 -- DO NOTHING) : son sujet et son groupe se corrigent ici.
 UPDATE salon SET groupe = 'proprietaires',
        sujet = 'Accès direct au développeur RedBox pour vos idées, nouveautés, améliorations, bugs et questions sur la RedBox et son logiciel'
- WHERE compte_id IS NULL AND nom = 'developpeurs';
+ WHERE compte_id IS NULL AND nom = 'developpeurs' AND groupe IS DISTINCT FROM 'proprietaires';
 
 -- LA REDBOX ACADEMY. Tout ce qu'il faut savoir pour installer, vendre et faire
 -- tourner une RedBox : la machine, ses certificats, le contrat type avec un
@@ -1292,8 +1343,7 @@ ALTER TABLE centrale_produit ADD COLUMN IF NOT EXISTS gouts JSONB NOT NULL DEFAU
 -- laisse un #redboxers archive et vide, dont le nom empechait le code de le
 -- recreer : le salon des redboxers a manque dix jours. Les salons de la
 -- plateforme sont rouverts ; le code fait pareil a chaque ouverture desormais.
-UPDATE salon SET archive_le = NULL
- WHERE compte_id IS NULL AND nom IN ('annonces', 'futurs-redboxers', 'redboxers', 'developpeurs');
+-- (Fait le jour meme ; rejoue, il desarchivait un salon ferme expres.)
 
 -- La derniere fois qu'on a prevenu qu'une spire de cette machine allait
 -- manquer sous trois jours : une fois par jour, pas a chaque ronde.
@@ -1393,3 +1443,13 @@ CREATE INDEX IF NOT EXISTS i_defi_reussi_personne ON defi_reussi (utilisateur_id
 -- LES BADGES QU'ON MET EN VITRINE sur son profil : trois au plus, choisis
 -- parmi ceux obtenus. Vide = les plus rares, comme avant.
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS badges_vedettes TEXT[] NOT NULL DEFAULT '{}';
+
+-- LES ECHECS DE CONNEXION ET DE CODE, pour freiner qui essaie au hasard : une
+-- ligne par echec, comptee sur quinze minutes (`lib/auth.ts`). La cle dit quoi :
+-- « mdp:adresse », « ip:adresse IP », « adopter:utilisateur ». Les lignes de
+-- plus d'un jour s'effacent au fil des essais.
+CREATE TABLE IF NOT EXISTS tentative_connexion (
+  cle       TEXT NOT NULL,
+  essai_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS i_tentative_connexion ON tentative_connexion (cle, essai_le);

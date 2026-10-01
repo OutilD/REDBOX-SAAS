@@ -20,3 +20,10 @@
 # il polluait tous les diffs.
 tsconfig.tsbuildinfo
 captures/
+
+# Restes de l'ancienne base SQLite, et cles : jamais dans le depot.
+*.db
+*.db-shm
+*.db-wal
+*.jks
+*.keystore
