@@ -45,10 +45,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (savTel && !telPlausible(savTel)) return versPage(req, `/bornes/${id}/fiche?e=tel`);
 
   let refus = false;
-  await transaction(async (c) => {
+  const mienne = await transaction(async (c) => {
     const sienne = await c.query<{ lieu_id: number | null }>(
       "SELECT lieu_id FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
-    if ((sienne.rowCount ?? 0) === 0) return;
+    if ((sienne.rowCount ?? 0) === 0) return false;
 
     await c.query(`UPDATE borne SET nom = $1, adresse = $2, description = $3,
                                     sav_tel = $6, sav_texte = $7
@@ -70,7 +70,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     }
 
     await balayerImages(c, u.compte_id);
+    return true;
   });
+  // Seulement la sienne : la borne d'un autre compte n'a rien a resynchroniser.
+  if (!mienne) return versPage(req, "/bornes");
 
   // L'adresse sert l'ecran d'assistance. La place sur la carte ne la suit pas :
   // seul le super-admin place une machine.

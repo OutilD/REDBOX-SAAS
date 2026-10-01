@@ -21,13 +21,22 @@ const nomMois = (cle: string) => { const [a, m] = cle.split("-").map(Number); re
  * Les bornes du mois, heure de Paris, en tete de chaque requete. Un mois en
  * cours s'arrete a maintenant, et se compare a la MEME duree du mois d'avant :
  * le 12, on compare douze jours a douze jours, pas a un mois entier.
+ *
+ * Un mois TERMINE se compare au mois d'avant ENTIER : ajouter sa duree a
+ * debut_avant faisait deborder mars sur trois jours d'avril (31 j apres le
+ * 1er fevrier) et amputait janvier de trois jours face a fevrier. Un mois en
+ * cours ne deborde jamais sur lui-meme : plafond a `debut`.
  */
 const BORNES = `
   WITH bb AS (
     SELECT (($1::date)::timestamp AT TIME ZONE '${FUSEAU}') AS debut,
-           LEAST(now(), ((($1::date) + interval '1 month')::timestamp AT TIME ZONE '${FUSEAU}')) AS fin,
+           ((($1::date) + interval '1 month')::timestamp AT TIME ZONE '${FUSEAU}') AS fin_mois,
            ((($1::date) - interval '1 month')::timestamp AT TIME ZONE '${FUSEAU}') AS debut_avant),
-  b2 AS (SELECT debut, fin, debut_avant, debut_avant + (fin - debut) AS fin_avant FROM bb)`;
+  b1 AS (SELECT debut, LEAST(now(), fin_mois) AS fin, fin_mois, debut_avant FROM bb),
+  b2 AS (SELECT debut, fin, debut_avant,
+                CASE WHEN fin >= fin_mois THEN debut
+                     ELSE LEAST(debut_avant + (fin - debut), debut) END AS fin_avant
+           FROM b1)`;
 
 type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; actives: number; actives_avant: number };
 type Rang = { id: number; nom: string; sous: string | null; n: number; ca: number };

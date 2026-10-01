@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { utilisateur } from "@/lib/auth";
-import { badgesVus, classement, evaluerBadges, objectifs, profilDe,
+import { badgesVus, classement, evaluerBadgesEtFaits, objectifs, profilDe,
          rangDe, rareteDesBadges, type Classe } from "@/lib/communaute";
 import { salonsDe } from "@/lib/salons";
 import { MESURES, avancement, evaluerDefis, joursRestants, lesDefis, rangDefi } from "@/lib/defis";
@@ -34,16 +34,23 @@ export default async function Communaute({ searchParams }:
   { searchParams: Promise<{ n?: string; classement?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const [neufs] = await Promise.all([evaluerBadges(u.id), evaluerDefis(u.id)]);
+  // Les faits lus pour evaluer les badges servent aussi au profil : SQL_FAITS
+  // une fois, pas deux. Lus en parallele de evaluerDefis, leurs points de
+  // defis peuvent manquer un defi reussi a l'instant — jusqu'a la visite suivante.
+  const [{ neufs, faits }] = await Promise.all([evaluerBadgesEtFaits(u.id), evaluerDefis(u.id)]);
   // Tout le monde, pas seulement le haut de liste : mon rang ne se lit que
   // dans la liste entiere, et la 34e place a autant besoin de se voir que la
   // 4e. Le calcul est en code, la limite n'est qu'une coupe.
-  const [moi, tous, salons, rarete, defis] = await Promise.all([
-    profilDe(u.id, u), classement(1000), salonsDe(u), rareteDesBadges(), lesDefis(),
+  // Le defi du moment, et ou j'en suis — l'encart sous ma carte — dans la meme
+  // vague : l'avancement suit la lecture des defis sans attendre le reste.
+  const [moi, tous, salons, rarete, [defis, monDefi]] = await Promise.all([
+    profilDe(u.id, u, faits), classement(1000), salonsDe(u), rareteDesBadges(),
+    lesDefis().then(async (d) => {
+      const enCours = d.enCours[0];
+      return [d, enCours ? await avancement(enCours, u.id) : 0] as const;
+    }),
   ]);
-  // Le defi du moment, et ou j'en suis : l'encart sous ma carte.
   const defi = defis.enCours[0] ?? null;
-  const monDefi = defi ? await avancement(defi, u.id) : 0;
   if (!moi) redirect("/");
   const nouveaux = moi.badges.filter((b) => b.nouveau);
   if (nouveaux.length > 0) await badgesVus(u.id);
@@ -61,6 +68,7 @@ export default async function Communaute({ searchParams }:
   const maLigne = monRang > HAUT ? tous[monRang - 1] : null;
   const ecart = monRang > 1 ? tous[monRang - 2].points - tous[monRang - 1].points : 0;
   const echelle = Math.max(1, tous[0]?.points ?? 1);
+  const reste = defi ? joursRestants(defi.fin) : 0;
   const communs = salons.filter((s) => s.portee === "communaute" || s.portee === "annonces");
 
   return (
@@ -84,13 +92,13 @@ export default async function Communaute({ searchParams }:
             <div className="quoi">
               <div className="nom">Défi du mois · {defi.titre}</div>
               <div className="faible">
-                {joursRestants(defi.fin)} j restants · réussi par {defi.reussis} · voir le classement ›
+                {reste > 1 ? `${reste} jours restants` : reste === 1 ? "Dernier jour" : "Terminé"} · réussi par {defi.reussis} · voir le classement ›
               </div>
             </div>
             <div className="ou">
               <div className="piste"><span style={{ width: `${Math.min(100, Math.round((monDefi / defi.objectif) * 100))}%` }} /></div>
               <div className="chiffres num">
-                <span><b>{Math.min(monDefi, defi.objectif)}</b> / {defi.objectif} {MESURES[defi.mesure].unite[1]}</span>
+                <span><b>{Math.min(monDefi, defi.objectif)}</b> / {defi.objectif} {MESURES[defi.mesure].unite[defi.objectif > 1 ? 1 : 0]}</span>
                 <span className="gain">+{defi.points} pts</span>
               </div>
             </div>

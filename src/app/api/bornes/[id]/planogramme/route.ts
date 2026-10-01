@@ -77,21 +77,39 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // Les champs portent la spirale dans leur nom (`p_203`, `c_203`, `s_203`) :
   // l'ecran des emplacements n'en envoie qu'une a la fois, mais rien n'empeche
   // d'en regler plusieurs d'un coup.
-  await transaction(async (c) => {
-    const b = await c.query("SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
-    if ((b.rowCount ?? 0) === 0) return;
+  // `null` : la borne n'est pas du compte, rien n'a ete touche et on ne la
+  // reveille pas. Sinon, la liste des spires dont on a refuse le produit.
+  const refusees = await transaction(async (c) => {
+    // Sous verrou, comme le chargement : un transfert cree entre notre controle
+    // et le changement de produit passerait sinon entre les deux.
+    const b = await c.query(
+      "SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2 FOR UPDATE", [id, u.compte_id]);
+    if ((b.rowCount ?? 0) === 0) return null;
+    const refus: number[] = [];
 
     for (const [cle, valeur] of f.entries()) {
       const lane = Number(cle.slice(2));
       if (!Number.isInteger(lane)) continue;
       if (cle.startsWith("p_")) {
-        const pid = Number(valeur) || null;
         // Le produit doit etre du compte : un identifiant devine ne doit pas
         // faire entrer le catalogue du voisin dans nos canaux.
-        await c.query(`
-          UPDATE canal SET produit_id = (
-            SELECT id FROM produit WHERE id = $1 AND compte_id = $2)
-           WHERE borne_id = $3 AND lane = $4`, [pid, u.compte_id, id, lane]);
+        const voulu = Number(valeur) || null;
+        const pid = voulu === null ? null : (await c.query<{ id: number }>(
+          "SELECT id FROM produit WHERE id = $1 AND compte_id = $2", [voulu, u.compte_id])).rows[0]?.id ?? null;
+        const ca = (await c.query<{ produit_id: number | null; quantite: number; en_route: number }>(`
+          SELECT c.produit_id, c.quantite,
+                 (SELECT COALESCE(SUM(m.quantite), 0)::int FROM mouvement m
+                   WHERE m.vers_lieu_id = b.lieu_id AND m.lane = c.lane AND m.motif = 'transfert'
+                     AND m.confirme_le IS NULL AND m.annule_le IS NULL) AS en_route
+            FROM canal c JOIN borne b ON b.id = c.borne_id
+           WHERE c.borne_id = $1 AND c.lane = $2`, [id, lane])).rows[0];
+        if (!ca || ca.produit_id === pid) continue;
+        // UNE SPIRE GARNIE NE CHANGE PAS DE PRODUIT. Les unites qu'elle porte —
+        // ou qui sont en route vers elle — seraient comptees sous le nouvel
+        // article : stock faux, ventes au mauvais prix. On la vide d'abord.
+        if (ca.quantite > 0 || ca.en_route > 0) { refus.push(lane); continue; }
+        await c.query("UPDATE canal SET produit_id = $1 WHERE borne_id = $2 AND lane = $3",
+                      [pid, id, lane]);
       } else if (cle.startsWith("c_")) {
         const n = Number(valeur);
         if (Number.isInteger(n) && n >= 1 && n <= 60)
@@ -102,8 +120,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           await c.query("UPDATE canal SET seuil_bas = $1 WHERE borne_id = $2 AND lane = $3", [n, id, lane]);
       }
     }
+    return refus;
   });
+  if (refusees === null) return versPage(req, "/bornes");
   await reveiller(id, "planogramme modifié");
+  // Le message « elle contient encore des produits » de la page couvre aussi
+  // la marchandise en route : il faut la retirer ou attendre l'acquittement.
+  if (refusees.length > 0) return versPage(req, ici(`s=${refusees[0]}&e=pleine`));
   const lane = Number(f.get("lane"));
   return versPage(req, Number.isInteger(lane) && lane > 0 ? ici(`ok=${lane}`) : `/bornes/${id}`);
 }

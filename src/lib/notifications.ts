@@ -265,7 +265,7 @@ function composer(borne: { id: number; nom: string }, e: Evenement): Message | n
     case "rupture": {
       if (e.canaux.length === 0) return null;
       const dit = (c: typeof e.canaux[number]) =>
-        `${c.nom} (spire ${c.lane}) ${c.jours <= 0 ? "aujourd’hui" : `dans ${c.jours} j`}`;
+        `${c.nom} (spire ${spire(c.lane)}) ${c.jours <= 0 ? "aujourd’hui" : `dans ${c.jours} j`}`;
       const liste = e.canaux.slice(0, 3).map(dit).join(", ");
       return { genre: "vides",
                titre: e.canaux.length === 1 ? `Bientôt en rupture · ${b}` : `${e.canaux.length} spires bientôt vides · ${b}`,

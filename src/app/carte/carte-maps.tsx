@@ -232,7 +232,10 @@ function survolPersonnes(ville: string, gens: PointPersonne[]): string {
  * dans le navigateur. Sans JavaScript, la liste par ville sous la carte dit
  * la meme chose.
  */
-export function CarteMaps({ groupes, lectures = false, personnes = [], vide }:
+/** Le defaut de `personnes`, hors du rendu : un `[]` neuf a chaque fois recadrait la carte a chaque clic. */
+const AUCUNE_PERSONNE: PointPersonne[] = [];
+
+export function CarteMaps({ groupes, lectures = false, personnes = AUCUNE_PERSONNE, vide }:
   { groupes: Groupe[]; lectures?: boolean; personnes?: PointPersonne[]; vide?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const carteRef = useRef<import("leaflet").Map | null>(null);

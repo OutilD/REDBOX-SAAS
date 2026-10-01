@@ -1,5 +1,6 @@
 import pg, { Pool, type QueryResultRow } from "pg";
 import { FUSEAU } from "@/lib/fuseau";
+import { apres } from "@/lib/apres";
 
 /**
  * Les BIGINT reviennent en NOMBRES, pas en chaines.
@@ -86,9 +87,12 @@ export function relever(genre: "sql_lente" | "erreur", texte: string, duree_ms: 
   if (avant && Date.now() - avant < 60_000) return;
   dejaReleve.set(cle, Date.now());
   if (dejaReleve.size > 500) dejaReleve.clear();
-  pool().query("INSERT INTO releve_perf (genre, duree_ms, texte, route) VALUES ($1, $2, $3, $4)",
-               [genre, duree_ms, propre, route?.slice(0, 200) ?? null])
-    .catch(() => { /* la table n'existe pas encore, ou la base est loin : tant pis */ });
+  // Par `apres` : lance en l'air dans une requete, la plateforme gelait
+  // l'ecriture avec le processus. Hors requete, `apres` la lance simplement.
+  apres("releve", () =>
+    pool().query("INSERT INTO releve_perf (genre, duree_ms, texte, route) VALUES ($1, $2, $3, $4)",
+                 [genre, duree_ms, propre, route?.slice(0, 200) ?? null])
+      .catch(() => { /* la table n'existe pas encore, ou la base est loin : tant pis */ }));
 }
 
 /** La premiere ligne, ou null. Pour les lectures dont on sait qu'elles sont uniques. */

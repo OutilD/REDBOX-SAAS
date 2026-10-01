@@ -1,5 +1,5 @@
 import { q1 } from "@/db";
-import { parJeton, RYTHME_CALME } from "@/lib/borne";
+import { parJeton, RYTHME_CALME, sqlCanalServi } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,11 +32,19 @@ export async function GET(req: Request) {
   while (Date.now() < fin) {
     if (req.signal.aborted) return new Response(null, { status: 499 });
 
+    // Seuls comptent les transferts que la machine peut appliquer : vers une
+    // spire qu'elle sert, et de moins de sept jours. Un transfert orphelin —
+    // spire masquee ou produit suspendu depuis — n'est jamais acquitte ; le
+    // compter reveillait la borne a chaque tour, sans fin.
     const r = await q1<{ reveil: boolean; motif: string | null; transferts: number }>(`
       SELECT (b.reveil_le IS NOT NULL) AS reveil, b.reveil_motif AS motif,
              (SELECT COUNT(*)::int FROM mouvement m
+                JOIN canal c ON c.borne_id = b.id AND c.lane = m.lane
+                LEFT JOIN produit p ON p.id = c.produit_id
                WHERE m.vers_lieu_id = b.lieu_id AND m.motif = 'transfert'
-                 AND m.confirme_le IS NULL AND m.annule_le IS NULL) AS transferts
+                 AND m.confirme_le IS NULL AND m.annule_le IS NULL
+                 AND m.fait_le > now() - interval '7 days'
+                 AND ${sqlCanalServi("c", "p")}) AS transferts
         FROM borne b WHERE b.id = $1`, [borne.id]);
 
     if (r && (r.reveil || r.transferts > 0)) {

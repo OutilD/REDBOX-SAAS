@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
 import { nomDuRole, utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
-import { classement, evaluerBadges, profilDe, rareteDesBadges } from "@/lib/communaute";
+import { classement, evaluerBadgesEtFaits, profilDe, rareteDesBadges } from "@/lib/communaute";
 import CarteMoi from "../communaute/carte-moi";
 import Revelation from "../communaute/revelation";
 import { vuesBadges } from "../communaute/vues-badges";
@@ -31,8 +31,9 @@ export default async function Profil({ searchParams }:
   // Les badges sont reevalues ici aussi : c'est la page ou l'on se regarde, un
   // badge gagne depuis la derniere visite a la Communaute doit s'y voir. Leur
   // annonce « Nouveau badge ! » reste a la Communaute.
-  await evaluerBadges(u.id);
-  const [moi, tous, rarete] = await Promise.all([profilDe(u.id, u), classement(1000), rareteDesBadges()]);
+  // Les faits de l'evaluation servent au profil : SQL_FAITS une fois, pas deux.
+  const { faits } = await evaluerBadgesEtFaits(u.id);
+  const [moi, tous, rarete] = await Promise.all([profilDe(u.id, u, faits), classement(1000), rareteDesBadges()]);
   // Toucher un badge de la carte le revele ici aussi. L'annonce des nouveaux
   // reste a la Communaute, qui les marque vus : ici, elle se rejouerait a chaque visite.
   const vues = moi ? vuesBadges(moi, rarete).map((v) => ({ ...v, nouveau: false })) : [];

@@ -1,6 +1,6 @@
-import { q } from "@/db";
+import { q, FUSEAU } from "@/db";
 import { utilisateurDe } from "@/lib/auth";
-import { FENETRES } from "@/lib/tableau";
+import { FENETRES, periodeDe } from "@/lib/tableau";
 import { LIBELLES } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 
   if (resume) {
     const mois = await q<{ mois: string; ventes: number; ca: number; marge: number; litiges: number }>(`
-      SELECT to_char(date_trunc('month', v.faite_le AT TIME ZONE 'Europe/Paris'), 'YYYY-MM') AS mois,
+      SELECT to_char(date_trunc('month', v.faite_le AT TIME ZONE '${FUSEAU}'), 'YYYY-MM') AS mois,
              COUNT(*) FILTER (WHERE v.statut = 'distribue')::int AS ventes,
              COALESCE(SUM(v.prix_c) FILTER (WHERE v.statut = 'distribue'), 0)::int AS ca,
              COALESCE(SUM(v.prix_c - COALESCE(a.prix_achat_c, 0)) FILTER (WHERE v.statut = 'distribue'), 0)::int AS marge,
@@ -44,7 +44,10 @@ export async function GET(req: Request) {
         FROM vente v JOIN borne b ON b.id = v.borne_id
         LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
        WHERE b.compte_id = $1 AND ($2::bigint[] IS NULL OR b.id = ANY($2))
-         AND v.faite_le >= date_trunc('month', now() AT TIME ZONE 'Europe/Paris') - interval '11 months'
+         -- Le 1er du mois, il y a onze mois, a minuit A PARIS : l'heure murale
+         -- ramenee en instant, sinon le debut glisse d'une ou deux heures.
+         AND v.faite_le >= (date_trunc('month', now() AT TIME ZONE '${FUSEAU}') - interval '11 months')
+                           AT TIME ZONE '${FUSEAU}'
        GROUP BY 1 ORDER BY 1`, [u.compte_id, bornes]);
     lignes.push(["Mois", "Articles vendus", "CA TTC (€)", "CA HT (€)", "TVA (€)", "Marge estimée (€)", "Ventes en litige"]);
     for (const m of mois) {
@@ -52,16 +55,20 @@ export async function GET(req: Request) {
       lignes.push([m.mois, m.ventes, euros(m.ca), euros(ht), euros(m.ca - ht), euros(m.marge), m.litiges]);
     }
   } else {
+    // LES MEMES BORNES QUE LE TABLEAU : « 7 jours » commence a minuit, heure de
+    // Paris, il y a six jours. L'export de now() - 7 jours ne contenait pas les
+    // memes ventes que l'ecran dont on l'avait tire.
+    const per = await periodeDe(fen.cle);
     const ventes = await q<{ faite_le: string; borne: string; produit: string | null; sku: string | null; prix_c: number;
                              achat_c: number | null; statut: string; commande_id: string; lane: number | null }>(`
-      SELECT to_char(v.faite_le AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD HH24:MI') AS faite_le,
+      SELECT to_char(v.faite_le AT TIME ZONE '${FUSEAU}', 'YYYY-MM-DD HH24:MI') AS faite_le,
              b.nom AS borne, p.nom AS produit, p.sku, v.prix_c, a.prix_achat_c AS achat_c, v.statut, v.commande_id, v.lane
         FROM vente v JOIN borne b ON b.id = v.borne_id
         LEFT JOIN produit p ON p.id = v.produit_id
         LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
        WHERE b.compte_id = $1 AND ($2::bigint[] IS NULL OR b.id = ANY($2))
-         AND v.faite_le >= now() - ($3 || ' days')::interval
-       ORDER BY v.faite_le`, [u.compte_id, bornes, String(fen.jours)]);
+         AND v.faite_le >= $3
+       ORDER BY v.faite_le`, [u.compte_id, bornes, per.debut]);
     lignes.push(["Date", "RedBox", "Produit", "Référence", "Spire", "Prix TTC (€)", "Prix HT (€)", "TVA (€)", "Prix d’achat (€)", "Marge (€)", "Statut", "Commande"]);
     for (const v of ventes) {
       const ht = Math.round(v.prix_c / (1 + TVA));
@@ -73,7 +80,7 @@ export async function GET(req: Request) {
   }
 
   const entete = `# RedBox — ${resume ? "résumé mensuel, douze derniers mois" : `ventes sur ${fen.nom.toLowerCase()}`}`
-    + ` — compte ${u.compte} — export du ${new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })}`
+    + ` — compte ${u.compte} — export du ${new Date().toLocaleDateString("fr-FR", { timeZone: FUSEAU })}`
     + ` — HT et TVA recomposés au taux de ${Math.round(TVA * 100)} %, marge au dernier prix d’achat connu\n`;
   const corps = "﻿" + entete + lignes.map((l) => l.map(cellule).join(";")).join("\r\n") + "\r\n";
   const nom = `redbox-${resume ? "resume-mensuel" : `ventes-${fen.cle}j`}${b ? `-redbox-${b}` : ""}.csv`;

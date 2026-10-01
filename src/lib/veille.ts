@@ -30,12 +30,16 @@ export const SILENCE_MS = 15 * 60 * 1000;
 
 /** Fait une ronde. Rend le nombre de machines annoncees. */
 export async function veiller(): Promise<number> {
-  const tues = await transaction(async (c) => {
+  const annoncees = await transaction(async (c) => {
     // Un seul processus fait la ronde a la fois : deux rondes simultanees
     // annonceraient deux fois la meme machine.
+    //
+    // LE VERROU TIENT JUSQU'A L'ANNONCE. Le temoin est le message « Hors ligne »
+    // que `signaler` depose dans le salon : relache avant, une seconde ronde
+    // relisait la machine comme muette et non annoncee, et l'annoncait aussi.
     const verrou = await c.query<{ ok: boolean }>("SELECT pg_try_advisory_xact_lock(4247001) AS ok");
-    if (!verrou.rows[0]?.ok) return [];
-    return (await c.query<{ id: number; nom: string; compte_id: number; vue_le: Date }>(`
+    if (!verrou.rows[0]?.ok) return 0;
+    const tues = (await c.query<{ id: number; nom: string; compte_id: number; vue_le: Date }>(`
       SELECT b.id, b.nom, b.compte_id, b.vue_le FROM borne b
        WHERE b.compte_id IS NOT NULL AND b.jeton IS NOT NULL AND b.jeton NOT LIKE 'demo\\_%'
          AND b.vue_le IS NOT NULL
@@ -46,14 +50,15 @@ export async function veiller(): Promise<number> {
             WHERE s.borne_id = b.id AND m.utilisateur_id IS NULL
               AND m.cree_le > b.vue_le AND m.texte LIKE 'Hors ligne ·%')`,
       [String(SILENCE_MS)])).rows;
+    for (const b of tues) {
+      await signaler(Number(b.compte_id), { id: Number(b.id), nom: b.nom },
+                     [{ genre: "silence", depuis: b.vue_le }])
+        .catch((e) => console.error("ronde :", e instanceof Error ? e.message : e));
+    }
+    return tues.length;
   });
-  for (const b of tues) {
-    await signaler(Number(b.compte_id), { id: Number(b.id), nom: b.nom },
-                   [{ genre: "silence", depuis: b.vue_le }])
-      .catch((e) => console.error("ronde :", e instanceof Error ? e.message : e));
-  }
   await annoncerRuptures().catch((e) => console.error("ruptures :", e instanceof Error ? e.message : e));
-  return tues.length;
+  return annoncees;
 }
 
 /**
@@ -77,7 +82,15 @@ async function annoncerRuptures(): Promise<number> {
     for (const b of liste) {
       const u = urgences.get(Number(b.id));
       if (!u || u.pressees === 0) continue;
-      await q("UPDATE borne SET rupture_annoncee_le = now() WHERE id = $1", [b.id]);
+      // RESERVER L'ANNONCE AVANT DE L'ENVOYER. La lecture plus haut ne protege
+      // de rien : deux rondes simultanees y voient la meme machine. Seule celle
+      // dont l'UPDATE conditionnel rend une ligne previent.
+      const reservee = await q<{ id: number }>(`
+        UPDATE borne SET rupture_annoncee_le = now()
+         WHERE id = $1
+           AND (rupture_annoncee_le IS NULL OR rupture_annoncee_le < now() - interval '23 hours')
+        RETURNING id`, [b.id]);
+      if (reservee.length === 0) continue;
       await signaler(compte_id, { id: Number(b.id), nom: b.nom },
                      [{ genre: "rupture", canaux: u.detail.filter((d) => d.jours <= SEUIL_J) }]);
       annoncees++;

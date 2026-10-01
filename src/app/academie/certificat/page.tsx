@@ -32,8 +32,10 @@ export default async function Certificat() {
   const finLe = ouvertes.reduce<Date | null>((d, x) => (x.fini_le && (!d || x.fini_le > d) ? x.fini_le : d), null);
   const parcours = l.redboxer ? "Parcours Redboxer" : "Parcours Découverte";
   const minutes = ouvertes.reduce((t, x) => t + (x.duree ?? 0), 0);
+  // Le jour de Paris, comme la date affichee : en UTC, un parcours fini
+  // apres minuit changeait de jour entre le numero et le texte.
   const numero = finLe
-    ? `RBX-ACA-${String(u.id).padStart(4, "0")}-${finLe.toISOString().slice(0, 10).replaceAll("-", "")}-${ouvertes.length}`
+    ? `RBX-ACA-${String(u.id).padStart(4, "0")}-${finLe.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" }).replaceAll("-", "")}-${ouvertes.length}`
     : "";
   const prochaine = ouvertes.find((x) => !x.fini) ?? null;
 

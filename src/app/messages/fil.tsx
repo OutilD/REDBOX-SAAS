@@ -258,30 +258,48 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
     if (document.visibilityState !== "visible") return;
     try {
       // Les cinquante derniers suffisent : au-dela on ne regarde plus, et
-      // l'adresse ne doit pas grandir sans fin.
-      const derniers = vus.current.slice(-50).join(",");
-      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}&vus=${derniers}`
+      // l'adresse ne doit pas grandir sans fin. Figes avant l'appel : seuls
+      // ceux-la recoivent la reponse, pas ce qui s'est ajoute entre-temps.
+      const demandes = vus.current.slice(-50);
+      const r = await fetch(`/api/messages?salon=${salon.id}&depuis=${dernier}&vus=${demandes.join(",")}`
                             + `&v=${encodeURIComponent(empreinte.current)}`, { cache: "no-store" });
       if (!r.ok) return;
       const rep = await r.json() as
-        { inchange?: boolean; v?: string; messages?: Message[]; reactions?: Record<number, Reaction[]> };
+        { inchange?: boolean; v?: string; messages?: Message[]; reactions?: Record<number, Reaction[]>; retires?: number[] };
       if (rep.inchange) return;
       const neufs = rep.messages ?? [], reactions = rep.reactions;
+      const retires = new Set((rep.retires ?? []).map(Number));
+      const demande = new Set(demandes);
       empreinte.current = rep.v ?? "";
       poser((m) => {
         const connus = new Set(m.map((x) => x.id));
-        // Les reactions des messages deja la : le serveur fait foi, il a vu les
-        // appuis des autres. Un message absent de la reponse n'en a plus aucune.
-        const a_jour = reactions
-          ? m.map((x) => (x.supprime ? x : { ...x, reactions: reactions[x.id] ?? [] }))
-          : m;
+        // Les reactions des messages demandes : le serveur fait foi, il a vu les
+        // appuis des autres. Un message demande absent de la reponse n'en a
+        // plus aucune ; un message non demande garde les siennes. Retire
+        // ailleurs (un autre onglet, un autre appareil) : il passe a « retire ».
+        const a_jour = m.map((x) => {
+          if (x.supprime || !demande.has(x.id)) return x;
+          if (retires.has(x.id)) return { ...x, texte: "", supprime: true, photo: false, apercu: undefined, reactions: [] };
+          return reactions ? { ...x, reactions: reactions[x.id] ?? [] } : x;
+        });
         const ajouts = neufs.filter((x) => !connus.has(x.id));
         // Un de mes envois peut revenir par ce tour avant sa propre reponse :
         // la version du serveur prend la place de la provisoire, sinon la meme
-        // phrase s'afficherait deux fois le temps d'une seconde.
+        // phrase s'afficherait deux fois le temps d'une seconde. Une provisoire
+        // par message arrive, la plus ancienne : deux « ok » tapes de suite
+        // n'en font pas disparaitre deux quand le premier seul est arrive.
         const cle = (x: Message) => `${x.photo ? "1" : "0"}${x.texte}`;
-        const arrives = new Set(ajouts.filter((x) => x.utilisateur_id === moi).map(cle));
-        const base = a_jour.filter((x) => !(x.id < 0 && arrives.has(cle(x))));
+        const arrives = new Map<string, number>();
+        for (const x of ajouts) {
+          if (x.utilisateur_id === moi) arrives.set(cle(x), (arrives.get(cle(x)) ?? 0) + 1);
+        }
+        const base = a_jour.filter((x) => {
+          if (x.id >= 0) return true;
+          const n = arrives.get(cle(x)) ?? 0;
+          if (n === 0) return true;
+          arrives.set(cle(x), n - 1);
+          return false;
+        });
         return ajouts.length > 0 ? [...base, ...ajouts] : base;
       });
     } catch { /* le prochain tour reessaiera */ }
@@ -478,11 +496,17 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
   }
 
   async function oter(id: number) {
-    const r = await fetch("/api/messages/retirer", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, salon_id: salon.id }),
-    });
-    if (r.ok) poser((m) => m.map((x) => (x.id === id ? { ...x, texte: "", supprime: true, photo: false, apercu: undefined } : x)));
+    // « Retire » seulement si le serveur l'a fait : un refus ou une coupure
+    // laisse la bulle telle quelle, plutot que d'afficher un retrait qui
+    // reviendrait au prochain chargement.
+    try {
+      const r = await fetch("/api/messages/retirer", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, salon_id: salon.id }),
+      });
+      const { ok } = await r.json().catch(() => ({ ok: false })) as { ok?: boolean };
+      if (r.ok && ok) poser((m) => m.map((x) => (x.id === id ? { ...x, texte: "", supprime: true, photo: false, apercu: undefined } : x)));
+    } catch { /* hors ligne : rien n'a change */ }
   }
 
   // Le regroupement : un message ouvre une serie s'il change d'auteur, de
@@ -527,7 +551,8 @@ export default function Fil({ salon, initial, moi, peutEcrire, peutReagir = peut
             <circle cx="7.5" cy="7" r="2.8" /><path d="M2.5 16.5c0-3 2.2-5 5-5s5 2 5 5" />
             <circle cx="14" cy="7.5" r="2.2" /><path d="M13.2 11.6c2.5.2 4.3 2.1 4.3 4.9" />
           </svg>
-          <span className="num">{lecteurs.total ?? "…"}</span>
+          {/* Inconnu tant que le serveur ne l'a pas compte : pas de chiffre plutot qu'un « … » qui ne se resout jamais. */}
+          {lecteurs.total !== null ? <span className="num">{lecteurs.total}</span> : null}
         </Link>
         {reglageFond ? (
           <Link href={reglageFond.ouvert ? `/messages/${salon.id}` : `/messages/${salon.id}?fond=1`}

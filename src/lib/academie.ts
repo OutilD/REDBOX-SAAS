@@ -1,5 +1,5 @@
 import { q, q1, transaction, type PgClient } from "@/db";
-import type { Utilisateur } from "./auth";
+import { peutConfigurer, type Utilisateur } from "./auth";
 import { groupeDuCompte } from "./communaute";
 
 /**
@@ -96,8 +96,9 @@ export type Lecteur = {
   apercu: boolean;
 };
 
+/** Le super-admin, ou un gerant du compte editeur : un membre « lecture » de l'editeur lit, il n'ecrit pas. */
 export function peutEditer(u: Utilisateur): boolean {
-  return u.editeur || u.superAdmin;
+  return u.superAdmin || (u.editeur && peutConfigurer(u));
 }
 
 /** Le biscuit de l'apercu « prospect », pose par `/api/academie/apercu`. */
@@ -129,7 +130,8 @@ export async function lecteur(u: Utilisateur, apercu?: string | null): Promise<L
   if (editeur && apercu === "prospect") return { id: u.id, redboxer: false, editeur: false, apercu: true };
   if (editeur) return { id: u.id, redboxer: true, editeur: true, apercu: false };
   // L'equipe RedBox est redboxer partout, depuis n'importe lequel de ses comptes.
-  const redboxer = editeur || (await groupeDuCompte(u.compte_id)) === "proprietaires";
+  // Y compris en lecture seule : ne pas editer n'en fait pas un prospect.
+  const redboxer = u.editeur || u.superAdmin || (await groupeDuCompte(u.compte_id)) === "proprietaires";
   return { id: u.id, redboxer, editeur: false, apercu: false };
 }
 

@@ -2,7 +2,7 @@ import { utilisateurDe, versPage } from "@/lib/auth";
 import { evaluerEtSignaler, signalerMessage } from "@/lib/notifications";
 import { apres } from "@/lib/apres";
 import { annoncer } from "@/lib/temps-reel";
-import { deposer, empreinteSalon, marquerLu, messagesDe, peutEcrire, reactionsDes, salonDe, TEXTE_MAX } from "@/lib/salons";
+import { deposer, empreinteSalon, marquerLu, messagesDe, peutEcrire, reactionsDes, retiresDes, salonDe, TEXTE_MAX } from "@/lib/salons";
 import { MESSAGES_PAR_LOT } from "@/lib/fil";
 import { transaction } from "@/db";
 import { rangerImage } from "@/lib/image";
@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/messages?salon=&depuis=[&vus=1,2,3]
+ *
+ * Rend { messages, reactions, retires, v } ; `retires` nomme ceux de `vus`
+ * qui ont ete retires depuis.
  *
  * Ce que le navigateur demande toutes les trois secondes quand le fil est
  * ouvert : les messages arrives apres `depuis`, et — si `vus` les nomme — les
@@ -47,16 +50,19 @@ export async function GET(req: Request) {
     return Response.json({ messages: await messagesDe(salon_id, { avant, limite: MESSAGES_PAR_LOT, moi: u.id }) });
   }
   const vus = (url.searchParams.get("vus") ?? "").split(",").map(Number).filter(Number.isInteger);
-  const [messages, reactions] = await Promise.all([
+  // Les retraits de ce qui est a l'ecran, en parallele : comme une reaction,
+  // un retrait touche un message que `depuis` ne rendrait plus.
+  const [messages, reactions, retires] = await Promise.all([
     messagesDe(salon_id, { depuis, limite: 200, moi: u.id }),
     vus.length > 0 ? reactionsDes(salon_id, vus, u.id) : Promise.resolve({}),
+    vus.length > 0 ? retiresDes(salon_id, vus) : Promise.resolve([] as number[]),
   ]);
   // Ce qu'on a lu : le dernier arrive, ou — `lu` — ce que le navigateur montre
   // deja quand il ouvre un salon garde en memoire, sans passer par la page.
   const lu = Number(url.searchParams.get("lu"));
   const dernier = messages.at(-1)?.id ?? (Number.isInteger(lu) && lu > 0 ? lu : undefined);
   if (dernier !== undefined) await marquerLu(u.id, salon_id, dernier);
-  return Response.json({ messages, reactions, v: empreinte });
+  return Response.json({ messages, reactions, retires, v: empreinte });
 }
 
 /**

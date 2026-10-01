@@ -56,6 +56,16 @@ export async function POST(req: Request) {
       "SELECT id FROM produit WHERE id = $1 AND compte_id = $2", [produit, u.compte_id]);
     if ((p.rowCount ?? 0) === 0) return { erreur: "produit" as const };
 
+    // VERROUS avant de lire ce qui reste : sinon deux sorties simultanees
+    // lisent le meme solde et passent toutes les deux. En machine, la borne
+    // (meme ordre que le releve) ; en reserve, un verrou par compte.
+    if (lane === null) {
+      await c.query("SELECT pg_advisory_xact_lock(4242, $1::int)", [u.compte_id]);
+    } else {
+      await c.query("SELECT id FROM borne WHERE lieu_id = $1 AND compte_id = $2 FOR UPDATE",
+                    [lieu, u.compte_id]);
+    }
+
     // Le lieu doit etre du compte, et porter vraiment la marchandise : la borne
     // du voisin comme un lieu vide sont deux facons de creuser un stock negatif.
     // En machine on interroge LA SPIRE, pas le lieu : une casse dans la spirale

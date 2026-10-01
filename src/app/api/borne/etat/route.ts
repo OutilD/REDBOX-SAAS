@@ -1,5 +1,5 @@
 import { q1, transaction, type PgClient } from "@/db";
-import { parJeton, RYTHME_CALME, RYTHME_VIF } from "@/lib/borne";
+import { parJeton, RYTHME_CALME, RYTHME_VIF, sqlCanalServi } from "@/lib/borne";
 import { spireValide } from "@/lib/machine";
 import { evaluerLeCompte, signaler, type Evenement } from "@/lib/notifications";
 import { confirmerMisesAJour } from "@/lib/ordres";
@@ -73,7 +73,10 @@ export async function POST(req: Request) {
     const avant = (await c.query<{ vue_avant: Date | null; version_avant: string | null; sante_avant: { paiement?: unknown } | null }>(
       `WITH avant AS (SELECT id, vue_le, version, sante FROM borne WHERE id = $3 FOR UPDATE)
        UPDATE borne b SET vue_le = now(), version = COALESCE($1, b.version),
-              catalogue_version = COALESCE($4, b.catalogue_version), sante = $2,
+              catalogue_version = COALESCE($4, b.catalogue_version),
+              -- Un releve sans sante (synchro manuelle depuis la maintenance)
+              -- ne l'efface pas : il n'en dit simplement rien.
+              sante = COALESCE($2, b.sante),
               maintenance_vu = COALESCE($5, b.maintenance_vu)
          FROM avant WHERE b.id = avant.id
        RETURNING avant.vue_le AS vue_avant, avant.version AS version_avant, avant.sante AS sante_avant`,
@@ -93,6 +96,7 @@ export async function POST(req: Request) {
     const paiementAvant = paiementDe(avant?.sante_avant), paiementApres = paiementDe(r.sante);
     if (paiementAvant === "pret" && paiementApres === "indisponible") evenements.push({ genre: "paiement", ok: false });
     if (paiementAvant === "indisponible" && paiementApres === "pret") evenements.push({ genre: "paiement", ok: true });
+    // (Sans sante dans ce releve, `paiementApres` est indefini : rien ne part.)
     // Son application a change : on l'ecrit dans son salon, sans faire vibrer.
     if (r.version && avant?.version_avant && r.version !== avant.version_avant) {
       evenements.push({ genre: "version", avant: avant.version_avant, apres: r.version });
@@ -100,7 +104,10 @@ export async function POST(req: Request) {
     // Une mise a jour demandee depuis la console reussit sans que la borne le
     // dise : Android a remplace son processus. C'est sa version qui l'atteste,
     // au premier releve ou elle change.
-    if (r.version && r.version !== avant?.version_avant) {
+    // Seulement une version lisible : la requete compare « majeure.mineure » en
+    // entiers, et une chaine fantaisiste ferait echouer tout le releve.
+    if (typeof r.version === "string" && /^\d+\.\d+/.test(r.version)
+        && r.version !== avant?.version_avant) {
       await confirmerMisesAJour(borne.id, r.version, (sql, p) => c.query(sql, p));
     }
 
@@ -266,7 +273,16 @@ export async function POST(req: Request) {
     const basses: { lane: number; nom: string | null; reste: number; ailleurs: number }[] = [];
     const neufs = (r.ventes ?? []).length > 0 && await baseMigree((sql) => c.query(sql));
     for (const v of r.ventes ?? []) {
-      if (!v.commande_id || !CONNUS.has(v.statut)) continue;
+      // UNE VENTE ILLISIBLE EST ECARTEE, PAS LE RELEVE. Un prix ou une date
+      // impossible faisait echouer l'INSERT, donc toute la transaction : la
+      // machine renvoyait le meme lot a chaque tour, et plus rien n'entrait.
+      const raison = venteInvalide(v);
+      if (raison) {
+        console.warn(`releve borne ${borne.id} : vente ignoree (${raison})`,
+                     JSON.stringify(v).slice(0, 300));
+        continue;
+      }
+      if (!CONNUS.has(v.statut)) continue;
       const voulu = statutRecu(r.version, v.statut, v.lane);
       const statut = neufs ? voulu : rabattu(voulu);
       const trouve = v.sku
@@ -340,10 +356,16 @@ export async function POST(req: Request) {
     }
     if (basses.length > 0) evenements.push({ genre: "basses", canaux: basses });
 
+    // Meme regle que /attente : un transfert que la machine ne peut pas
+    // appliquer ne la garde pas au rythme vif.
     const attente = await c.query<{ n: number }>(`
-      SELECT COUNT(*)::int n FROM mouvement
-       WHERE vers_lieu_id = $1 AND motif = 'transfert'
-         AND confirme_le IS NULL AND annule_le IS NULL`, [borne.lieu_id]);
+      SELECT COUNT(*)::int n FROM mouvement m
+        JOIN canal c ON c.borne_id = $2 AND c.lane = m.lane
+        LEFT JOIN produit p ON p.id = c.produit_id
+       WHERE m.vers_lieu_id = $1 AND m.motif = 'transfert'
+         AND m.confirme_le IS NULL AND m.annule_le IS NULL
+         AND m.fait_le > now() - interval '7 days'
+         AND ${sqlCanalServi("c", "p")}`, [borne.lieu_id, borne.id]);
 
     return { canaux, refuses, retenues, confirmes, adopte, attente: attente.rows[0].n };
   });
@@ -382,6 +404,21 @@ export async function POST(req: Request) {
     transferts_en_attente: bilan.attente,
     prochain_appel_s: bilan.attente > 0 ? RYTHME_VIF : RYTHME_CALME,
   });
+}
+
+/** Ce qui rend une vente remontee inutilisable, ou null si elle est saine. */
+function venteInvalide(v: unknown): string | null {
+  if (!v || typeof v !== "object") return "pas un objet";
+  const o = v as Record<string, unknown>;
+  if (typeof o.commande_id !== "string" || !o.commande_id) return "commande_id";
+  if (typeof o.statut !== "string") return "statut";
+  if (typeof o.prix_centimes !== "number" || !Number.isInteger(o.prix_centimes) || o.prix_centimes < 0) {
+    return "prix_centimes";
+  }
+  if (typeof o.faite_le !== "string" || Number.isNaN(Date.parse(o.faite_le))) return "faite_le";
+  if (o.lane !== null && o.lane !== undefined && !Number.isInteger(o.lane)) return "lane";
+  if (o.sku !== null && o.sku !== undefined && typeof o.sku !== "string") return "sku";
+  return null;
 }
 
 /**
@@ -432,7 +469,18 @@ async function adopter(c: PgClient, compte_id: number, borne_id: number, lieu_id
   }
 
   for (const ca of cat.planogramme ?? []) {
+    // Memes exigences que les canaux du releve : une spire qui existe, des
+    // compteurs entiers. Une 601 de vitrine adoptee ici se chargerait et se
+    // vendrait sans jamais rien distribuer.
     if (!Number.isInteger(ca.lane)) continue;
+    const rangee = Math.ceil(ca.lane / 10), colonne = ((ca.lane - 1) % 10) + 1;
+    if (!spireValide(rangee, colonne)) continue;
+    if ((ca.rangee !== undefined && ca.rangee !== rangee)
+        || (ca.colonne !== undefined && ca.colonne !== colonne)) continue;
+    const quantite = ca.quantite ?? 0, capacite = ca.capacite ?? 10;
+    if (!Number.isInteger(quantite) || quantite < 0) continue;
+    if (!Number.isInteger(capacite) || capacite < 1) continue;
+    const seuil = Number.isInteger(ca.seuil_bas) && ca.seuil_bas! >= 0 ? ca.seuil_bas! : 2;
     const pid = ca.sku ? parSku.get(String(ca.sku).toUpperCase()) ?? null : null;
     await c.query(`
       INSERT INTO canal (borne_id, lane, rangee, colonne, produit_id, quantite, quantite_borne,
@@ -443,18 +491,16 @@ async function adopter(c: PgClient, compte_id: number, borne_id: number, lieu_id
             seuil_bas = EXCLUDED.seuil_bas, quantite = EXCLUDED.quantite,
             quantite_borne = EXCLUDED.quantite_borne,
             releve_le = now(), releve_borne_le = now()`,
-      [borne_id, ca.lane, ca.rangee ?? Math.ceil(ca.lane / 10),
-       ca.colonne ?? ((ca.lane - 1) % 10) + 1, pid,
-       Math.max(0, ca.quantite ?? 0), ca.capacite ?? 10, ca.seuil_bas ?? 2]);
+      [borne_id, ca.lane, rangee, colonne, pid, quantite, capacite, seuil]);
 
     // Le stock deja en machine devient un solde d'ouverture.
-    if (pid && (ca.quantite ?? 0) > 0) {
+    if (pid && quantite > 0) {
       await c.query(`
         INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
                                motif, lane, note, par, fait_le, confirme_le)
         VALUES ($1,$2,NULL,$3,$4,'inventaire',$5,'solde d’ouverture — stock trouvé dans la machine',
                 'borne', now(), now())`,
-        [compte_id, pid, lieu_id, ca.quantite, ca.lane]);
+        [compte_id, pid, lieu_id, quantite, ca.lane]);
     }
   }
   return n;

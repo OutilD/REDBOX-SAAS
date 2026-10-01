@@ -465,15 +465,24 @@ export async function rareteDesBadges(): Promise<Map<string, { n: number; pct: n
  * communaute ou son profil : deux lectures, une ecriture s'il y a lieu.
  */
 export async function evaluerBadges(utilisateur_id: number): Promise<Badge[]> {
+  return (await evaluerBadgesEtFaits(utilisateur_id)).neufs;
+}
+
+/**
+ * La meme evaluation, qui rend aussi les faits lus pour la faire : la page
+ * qui affiche ensuite le profil les passe a `profilDe` au lieu de relire
+ * SQL_FAITS — la plus lourde des requetes de la communaute.
+ */
+export async function evaluerBadgesEtFaits(utilisateur_id: number): Promise<{ neufs: Badge[]; faits: Faits | null }> {
   const f = await q1<Faits>(SQL_FAITS, [utilisateur_id, DOMAINE]);
-  if (!f) return [];
+  if (!f) return { neufs: [], faits: null };
   const merites = meritesPar(f);
-  if (merites.length === 0) return [];
+  if (merites.length === 0) return { neufs: [], faits: f };
   const neufs = await q<{ badge: string }>(`
     INSERT INTO badge_obtenu (utilisateur_id, badge)
     SELECT $1, b FROM unnest($2::text[]) AS b
     ON CONFLICT DO NOTHING RETURNING badge`, [utilisateur_id, merites]);
-  return neufs.map((n) => BADGE_PAR_CLE.get(n.badge)!).filter(Boolean);
+  return { neufs: neufs.map((n) => BADGE_PAR_CLE.get(n.badge)!).filter(Boolean), faits: f };
 }
 
 /**
@@ -598,9 +607,12 @@ export const COULEURS = ["#d70005", "#7c3aed", "#2563eb", "#0d9488", "#ea580c", 
 /** La longueur d'un pseudo : a l'inscription comme sur le profil. */
 export const PSEUDO_MAX = 30;
 
-/** Le pseudo, sinon le nom, sinon le debut de l'adresse. */
-export function pseudoDe(p: { pseudo?: string | null; nom?: string | null; email: string }): string {
-  return (p.pseudo ?? "").trim() || (p.nom ?? "").trim() || p.email.split("@")[0];
+/**
+ * Le pseudo, sinon le nom, sinon « Redboxer <id> ». Jamais le debut de
+ * l'adresse : ce nom s'affiche aux autres, et l'adresse est a soi.
+ */
+export function pseudoDe(p: { id: number | string; pseudo?: string | null; nom?: string | null }): string {
+  return (p.pseudo ?? "").trim() || (p.nom ?? "").trim() || `Redboxer ${p.id}`;
 }
 
 /**
@@ -608,8 +620,12 @@ export function pseudoDe(p: { pseudo?: string | null; nom?: string | null; email
  * profil ferme ne montre que le pseudo, le grade et les badges — le reste
  * est a soi, et a l'editeur.
  */
-export async function profilDe(id: number, spectateur: { id: number; editeur: boolean }): Promise<Profil | null> {
-  const l = await q1<{
+export async function profilDe(id: number, spectateur: { id: number; editeur: boolean },
+                               faits?: Faits | null): Promise<Profil | null> {
+  // Les trois lectures ne dependent que de l'id : ensemble, pas l'une apres
+  // l'autre. Les faits, s'ils viennent d'etre lus par evaluerBadgesEtFaits,
+  // ne sont pas relus.
+  const [l, fLu, obtenus] = await Promise.all([q1<{
     id: number; pseudo: string | null; nom: string | null; email: string; image_id: number | null;
     compte: string; ville: string | null; bio: string | null; couleur: string | null;
     cree_le: Date; profil_public: boolean; editeur: boolean; badges_vedettes: string[];
@@ -617,11 +633,13 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, c.nom AS compte, u.ville, u.bio, u.couleur,
            u.cree_le, u.profil_public, c.editeur, u.badges_vedettes
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
-     WHERE u.id = $1 AND u.email NOT LIKE '%@' || $2`, [id, DOMAINE]);
-  if (!l) return null;
-  const f = (await q1<Faits>(SQL_FAITS, [id, DOMAINE]))!;
-  const obtenus = await q<{ badge: string; obtenu_le: Date; vu_le: Date | null }>(
-    "SELECT badge, obtenu_le, vu_le FROM badge_obtenu WHERE utilisateur_id = $1", [id]);
+     WHERE u.id = $1 AND u.email NOT LIKE '%@' || $2`, [id, DOMAINE]),
+    faits ? Promise.resolve(faits) : q1<Faits>(SQL_FAITS, [id, DOMAINE]),
+    q<{ badge: string; obtenu_le: Date; vu_le: Date | null }>(
+      "SELECT badge, obtenu_le, vu_le FROM badge_obtenu WHERE utilisateur_id = $1", [id]),
+  ]);
+  if (!l || !fLu) return null;
+  const f = fLu;
   const badges: BadgeObtenu[] = BADGES
     .map((b) => { const o = obtenus.find((x) => x.badge === b.cle); return o ? { ...b, obtenu_le: o.obtenu_le, nouveau: o.vu_le === null } : null; })
     .filter((b): b is BadgeObtenu => b !== null);

@@ -41,8 +41,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const fait = await transaction(async (c) => {
+    // Sous verrou, comme le releve : une vente ventilee entre notre lecture
+    // du compteur et l'ecriture de la verite fausserait l'ecart inscrit.
     const b = await c.query<{ lieu_id: number | null; compte_id: number | null }>(
-      "SELECT lieu_id, compte_id FROM borne WHERE id = $1 AND compte_id = $2",
+      "SELECT lieu_id, compte_id FROM borne WHERE id = $1 AND compte_id = $2 FOR UPDATE",
       [id, u.compte_id]);
     const borne = b.rows[0];
     if (!borne?.lieu_id) return null;

@@ -50,6 +50,9 @@ const auRepos = (f: () => void) => {
 export function Messagerie({ metas, initialId, initialMessages, children }:
   { metas: Record<number, MetaSalon>; initialId: number | null; initialMessages: Message[]; children: React.ReactNode }) {
   const [actif, poserActif] = useState<number | null>(initialId);
+  // Le salon ouvert, lu par le chargement des apercus sans s'y reabonner.
+  const actifRef = useRef(actif);
+  actifRef.current = actif;
   const [version, forcer] = useState(0);
   const cache = useRef(new Map<number, Message[]>());
   if (initialId !== null && !cache.current.has(initialId)) cache.current.set(initialId, initialMessages);
@@ -65,7 +68,10 @@ export function Messagerie({ metas, initialId, initialMessages, children }:
           for (const [k, v] of Object.entries(j.apercus)) {
             const id = Number(k);
             // Le salon ouvert garde sa propre version : son fil est deja vivant.
-            if (id !== initialId) cache.current.set(id, v);
+            // Celui du serveur comme celui ou l'on a bascule depuis, s'il est
+            // deja en memoire ; encore en chargement, l'apercu le debloque.
+            const dejaOuvert = id === actifRef.current && cache.current.has(id);
+            if (id !== initialId && !dejaOuvert) cache.current.set(id, v);
           }
           forcer((n) => n + 1);
         })
@@ -145,8 +151,8 @@ export function ColonneFil({ initial, moi, accueil }: {
 }) {
   const c = useContext(Ctx);
   const actif = c?.actif ?? initial?.id ?? null;
-  // Le nombre de lecteurs ne se compte que par le serveur : « … » jusqu'a un vrai chargement.
-  const totaux: Record<number, number> = {};
+  // Le nombre de lecteurs ne se compte que par le serveur, qui ne le rend
+  // qu'au salon de la page : ailleurs, le fil n'affiche pas de chiffre.
 
   // Un salon pas encore en memoire se charge.
   useEffect(() => {
@@ -173,11 +179,13 @@ export function ColonneFil({ initial, moi, accueil }: {
     );
   }
   return (
-    <Fil key={`${actif}-${c?.version}`}
+    // Cle = le salon seul. Le fil lit `initial` a son montage puis vit de son
+    // sondage : le remonter a l'arrivee des apercus effacait la saisie en cours.
+    <Fil key={actif}
          salon={{ id: meta.id, nom: meta.nom, sujet: meta.sujet, borne: meta.borne, traverse: meta.traverse }}
          initial={messages} moi={moi} peutEcrire={meta.peutEcrire} peutReagir={meta.peutReagir}
          raisonMuet={meta.raisonMuet} fond={meta.fond} retour="/messages" surRetour={c?.fermer}
-         lecteurs={{ total: totaux[actif] ?? null, ouvert: false }} panneau={null}
+         lecteurs={{ total: null, ouvert: false }} panneau={null}
          reglageFond={meta.peutReglerFond ? { ouvert: false, panneau: null } : undefined} />
   );
 }

@@ -26,10 +26,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const vues = (prefixe: string) =>
     [...new Set(f.getAll(prefixe).map((v) => Number(v)).filter(Number.isInteger))];
 
-  await transaction(async (c) => {
-    const mienne = await c.query(
+  const mienne = await transaction(async (c) => {
+    const r = await c.query(
       "SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);
-    if ((mienne.rowCount ?? 0) === 0) return;
+    if ((r.rowCount ?? 0) === 0) return false;
 
     await c.query("DELETE FROM borne_masque WHERE borne_id = $1", [id]);
 
@@ -47,8 +47,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       SELECT $1, id FROM produit
        WHERE compte_id = $2 AND actif AND NOT (id = ANY($3::bigint[]))`,
       [id, u.compte_id, vues("produit")]);
+    return true;
   });
 
+  // Seulement la sienne : la borne d'un autre compte n'a rien a resynchroniser.
+  if (!mienne) return versPage(req, "/bornes");
   await reveiller(id, "affichage modifié");
   return versPage(req, `/bornes/${id}/affichage?ok=1`);
 }

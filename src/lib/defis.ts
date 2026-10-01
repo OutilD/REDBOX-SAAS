@@ -26,7 +26,8 @@ export const MESURES: Record<Mesure, { nom: string; unite: [string, string] }> =
   reactions:    { nom: "Réactions offertes aux autres",   unite: ["réaction", "réactions"] },
 };
 
-export const mesureValide = (m: unknown): m is Mesure => typeof m === "string" && m in MESURES;
+// hasOwn, pas `in` : « toString » ou « constructor » ne sont pas des mesures.
+export const mesureValide = (m: unknown): m is Mesure => typeof m === "string" && Object.hasOwn(MESURES, m);
 
 /** Les dessins proposes pour un defi : ceux des badges qui disent un effort. */
 export const FORMES_DEFI: Forme[] = ["trophee", "cible", "flamme", "eclair", "etoile", "medaille", "drapeau"];
@@ -157,15 +158,16 @@ export async function evaluerDefis(utilisateur_id: number): Promise<Defi[]> {
      WHERE d.debut <= ${AUJOURDHUI} AND d.fin >= ${AUJOURDHUI} - 45
        AND NOT EXISTS (SELECT 1 FROM defi_reussi r WHERE r.defi_id = d.id AND r.utilisateur_id = $2)`,
     [DOMAINE, utilisateur_id]);
-  const neufs: Defi[] = [];
-  for (const d of ouverts) {
-    if ((await avancement(d, utilisateur_id)) < d.objectif) continue;
+  // Chaque defi se mesure de son cote : en parallele, pas un aller-retour
+  // apres l'autre. L'ordre de `ouverts` est garde dans le resultat.
+  const poses = await Promise.all(ouverts.map(async (d) => {
+    if ((await avancement(d, utilisateur_id)) < d.objectif) return null;
     const pose = await q(`
       INSERT INTO defi_reussi (defi_id, utilisateur_id) VALUES ($1, $2)
       ON CONFLICT DO NOTHING RETURNING defi_id`, [d.id, utilisateur_id]);
-    if (pose.length > 0) neufs.push(d);
-  }
-  return neufs;
+    return pose.length > 0 ? d : null;
+  }));
+  return poses.filter((d): d is Defi => d !== null);
 }
 
 export type DefiReussi = Defi & { reussi_le: Date };

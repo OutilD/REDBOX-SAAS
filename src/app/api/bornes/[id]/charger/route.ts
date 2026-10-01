@@ -1,7 +1,7 @@
 import { transaction } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reserveDe } from "@/lib/stock";
-import { reveiller } from "@/lib/borne";
+import { reveiller, sqlCanalServi } from "@/lib/borne";
 import { estMotifSortie } from "@/lib/sortie";
 
 export const dynamic = "force-dynamic";
@@ -54,16 +54,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const bilan = await transaction(async (c) => {
+    // VERROUS, dans l'ordre du releve (borne puis canaux) : deux chargements
+    // simultanes liraient la meme place libre et le meme stock en reserve, et
+    // feraient deborder l'une ou creuser l'autre.
     const b = (await c.query<{ id: number; lieu_id: number | null }>(
-      "SELECT id, lieu_id FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id])).rows[0];
+      "SELECT id, lieu_id FROM borne WHERE id = $1 AND compte_id = $2 FOR UPDATE",
+      [id, u.compte_id])).rows[0];
     if (!b || !b.lieu_id) return { canaux: 0, unites: 0, refuses: 0, sortis: 0 };
+    await c.query("SELECT pg_advisory_xact_lock(4242, $1::int)", [u.compte_id]);
 
     const reserve = await reserveDe(u.compte_id, c);
     let canaux = 0, unites = 0, refuses = 0, sortis = 0;
 
     for (const [lane, demande] of demandes) {
-      const ca = (await c.query<{ produit_id: number | null; quantite: number; capacite: number }>(
-        "SELECT produit_id, quantite, capacite FROM canal WHERE borne_id = $1 AND lane = $2",
+      const ca = (await c.query<{ produit_id: number | null; quantite: number; capacite: number;
+                                  servi: boolean | null }>(`
+        SELECT c.produit_id, c.quantite, c.capacite, ${sqlCanalServi("c", "p")} AS servi
+          FROM canal c LEFT JOIN produit p ON p.id = c.produit_id
+         WHERE c.borne_id = $1 AND c.lane = $2`,
         [b.id, lane])).rows[0];
       if (!ca?.produit_id) { refuses++; continue; }
 
@@ -81,12 +89,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           [u.compte_id, ca.produit_id, b.lieu_id, sortie, motif, lane, note, u.email]);
         // Le canal descend tout de suite : une sortie ne s'acquitte pas, elle a
         // deja eu lieu — la marchandise est dans la poubelle, pas en route.
-        await c.query("UPDATE canal SET quantite = quantite - $1 WHERE borne_id = $2 AND lane = $3",
-                      [sortie, b.id, lane]);
+        const reste = (await c.query<{ quantite: number }>(`
+          UPDATE canal SET quantite = GREATEST(0, quantite - $1)
+           WHERE borne_id = $2 AND lane = $3 RETURNING quantite`,
+          [sortie, b.id, lane])).rows[0].quantite;
+        // La machine doit l'apprendre aussi : sans correction, elle garde son
+        // ancien compteur et revendrait ce qui est parti. Valeur ABSOLUE, comme
+        // la reconciliation, et une seule correction vivante par spire.
+        await c.query(`
+          UPDATE correction_canal SET applique_le = now()
+           WHERE borne_id = $1 AND lane = $2 AND applique_le IS NULL`, [b.id, lane]);
+        await c.query(`
+          INSERT INTO correction_canal (borne_id, lane, quantite, par)
+          VALUES ($1, $2, $3, $4)`, [b.id, lane, reste, u.email]);
         sortis += sortie;
         if (sortie < -demande) refuses++;
         continue;
       }
+
+      // UN CANAL QUE LA MACHINE NE SERT PAS ne se charge pas : produit
+      // suspendu, masque sur cette borne, spire hors geometrie. Elle le croit
+      // libre, n'appliquerait jamais le transfert, et la reserve resterait
+      // amputee d'une marchandise « en route » pour toujours.
+      if (!ca.servi) { refuses++; continue; }
 
       // Ce qui est deja en route compte : sinon deux chargements successifs
       // feraient deborder le canal sans que rien ne l'ait dit.

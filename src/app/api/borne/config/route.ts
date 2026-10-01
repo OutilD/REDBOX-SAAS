@@ -1,6 +1,6 @@
 import { q } from "@/db";
 import {
-  catalogueDe, empreinte, inactiviteValide, parJeton, RYTHME_CALME, RYTHME_VIF,
+  catalogueDe, empreinte, inactiviteValide, parJeton, RYTHME_CALME, RYTHME_VIF, sqlCanalServi,
 } from "@/lib/borne";
 import { empreintePub, pubVide, visuelsPour } from "@/lib/pub";
 import { illustrationsDe } from "@/lib/illustration";
@@ -29,12 +29,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const borne = await parJeton(req.headers);
   if (!borne) return Response.json({ erreur: "jeton invalide" }, { status: 401 });
-  // Tout ce que la borne doit recevoir se lit d'un seul elan. L'horodatage de
-  // passage part avec le reste : il n'interesse personne dans cette reponse.
-  const [, catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin, corrections, ordres] =
+  // Tout ce que la borne doit recevoir se lit d'un seul elan.
+  //
+  // PAS D'HORODATAGE DE PASSAGE ICI. La borne appelle config juste avant etat,
+  // et c'est etat qui mesure l'absence depuis `vue_le` : le poser ici le
+  // remettait a zero une seconde avant, et « De retour » ne partait jamais.
+  // Le releve suit toujours, meme quand config echoue.
+  const [catalogue, visuels, pubDeserte, illustrations, sav, transferts, pin, corrections, ordres] =
     await Promise.all([
-    q("UPDATE borne SET vue_le = now() WHERE id = $1", [borne.id]),
-
     catalogueDe(borne.compte_id!, borne.id),
 
     // La publicite voyage a part : elle change a un tout autre rythme que le
@@ -58,11 +60,17 @@ export async function GET(req: Request) {
     // borne qui n'en affiche aucun.
     savDe(borne.compte_id!, borne.id),
 
+    // Seulement ce que la machine peut appliquer (meme regle que /attente) :
+    // le reste, elle l'ignorerait sans l'acquitter, et resterait au rythme vif.
     q(`SELECT m.id, m.lane, m.quantite, p.sku, p.nom
          FROM mouvement m JOIN produit p ON p.id = m.produit_id
+         JOIN canal c ON c.borne_id = $2 AND c.lane = m.lane
+         LEFT JOIN produit pc ON pc.id = c.produit_id
         WHERE m.vers_lieu_id = $1 AND m.motif = 'transfert'
           AND m.confirme_le IS NULL AND m.annule_le IS NULL
-        ORDER BY m.id`, [borne.lieu_id]),
+          AND m.fait_le > now() - interval '7 days'
+          AND ${sqlCanalServi("c", "pc")}
+        ORDER BY m.id`, [borne.lieu_id, borne.id]),
 
     // Le code de la console de maintenance. Il est renouvele ICI, au moment ou
     // la machine vient le prendre : ce que le SaaS affiche est alors ce que la

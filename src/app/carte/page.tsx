@@ -99,7 +99,7 @@ export default async function Carte() {
               <section className="carte a-situer" style={{ marginTop: 14 }}>
                 <h2 style={{ marginTop: 0 }}>À situer</h2>
                 <p className="faible" style={{ fontSize: 13, margin: "0 0 12px" }}>
-                  "L’équipe RedBox place chaque machine sur la carte : elle apparaîtra ici dès que c’est fait."
+                  L’équipe RedBox place chaque machine sur la carte : elle apparaîtra ici dès que c’est fait.
                 </p>
                 <ul className="liste-a-situer">
                   {aSituer.map((b) => {

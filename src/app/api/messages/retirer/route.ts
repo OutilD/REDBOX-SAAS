@@ -21,6 +21,7 @@ export async function POST(req: Request) {
   const salon = Number.isInteger(id) ? await retirer(id, u.id) : null;
   const ok = salon !== null;
   if (salon !== null) apres("temps réel", () => annoncer([salon]));
-  if (json) return Response.json({ ok });
+  // Pas le sien, deja retire, ou inconnu : le fil ne doit pas croire au retrait.
+  if (json) return Response.json({ ok }, { status: ok ? 200 : 404 });
   return versPage(req, Number.isInteger(salon_id) ? `/messages/${salon_id}` : "/messages");
 }

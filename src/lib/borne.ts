@@ -225,6 +225,24 @@ export type Catalogue = {
   categories: unknown[]; produits: unknown[]; planogramme: unknown[];
 };
 
+/**
+ * LE CANAL SERVI — la condition SQL sous laquelle la machine recoit le sku d'un
+ * canal : produit actif, ni produit ni categorie masques pour cette borne, spire
+ * dans la geometrie. Faux (ou NULL) sinon. `c` est l'alias du canal, `p` celui
+ * du produit joint en LEFT JOIN. Une seule definition : le catalogue, le
+ * chargement et l'attente longue doivent dire exactement la meme chose, sinon
+ * un transfert part vers une spire que la machine croit libre et n'est jamais
+ * acquitte.
+ */
+export function sqlCanalServi(c = "c", p = "p"): string {
+  return `(${p}.actif
+     AND ${c}.rangee BETWEEN 1 AND ${RANGEES} AND ${c}.colonne BETWEEN 1 AND ${COLONNES}
+     AND NOT EXISTS (
+       SELECT 1 FROM borne_masque masque
+        WHERE masque.borne_id = ${c}.borne_id
+          AND (masque.produit_id = ${p}.id OR masque.categorie_id = ${p}.categorie_id)))`;
+}
+
 export async function catalogueDe(compte_id: number, borne_id: number): Promise<Catalogue> {
   // LES TROIS LECTURES PARTENT ENSEMBLE. Elles ne dependent pas les unes des
   // autres, et chaque aller-retour vers Neon coute un demi-tour de reseau. En
@@ -291,11 +309,7 @@ export async function catalogueDe(compte_id: number, borne_id: number): Promise<
               -- Suspendu vaut masque : un produit retire de la vente ne doit pas
               -- laisser derriere lui un canal servi dont la machine ne connait
               -- plus le prix. Meme chemin, meme resultat — le canal est libre.
-              CASE WHEN NOT p.actif OR EXISTS (
-                     SELECT 1 FROM borne_masque m
-                      WHERE m.borne_id = c.borne_id
-                        AND (m.produit_id = p.id OR m.categorie_id = p.categorie_id))
-                   THEN NULL ELSE p.sku END AS sku
+              CASE WHEN ${sqlCanalServi("c", "p")} THEN p.sku END AS sku
          FROM canal c
          LEFT JOIN produit p ON p.id = c.produit_id
         WHERE c.borne_id = $1

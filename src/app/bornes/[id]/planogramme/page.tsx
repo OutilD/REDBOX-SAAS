@@ -292,7 +292,8 @@ export default async function Emplacements({ params, searchParams }: {
         {sp.e === "deja" ? <p className="erreur">Cette spirale est déjà active.</p> : null}
         {sp.e === "pleine" ? (
           <p className="erreur">
-            Elle contient encore des produits : retirez-les d’abord depuis le Réassort
+            Elle contient encore des produits, ou un chargement est en route vers elle :
+            attendez que la machine l’ait reçu, puis retirez les produits depuis le Réassort
             (un nombre négatif), sinon ils disparaîtraient des comptes.
           </p>
         ) : null}

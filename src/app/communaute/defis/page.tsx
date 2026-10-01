@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { estSuperAdmin, utilisateur } from "@/lib/auth";
+import { estSuperAdmin, peutConfigurer, utilisateur } from "@/lib/auth";
 import { FORMES_DEFI, MESURES, avancement, classementDefi, evaluerDefis, joursRestants,
          lesDefis, periode, rangDefi, type Defi, type Participant } from "@/lib/defis";
 import { Badge } from "../badge";
@@ -27,12 +27,17 @@ export default async function Defis({ searchParams }:
   if (!u) redirect("/connexion");
   const { e, ok } = await searchParams;
   // Comme les badges a la Communaute : on vient voir, donc on evalue ici.
+  // AVANT de lire les defis, et pas en parallele : le compteur « reussi par »
+  // et la coche du classement doivent compter le defi qu'on vient de reussir.
   await evaluerDefis(u.id);
   const { enCours, aVenir, passes } = await lesDefis();
-  const details = await Promise.all(enCours.map(async (d) => ({
-    d, moi: await avancement(d, u.id), classement: await classementDefi(d),
-  })));
-  const editeur = u.editeur || estSuperAdmin(u);
+  // Mon avancement et le classement ne dependent que du defi : ensemble.
+  const details = await Promise.all(enCours.map(async (d) => {
+    const [moi, classement] = await Promise.all([avancement(d, u.id), classementDefi(d)]);
+    return { d, moi, classement };
+  }));
+  // Comme la route qui les publie : un membre « lecture » de l'editeur ne voit pas le formulaire.
+  const editeur = estSuperAdmin(u) || (u.editeur && peutConfigurer(u));
 
   // Par defaut, le mois civil en cours (heure de Paris).
   const ici = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });

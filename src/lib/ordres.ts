@@ -1,4 +1,4 @@
-import { q, q1 } from "@/db";
+import { q, q1, transaction } from "@/db";
 import { APK } from "./apk";
 import { anterieureA, comparerVersions } from "./borne";
 
@@ -76,7 +76,9 @@ export async function ordresPour(borne_id: number): Promise<Record<string, unkno
  */
 export async function confirmerMisesAJour(borne_id: number, version: string | null | undefined,
                                           executer: (sql: string, p: unknown[]) => Promise<unknown> = q) {
-  if (!version) return;
+  // La requete lit « majeure.mineure » en entiers : une version d'une autre
+  // forme ferait echouer le cast, et avec lui le releve qui l'appelle.
+  if (typeof version !== "string" || !/^\d+\.\d+/.test(version)) return;
   await executer(`
     UPDATE ordre_borne SET execute_le = now(), ok = true, detail = 'installée : ' || $2
      WHERE borne_id = $1 AND genre = 'mise_a_jour' AND execute_le IS NULL
@@ -107,10 +109,17 @@ export function enAttente(o: Ordre | null): boolean {
 export async function donnerOrdre(borne_id: number, genre: Genre,
                                   par: { id: number; nom: string }): Promise<number | null> {
   const cible = genre === "mise_a_jour" ? APK.version : null;
-  const l = await q1<{ id: number }>(`
-    INSERT INTO ordre_borne (borne_id, genre, par_id, par, cible)
-    SELECT $1, $2, $3, $4, $5
-     WHERE NOT EXISTS (SELECT 1 FROM ordre_borne WHERE borne_id = $1 AND genre = $2 AND ${VIF})
-    RETURNING id`, [borne_id, genre, par.id, par.nom, cible]);
-  return l?.id ?? null;
+  // LE DOUBLE CLIC. Deux requetes simultanees voyaient toutes deux « rien en
+  // attente » et inseraient chacune leur ordre. Le verrou par borne les met en
+  // file ; la seconde voit alors la premiere. Pas d'index unique : un ordre
+  // expire garde `execute_le` NULL pour toujours et bloquerait les suivants.
+  return transaction(async (c) => {
+    await c.query("SELECT pg_advisory_xact_lock(4243, $1::int)", [borne_id]);
+    const l = (await c.query<{ id: number }>(`
+      INSERT INTO ordre_borne (borne_id, genre, par_id, par, cible)
+      SELECT $1, $2, $3, $4, $5
+       WHERE NOT EXISTS (SELECT 1 FROM ordre_borne WHERE borne_id = $1 AND genre = $2 AND ${VIF})
+      RETURNING id`, [borne_id, genre, par.id, par.nom, cible])).rows[0];
+    return l?.id ?? null;
+  });
 }
