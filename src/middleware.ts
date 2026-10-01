@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { BISCUIT_PRODUIT, ENTETE_PRODUIT, MARQUE_PARTAGE, PRODUITS, adresse, domaineBiscuit, hoteDes, produitDeLHote,
-         produitDuChemin, type Produit } from "@/lib/produits";
+import { BISCUIT_PRODUIT, ENTETE_PRODUIT, MARQUE_PARTAGE, PRODUITS, adresse, attributSecure, domaineBiscuit, hoteDes,
+         hoteLocal, produitDeLHote, produitDuChemin, type Produit } from "@/lib/produits";
 
 /**
  * A QUEL PRODUIT APPARTIENT CETTE PAGE, ET EST-ON AU BON ENDROIT ?
@@ -40,7 +40,7 @@ export function middleware(req: NextRequest) {
   const vestige = domaineBiscuit() !== null
     && req.cookies.getAll("rbx").some((c) => !c.value.startsWith(MARQUE_PARTAGE));
   const purger = (r: NextResponse) => {
-    if (vestige) r.headers.append("Set-Cookie", "rbx=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    if (vestige) r.headers.append("Set-Cookie", `rbx=; Path=/; HttpOnly; SameSite=Lax${attributSecure(hote)}; Max-Age=0`);
     return r;
   };
 
@@ -59,7 +59,8 @@ export function middleware(req: NextRequest) {
 
   const suite = purger(suivant());
   if (produit !== null && req.cookies.get(BISCUIT_PRODUIT)?.value !== produit) {
-    suite.cookies.set(BISCUIT_PRODUIT, produit, { path: "/", sameSite: "lax", maxAge: 365 * 24 * 3600 });
+    suite.cookies.set(BISCUIT_PRODUIT, produit, { path: "/", sameSite: "lax", maxAge: 365 * 24 * 3600,
+                                             secure: !hoteLocal(hote) });
   }
   return suite;
 }

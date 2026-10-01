@@ -1,11 +1,12 @@
 import { ENTETE_ENVOI } from "./envoi";
+import { apres } from "./apres";
 import { noterAction } from "./journal-actions";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { q, q1 } from "@/db";
 import { animerDemo } from "./demo";
-import { MARQUE_PARTAGE, domaineBiscuit, domaineDe, hoteDes, jetonDuBiscuit } from "./produits";
+import { MARQUE_PARTAGE, attributSecure, domaineBiscuit, domaineDe, hoteDes, hotes, jetonDuBiscuit } from "./produits";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
 export function chiffrer(mdp: string): string {
@@ -98,7 +99,8 @@ export async function detruireSession(jeton: string): Promise<void> {
  * ne touche pas — il serait reste connecte apres avoir clique « Se deconnecter ».
  */
 export function enTeteBiscuit(jeton: string | null, hote: string | null): string[] {
-  const commun = "Path=/; HttpOnly; SameSite=Lax";
+  // Secure partout sauf en http local (le reseau du bar) : voir `attributSecure`.
+  const commun = `Path=/; HttpOnly; SameSite=Lax${attributSecure(hote)}`;
   // Le mode domaine decide de la marque ; l'hote, de la portee : hors du
   // domaine, le biscuit marque ne vaut que pour cet hote (voir `domaineDe`).
   const domaine = domaineBiscuit(), couvert = domaineDe(hote);
@@ -138,9 +140,11 @@ const SESSIONS = new Map<string, { u: Utilisateur | null; le: number }>();
 const SESSION_MS = 20_000;
 export function oublierSession(jeton: string): void { SESSIONS.delete(jeton); }
 
-async function parJeton(jeton: string | undefined | null): Promise<Utilisateur | null> {
+async function parJeton(jeton: string | undefined | null, frais = false): Promise<Utilisateur | null> {
   if (!jeton) return null;
-  const garde = SESSIONS.get(jeton);
+  // Une requete qui change l'etat relit la session en base : un droit retire
+  // ne doit pas laisser vingt secondes pour agir encore.
+  const garde = frais ? undefined : SESSIONS.get(jeton);
   if (garde && Date.now() - garde.le < SESSION_MS) return garde.u;
   const u = await lireSession(jeton);
   if (SESSIONS.size > 500) SESSIONS.clear();
@@ -205,8 +209,8 @@ async function lireSession(jeton: string): Promise<Utilisateur | null> {
   // ferme pas la console : on le note. Celles de la vitrine ne vendent pas,
   // mais restent en ligne et confirment les chargements de la meme facon.
   if (choisi.demo || choisi.vitrine) {
-    void animerDemo(choisi.compte_id)
-      .catch((e) => console.error("bornes fictives :", e instanceof Error ? e.message : e));
+    const compte_id = choisi.compte_id;
+    apres("bornes fictives", () => animerDemo(compte_id));
   }
 
   // Les bornes autorisees, DANS LE COMPTE ACTIF seulement : une restriction
@@ -302,7 +306,7 @@ export async function utilisateurDe(req: Request): Promise<Utilisateur | null> {
     const [nom, ...reste] = morceau.trim().split("=");
     if (nom === BISCUIT) valeurs.push(decodeURIComponent(reste.join("=")));
   }
-  return parJeton(premierJeton(valeurs));
+  return parJeton(premierJeton(valeurs), req.method !== "GET" && req.method !== "HEAD");
 }
 
 export function peutCharger(u: Utilisateur): boolean {
@@ -333,15 +337,14 @@ export function versPage(req: Request, chemin: string, biscuit?: string | string
   const hote = hoteDes(req.headers);
   const local = !hote || hote.startsWith("localhost") || hote.includes(".localhost") || hote.startsWith("127.");
   const base = hote ? `${req.headers.get("x-forwarded-proto") ?? (local ? "http" : "https")}://${hote}` : req.url;
-  const vers = new URL(chemin, base).toString();
+  const vers = destinationSure(chemin, base);
   // UNE ACTION REUSSIE S'ECRIT AU JOURNAL. La cle « fait » de l'adresse de
   // retour dit laquelle ; qui l'a faite se relit dans le biscuit. Sans
   // attendre : la reponse part, le journal suit.
   const fait = new URL(vers).searchParams.get("fait");
   if (fait) {
     const route = new URL(req.url).pathname;
-    void utilisateurDe(req).then((u) => u && noterAction(u, fait, route, new URL(vers).pathname + new URL(vers).search))
-      .catch((e) => console.error("journal :", e instanceof Error ? e.message : e));
+    apres("journal", () => utilisateurDe(req).then((u) => u && noterAction(u, fait, route, new URL(vers).pathname + new URL(vers).search)));
   }
   const entetes = new Headers();
   for (const b of biscuit === undefined ? [] : [biscuit].flat()) entetes.append("Set-Cookie", b);
@@ -352,4 +355,76 @@ export function versPage(req: Request, chemin: string, biscuit?: string | string
   }
   entetes.set("Location", vers);
   return new Response(null, { status: 303, headers: entetes });
+}
+
+/**
+ * UN RETOUR NE SORT PAS DE LA CONSOLE. Les formulaires portent leur page de
+ * retour dans un champ : sans garde, « //ailleurs.example » renverrait un
+ * utilisateur connecte vers un site tiers depuis notre adresse. On accepte un
+ * chemin interne (un seul « / » en tete), ou l'adresse complete d'un des deux
+ * hotes declares (`adresse` en compose pour passer d'un produit a l'autre).
+ * Tout le reste ramene a l'accueil.
+ */
+function destinationSure(chemin: string, base: string): string {
+  const ici = new URL(base);
+  const accueil = new URL("/", ici).toString();
+  try {
+    if (chemin.startsWith("/") && !chemin.startsWith("//") && !chemin.startsWith("/\\")) {
+      const vers = new URL(chemin, ici);
+      return vers.origin === ici.origin ? vers.toString() : accueil;
+    }
+    if (/^https?:\/\//i.test(chemin)) {
+      const vers = new URL(chemin), h = hotes();
+      if (h && (vers.host === h.gestion || vers.host === h.connect)) return vers.toString();
+    }
+  } catch { /* adresse illisible : l'accueil */ }
+  return accueil;
+}
+
+/**
+ * LES ESSAIS AU HASARD. Un mot de passe, un code d'appairage ou d'invitation se
+ * devinent si l'on peut essayer sans fin : on compte les echecs des quinze
+ * dernieres minutes par cle (« mdp:adresse », « ip:… ») et l'on refuse au-dela
+ * du seuil, avant meme de verifier.
+ *
+ * LA TABLE PEUT MANQUER : la migration passe apres le deploiement. Sans elle,
+ * on laisse passer — un frein absent vaut mieux qu'une connexion cassee.
+ */
+const FENETRE_ESSAIS = "15 minutes";
+
+/** L'adresse IP du client : la premiere de `x-forwarded-for`, posee par la plateforme. */
+export function ipDe(req: Request): string {
+  const ff = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return ff || req.headers.get("x-real-ip") || "inconnue";
+}
+
+/** Vrai si l'une des cles a deja atteint son seuil d'echecs. */
+export async function tropDEssais(seuils: [cle: string, max: number][]): Promise<boolean> {
+  try {
+    const r = await q<{ cle: string; n: number }>(`
+      SELECT cle, COUNT(*)::int AS n FROM tentative_connexion
+       WHERE cle = ANY($1::text[]) AND essai_le > now() - interval '${FENETRE_ESSAIS}'
+       GROUP BY cle`, [seuils.map(([c]) => c)]);
+    return seuils.some(([c, max]) => (r.find((l) => l.cle === c)?.n ?? 0) >= max);
+  } catch {
+    return false;
+  }
+}
+
+/** Note un echec sous chaque cle ; de temps en temps, efface ce qui a plus d'un jour. */
+export async function noterEchec(cles: string[]): Promise<void> {
+  try {
+    await q("INSERT INTO tentative_connexion (cle) SELECT unnest($1::text[])", [cles]);
+  } catch {
+    return;
+  }
+  if (Math.random() < 1 / 50) {
+    apres("tentatives", () => q("DELETE FROM tentative_connexion WHERE essai_le < now() - interval '1 day'"));
+  }
+}
+
+/** Un succes efface les echecs de ces cles : ses propres fautes de frappe ne bloquent plus. */
+export function oublierEchecs(cles: string[]): void {
+  apres("tentatives", () => q("DELETE FROM tentative_connexion WHERE cle = ANY($1::text[])", [cles])
+    .catch(() => undefined));
 }

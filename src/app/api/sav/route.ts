@@ -1,5 +1,5 @@
 import { q } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { reveillerLeCompte } from "@/lib/borne";
 import { normaliserTel, telPlausible, TEXTE_MAX } from "@/lib/sav";
 
@@ -17,6 +17,8 @@ const RETOUR = "/reglages/sav";
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Le contact du SAV vaut pour tout le parc : l'affaire de l'exploitant.
+  if (estRestreint(u)) return versPage(req, RETOUR);
   if (!peutConfigurer(u)) return versPage(req, "/reglages");
 
   const f = await req.formData();

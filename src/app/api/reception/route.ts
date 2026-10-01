@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { peutCharger, utilisateurDe, versPage } from "@/lib/auth";
+import { peutCharger, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { reserveDe } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,8 @@ function centimes(brut: string): number | null {
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Le depot est celui du compte : un invite sur une machine n'y fait pas entrer de marchandise.
+  if (estRestreint(u)) return versPage(req, "/");
   if (!peutCharger(u)) return versPage(req, "/");
 
   const f = await req.formData();

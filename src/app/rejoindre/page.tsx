@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { q1 } from "@/db";
+import { noterEchec, tropDEssais } from "@/lib/auth";
 import { nomDuRole, utilisateur } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +33,18 @@ export default async function Rejoindre({ searchParams }:
   // Sans code, cette page n'a rien a proposer : on renvoie qui est deja entre.
   if (moi && !code) redirect("/");
 
-  const offre = code ? await q1<Offre>(`
+  // UN CODE EN ADRESSE SE TESTE AUSSI : sans limite ici, la page servait a
+  // essayer des codes d'invitation a la chaine, en contournant celle de la route.
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnue";
+  const bloque = code ? await tropDEssais([[`ip:${ip}`, 30]]) : false;
+  const offre = code && !bloque ? await q1<Offre>(`
     SELECT i.email, i.role, c.nom AS compte, b.nom AS borne
       FROM invitation i
       JOIN compte c ON c.id = i.compte_id
       LEFT JOIN borne b ON b.id = i.borne_id
      WHERE i.code = $1 AND i.utilisee_le IS NULL`, [code.trim().toUpperCase()]) : null;
+
+  if (code && !bloque && !offre) await noterEchec([`ip:${ip}`]);
 
   const connu = offre ? await q1<{ id: number }>(
     "SELECT id FROM utilisateur WHERE email = $1", [offre.email]) : null;
@@ -44,6 +52,7 @@ export default async function Rejoindre({ searchParams }:
 
   const messages: Record<string, string> = {
     code: "Code inconnu, déjà utilisé ou annulé.",
+    trop: "Trop d’essais. Réessayez dans un quart d’heure.",
     mdp: "Le mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
     connexion: "Cette adresse a déjà un accès RedBox : connectez-vous avec, puis rouvrez ce lien.",
     deja: "Cette adresse a déjà un accès RedBox.",
@@ -103,7 +112,7 @@ export default async function Rejoindre({ searchParams }:
           </p>
         ) : null}
 
-        {e ? <p className="erreur" style={{ marginTop: 14 }}>{messages[e] ?? "Impossible."}</p> : null}
+        {e || bloque ? <p className="erreur" style={{ marginTop: 14 }}>{messages[bloque ? "trop" : e!] ?? "Impossible."}</p> : null}
 
         <div style={{ height: 18 }} />
         <button className="bouton primaire large" disabled={Boolean(connu) && !cestMoi}>

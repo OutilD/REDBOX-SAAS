@@ -1,6 +1,7 @@
 import { transaction } from "@/db";
-import { chiffrer, concorde, utilisateurDe, versPage } from "@/lib/auth";
+import { BISCUIT, chiffrer, concorde, utilisateurDe, versPage } from "@/lib/auth";
 import { balayerImages, rangerImage } from "@/lib/image";
+import { jetonDuBiscuit } from "@/lib/produits";
 
 export const dynamic = "force-dynamic";
 
@@ -76,12 +77,18 @@ export async function POST(req: Request) {
   return versPage(req, souci ? `/profil?e=${souci}` : "/profil?fait=1");
 }
 
-/** Le jeton de la session en cours, pour ne pas se deconnecter soi-meme. */
+/**
+ * Le jeton de la session en cours, pour ne pas se deconnecter soi-meme. En mode
+ * domaine, le biscuit porte une marque devant le jeton : on la retire comme le
+ * fait la lecture de session, sinon on effacait sa propre session.
+ */
 function jetonDe(req: Request): string {
   const brut = req.headers.get("cookie") ?? "";
   for (const morceau of brut.split(";")) {
     const [nom, ...reste] = morceau.trim().split("=");
-    if (nom === "rbx") return decodeURIComponent(reste.join("="));
+    if (nom !== BISCUIT) continue;
+    const jeton = jetonDuBiscuit(decodeURIComponent(reste.join("=")));
+    if (jeton) return jeton;
   }
   return "";
 }

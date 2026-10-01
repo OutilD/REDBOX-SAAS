@@ -284,7 +284,7 @@ const COLONNES_SALON = `
   s.id, CASE WHEN s.portee = 'support' THEN '${SUPPORT.nom}' ELSE s.nom END AS nom,
   s.sujet, s.borne_id, b.nom AS borne, s.ordre,
   s.portee, s.groupe, s.compte_id, k.nom AS compte, s.utilisateur_id, s.fond,
-  COALESCE(NULLIF(TRIM(p.pseudo), ''), NULLIF(TRIM(p.nom), ''), split_part(p.email, '@', 1)) AS personne`;
+  COALESCE(NULLIF(TRIM(p.pseudo), ''), NULLIF(TRIM(p.nom), ''), 'Redboxer ' || p.id) AS personne`;
 
 export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
   return q<Salon>(`
@@ -300,7 +300,7 @@ export async function salonsDe(u: Utilisateur): Promise<Salon[]> {
         SELECT CASE WHEN m.texte = '' AND m.photo_id IS NOT NULL THEN '📷 Photo'
                     ELSE left(regexp_replace(m.texte, '[[:space:]]+', ' ', 'g'), 90) END AS apercu,
                CASE WHEN m.utilisateur_id IS NULL THEN NULL
-                    ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS apercu_de,
+                    ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), 'Redboxer ' || x.id) END AS apercu_de,
                (m.utilisateur_id = $5::bigint) AS apercu_mien
           FROM message m LEFT JOIN utilisateur x ON x.id = m.utilisateur_id
          WHERE m.salon_id = s.id AND m.supprime_le IS NULL
@@ -361,7 +361,7 @@ export async function nonLus(u: Utilisateur): Promise<number> {
 const COLONNES = `
   m.id, m.salon_id, m.utilisateur_id,
   CASE WHEN m.utilisateur_id IS NULL THEN NULL
-       ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) END AS auteur,
+       ELSE COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), 'Redboxer ' || x.id) END AS auteur,
   x.image_id, x.couleur, kx.nom AS compte, COALESCE(kx.editeur, false) AS editeur,
   CASE WHEN m.supprime_le IS NULL THEN m.texte ELSE '' END AS texte,
   to_char(m.cree_le AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cree_le,
@@ -387,7 +387,7 @@ async function reactionsDe(ids: number[], moi: number | null, salon_id: number |
   const rows = await q<{ message_id: number; emoji: string; n: number; mien: boolean; qui: string[] }>(`
     SELECT r.message_id, r.emoji, COUNT(*)::int AS n,
            BOOL_OR(r.utilisateur_id = $2::bigint) AS mien,
-           COALESCE(ARRAY_AGG(COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1))
+           COALESCE(ARRAY_AGG(COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), 'Redboxer ' || x.id)
                               ORDER BY r.cree_le)
                       FILTER (WHERE r.utilisateur_id IS DISTINCT FROM $2::bigint), '{}') AS qui
       FROM reaction r JOIN utilisateur x ON x.id = r.utilisateur_id
@@ -447,13 +447,19 @@ export async function messagesDe(salon_id: number,
  * salon, les auteurs et les reactions resolus d'un coup pour tout le monde.
  */
 export async function apercusDe(salon_ids: number[], moi: number, lot = MESSAGES_PAR_LOT): Promise<Record<number, Message[]>> {
-  const ids = salon_ids.filter(Number.isInteger).slice(0, 120);
+  const ids = [...new Set(salon_ids.filter(Number.isInteger))].slice(0, 120);
   if (ids.length === 0) return {};
+  // Un LATERAL par salon, et non row_number() sur tous les messages : chaque
+  // salon ne lit que ses `lot` derniers par l'index (salon_id, id), au lieu de
+  // numeroter tout l'historique de tous les salons pour en garder quarante.
   const rows = await q<Brut>(`
-    SELECT ${COLONNES} FROM (
-      SELECT m.*, row_number() OVER (PARTITION BY m.salon_id ORDER BY m.id DESC) AS rn
-        FROM message m WHERE m.salon_id = ANY($1::bigint[])) m ${JOINTURES}
-     WHERE m.rn <= $2 ORDER BY m.salon_id, m.id`, [ids, lot]);
+    SELECT ${COLONNES}
+      FROM unnest($1::bigint[]) AS si(salon_id)
+      CROSS JOIN LATERAL (
+        SELECT mm.* FROM message mm WHERE mm.salon_id = si.salon_id
+         ORDER BY mm.id DESC LIMIT $2) m
+      ${JOINTURES}
+     ORDER BY m.salon_id, m.id`, [ids, lot]);
   const out: Record<number, Message[]> = {};
   for (const m of await grader(rows, moi)) (out[m.salon_id] ??= []).push(m);
   return out;
@@ -474,6 +480,20 @@ export async function reactionsDes(salon_id: number, ids: number[], moi: number)
 }
 
 /**
+ * CEUX DU LOT QUI ONT ETE RETIRES. Comme les reactions, un retrait touche un
+ * message deja a l'ecran, que `depuis` ne rendrait plus : sans cette lecture,
+ * un message retire depuis un autre appareil restait affiche ailleurs.
+ */
+export async function retiresDes(salon_id: number, ids: number[]): Promise<number[]> {
+  const propres = ids.filter((i) => Number.isInteger(i)).slice(0, 200);
+  if (propres.length === 0) return [];
+  const r = await q<{ id: number }>(`
+    SELECT id FROM message
+     WHERE salon_id = $1 AND id = ANY($2::bigint[]) AND supprime_le IS NOT NULL`, [salon_id, propres]);
+  return r.map((x) => Number(x.id));
+}
+
+/**
  * REAGIR, OU RETIRER SA REACTION — c'est le meme geste, et c'est la cle
  * primaire qui tranche. On ne reagit pas a soi-meme : s'applaudir rapporterait
  * des points, et le classement cesserait de vouloir dire quelque chose.
@@ -489,16 +509,18 @@ export type Reagi = {
   auteur_id: number | null; texte: string; par: string;
 };
 
-export async function reagir(message_id: number, utilisateur_id: number, emoji: string):
+export async function reagir(message_id: number, utilisateur_id: number, emoji: string, salon_id: number):
     Promise<Reagi | null> {
   if (!ESTAMPILLE.has(emoji)) return null;
   // La meme lecture dit si c'est son propre message, et de quoi prevenir
   // l'auteur ensuite — pas un aller-retour de plus pour la notification.
   const m = await q1<{ sien: boolean; auteur_id: number | null; texte: string; par: string }>(
     `SELECT (x.utilisateur_id = $2) AS sien, x.utilisateur_id AS auteur_id, x.texte,
-            (SELECT COALESCE(NULLIF(TRIM(u.pseudo), ''), NULLIF(TRIM(u.nom), ''), split_part(u.email, '@', 1))
+            (SELECT COALESCE(NULLIF(TRIM(u.pseudo), ''), NULLIF(TRIM(u.nom), ''), 'Redboxer ' || u.id)
                FROM utilisateur u WHERE u.id = $2) AS par
-       FROM message x WHERE x.id = $1 AND x.supprime_le IS NULL`, [message_id, utilisateur_id]);
+       FROM message x WHERE x.id = $1 AND x.salon_id = $3 AND x.supprime_le IS NULL`, [message_id, utilisateur_id, salon_id]);
+  // Le message doit etre DANS le salon dont la route a verifie l'acces : sans
+  // cela, un identifiant pris ailleurs laissait reagir dans un salon ferme.
   if (!m || m.sien) return null;
   const pose = await q(`
     INSERT INTO reaction (message_id, utilisateur_id, emoji) VALUES ($1, $2, $3)
@@ -591,7 +613,7 @@ export type Lecteurs = {
 };
 
 const COLONNES_LECTEUR = `
-  x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) AS pseudo,
+  x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), 'Redboxer ' || x.id) AS pseudo,
   x.image_id, x.couleur, k.editeur`;
 
 /**
@@ -660,7 +682,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon,
            AND ($1 = 'tous' OR k.editeur OR
                 ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
                                                    AND ${SQL_REDBOX_ATTRIBUEE})))
-      SELECT x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), split_part(x.email, '@', 1)) AS pseudo,
+      SELECT x.id, COALESCE(NULLIF(TRIM(x.pseudo), ''), NULLIF(TRIM(x.nom), ''), 'Redboxer ' || x.id) AS pseudo,
              x.image_id, x.couleur, x.editeur, false AS choisi, COUNT(*) OVER ()::int AS total
         FROM lecteurs x ORDER BY x.editeur DESC, pseudo LIMIT ${LIMITE}`, [groupe]);
     gens = r; total = r[0]?.total ?? 0;

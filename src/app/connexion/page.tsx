@@ -25,7 +25,9 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
           <label htmlFor="mdp">Mot de passe</label>
           <input id="mdp" name="mdp" type="password" autoComplete="current-password" required />
         </div>
-        {e ? <p className="erreur" style={{ marginTop: 14 }}>Identifiants incorrects.</p> : null}
+        {e ? <p className="erreur" style={{ marginTop: 14 }}>
+          {e === "trop" ? "Trop d’essais. Réessayez dans un quart d’heure." : "Identifiants incorrects."}
+        </p> : null}
         <div style={{ height: 20 }} />
         <button className="bouton primaire large">Entrer</button>
 

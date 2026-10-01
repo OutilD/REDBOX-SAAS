@@ -37,6 +37,7 @@ export default async function Ajouter({ searchParams }: { searchParams: Promise<
   const messages: Record<string, string> = {
     code: "Code inconnu ou expiré. La RedBox en affiche un nouveau toutes les vingt minutes.",
     nom: "Donnez un nom à la RedBox.",
+    trop: "Trop d’essais. Réessayez dans un quart d’heure.",
     prise: "Cette demande a déjà été adoptée.",
     demo: "Le mode démo est actif : désactivez-le avant d’appairer une vraie RedBox.",
     deja: "Cette RedBox est déjà rattachée à un compte. Une machine ne peut appartenir "

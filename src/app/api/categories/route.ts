@@ -1,5 +1,5 @@
 import { q, transaction } from "@/db";
-import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
+import { peutConfigurer, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { reveillerLeCompte } from "@/lib/borne";
 import { balayerImages, rangerImage } from "@/lib/image";
 import { CLES_PICTO } from "@/lib/pictos";
@@ -11,6 +11,8 @@ const RETOUR = "/reglages/categories";
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
+  // Les categories sont celles du compte : l'affaire de l'exploitant, pas d'un invite sur une machine.
+  if (estRestreint(u)) return versPage(req, RETOUR);
   if (!peutConfigurer(u)) return versPage(req, "/reglages");
   const f = await req.formData();
 

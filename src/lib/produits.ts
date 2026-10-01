@@ -116,10 +116,36 @@ export function jetonDuBiscuit(valeur: string | null | undefined): string | null
   return marque ? valeur.slice(MARQUE_PARTAGE.length) : valeur;
 }
 
+/**
+ * L'HOTE EST-IL LOCAL ? localhost, 127.x, ou une adresse de reseau prive : la
+ * console tourne alors parfois en http, sur le reseau du bar.
+ */
+export function hoteLocal(hote: string | null | undefined): boolean {
+  const brut = propre(hote);
+  if (!brut) return true;
+  if (brut.startsWith("[")) return brut.startsWith("[::1]");   // IPv6 : seule la boucle locale
+  const h = brut.replace(/:\d+$/, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
+  const m = h.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+  if (!m) return false;
+  const a = Number(m[1]), b = Number(m[2]);
+  return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 169 && b === 254);
+}
+
+/**
+ * « ; Secure » pour un biscuit servi par cet hote, sauf en local : un
+ * navigateur refuse un biscuit Secure pose en http, et la connexion sur le
+ * reseau du bar ne tiendrait plus.
+ */
+export function attributSecure(hote: string | null | undefined): string {
+  return hoteLocal(hote) ? "" : "; Secure";
+}
+
 /** Un biscuit de preference (theme, rail), partage sous le domaine s'il y en a un. */
 export function biscuitPartage(nom: string, valeur: string, maxAge: number, hote: string | null): string {
   const d = domaineDe(hote);
-  return `${nom}=${valeur}; Path=/; SameSite=Lax${d ? `; Domain=${d}` : ""}; Max-Age=${maxAge}`;
+  return `${nom}=${valeur}; Path=/; SameSite=Lax${attributSecure(hote)}${d ? `; Domain=${d}` : ""}; Max-Age=${maxAge}`;
 }
 
 /** L'hote tel que le client l'a compose — derriere un proxy, `x-forwarded-host` passe devant. */

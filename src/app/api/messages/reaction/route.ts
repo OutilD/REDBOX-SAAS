@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   if (!s) return refus(404, "salon");
   if (!peutReagir(u, s)) return refus(403, "lecture");
 
-  const r = await reagir(message_id, u.id, emoji);
+  const r = await reagir(message_id, u.id, emoji, salon_id);
   if (r === null) return refus(400, "réaction");
   apres("temps réel", () => annoncer([salon_id]));
 

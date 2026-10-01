@@ -31,7 +31,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   return servir(req, await q1<{ octets: Buffer; type_mime: string; empreinte: string }>(
     `SELECT i.octets, i.type_mime, i.empreinte FROM image i
       WHERE i.id = $1
-        AND (i.compte_id = $2
+        AND ((i.compte_id = $2
+              -- Une photo de message ne sort que par /api/messages/photo, qui
+              -- verifie l'acces au salon : son compte seul ne suffit pas.
+              AND NOT EXISTS (SELECT 1 FROM message m WHERE m.photo_id = i.id))
              OR EXISTS (SELECT 1 FROM utilisateur x WHERE x.image_id = i.id)
              OR EXISTS (SELECT 1 FROM centrale_produit cp WHERE cp.image_id = i.id)
              OR EXISTS (SELECT 1 FROM centrale_fournisseur cf WHERE cf.image_id = i.id)

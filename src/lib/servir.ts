@@ -14,7 +14,7 @@ export function servir(
 
   const etiquette = `"${v.empreinte.slice(0, 32)}"`;
   if (req.headers.get("if-none-match") === etiquette) {
-    return new Response(null, { status: 304, headers: { ETag: etiquette } });
+    return new Response(null, { status: 304, headers: { ETag: etiquette, "X-Content-Type-Options": "nosniff" } });
   }
 
   return new Response(new Uint8Array(v.octets), {
@@ -23,6 +23,8 @@ export function servir(
       "content-length": String(v.octets.length),
       "cache-control": "private, max-age=31536000, immutable",
       ETag: etiquette,
+      // Le navigateur s'en tient au type annonce : pas de devinette sur le contenu.
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

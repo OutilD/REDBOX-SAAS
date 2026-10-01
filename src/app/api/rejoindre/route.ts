@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { chiffrer, creerSession, enTeteBiscuit, utilisateurDe, versPage } from "@/lib/auth";
+import { chiffrer, creerSession, enTeteBiscuit, ipDe, noterEchec, tropDEssais, utilisateurDe, versPage } from "@/lib/auth";
 import { offrirBienvenue } from "@/lib/communaute";
 import { hoteDes } from "@/lib/produits";
 
@@ -27,6 +27,10 @@ export async function POST(req: Request) {
   const mdp = String(f.get("mdp") ?? "");
   const mdp2 = String(f.get("mdp2") ?? "");
   const vers = (e: string) => versPage(req, `/rejoindre?e=${e}&code=${encodeURIComponent(code)}`);
+
+  // Un code d'invitation se devine si l'on peut essayer sans fin.
+  const cles = ["ip:" + ipDe(req)];
+  if (await tropDEssais([[cles[0], 30]])) return vers("trop");
 
   const connecte = await utilisateurDe(req);
 
@@ -78,6 +82,7 @@ export async function POST(req: Request) {
     return { souci: null, id, neuf };
   });
 
+  if (issue.souci === "code") await noterEchec(cles);
   if (issue.souci) return vers(issue.souci);
   if (!issue.neuf) return versPage(req, "/");
   return versPage(req, "/", enTeteBiscuit(await creerSession(issue.id), hoteDes(req.headers)));
