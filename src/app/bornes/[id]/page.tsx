@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
-import { q, q1, euros, depuis, enLigne, codeCanal, SQL_MINUIT } from "@/db";
+import { q, q1, euros, depuis, enLigne, codeCanal, SQL_MINUIT, entier } from "@/db";
 import { estSuperAdmin, peutCharger, utilisateur, peutVoirBorne, peutConfigurer } from "@/lib/auth";
 import { canauxDe, type LigneCanal } from "@/lib/stock";
 import { SEUIL_J, autonomieCanaux, joursTexte } from "@/lib/autonomie";
@@ -66,7 +66,7 @@ export default async function Detail({
                              c?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();

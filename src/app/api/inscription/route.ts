@@ -71,6 +71,13 @@ export async function POST(req: Request) {
                   [k.id]);
     if (!process.env.REDBOX_SANS_DEMO) await semerDemo(c, k.id, email);
     return { souci: null, id: u.id };
+  }).catch((e: unknown) => {
+    // UN DOUBLE CLIC. La verification puis l'insertion ne sont pas atomiques, et
+    // la transaction est longue (elle seme la demo) : le second envoi butait sur
+    // l'adresse unique et affichait une page d'erreur, alors que le premier
+    // venait de creer le compte.
+    if ((e as { code?: string })?.code === "23505") return { souci: "pris", id: 0 };
+    throw e;
   });
 
   if (issue.souci) return vers(issue.souci);

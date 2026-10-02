@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { Repli } from "../../repli";
 import { IcoBorne, IcoFleche, IcoReception, IcoStock } from "../../icones";
-import { q, q1, euros, depuis, leJour } from "@/db";
+import { q, q1, euros, depuis, leJour, entier } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { MOTIFS_SORTIE, PARTICIPE, estMotifSortie } from "@/lib/sortie";
 import { IcoSortir } from "../../icones";
@@ -42,7 +42,7 @@ export default async function Produit({
   // recu, ce qui a ete paye : rien de tout cela ne regarde quelqu'un qu'on a
   // invite sur une machine. On le renvoie a ses bornes.
   if (u.bornes !== null) redirect("/bornes");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
   const { sortie, motif: motifSorti } = await searchParams;
 
   // TROIS LECTURES ENSEMBLE : aucune ne depend d'une autre, chacune coute un aller-retour.

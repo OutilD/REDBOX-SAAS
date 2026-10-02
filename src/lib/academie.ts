@@ -224,11 +224,6 @@ export async function sommaire(l: Lecteur): Promise<LeconSommaire[]> {
   return lignes.map(({ module_acces, ...x }) => ({ ...x, ouverte: ouverte(l, module_acces, x.acces) }));
 }
 
-export async function moduleDe(l: Lecteur, id: number): Promise<Module | null> {
-  if (!Number.isInteger(id)) return null;
-  return (await modules(l)).find((m) => m.id === id) ?? null;
-}
-
 export type Bloc = {
   id: number; lecon_id: number; genre: Genre; ordre: number;
   titre: string | null; texte: string | null; url: string | null;

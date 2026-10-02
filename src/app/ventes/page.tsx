@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../chrome";
-import { q, q1, euros, depuis, FUSEAU } from "@/db";
+import { q, q1, euros, depuis, FUSEAU, entier } from "@/db";
 import { peutCharger, utilisateur, type Utilisateur } from "@/lib/auth";
 import { filtreRetenu } from "@/lib/filtre";
 import { Suspense } from "react";
@@ -67,7 +67,7 @@ export default async function Ventes(
   const choisie = b ? await q1<{ id: number }>(
     `SELECT id FROM borne
       WHERE id = $1 AND compte_id = $2 AND ($3::bigint[] IS NULL OR id = ANY($3))`,
-    [Number(b), u.compte_id, u.bornes]) : null;
+    [entier(b), u.compte_id, u.bornes]) : null;
   const portee = choisie ? [choisie.id] : u.bornes;
 
   return (
@@ -147,16 +147,27 @@ async function Corps({ u, fen, choisie, portee }: {
       FROM vente v JOIN borne b ON b.id = v.borne_id
      WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
        AND v.faite_le >= ${DEBUT}`, p),
+    // Tous les jours de la fenetre, vendus ou non : sans la serie, trois jours
+    // de vente sur trente donnaient trois barres collees, comme une activite
+    // continue.
     q<Jour>(`
-    SELECT to_char(${JOUR}, 'DD/MM') AS jour,
-           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
-      FROM vente v JOIN borne b ON b.id = v.borne_id
-     WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
-       AND v.faite_le >= ${DEBUT}
-     GROUP BY ${JOUR} ORDER BY ${JOUR}`, p),
+    WITH serie AS (
+      SELECT generate_series(date_trunc('day', ${DEBUT} AT TIME ZONE '${FUSEAU}'),
+                             date_trunc('day', now() AT TIME ZONE '${FUSEAU}'),
+                             interval '1 day') AS jour)
+    SELECT to_char(s.jour, 'DD/MM') AS jour,
+           COUNT(x.id)::int n, COALESCE(SUM(x.prix_c),0)::int total
+      FROM serie s
+      LEFT JOIN (SELECT v.id, v.prix_c, ${JOUR} AS jour
+                   FROM vente v JOIN borne b ON b.id = v.borne_id
+                  WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
+                    AND v.faite_le >= ${DEBUT}) x ON x.jour = s.jour
+     GROUP BY s.jour ORDER BY s.jour`, p),
     q<ParProduit>(`
     SELECT pr.nom, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total,
-           SUM(v.prix_c - COALESCE(a.prix_achat_c, 0))::int AS marge
+           -- Sans prix d'achat connu, pas de marge : un tiret, pas cent pour cent.
+           CASE WHEN COUNT(a.prix_achat_c) = 0 THEN NULL
+                ELSE SUM(v.prix_c - a.prix_achat_c)::int END AS marge
       FROM vente v
       JOIN borne b   ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
@@ -214,7 +225,7 @@ async function Corps({ u, fen, choisie, portee }: {
             <span className="libelle">à regarder</span></div></div>
         </div>
 
-        {jours.length > 0 ? (
+        {total && total.n > 0 ? (
           <>
             <h2>Jour par jour</h2>
             <div className="carte">
@@ -223,7 +234,7 @@ async function Corps({ u, fen, choisie, portee }: {
                   <div key={j.jour} title={`${j.jour} · ${j.n} article(s) · ${euros(j.total)}`}
                        style={{ flex: 1, display: "flex", flexDirection: "column",
                                 justifyContent: "flex-end", height: "100%" }}>
-                    <div style={{ height: `${Math.max(4, (j.total / sommet) * 100)}%`,
+                    <div style={{ height: j.total > 0 ? `${Math.max(4, (j.total / sommet) * 100)}%` : 0,
                                   background: "var(--rouge)", borderRadius: "4px 4px 0 0" }} />
                   </div>
                 ))}
@@ -248,7 +259,7 @@ async function Corps({ u, fen, choisie, portee }: {
                 <div className="ligne" key={i}>
                   <div className="corps">
                     <div className="nom">{x.nom ?? "produit inconnu"}</div>
-                    <div className="meta">{x.n} vendus · marge {euros(x.marge ?? 0)}</div>
+                    <div className="meta">{x.n} vendus · marge {x.marge === null ? "—" : euros(x.marge)}</div>
                     <div className="repartition" style={{ marginTop: 7, height: 6, maxWidth: 240 }}>
                       <span className="bornes" style={{ width: `${Math.round((x.total / Math.max(1, total?.total ?? 1)) * 100)}%` }} />
                     </div>

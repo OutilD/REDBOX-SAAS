@@ -1,4 +1,4 @@
-import { transaction } from "@/db";
+import { transaction, entier } from "@/db";
 import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 import { reveiller } from "@/lib/borne";
 import { balayerImages, rangerImage } from "@/lib/image";
@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
-  const id = Number((await ctx.params).id);
+  const id = entier((await ctx.params).id);
   if (!peutConfigurer(u)) return versPage(req, `/bornes/${id}`);
   if (!peutVoirBorne(u, id)) return versPage(req, "/bornes");
 

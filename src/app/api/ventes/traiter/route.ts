@@ -1,4 +1,4 @@
-import { q } from "@/db";
+import { q, entier } from "@/db";
 import { peutCharger, utilisateurDe, versPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
               -- Et dans la portee : un litige d'une machine qu'on ne voit pas
               -- ne doit pas pouvoir etre classe depuis un identifiant devine.
               AND ($5::bigint[] IS NULL OR borne_id = ANY($5))`,
-          [u.email, String(f.get("note") ?? "").trim() || null, Number(f.get("id")),
+          [u.email, String(f.get("note") ?? "").trim() || null, entier(f.get("id")),
            u.compte_id, u.bornes]);
   return versPage(req, "/ventes");
 }

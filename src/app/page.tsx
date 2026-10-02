@@ -138,7 +138,7 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   const panierAvant = avant.ventes ? Math.round(avant.ca / avant.ventes) : 0;
   // Le taux de marge se lit mieux que la marge seule : quinze pour cent sur un
   // gros chiffre et quinze pour cent sur un petit se pilotent de la meme facon.
-  const taux = tete.ca > 0 ? Math.round((tete.marge / tete.ca) * 100) : null;
+  const taux = tete.ca_connu > 0 ? Math.round((tete.marge / tete.ca_connu) * 100) : null;
 
   const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
   const urgences = risques.filter((s) => (s.jours_restants ?? 99) <= 3);

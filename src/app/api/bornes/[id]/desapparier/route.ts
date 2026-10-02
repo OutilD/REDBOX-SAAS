@@ -1,4 +1,4 @@
-import { q } from "@/db";
+import { q, entier } from "@/db";
 import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
-  const id = Number((await ctx.params).id);
+  const id = entier((await ctx.params).id);
+  if (!id) return versPage(req, "/bornes");
   if (!peutConfigurer(u)) return versPage(req, `/bornes/${id}`);
   // CETTE BORNE LUI EST-ELLE OUVERTE ? Le compte ne suffit plus : quelqu'un
   // invite pour une seule machine appartient bien au compte, et pourrait
@@ -28,6 +29,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const n = await q(`
     UPDATE borne SET jeton = NULL, depairee_le = now(), reveil_le = NULL, reveil_motif = NULL
      WHERE id = $1 AND compte_id = $2 AND jeton IS NOT NULL
+       -- Une borne fictive de la demo ne se delie pas : sans son jeton
+       -- « demo_ », elle passait pour une vraie machine, et l'attribution d'une
+       -- RedBox au compte echouait ensuite (sortirDeLaDemoPour).
+       AND jeton NOT LIKE 'demo\\_%' AND jeton NOT LIKE 'vitrine\\_%'
      RETURNING id`, [id, u.compte_id]);
 
   return versPage(req, n.length > 0 ? "/bornes?d=1" : `/bornes/${id}`);

@@ -1,4 +1,4 @@
-import { transaction } from "@/db";
+import { transaction, entier } from "@/db";
 import { ipDe, noterEchec, peutConfigurer, tropDEssais, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { nouveauJeton } from "@/lib/borne";
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   // cree pas une seconde ligne : celle-la recoit le jeton et devient la
   // machine. Son nom et son adresse ne changent que si on en donne.
   const attendueBrut = String(f.get("borne") ?? "").trim();
-  const attendue = attendueBrut ? Number(attendueBrut) : null;
+  const attendue = attendueBrut ? entier(attendueBrut) : null;
   const vers = (e: string) => versPage(req, `/bornes/ajouter?e=${e}&code=${encodeURIComponent(code)}`);
   if (!nom && attendue === null) return vers("nom");
   // Un code d'appairage se devine si l'on peut essayer sans fin.

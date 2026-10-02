@@ -132,6 +132,7 @@ export default async function Catalogue({
           </div>
         ) : null}
         {e === "sku" ? <p className="erreur">Ce SKU existe déjà, ou le nom est vide.</p> : null}
+        {e === "prix" ? <p className="erreur">Donnez un prix de vente supérieur à zéro (1 000 € au plus).</p> : null}
         {e === "place" ? <p className="erreur">
           Pour déclarer une nouvelle spire, donnez sa rangée et sa colonne (1 à 10).
           Le produit a bien été créé, mais il n’est posé nulle part.

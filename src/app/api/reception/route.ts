@@ -4,12 +4,20 @@ import { reserveDe } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * LES PLAFONDS D'UNE LIGNE. Les colonnes sont des entiers 32 bits : une quantite
+ * tapee avec trois zeros de trop faisait tomber TOUTE la livraison en erreur.
+ * Cent mille unites ou dix mille euros l'unite ne sont jamais une intention.
+ */
+const QUANTITE_MAX = 100_000;
+const ACHAT_MAX_C = 1_000_000;
+
 /** « 12,50 » ou « 12.5 » ou vide → centimes, ou null. */
 function centimes(brut: string): number | null {
   const t = brut.trim().replace(/[^\d,.-]/g, "").replace(",", ".");
   if (!t) return null;
   const n = Math.round(parseFloat(t) * 100);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isFinite(n) && n >= 0 && n <= ACHAT_MAX_C ? n : null;
 }
 
 /**
@@ -38,6 +46,7 @@ export async function POST(req: Request) {
     const quantite = Number(valeur);
     if (!Number.isInteger(produit) || produit <= 0) continue;
     if (!Number.isInteger(quantite) || quantite <= 0) continue;
+    if (quantite > QUANTITE_MAX) return versPage(req, "/reception?e=quantite");
     lignes.push({ produit, quantite, prix: centimes(String(f.get(`p_${produit}`) ?? "")) });
   }
   if (lignes.length === 0) return versPage(req, "/reception?e=rien");

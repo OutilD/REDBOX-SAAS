@@ -1,4 +1,4 @@
-import { q1 } from "@/db";
+import { q1, entier } from "@/db";
 import { peutConfigurer, utilisateurDe, versPage } from "@/lib/auth";
 import { poserObjectif } from "@/lib/objectif";
 
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const f = await req.formData();
   const retour = String(f.get("retour") ?? "/").startsWith("/") ? String(f.get("retour")) : "/";
   if (!peutConfigurer(u) || u.bornes !== null) return versPage(req, retour);
-  const borne = Number(f.get("borne_id")) || null;
+  const borne = entier(f.get("borne_id")) || null;
   if (borne && !(await q1("SELECT 1 FROM borne WHERE id = $1 AND compte_id = $2", [borne, u.compte_id]))) return versPage(req, retour);
   const brut = String(f.get("montant") ?? "").replace(/[^\d,.]/g, "").replace(",", ".");
   // Un objectif se dit en euros ronds : « 1 200 », pas « 1 200,37 ». Vide : on le

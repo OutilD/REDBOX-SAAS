@@ -1,6 +1,6 @@
 import { q1 } from "@/db";
-import { chiffrer, concorde, creerSession, enTeteBiscuit, ipDe, noterEchec, oublierEchecs, tropDEssais,
-         versPage } from "@/lib/auth";
+import { chiffrer, concorde, creerSession, enTeteBiscuit, ipDe, noterEchec, oublierEchecs, suiteValable,
+         tropDEssais, versPage } from "@/lib/auth";
 import { PRODUITS, adresse, hoteDes, produitDeLHote } from "@/lib/produits";
 
 import { SQL_REDBOX_ATTRIBUEE } from "@/lib/communaute";
@@ -18,19 +18,23 @@ export async function POST(req: Request) {
   const f = await req.formData();
   const email = String(f.get("email") ?? "").trim().toLowerCase();
   const mdp = String(f.get("mdp") ?? "");
+  const suite = suiteValable(f.get("suite"));
+  const encore = (e: string) => `/connexion?e=${e}${suite ? `&suite=${encodeURIComponent(suite)}` : ""}`;
   // Trop d'echecs recents pour cette adresse ou depuis cette IP : on ne verifie
   // meme pas, et l'on attend que la fenetre passe.
   const cles = ["mdp:" + email, "ip:" + ipDe(req)];
-  if (await tropDEssais([[cles[0], 8], [cles[1], 30]])) return versPage(req, "/connexion?e=trop");
+  if (await tropDEssais([[cles[0], 8], [cles[1], 30]])) return versPage(req, encore("trop"));
   const l = await q1<{ id: number; mdp: string }>(
     "SELECT id, mdp FROM utilisateur WHERE email = $1", [email]);
   // Meme reponse dans les deux cas, et meme temps : on ne dit pas quels comptes existent.
   const bon = concorde(mdp, l?.mdp ?? empreinteFactice());
   if (!l || !bon) {
     await noterEchec(cles);
-    return versPage(req, "/connexion?e=1");
+    return versPage(req, encore("1"));
   }
   oublierEchecs([cles[0]]);
+  // Venu d'un lien d'invitation : on le rouvre, sur cet hote, la session posee.
+  if (suite) return versPage(req, suite, enTeteBiscuit(await creerSession(l.id), hoteDes(req.headers)));
   // CHACUN ARRIVE DANS SON PRODUIT. Qui a une vraie machine — ou fait partie de
   // l'equipe RedBox — ouvre la gestion ; qui n'en a pas encore arrive dans
   // Connect, ou sont la communaute et l'academie. La gestion en demonstration

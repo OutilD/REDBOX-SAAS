@@ -50,11 +50,16 @@ export default async function Rejoindre({ searchParams }:
     "SELECT id FROM utilisateur WHERE email = $1", [offre.email]) : null;
   const cestMoi = Boolean(moi && connu && moi.id === connu.id);
 
+  // Se connecter depuis l'invitation ramene ici, le code avec : sans lui, il
+  // fallait retrouver le lien apres s'etre connecte.
+  const versConnexion = code && offre
+    ? `/connexion?suite=${encodeURIComponent(`/rejoindre?code=${code.trim().toUpperCase()}`)}` : "/connexion";
+
   const messages: Record<string, string> = {
     code: "Code inconnu, déjà utilisé ou annulé.",
     trop: "Trop d’essais. Réessayez dans un quart d’heure.",
     mdp: "Le mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
-    connexion: "Cette adresse a déjà un accès RedBox : connectez-vous avec, puis rouvrez ce lien.",
+    connexion: "Cette adresse a déjà un accès RedBox : connectez-vous avec, vous reviendrez ici.",
     deja: "Cette adresse a déjà un accès RedBox.",
   };
 
@@ -121,10 +126,10 @@ export default async function Rejoindre({ searchParams }:
 
         <p className="faible" style={{ fontSize: 13, textAlign: "center", margin: "16px 0 0" }}>
           {connu && !cestMoi ? (
-            <Link href="/connexion" style={{ textDecoration: "underline" }}>Se connecter</Link>
+            <Link href={versConnexion} style={{ textDecoration: "underline" }}>Se connecter</Link>
           ) : (
             <>Vous avez déjà un accès ?{" "}
-              <Link href="/connexion" style={{ textDecoration: "underline" }}>Se connecter</Link></>
+              <Link href={versConnexion} style={{ textDecoration: "underline" }}>Se connecter</Link></>
           )}
         </p>
       </form>

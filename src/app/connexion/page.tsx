@@ -1,16 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { utilisateur } from "@/lib/auth";
+import { suiteValable, utilisateur } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function Connexion({ searchParams }: { searchParams: Promise<{ e?: string }> }) {
-  if (await utilisateur()) redirect("/");
-  const { e } = await searchParams;
+export default async function Connexion({ searchParams }: { searchParams: Promise<{ e?: string; suite?: string }> }) {
+  const { e, suite: brut } = await searchParams;
+  const suite = suiteValable(brut);
+  if (await utilisateur()) redirect(suite ?? "/");
   return (
     <main style={{ display: "grid", placeItems: "center", minHeight: "100svh", padding: 20 }}>
       <form method="post" action="/api/session" className="carte" style={{ width: "min(380px, 100%)", padding: 26 }}>
+        {/* Venu d'un lien d'invitation : on y revient une fois connecte. */}
+        {suite ? <input type="hidden" name="suite" value={suite} /> : null}
         {/* Le vrai logo, pas la marque reconstituee en texte : c'est la premiere
             chose qu'on voit de RedBox, et c'est celle qui doit etre juste. */}
         <Image src="/logo-redbox.png" alt="RedBox" width={232} height={150}

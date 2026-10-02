@@ -46,7 +46,7 @@ export default async function Reglages() {
   const n = await q1<Compte>(`
     SELECT (SELECT COUNT(*)::int FROM categorie   WHERE compte_id = $1 AND actif) AS categories,
            (SELECT COUNT(*)::int FROM produit     WHERE compte_id = $1 AND actif) AS produits,
-           (SELECT COUNT(*)::int FROM utilisateur WHERE compte_id = $1)           AS membres,
+           (SELECT COUNT(*)::int FROM membre      WHERE compte_id = $1)           AS membres,
            (SELECT COUNT(*)::int FROM visuel v JOIN playlist p ON p.id = v.playlist_id
              WHERE p.compte_id = $1)                                              AS visuels,
            (SELECT COUNT(*)::int FROM playlist    WHERE compte_id = $1 AND actif) AS playlists,

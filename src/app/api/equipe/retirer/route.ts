@@ -1,4 +1,4 @@
-import { transaction } from "@/db";
+import { transaction, entier } from "@/db";
 import { peutGererEquipe, utilisateurDe, versPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
   if (!peutGererEquipe(u)) return versPage(req, "/reglages");
-  const id = Number((await req.formData()).get("id"));
+  const id = entier((await req.formData()).get("id"));
   await transaction(async (c) => {
     const cible = await c.query(`SELECT 1 FROM membre
       WHERE utilisateur_id = $1 AND compte_id = $2 AND utilisateur_id <> $3

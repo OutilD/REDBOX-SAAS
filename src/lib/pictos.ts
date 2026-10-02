@@ -47,14 +47,3 @@ export const PICTOS: Picto[] = [
 
 export const CLES_PICTO = new Set(PICTOS.map((p) => p.cle));
 
-/** La cle proposee quand rien n'est choisi, d'apres le prefixe du SKU. C'est la
- *  regle qu'appliquait la machine dans son coin ; on la rend visible. */
-export function pictoParDefaut(sku: string): string {
-  const s = (sku ?? "").toUpperCase();
-  if (s.startsWith("VAPE")) return "vape";
-  if (s.startsWith("POP"))  return "popper";
-  if (s.startsWith("PWR"))  return "batterie";
-  if (s.startsWith("HYG"))  return "hygiene";
-  if (s.startsWith("BRQ"))  return "briquet";
-  return "cable";
-}

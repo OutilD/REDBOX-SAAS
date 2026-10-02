@@ -79,6 +79,7 @@ export default async function Reception({ searchParams }:
           </div>
         ) : null}
         {e === "rien" ? <p className="erreur">Aucune ligne saisie : indiquez au moins une quantité.</p> : null}
+        {e === "quantite" ? <p className="erreur">Une quantité dépasse 100 000 unités : vérifiez la saisie, rien n’a été enregistré.</p> : null}
 
         {produits.length === 0 ? (
           <Repli icone={<IcoCatalogue />} titre="Aucun produit au catalogue"

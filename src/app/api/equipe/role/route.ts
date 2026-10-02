@@ -1,4 +1,4 @@
-import { q } from "@/db";
+import { q, entier } from "@/db";
 import { peutGererEquipe, ROLES, utilisateurDe, versPage } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,6 @@ export async function POST(req: Request) {
   await q(`UPDATE membre SET role = $1
             WHERE utilisateur_id = $2 AND compte_id = $3
               AND utilisateur_id <> $4 AND role <> 'proprietaire'`,
-          [role, Number(f.get("id")), u.compte_id, u.id]);
+          [role, entier(f.get("id")), u.compte_id, u.id]);
   return versPage(req, "/reglages/equipe");
 }

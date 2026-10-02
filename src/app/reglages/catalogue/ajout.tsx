@@ -92,7 +92,7 @@ export default function Ajout({ categories, bornes, libres, connus, suites }: {
         </div>
         <div className="c-court">
           <label htmlFor="prix">Prix (€)</label>
-          <input id="prix" name="prix" inputMode="decimal" defaultValue="0,00" />
+          <input id="prix" name="prix" inputMode="decimal" placeholder="0,00" required />
         </div>
         <div className="c-court">
           <label htmlFor="age">Âge minimum</label>

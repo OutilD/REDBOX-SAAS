@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { FUSEAU } from "@/db";
-import { utilisateur } from "@/lib/auth";
+import { peutVoirBorne, utilisateur } from "@/lib/auth";
 import { planifier } from "@/lib/reassort";
 import { Repli } from "../../repli";
 import { IcoAlerte, IcoReassort } from "../../icones";
@@ -43,7 +43,10 @@ export default async function Fiche({
   const brut = (await searchParams).b;
   const ids = [...new Set((Array.isArray(brut) ? brut : brut ? [brut] : [])
     .flatMap((v) => v.split(","))
-    .map(Number).filter(Number.isInteger))];
+    .map(Number).filter(Number.isInteger))]
+    // Quelqu'un invite pour une seule machine ne prepare que la sienne : le
+    // compte ne suffit pas, un numero tape dans l'adresse ouvrait celle d'a cote.
+    .filter((id) => peutVoirBorne(u, id));
 
   if (ids.length === 0) redirect("/reassort");
 

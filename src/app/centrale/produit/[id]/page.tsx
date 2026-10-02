@@ -32,7 +32,7 @@ export default async function FicheProduit({ params, searchParams }: {
   const adopte = peutConfigurer(u) && u.bornes === null;
   const [autres, cats, fours, miennes, dejaLa] = await Promise.all([
     similaires(p, 4), lireCategories(), lireFournisseurs(),
-    adopte ? q<{ id: number; nom: string }>("SELECT id, nom FROM categorie WHERE compte_id = $1 ORDER BY ordre, nom", [u.compte_id]) : [],
+    adopte ? q<{ id: number; nom: string }>("SELECT id, nom FROM categorie WHERE compte_id = $1 AND actif ORDER BY ordre, nom", [u.compte_id]) : [],
     adopte ? q<{ n: number }>("SELECT COUNT(*)::int AS n FROM produit WHERE compte_id = $1 AND (nom = $2 OR nom LIKE $2 || ' · %')", [u.compte_id, p.nom]).then((r) => r[0]?.n ?? 0) : 0,
   ]);
   const memeRayon = miennes.find((c) => p.categorie && c.nom.trim().toLowerCase() === p.categorie.trim().toLowerCase());
@@ -95,6 +95,9 @@ export default async function FicheProduit({ params, searchParams }: {
             )}
             {adopte ? (
               <div className="ctr-fiche-adopter">
+                {/* Le refus de l'ajout se lit ici : le panneau de modification,
+                    ou l'erreur s'affiche aussi, n'est ouvert qu'aux editeurs. */}
+                {erreur && !editeur ? <p className="erreur">{erreur}</p> : null}
                 <Modale titre="Ajouter à mon catalogue" ouvrir={dejaLa > 0 ? "Ajouter encore à mon catalogue" : "＋ Ajouter à mon catalogue"}
                         classeBouton="bouton large">
                   <form method="post" action="/api/centrale/adopter">

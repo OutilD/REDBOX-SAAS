@@ -9,6 +9,16 @@ import { animerDemo } from "./demo";
 import { MARQUE_PARTAGE, attributSecure, domaineBiscuit, domaineDe, hoteDes, hotes, jetonDuBiscuit } from "./produits";
 
 /** scrypt : sel:empreinte. Pas de service tiers pour trois mots de passe. */
+/**
+ * OU ALLER APRES LA CONNEXION, quand on y est arrive par un lien d'invitation.
+ * Seule la page /rejoindre avec son code est acceptee : une destination libre
+ * ferait de la page de connexion un tremplin vers n'importe quelle page.
+ */
+export function suiteValable(s: unknown): string | null {
+  const t = String(s ?? "");
+  return /^\/rejoindre\?code=[A-Za-z0-9-]{1,40}$/.test(t) ? t : null;
+}
+
 export function chiffrer(mdp: string): string {
   const sel = randomBytes(16).toString("hex");
   return sel + ":" + scryptSync(mdp, sel, 64).toString("hex");

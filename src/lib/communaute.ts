@@ -534,9 +534,6 @@ export function niveauProgres(points: number): { niveau: number; dans: number; r
            pct: Math.round((dans / PAS_NIVEAU) * 100) };
 }
 
-/** Les badges que l'equipe remet a la main. */
-export const BADGES_MANUELS = BADGES.filter((b) => b.manuel);
-
 /** Combien de badges une personne met en vitrine sur son profil. */
 export const VEDETTES_MAX = 3;
 

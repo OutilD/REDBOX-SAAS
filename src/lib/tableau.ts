@@ -65,6 +65,19 @@ export type Periode = {
 const SAISIE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
 
 /**
+ * Bien formee ET reelle : « 2026-02-30T10:00 » passe la forme, et Postgres la
+ * refusait — le tableau de bord tombait en erreur au lieu de revenir a la
+ * fenetre par defaut.
+ */
+function saisieValable(s: string): boolean {
+  if (!SAISIE.test(s)) return false;
+  const [a, m, j, h, mi] = s.split(/[-T:]/).map(Number);
+  const d = new Date(Date.UTC(a, m - 1, j, h, mi));
+  return d.getUTCFullYear() === a && d.getUTCMonth() === m - 1 && d.getUTCDate() === j
+      && d.getUTCHours() === h && d.getUTCMinutes() === mi;
+}
+
+/**
  * Resout la periode demandee par l'adresse.
  *
  * LE CALCUL EST FAIT PAR POSTGRES, pas en JavaScript. Convertir une heure murale
@@ -73,7 +86,7 @@ const SAISIE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
  * trompe deux fois par an.
  */
 export async function periodeDe(cle?: string, du?: string, au?: string): Promise<Periode> {
-  if (du && au && SAISIE.test(du) && SAISIE.test(au)) {
+  if (du && au && saisieValable(du) && saisieValable(au)) {
     const r = (await q1<{ debut: Date; fin: Date; du: string; au: string }>(`
       SELECT ($1::timestamp AT TIME ZONE $3)              AS debut,
              ($2::timestamp AT TIME ZONE $3)              AS fin,
@@ -201,6 +214,8 @@ const PORTEE = "AND ($4::bigint[] IS NULL OR b.id = ANY($4))";
 export type Entete = {
   bornes: number; en_ligne: number; jamais_appairees: number;
   ventes: number; ca: number; marge: number;
+  /** Le chiffre des ventes dont le prix d'achat est connu : la base du taux de marge. */
+  ca_connu: number;
   litiges: number; canaux_vides: number;
   /** En ligne, mais le terminal de paiement ne repond plus : personne ne peut payer. */
   terminal_panne: number;
@@ -221,11 +236,19 @@ export async function entete(compte_id: number, p: Periode,
       (SELECT COALESCE(SUM(v.prix_c),0)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND v.statut = 'distribue' AND ${DANS})                   AS ca,
-      (SELECT COALESCE(SUM(v.prix_c - COALESCE(a.prix_achat_c,0)),0)::int
+      -- Une vente sans prix d'achat connu n'entre pas dans la marge : la compter
+      -- a prix d'achat nul la gonflait d'autant. Le taux se lit donc sur le
+      -- chiffre des seules ventes dont on connait le cout (ca_connu).
+      (SELECT COALESCE(SUM(v.prix_c - a.prix_achat_c),0)::int
          FROM vente v JOIN borne b ON b.id = v.borne_id
          LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND v.statut = 'distribue' AND ${DANS})                   AS marge,
+      (SELECT COALESCE(SUM(v.prix_c) FILTER (WHERE a.prix_achat_c IS NOT NULL),0)::int
+         FROM vente v JOIN borne b ON b.id = v.borne_id
+         LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut = 'distribue' AND ${DANS})                   AS ca_connu,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND ${SQL_A_REGARDER})                                                    AS litiges,
@@ -259,7 +282,7 @@ export async function comparaison(compte_id: number, p: Periode,
   return (await q1<Comparaison>(`
     SELECT COUNT(*)::int                                              AS ventes,
            COALESCE(SUM(v.prix_c),0)::int                             AS ca,
-           COALESCE(SUM(v.prix_c - COALESCE(a.prix_achat_c,0)),0)::int AS marge
+           COALESCE(SUM(v.prix_c - a.prix_achat_c),0)::int AS marge
       FROM vente v
       JOIN borne b ON b.id = v.borne_id
       LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
@@ -332,7 +355,7 @@ export async function parBorne(compte_id: number, p: Periode,
       FROM borne b
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int n, SUM(v.prix_c)::int ca,
-               SUM(v.prix_c - COALESCE(a.prix_achat_c,0))::int marge
+               SUM(v.prix_c - a.prix_achat_c)::int marge
           FROM vente v LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
          WHERE v.borne_id = b.id AND v.statut = 'distribue' AND ${DANS}
       ) x ON true
@@ -347,27 +370,6 @@ export async function parBorne(compte_id: number, p: Periode,
      ORDER BY COALESCE(x.ca, 0) DESC, b.nom`, [compte_id, p.debut, p.fin, bornes]);
 }
 
-export type Croisement = {
-  categorie_id: number | null; categorie: string; ordre: number;
-  borne_id: number; borne: string; n: number; ca: number;
-};
-
-/** Les ventes par categorie ET par borne : le croisement qu'on ne peut pas deviner. */
-export async function parCategorieEtBorne(compte_id: number, p: Periode,
-                                          bornes: number[] | null = null): Promise<Croisement[]> {
-  return q<Croisement>(`
-    SELECT p.categorie_id, COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           COALESCE(cat.ordre, 999) AS ordre,
-           b.id AS borne_id, b.nom AS borne,
-           COUNT(*)::int n, SUM(v.prix_c)::int ca
-      FROM vente v
-      JOIN borne b   ON b.id = v.borne_id
-      LEFT JOIN produit p     ON p.id = v.produit_id
-      LEFT JOIN categorie cat ON cat.id = p.categorie_id
-     WHERE b.compte_id = $1 ${PORTEE} AND v.statut = 'distribue' AND ${DANS}
-     GROUP BY p.categorie_id, cat.nom, cat.ordre, b.id, b.nom
-     ORDER BY COALESCE(cat.ordre, 999), cat.nom, ca DESC`, [compte_id, p.debut, p.fin, bornes]);
-}
 
 export type ParProduit = {
   id: number | null; nom: string; sku: string | null;
@@ -394,7 +396,7 @@ export async function parProduit(compte_id: number, p: Periode,
            COALESCE(cat.nom, 'sans catégorie') AS categorie,
            COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int ca,
            CASE WHEN COUNT(a.prix_achat_c) = 0 THEN NULL
-                ELSE SUM(v.prix_c - COALESCE(a.prix_achat_c,0))::int END AS marge
+                ELSE SUM(v.prix_c - a.prix_achat_c)::int END AS marge
       FROM vente v
       JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit pr      ON pr.id = v.produit_id

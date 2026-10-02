@@ -221,8 +221,13 @@ export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
   if (produits.length === 0) return CATALOGUE_INTEGRE;
 
   // Sans planogramme, les dix premiers produits sur les dix spires.
-  const spires: Spire[] = plan.length > 0
-    ? plan.map((x) => ({ rangee: Number(x.rangee), colonne: Number(x.colonne), sku: x.sku, capacite: Number(x.capacite) }))
+  // Le planogramme ne garde que les produits lus au catalogue : un produit sans
+  // categorie en est absent (jointure), et sa spire semait un transfert sans
+  // produit — l'insertion echouait, et avec elle toute inscription.
+  const connus = new Set(produits.map((p) => p.sku));
+  const tenues = plan.filter((x) => connus.has(x.sku));
+  const spires: Spire[] = tenues.length > 0
+    ? tenues.map((x) => ({ rangee: Number(x.rangee), colonne: Number(x.colonne), sku: x.sku, capacite: Number(x.capacite) }))
     : produits.slice(0, GRILLE.length).map((p, i) => ({ ...GRILLE[i], sku: p.sku, capacite: 10 }));
   const place = new Map<string, number>();
   for (const x of spires) place.set(x.sku, (place.get(x.sku) ?? 0) + x.capacite);
@@ -1028,7 +1033,9 @@ export async function viderDemo(c: PgClient, compte_id: number): Promise<void> {
          v AS (DELETE FROM visuel    WHERE compte_id = $1),
          il AS (DELETE FROM illustration WHERE compte_id = $1),
          im AS (DELETE FROM image    WHERE compte_id = $1
-                  AND id NOT IN (SELECT image_id FROM utilisateur WHERE image_id IS NOT NULL)),
+                  AND id NOT IN (SELECT image_id FROM utilisateur WHERE image_id IS NOT NULL)
+                  -- Les photos postees dans la messagerie sont a leurs auteurs, pas a la demo.
+                  AND id NOT IN (SELECT photo_id FROM message WHERE photo_id IS NOT NULL)),
          inv AS (DELETE FROM invitation  WHERE compte_id = $1 AND email = $2),
          u AS (DELETE FROM utilisateur   WHERE compte_id = $1 AND email = $3),
          s AS (UPDATE compte SET sav_tel = NULL, sav_texte = NULL WHERE id = $1 AND sav_tel = $4)

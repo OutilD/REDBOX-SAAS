@@ -4,7 +4,7 @@ import { Entete, NavBasse } from "../../chrome";
 import { Repli } from "../../repli";
 import { IcoReception } from "../../icones";
 import { q, euros, leJour } from "@/db";
-import { utilisateur } from "@/lib/auth";
+import { peutCharger, utilisateur } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,10 @@ type LigneBon = {
 export default async function Historique() {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
+  // La meme porte que /reception : les livraisons et leurs prix d'achat sont
+  // au compte, pas a qui ne voit qu'une machine ou ne fait que lire.
+  if (u.bornes !== null) redirect("/bornes");
+  if (!peutCharger(u)) redirect("/");
 
   const bons = await q<Bon>(`
     SELECT to_char(m.fait_le, 'YYYYMMDDHH24MISSMS') || COALESCE(m.reference, '') AS cle,

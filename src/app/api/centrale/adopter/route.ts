@@ -30,7 +30,9 @@ export async function POST(req: Request) {
   const ici = `/centrale/produit/${p.id}`;
 
   const choixCat = String(f.get("categorie_id") ?? "");
-  const prix = centimes(String(f.get("prix") ?? "")) ?? p.prix_conseille_c ?? 0;
+  // Sans prix saisi ni conseille, on refuse : le produit partirait gratuit a la machine.
+  const prix = centimes(String(f.get("prix") ?? "")) || p.prix_conseille_c || 0;
+  if (!prix) return versPage(req, `${ici}?e=prix`);
   const age = Number(f.get("age_min")) === 18 ? 18 : 0;
   const cochés = new Set(f.getAll("gout").map(String));
   const gouts = p.gouts.filter((g) => cochés.has(g.nom));
@@ -43,11 +45,12 @@ export async function POST(req: Request) {
       cat = (await c.query<{ id: number; nom: string }>(`
         INSERT INTO categorie (compte_id, nom, ordre)
         VALUES ($1, $2, COALESCE((SELECT MAX(ordre) + 10 FROM categorie WHERE compte_id = $1), 100))
-        ON CONFLICT (compte_id, nom) DO UPDATE SET nom = EXCLUDED.nom
+        ON CONFLICT (compte_id, nom) DO UPDATE SET nom = EXCLUDED.nom, actif = true
         RETURNING id, nom`, [u.compte_id, nom])).rows[0];
     } else {
       cat = (await c.query<{ id: number; nom: string }>(
-        "SELECT id, nom FROM categorie WHERE id = $1 AND compte_id = $2", [Number(choixCat), u.compte_id])).rows[0];
+        "SELECT id, nom FROM categorie WHERE id = $1 AND compte_id = $2 AND actif",
+        [Number.isInteger(Number(choixCat)) ? Number(choixCat) : 0, u.compte_id])).rows[0];
     }
     if (!cat) return -1;
 

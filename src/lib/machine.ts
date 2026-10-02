@@ -31,18 +31,6 @@ export function spireValide(rangee: number, colonne: number): boolean {
       && colonne >= 1 && colonne <= COLONNES;
 }
 
-/** Les dix adresses, dans l'ordre ou on les lit sur la facade. */
-export function toutesLesSpires(): { lane: number; rangee: number; colonne: number; code: string }[] {
-  const out = [];
-  for (let r = 1; r <= RANGEES; r++) {
-    for (let c = 1; c <= COLONNES; c++) {
-      out.push({ lane: laneDe(r, c), rangee: r, colonne: c,
-                 code: `${r}${String(c).padStart(2, "0")}` });
-    }
-  }
-  return out;
-}
-
 /**
  * LA FACADE, TELLE QU'ON LA VOIT PORTE OUVERTE.
  *

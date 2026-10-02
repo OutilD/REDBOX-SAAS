@@ -79,7 +79,10 @@ export async function POST(req: Request) {
   // plus sournoise du systeme — tout marche, et rien n'apparait. Autant
   // demander tout de suite ou il va, pendant qu'on y pense.
   const place = String(f.get("place") ?? "");
-  const souci = await transaction<string | null>(async (c) => {
+  // UN PRIX, ET PAS ZERO. Un champ laisse a « 0,00 », illisible ou au-dela du
+  // plafond donnait 0 : le produit partait gratuit a la machine.
+  const prix = centimes(String(f.get("prix") ?? ""));
+  const souci = !prix ? "prix" : await transaction<string | null>(async (c) => {
     // SKU LAISSE VIDE : on le fabrique. « BAT-003 » — le rayon, puis un rang.
     // Pas derive du nom : deux parfums d'une meme puff donneraient la meme
     // reference, et deux produits ne peuvent pas la partager.
@@ -112,7 +115,7 @@ export async function POST(req: Request) {
         ON CONFLICT (compte_id, sku) DO NOTHING
         RETURNING id`,
         [u.compte_id, sku, nom, cat,
-         centimes(String(f.get("prix") ?? "")) ?? 0, Number(f.get("age_min") ?? 0)]);
+         prix, Number(f.get("age_min") ?? 0)]);
       if ((r.rowCount ?? 0) > 0) { cree = r.rows[0]; break; }
       if (saisi || ++essai > 20) return "sku";
       const base = sku.replace(/-\d+$/, "");

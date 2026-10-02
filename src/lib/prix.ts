@@ -16,19 +16,8 @@
  */
 
 /**
- * L'EXPRESSION SQL DU PRIX APPLIQUE.
- *
- * A utiliser avec `JOINTURE_PRIX` : les deux vont ensemble, l'alias `pb` les
- * relie. Ecrite ici plutot que recopiee sept fois — un `COALESCE` inverse dans
- * une copie ferait vendre le catalogue la ou la borne a decide autre chose.
- */
-export const PRIX_APPLIQUE = "COALESCE(pb.prix_c, p.prix_vente_c)";
-
-/** Vrai quand cette borne a pose son propre prix sur ce produit. */
-export const PRIX_PROPRE = "(pb.prix_c IS NOT NULL)";
-
-/**
- * La jointure qui va avec, pour une borne donnee.
+ * La jointure du prix propre a une borne : `COALESCE(pb.prix_c, p.prix_vente_c)`
+ * donne le prix applique, l'alias `pb` les relie.
  *
  * `$n` est le numero du parametre qui porte l'identifiant de la borne dans la
  * requete d'accueil — il varie d'une requete a l'autre, donc il se passe.

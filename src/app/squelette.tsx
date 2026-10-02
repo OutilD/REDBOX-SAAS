@@ -30,16 +30,6 @@ export function SqCarte({ lignes = 3, h }: { lignes?: number; h?: number }) {
   );
 }
 
-/** Une grille de cartes, comme une liste de machines ou de produits. */
-export function SqGrille({ n = 6, h = 140, colonnes = "repeat(auto-fill, minmax(240px, 1fr))" }:
-  { n?: number; h?: number; colonnes?: string }) {
-  return (
-    <div className="sq-grille" style={{ gridTemplateColumns: colonnes }} aria-hidden="true">
-      {Array.from({ length: n }, (_, i) => <SqCarte key={i} h={h} />)}
-    </div>
-  );
-}
-
 /** L'enveloppe : elle dit aux lecteurs d'ecran que ca charge, une fois. */
 export function Squelette({ children }: { children: React.ReactNode }) {
   return <div className="squelette" role="status" aria-busy="true" aria-label="Chargement">{children}</div>;

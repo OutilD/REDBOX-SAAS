@@ -59,6 +59,18 @@ export function pool(): Pool {
  * toutes les requetes, pour compter ce qu'une page coute.
  */
 const LENTE_MS = 500;
+/**
+ * UN IDENTIFIANT VENU DE L'ADRESSE OU D'UN FORMULAIRE, PRET POUR UNE REQUETE.
+ *
+ * `Number("abc")` vaut NaN, que Postgres refuse comme bigint : la page tombait
+ * en erreur au lieu de ne rien trouver. Tout ce qui n'est pas un entier positif
+ * devient 0, qu'aucune ligne ne porte.
+ */
+export function entier(v: unknown): number {
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n > 0 ? n : 0;
+}
+
 export async function q<T extends QueryResultRow>(
   sql: string, params: unknown[] = []): Promise<T[]> {
   const t0 = Date.now();
