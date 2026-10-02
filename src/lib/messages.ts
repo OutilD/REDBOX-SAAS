@@ -34,6 +34,7 @@ export const FAIT: Record<string, string> = {
   catalogue_modele: "Catalogue des démos enregistré",
   badge_donne:  "Badge donné",
   badge_repris: "Badge repris",
+  mot_de_passe: "Mot de passe temporaire créé",
   vitrine_quittee: "Le compte est redevenu ordinaire, et vide",
   abonne:     "Notifications activées sur cet appareil",
   desabonne:  "Notifications retirées",

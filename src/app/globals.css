@@ -8522,6 +8522,12 @@ html.js .sans-js { display: none; }
 .aca-prospects .haut { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .aca-prospects .nom { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aca-prospects .nom:hover { text-decoration: underline; text-underline-offset: 3px; }
+.aca-prospects .gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.aca-prospects .gestes form { margin: 0; }
+/* Le mot de passe temporaire, lu une fois : sur toute la largeur de la ligne. */
+.aca-prospects .adm-mdp { grid-column: 1 / -1; margin: 0; padding: 10px 12px; border-radius: 10px;
+                          background: var(--surface-3); font-size: 13.5px; }
+.aca-prospects .adm-mdp b { user-select: all; letter-spacing: .04em; }
 .aca-prospects .piste { display: block; height: 5px; max-width: 360px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .aca-prospects .piste > span { display: block; height: 100%; border-radius: 3px; background: var(--rouge); }
 .aca-prospects .bas { font-size: 12px; color: var(--texte-3); line-height: 1.4; }

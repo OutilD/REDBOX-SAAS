@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { IcoBorne, IcoFleche, IcoVentes } from "../../../icones";
@@ -51,6 +52,9 @@ export default async function FicheCompte({ params }: { params: Promise<{ id: st
   if (!estSuperAdmin(u)) redirect("/");
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
+  // Le mot de passe temporaire tout juste tire (api/admin/mot-de-passe) : lu ici
+  // une fois, le biscuit s'efface seul en deux minutes.
+  const [pourQui, temporaire] = ((await cookies()).get("rb_mdp_temp")?.value ?? "").split(".");
 
   const [compte, machines, argent, serie, produits, ventes, membres, formation] = await Promise.all([
     q1<Compte>("SELECT id, nom, cree_le, demo, vitrine, editeur FROM compte WHERE id = $1", [id]),
@@ -298,7 +302,19 @@ export default async function FicheCompte({ params }: { params: Promise<{ id: st
                       </span>
                       <span className="gestes">
                         <Link href={`/admin/comptes/badges/${m.id}`} className="bouton petit">Badges</Link>
+                        {m.id !== u.id ? (
+                          <form method="post" action="/api/admin/mot-de-passe">
+                            <input type="hidden" name="utilisateur_id" value={m.id} />
+                            <input type="hidden" name="compte_id" value={id} />
+                            <button className="bouton petit" title="Remplace son mot de passe par un mot de passe temporaire, à lui transmettre">
+                              Nouveau mot de passe</button>
+                          </form>
+                        ) : null}
                       </span>
+                      {temporaire && Number(pourQui) === Number(m.id) ? (
+                        <p className="adm-mdp">Mot de passe temporaire : <b className="num">{temporaire}</b>.
+                          Transmettez-le à {nom} : il ne s’affichera plus. À changer dans son profil.</p>
+                      ) : null}
                     </li>
                   );
                 })}
