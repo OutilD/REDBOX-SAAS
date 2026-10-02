@@ -6,13 +6,32 @@ téléphone tenu d’une main devant une machine ouverte.
 ```bash
 npm install
 npm run migrate      # applique src/db/schema.sql
-npm run seed         # jeu d'essai, affiche les identifiants
 npm run build && npm start        # http://localhost:4310
 ```
 
 `.env.local` porte `DATABASE_URL` (poolée, pour servir les pages) et
 `DATABASE_URL_UNPOOLED` (directe, pour les migrations : pgbouncer en mode
 transaction refuse une partie du DDL).
+
+**`.env.local` pointe sur la base de PRODUCTION.** `npm run dev` y écrit, et sa
+ronde (`instrumentation-node.ts`) y tourne chaque minute. `npm run seed` vide
+TOUTE la base : il exige `REDBOX_SEED_EFFACER_TOUT=oui`, une base sans vente et
+`REDBOX_SEED_MDP` — à ne lancer que sur une branche Neon de développement.
+`scripts/borne-simulee.mjs` adopte une borne d'essai dans le compte qu'on lui
+donne : jamais contre la production.
+
+| Variable | Rôle | Absente |
+|---|---|---|
+| `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | base poolée / directe | l'application refuse de démarrer |
+| `CRON_SECRET` | protège `/api/ronde` | la ronde répond 404 |
+| `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | messagerie en temps réel | retour au sondage |
+| `REDBOX_VAPID_PUBLIQUE`, `REDBOX_VAPID_PRIVEE` | clés des notifications | générées et gardées en base |
+| `REDBOX_VAPID_SUJET` | contact `mailto:` des notifications | origine https, sinon `mailto:redbox@localhost` |
+| `REDBOX_CODE_INSCRIPTION` | code exigé à l'inscription | **inscription ouverte à tous** |
+| `REDBOX_SANS_DEMO` | pas de parc de démo à l'inscription | chaque compte neuf reçoit sa démo |
+| `REDBOX_HOTE_GESTION`, `REDBOX_HOTE_CONNECT`, `REDBOX_DOMAINE_BISCUIT` | les deux adresses, le domaine des biscuits | un seul hôte sert tout |
+| `REDBOX_GOOGLE_CLE_API` | liens Drive de l'académie | liens inactifs |
+| `REDBOX_TRACE_SQL` | journal de chaque requête | seules les lentes sont journalisées — ne pas poser en production |
 
 ## L’idée qui porte tout
 
@@ -325,7 +344,9 @@ les douze après deux minutes sans rien, vif de nouveau au retour sur l’onglet
 au-delà d’une demi-seconde, elle est journalisée de toute façon — c’est ce qu’on
 lit chez l’hébergeur quand une page traîne. Ce qui reste hors du code : la base
 se rendort après inactivité et met quelques secondes à se réveiller — un appel
-de `/api/ronde` chaque minute la garde éveillée.
+de `/api/ronde` chaque minute la garde éveillée. Cet appel vient d'un cron
+externe (ou d'un cron Vercel, à la minute sur le plan Pro), avec
+`Authorization: Bearer $CRON_SECRET` : sans la variable, la route répond 404.
 
 Des **salons**, comme sur Discord : `#general` pour l’équipe, un salon par borne
 où **la machine écrit elle-même** ce qui lui arrive — ventes du relevé,
@@ -388,7 +409,6 @@ qu’on ouvre le plus — les cinq onglets du pouce, et dans le rail `PRECHARGEE
 (`chrome.tsx`) — sont préchargées dès que leur lien est à l’écran : le clic les
 montre depuis le navigateur. Les autres montrent l’écran au logo RedBox
 (`app/loading.tsx`) le temps du serveur.
-`captures/perf.mjs` mesure octets, three.js et images longues au défilement.
 
 Au-delà du compte, les exploitants se parlent entre eux, et à nous.
 

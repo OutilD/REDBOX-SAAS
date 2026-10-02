@@ -5,7 +5,7 @@
 // transferts en ECART avec memoire des identifiants, ventes hors ligne remontees
 // plus tard, et rejeu integral sans doublon.
 //
-//   node scripts/borne-simulee.mjs http://127.0.0.1:4310 <scenario>
+//   node scripts/borne-simulee.mjs http://127.0.0.1:4310 <scenario> <email> <mot de passe>
 
 const base = process.argv[2] ?? "http://127.0.0.1:4310";
 const scenario = process.argv[3] ?? "tout";
@@ -158,8 +158,14 @@ async function adopter(biscuit, code, nom) {
   return r.headers.get("location") ?? "";
 }
 
-const email = process.argv[4] ?? "marcel@barducoin.fr";
-const mdp = process.argv[5] ?? "motdepasse1";
+// Le compte qui adopte la borne : toujours donne, jamais devine. Le serveur
+// local ecrit dans la base de .env.local — la production : une borne d'essai
+// adoptee la ne s'efface plus.
+const email = process.argv[4], mdp = process.argv[5];
+if (!email || !mdp) {
+  console.error("Usage : node scripts/borne-simulee.mjs <url> <scenario> <email> <mot de passe>");
+  process.exit(1);
+}
 
 console.log("\n1. LA BORNE DEMANDE À ÊTRE ADOPTÉE");
 const dem = await appairer();
