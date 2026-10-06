@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { q1 } from "@/db";
-import { noterEchec, tropDEssais } from "@/lib/auth";
+import { essayer, reussite } from "@/lib/auth";
 import { nomDuRole, utilisateur } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -36,15 +36,18 @@ export default async function Rejoindre({ searchParams }:
   // UN CODE EN ADRESSE SE TESTE AUSSI : sans limite ici, la page servait a
   // essayer des codes d'invitation a la chaine, en contournant celle de la route.
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "inconnue";
-  const bloque = code ? await tropDEssais([[`ip:${ip}`, 30]]) : false;
+  const essai = code ? await essayer([[`ip:${ip}`, 30]]) : null;
+  const bloque = Boolean(code) && !essai;
   const offre = code && !bloque ? await q1<Offre>(`
     SELECT i.email, i.role, c.nom AS compte, b.nom AS borne
       FROM invitation i
       JOIN compte c ON c.id = i.compte_id
       LEFT JOIN borne b ON b.id = i.borne_id
-     WHERE i.code = $1 AND i.utilisee_le IS NULL`, [code.trim().toUpperCase()]) : null;
+     WHERE i.code = $1 AND i.utilisee_le IS NULL
+       AND i.cree_le > now() - interval '7 days'`, [code.trim().toUpperCase()]) : null;
 
-  if (code && !bloque && !offre) await noterEchec([`ip:${ip}`]);
+  // L'essai est deja compte ; un code valable ne l'est plus.
+  if (essai && offre) reussite(essai);
 
   const connu = offre ? await q1<{ id: number }>(
     "SELECT id FROM utilisateur WHERE email = $1", [offre.email]) : null;
@@ -56,7 +59,7 @@ export default async function Rejoindre({ searchParams }:
     ? `/connexion?suite=${encodeURIComponent(`/rejoindre?code=${code.trim().toUpperCase()}`)}` : "/connexion";
 
   const messages: Record<string, string> = {
-    code: "Code inconnu, déjà utilisé ou annulé.",
+    code: "Code inconnu, expiré (7 jours), déjà utilisé ou annulé.",
     trop: "Trop d’essais. Réessayez dans un quart d’heure.",
     mdp: "Le mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
     connexion: "Cette adresse a déjà un accès RedBox : connectez-vous avec, vous reviendrez ici.",

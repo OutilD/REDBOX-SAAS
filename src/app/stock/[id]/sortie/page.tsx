@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1 } from "@/db";
+import { q, q1, entier } from "@/db";
 import { peutCharger, utilisateur } from "@/lib/auth";
 import { MOTIFS_SORTIE } from "@/lib/sortie";
 
@@ -33,7 +33,8 @@ export default async function Sortie({
   // recu, ce qui a ete paye : rien de tout cela ne regarde quelqu'un qu'on a
   // invite sur une machine. On le renvoie a ses bornes.
   if (u.bornes !== null) redirect("/bornes");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const { e, dispo } = await searchParams;
   if (!peutCharger(u)) redirect(`/stock/${id}`);
 

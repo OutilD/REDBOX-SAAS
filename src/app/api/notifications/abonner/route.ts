@@ -31,6 +31,9 @@ export async function POST(req: Request) {
   if (!/^https:\/\/\S{10,}$/.test(endpoint) || endpoint.length > 2000 || !p256dh || !auth) {
     return Response.json({ erreur: "abonnement incomplet" }, { status: 400 });
   }
+  // Le serveur appellera cette adresse lui-meme : seulement les services de
+  // push des navigateurs, sinon on ferait des requetes ou l'on nous dit.
+  if (!servicePush(endpoint)) return Response.json({ erreur: "service de push inconnu" }, { status: 400 });
 
   // Les preferences ne bougent pas quand l'appareil se represente : il a peut
   // etre deja dit ce qu'il voulait. Elles partent a leurs valeurs par defaut
@@ -45,4 +48,13 @@ export async function POST(req: Request) {
     [u.id, endpoint, p256dh, auth, origineDes(req.headers), nomAppareil(req.headers.get("user-agent"))]);
 
   return Response.json({ ok: true, id: r!.id, genres: GENRES.map((g) => g.cle) });
+}
+
+function servicePush(endpoint: string): boolean {
+  let u: URL;
+  try { u = new URL(endpoint); } catch { return false; }
+  const h = u.hostname.toLowerCase();
+  if (u.protocol !== "https:" || u.port !== "" || u.username || u.password) return false;
+  return h === "fcm.googleapis.com" || h === "updates.push.services.mozilla.com"
+    || [".push.services.mozilla.com", ".push.apple.com", ".notify.windows.com"].some((s) => h.endsWith(s));
 }

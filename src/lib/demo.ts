@@ -1043,11 +1043,26 @@ export async function viderDemo(c: PgClient, compte_id: number): Promise<void> {
   await c.query("INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve')", [compte_id]);
 }
 
-/** Quitte la demo : efface, et pose le drapeau. */
-export async function quitterDemo(compte_id: number): Promise<void> {
-  await transaction(async (c) => {
+/**
+ * LE COMPTE, VERROUILLE, EST-IL BIEN UNE DEMO SANS VRAIE MACHINE ? Seule
+ * condition pour le vider : la session peut dater de vingt secondes, et une
+ * vraie borne a pu arriver entre-temps.
+ */
+async function demoVidable(c: PgClient, compte_id: number): Promise<{ demo: boolean; vraies: number } | undefined> {
+  return (await c.query<{ demo: boolean; vraies: number }>(`
+    SELECT k.demo, (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = k.id
+                     AND (b.jeton IS NULL OR b.jeton NOT LIKE 'demo\\_%')) AS vraies
+      FROM compte k WHERE k.id = $1 FOR UPDATE`, [compte_id])).rows[0];
+}
+
+/** Quitte la demo : efface, et pose le drapeau. Rend faux si le compte n'est plus une demo videable. */
+export async function quitterDemo(compte_id: number): Promise<boolean> {
+  return transaction(async (c) => {
+    const k = await demoVidable(c, compte_id);
+    if (!k?.demo || k.vraies > 0) return false;
     await viderDemo(c, compte_id);
     await c.query("UPDATE compte SET demo = false, demo_vie = NULL WHERE id = $1", [compte_id]);
+    return true;
   });
 }
 
@@ -1063,10 +1078,7 @@ export async function quitterDemo(compte_id: number): Promise<void> {
  * n'est pas fictive ne devrait pas etre en demo : on refuse de le vider.
  */
 export async function sortirDeLaDemoPour(c: PgClient, compte_id: number): Promise<boolean> {
-  const k = (await c.query<{ demo: boolean; vraies: number }>(`
-    SELECT k.demo, (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = k.id
-                     AND (b.jeton IS NULL OR b.jeton NOT LIKE 'demo\\_%')) AS vraies
-      FROM compte k WHERE k.id = $1 FOR UPDATE`, [compte_id])).rows[0];
+  const k = await demoVidable(c, compte_id);
   if (!k || !k.demo) return false;
   if (k.vraies > 0) throw new Error("compte en demo avec une vraie machine : on ne le vide pas");
   await viderDemo(c, compte_id);
@@ -1074,11 +1086,14 @@ export async function sortirDeLaDemoPour(c: PgClient, compte_id: number): Promis
   return true;
 }
 
-/** Repart d'une demo neuve : efface, et reseme. */
-export async function renouvelerDemo(compte_id: number, par: string): Promise<void> {
-  await transaction(async (c) => {
+/** Repart d'une demo neuve : efface, et reseme. Rend faux si le compte n'est plus une demo videable. */
+export async function renouvelerDemo(compte_id: number, par: string): Promise<boolean> {
+  return transaction(async (c) => {
+    const k = await demoVidable(c, compte_id);
+    if (!k?.demo || k.vraies > 0) return false;
     await viderDemo(c, compte_id);
     await semerDemo(c, compte_id, par);
+    return true;
   });
 }
 

@@ -1440,12 +1440,17 @@ CREATE TABLE IF NOT EXISTS defi_reussi (
 );
 CREATE INDEX IF NOT EXISTS i_defi_reussi_personne ON defi_reussi (utilisateur_id);
 
+-- UN DEFI RETIRE NE S'EFFACE PLUS : il disparait des listes, de l'evaluation et
+-- des points, mais ses `defi_reussi` restent en base.
+ALTER TABLE defi ADD COLUMN IF NOT EXISTS retire_le TIMESTAMPTZ;
+
 -- LES BADGES QU'ON MET EN VITRINE sur son profil : trois au plus, choisis
 -- parmi ceux obtenus. Vide = les plus rares, comme avant.
 ALTER TABLE utilisateur ADD COLUMN IF NOT EXISTS badges_vedettes TEXT[] NOT NULL DEFAULT '{}';
 
 -- LES ECHECS DE CONNEXION ET DE CODE, pour freiner qui essaie au hasard : une
--- ligne par echec, comptee sur quinze minutes (`lib/auth.ts`). La cle dit quoi :
+-- ligne par essai, ecrite avant la verification et retiree s'il reussit,
+-- comptee sur quinze minutes (`lib/auth.ts`). La cle dit quoi :
 -- « mdp:adresse », « ip:adresse IP », « adopter:utilisateur ». Les lignes de
 -- plus d'un jour s'effacent au fil des essais.
 CREATE TABLE IF NOT EXISTS tentative_connexion (

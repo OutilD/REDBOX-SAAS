@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { utilisateur } from "@/lib/auth";
-import { leJour } from "@/db";
+import { leJour, entier } from "@/db";
 import { BADGES, classement, objectifs, prochainGrade, profilDe, rangDe } from "@/lib/communaute";
 import { Badge } from "../badge";
 import { Portrait } from "../vignette-personne";
@@ -20,7 +20,8 @@ export const dynamic = "force-dynamic";
 export default async function ProfilPublic({ params }: { params: Promise<{ id: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!Number.isInteger(id)) notFound();
   const [p, tous, trophees] = await Promise.all([profilDe(id, u), classement(1000), defisReussisDe(id)]);
   if (!p) notFound();

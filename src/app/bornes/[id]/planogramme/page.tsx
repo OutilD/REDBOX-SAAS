@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, euros } from "@/db";
+import { q, q1, euros, entier } from "@/db";
 import { peutCharger, peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { facade, type Position } from "@/lib/machine";
 import { canauxDe, type LigneCanal } from "@/lib/stock";
@@ -52,7 +52,8 @@ export default async function Emplacements({ params, searchParams }: {
 }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();

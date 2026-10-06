@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { chiffrer, creerSession, enTeteBiscuit, ipDe, noterEchec, tropDEssais, utilisateurDe, versPage } from "@/lib/auth";
+import { chiffrer, creerSession, enTeteBiscuit, essayer, ipDe, origineEtrangere, reussite, utilisateurDe, versPage } from "@/lib/auth";
 import { offrirBienvenue } from "@/lib/communaute";
 import { hoteDes } from "@/lib/produits";
 
@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
  * entrer avec le meme.
  */
 export async function POST(req: Request) {
+  if (origineEtrangere(req)) return new Response("origine refusée", { status: 403 });
   const f = await req.formData();
   const code = String(f.get("code") ?? "").trim().toUpperCase();
   const mdp = String(f.get("mdp") ?? "");
@@ -30,7 +31,8 @@ export async function POST(req: Request) {
 
   // Un code d'invitation se devine si l'on peut essayer sans fin.
   const cles = ["ip:" + ipDe(req)];
-  if (await tropDEssais([[cles[0], 30]])) return vers("trop");
+  const essai = await essayer([[cles[0], 30]]);
+  if (!essai) return vers("trop");
 
   const connecte = await utilisateurDe(req);
 
@@ -38,7 +40,8 @@ export async function POST(req: Request) {
     const inv = (await c.query<{ id: number; compte_id: number; email: string;
                                  role: string; borne_id: number | null }>(
       `SELECT id, compte_id, email, role, borne_id
-         FROM invitation WHERE code = $1 AND utilisee_le IS NULL`, [code])).rows[0];
+         FROM invitation WHERE code = $1 AND utilisee_le IS NULL
+          AND cree_le > now() - interval '7 days'`, [code])).rows[0];
     if (!inv) return { souci: "code", id: 0, neuf: false };
 
     const existant = (await c.query<{ id: number }>(
@@ -82,7 +85,8 @@ export async function POST(req: Request) {
     return { souci: null, id, neuf };
   });
 
-  if (issue.souci === "code") await noterEchec(cles);
+  // Seul un code faux reste compte.
+  if (issue.souci !== "code") reussite(essai);
   if (issue.souci) return vers(issue.souci);
   if (!issue.neuf) return versPage(req, "/");
   return versPage(req, "/", enTeteBiscuit(await creerSession(issue.id), hoteDes(req.headers)));

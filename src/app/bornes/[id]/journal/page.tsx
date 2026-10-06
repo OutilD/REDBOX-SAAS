@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, depuis, FUSEAU } from "@/db";
+import { q, q1, depuis, FUSEAU, entier } from "@/db";
 import { peutVoirBorne, utilisateur } from "@/lib/auth";
 import { NOM_SOURCE, SOURCES, estSource, texteDe, type Source } from "@/lib/journal";
 import { Repli } from "../../../repli";
@@ -36,7 +36,8 @@ export default async function JournalBorne({ params, searchParams }:
     searchParams: Promise<{ s?: string; c?: string; q?: string; j?: string; avant?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!peutVoirBorne(u, id)) notFound();
   const sp = await searchParams;
 

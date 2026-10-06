@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { chiffrer, creerSession, enTeteBiscuit, versPage } from "@/lib/auth";
+import { chiffrer, creerSession, enTeteBiscuit, essayer, ipDe, origineEtrangere, versPage } from "@/lib/auth";
 import { semerDemo } from "@/lib/demo";
 import { PSEUDO_MAX, offrirBienvenue } from "@/lib/communaute";
 import { adresse, hoteDes } from "@/lib/produits";
@@ -25,6 +25,7 @@ export const dynamic = "force-dynamic";
  * un deploiement ou chaque compte ouvert correspond a une vraie machine.
  */
 export async function POST(req: Request) {
+  if (origineEtrangere(req)) return new Response("origine refusée", { status: 403 });
   const f = await req.formData();
   const pseudo = String(f.get("pseudo") ?? "").trim();
   // L'espace porte le pseudo : un seul nom a donner, celui que tout le monde verra.
@@ -36,15 +37,19 @@ export async function POST(req: Request) {
   const vers = (e: string) => versPage(req,
     `/inscription?e=${e}&pseudo=${encodeURIComponent(pseudo)}&email=${encodeURIComponent(email)}`);
 
-  const attendu = process.env.REDBOX_CODE_INSCRIPTION;
-  if (attendu && String(f.get("code") ?? "").trim() !== attendu) return vers("code");
-
   if (!pseudo || pseudo.length > PSEUDO_MAX) return vers("pseudo");
   // Verification volontairement large : c'est le facteur de forme qu'on controle
   // ici, pas l'existence de la boite. Refuser une adresse valable parce qu'elle
   // sort de l'ordinaire coute plus cher qu'accepter une faute de frappe.
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return vers("email");
   if (mdp.length < 8 || mdp !== mdp2) return vers("mdp");
+
+  // Chaque inscription et chaque code faux comptent, par IP : on ne seme pas
+  // cent parcs de demo, et le code ne se devine pas a la chaine.
+  if (!await essayer([["inscription:" + ipDe(req), 5]])) return vers("trop");
+
+  const attendu = process.env.REDBOX_CODE_INSCRIPTION;
+  if (attendu && String(f.get("code") ?? "").trim() !== attendu) return vers("code");
 
   const issue = await transaction<{ souci: string | null; id: number }>(async (c) => {
     const deja = await c.query("SELECT 1 FROM utilisateur WHERE email = $1", [email]);

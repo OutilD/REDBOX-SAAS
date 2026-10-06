@@ -17,6 +17,6 @@ export async function POST(req: Request) {
   if (!peutGererEquipe(u)) return versPage(req, "/demo?e=role");
   const f = await req.formData().catch(() => null);
   if (String(f?.get("sur") ?? "") !== "1") return versPage(req, "/demo?renouveler=1");
-  await renouvelerDemo(u.compte_id, u.email);
+  if (!await renouvelerDemo(u.compte_id, u.email)) return versPage(req, "/demo");
   return versPage(req, "/?fait=demo_neuf");
 }

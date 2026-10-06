@@ -1,6 +1,6 @@
 import { q1 } from "@/db";
-import { chiffrer, concorde, creerSession, enTeteBiscuit, ipDe, noterEchec, oublierEchecs, suiteValable,
-         tropDEssais, versPage } from "@/lib/auth";
+import { chiffrer, concorde, creerSession, enTeteBiscuit, essayer, ipDe, origineEtrangere, oublierEchecs, reussite, suiteValable,
+         versPage } from "@/lib/auth";
 import { PRODUITS, adresse, hoteDes, produitDeLHote } from "@/lib/produits";
 
 import { SQL_REDBOX_ATTRIBUEE } from "@/lib/communaute";
@@ -15,23 +15,24 @@ let factice: string | null = null;
 const empreinteFactice = () => (factice ??= chiffrer("pas-un-mot-de-passe"));
 
 export async function POST(req: Request) {
+  if (origineEtrangere(req)) return new Response("origine refusée", { status: 403 });
   const f = await req.formData();
   const email = String(f.get("email") ?? "").trim().toLowerCase();
   const mdp = String(f.get("mdp") ?? "");
   const suite = suiteValable(f.get("suite"));
   const encore = (e: string) => `/connexion?e=${e}${suite ? `&suite=${encodeURIComponent(suite)}` : ""}`;
-  // Trop d'echecs recents pour cette adresse ou depuis cette IP : on ne verifie
-  // meme pas, et l'on attend que la fenetre passe.
+  // Trop d'echecs recents depuis cette IP : on ne verifie meme pas, et l'on
+  // attend que la fenetre passe. Pour l'adresse, on fait seulement attendre.
   const cles = ["mdp:" + email, "ip:" + ipDe(req)];
-  if (await tropDEssais([[cles[0], 8], [cles[1], 30]])) return versPage(req, encore("trop"));
+  const essai = await essayer([[cles[0], 8, "frein"], [cles[1], 30]]);
+  if (!essai) return versPage(req, encore("trop"));
   const l = await q1<{ id: number; mdp: string }>(
     "SELECT id, mdp FROM utilisateur WHERE email = $1", [email]);
   // Meme reponse dans les deux cas, et meme temps : on ne dit pas quels comptes existent.
   const bon = concorde(mdp, l?.mdp ?? empreinteFactice());
-  if (!l || !bon) {
-    await noterEchec(cles);
-    return versPage(req, encore("1"));
-  }
+  // L'echec est deja compte : l'essai s'est ecrit avant la verification.
+  if (!l || !bon) return versPage(req, encore("1"));
+  reussite(essai);
   oublierEchecs([cles[0]]);
   // Venu d'un lien d'invitation : on le rouvre, sur cet hote, la session posee.
   if (suite) return versPage(req, suite, enTeteBiscuit(await creerSession(l.id), hoteDes(req.headers)));

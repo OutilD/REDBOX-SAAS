@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../../chrome";
-import { q, q1, leJour } from "@/db";
+import { q, q1, leJour, entier } from "@/db";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
 import { BADGES, NOM_RANG, RANGS, faitsEtMerites, progresDe, rangDe } from "@/lib/communaute";
@@ -34,7 +34,8 @@ export default async function BadgesDe({ params }: { params: Promise<{ id: strin
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   if (!estSuperAdmin(u)) redirect("/");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!Number.isInteger(id) || id <= 0) notFound();
 
   const [p, obtenus, fm] = await Promise.all([

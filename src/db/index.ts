@@ -48,6 +48,9 @@ export function pool(): Pool {
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
     });
+    // Une connexion au repos coupee par Neon emet « error » sur le pool : sans
+    // ecouteur, c'est le processus entier qui tombe.
+    global_._rbxPool.on("error", (e) => console.error("pool :", e.message));
   }
   return global_._rbxPool;
 }
@@ -123,16 +126,19 @@ export async function q1<T extends QueryResultRow>(
  */
 export async function transaction<T>(travail: (c: PgClient) => Promise<T>): Promise<T> {
   const client = await pool().connect();
+  // Une connexion dont le ROLLBACK a echoue est detruite, pas rendue au pool :
+  // la suivante heriterait d'une transaction ouverte ou d'un socket mort.
+  let casse: Error | undefined;
   try {
     await client.query("BEGIN");
     const r = await travail(client as unknown as PgClient);
     await client.query("COMMIT");
     return r;
   } catch (e) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch((r: Error) => { casse = r; });
     throw e;
   } finally {
-    client.release();
+    client.release(casse);
   }
 }
 

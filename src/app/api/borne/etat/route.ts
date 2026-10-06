@@ -8,6 +8,7 @@ import { SILENCE_MS, veillerSiLeMoment } from "@/lib/veille";
 import { apres } from "@/lib/apres";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Ce que la borne propose quand le compte n'a encore aucun catalogue. */
 type CatalogueLocal = {
@@ -298,18 +299,23 @@ export async function POST(req: Request) {
       // Tant que la base n'a pas recu la migration, on ecrit comme avant : la
       // colonne n'existe pas et la cle n'a que trois colonnes. Un INSERT qui
       // les nommerait ferait echouer tout le releve.
+      //
+      // L'HEURE DE LA MACHINE EST EN UTC, SANS DECALAGE (« AAAA-MM-JJ HH:MM:SS ») :
+      // lue en `timestamptz`, elle prendrait le fuseau de la session. Un « Z »
+      // final est ignore par le cast ; ponytail: un decalage explicite (+02:00)
+      // le serait aussi — a traiter si une machine en envoie un jour.
       const article = Number.isInteger(v.article) ? v.article : null;
       const prix = Math.max(0, Math.round(v.prix_centimes));
       const ins = neufs
         ? await c.query<{ id: number }>(`
             INSERT INTO vente (borne_id, commande_id, article, lane, produit_id, prix_c, statut, faite_le)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamp AT TIME ZONE 'UTC')
             ON CONFLICT (borne_id, commande_id, lane, article) DO NOTHING
             RETURNING id`,
             [borne.id, v.commande_id, article, v.lane ?? null, produit, prix, statut, v.faite_le])
         : await c.query<{ id: number }>(`
             INSERT INTO vente (borne_id, commande_id, lane, produit_id, prix_c, statut, faite_le)
-            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            VALUES ($1,$2,$3,$4,$5,$6,$7::timestamp AT TIME ZONE 'UTC')
             ON CONFLICT (borne_id, commande_id, lane) DO NOTHING
             RETURNING id`,
             [borne.id, v.commande_id, v.lane ?? null, produit, prix, statut, v.faite_le]);
@@ -323,7 +329,7 @@ export async function POST(req: Request) {
         await c.query(`
           INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, quantite, motif,
                                  lane, par, fait_le, confirme_le, vente_id)
-          VALUES ($1,$2,$3,1,'vente',$4,'borne',$5,$5,$6)`,
+          VALUES ($1,$2,$3,1,'vente',$4,'borne',$5::timestamp AT TIME ZONE 'UTC',$5::timestamp AT TIME ZONE 'UTC',$6)`,
           [borne.compte_id, produit, borne.lieu_id, v.lane ?? null, v.faite_le, ins.rows[0].id]);
 
         // Le canal suit la vente. `GREATEST` parce qu'un compteur negatif ne

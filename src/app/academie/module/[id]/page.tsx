@@ -5,6 +5,7 @@ import { leconsDe, modules, ouverte, salonProspects } from "@/lib/academie";
 import { IcoCadenas, IcoCoche, IcoDocument, IcoLecture } from "../../../icones";
 import { lecteurDePage } from "../../lecteur";
 import { IconeModule, Piste, PorteFermee, duree, etatLecon, pluriel } from "../../vues";
+import { entier } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,8 @@ export default async function ModuleAcademie({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ fini?: string }>;
 }) {
   const { l, equipe } = await lecteurDePage();
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const sp = await searchParams;
   const mods = await modules(l);
   const i = mods.findIndex((m) => m.id === id);

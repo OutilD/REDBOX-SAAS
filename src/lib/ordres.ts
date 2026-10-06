@@ -78,7 +78,7 @@ export async function confirmerMisesAJour(borne_id: number, version: string | nu
                                           executer: (sql: string, p: unknown[]) => Promise<unknown> = q) {
   // La requete lit « majeure.mineure » en entiers : une version d'une autre
   // forme ferait echouer le cast, et avec lui le releve qui l'appelle.
-  if (typeof version !== "string" || !/^\d+\.\d+/.test(version)) return;
+  if (typeof version !== "string" || !/^\d{1,6}\.\d{1,6}(\.\d{1,6})?$/.test(version)) return;
   await executer(`
     UPDATE ordre_borne SET execute_le = now(), ok = true, detail = 'installée : ' || $2
      WHERE borne_id = $1 AND genre = 'mise_a_jour' AND execute_le IS NULL

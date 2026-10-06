@@ -21,7 +21,8 @@ const OBJECTIF_MAX = 1_000_000;
  *                               action=retirer (id)
  *
  * Reserve a l'equipe RedBox (compte editeur ou super-admin). Retirer un defi
- * retire aussi ses trophees : c'est pour corriger une erreur, pas pour clore.
+ * retire aussi ses trophees de la vue : c'est pour corriger une erreur, pas pour
+ * clore. Rien ne s'efface, les reussites restent en base.
  */
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
   if (f.get("action") === "retirer") {
     const id = Number(f.get("id"));
-    if (Number.isInteger(id)) await q("DELETE FROM defi WHERE id = $1", [id]);
+    if (Number.isInteger(id)) await q("UPDATE defi SET retire_le = now() WHERE id = $1 AND retire_le IS NULL", [id]);
     return versPage(req, "/communaute/defis?ok=retire");
   }
 

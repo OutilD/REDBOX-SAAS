@@ -271,7 +271,7 @@ const SQL_ANCIENNETE = `GREATEST(0, EXTRACT(EPOCH FROM (now() - u.cree_le)) / 86
 /** Les points des defis du mois reussis (lib/defis). */
 const SQL_POINTS_DEFIS = `
   (SELECT COALESCE(SUM(dd.points), 0)::int FROM defi_reussi rr JOIN defi dd ON dd.id = rr.defi_id
-    WHERE rr.utilisateur_id = u.id)`;
+    WHERE rr.utilisateur_id = u.id AND dd.retire_le IS NULL)`;
 
 /** Les colonnes dont les points se deduisent, pour toute requete sur `utilisateur u`. */
 const SQL_COMPTES = `

@@ -4,7 +4,7 @@ import { noterAction } from "./journal-actions";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
-import { q, q1 } from "@/db";
+import { q, q1, relever, transaction } from "@/db";
 import { animerDemo } from "./demo";
 import { MARQUE_PARTAGE, attributSecure, domaineBiscuit, domaineDe, hoteDes, hotes, jetonDuBiscuit } from "./produits";
 
@@ -310,6 +310,7 @@ function premierJeton(valeurs: string[]): string | null {
  * JavaScript, sur le telephone qu'on a en main dans un bar mal couvert.
  */
 export async function utilisateurDe(req: Request): Promise<Utilisateur | null> {
+  if (origineEtrangere(req)) return null;
   const brut = req.headers.get("cookie") ?? "";
   const valeurs: string[] = [];
   for (const morceau of brut.split(";")) {
@@ -317,6 +318,21 @@ export async function utilisateurDe(req: Request): Promise<Utilisateur | null> {
     if (nom === BISCUIT) valeurs.push(decodeURIComponent(reste.join("=")));
   }
   return parJeton(premierJeton(valeurs), req.method !== "GET" && req.method !== "HEAD");
+}
+
+/**
+ * UNE ECRITURE VENUE D'UN AUTRE SITE. SameSite=Lax arrete deja la plupart ;
+ * l'en-tete Origin, quand le navigateur le pose, ferme le reste. Absent (un
+ * script, une borne), on laisse passer : rien a comparer.
+ */
+export function origineEtrangere(req: Request): boolean {
+  if (req.method === "GET" || req.method === "HEAD") return false;
+  const o = req.headers.get("origin");
+  if (!o) return false;
+  let hote: string;
+  try { hote = new URL(o).host.toLowerCase(); } catch { return true; }
+  const h = hotes();
+  return hote !== (hoteDes(req.headers) ?? "").toLowerCase() && hote !== h?.gestion && hote !== h?.connect;
 }
 
 export function peutCharger(u: Utilisateur): boolean {
@@ -393,12 +409,20 @@ function destinationSure(chemin: string, base: string): string {
 
 /**
  * LES ESSAIS AU HASARD. Un mot de passe, un code d'appairage ou d'invitation se
- * devinent si l'on peut essayer sans fin : on compte les echecs des quinze
+ * devinent si l'on peut essayer sans fin : on compte les essais des quinze
  * dernieres minutes par cle (« mdp:adresse », « ip:… ») et l'on refuse au-dela
  * du seuil, avant meme de verifier.
  *
- * LA TABLE PEUT MANQUER : la migration passe apres le deploiement. Sans elle,
- * on laisse passer — un frein absent vaut mieux qu'une connexion cassee.
+ * L'ESSAI S'ECRIT AVANT LA VERIFICATION, et le compte comme l'ecriture se font
+ * sous un verrou consultatif par cle : cent requetes paralleles ne lisent plus
+ * toutes « zero echec ». Un essai reussi (ou refuse pour une autre raison qu'un
+ * code faux) se retire ensuite avec `reussite`.
+ *
+ * UNE CLE « FREIN » NE FERME PAS : au-dela du seuil, on fait attendre. Sur une
+ * adresse e-mail, un refus net laisserait n'importe qui verrouiller le compte
+ * d'un tiers ; les cles d'IP, elles, ferment.
+ *
+ * UNE ERREUR SQL REFUSE, et se dit : un frein qui s'ouvre en silence n'en est pas un.
  */
 const FENETRE_ESSAIS = "15 minutes";
 
@@ -408,29 +432,60 @@ export function ipDe(req: Request): string {
   return ff || req.headers.get("x-real-ip") || "inconnue";
 }
 
-/** Vrai si l'une des cles a deja atteint son seuil d'echecs. */
-export async function tropDEssais(seuils: [cle: string, max: number][]): Promise<boolean> {
-  try {
-    const r = await q<{ cle: string; n: number }>(`
-      SELECT cle, COUNT(*)::int AS n FROM tentative_connexion
-       WHERE cle = ANY($1::text[]) AND essai_le > now() - interval '${FENETRE_ESSAIS}'
-       GROUP BY cle`, [seuils.map(([c]) => c)]);
-    return seuils.some(([c, max]) => (r.find((l) => l.cle === c)?.n ?? 0) >= max);
-  } catch {
-    return false;
-  }
-}
+/**
+ * Ce qu'il faut pour retirer cet essai ; null si l'une des cles est au seuil.
+ * La table n'a pas d'identifiant : la cle et l'instant (au millionieme, celui
+ * de la transaction) designent ses lignes.
+ */
+export type Essai = { cles: string[]; le: string };
 
-/** Note un echec sous chaque cle ; de temps en temps, efface ce qui a plus d'un jour. */
-export async function noterEchec(cles: string[]): Promise<void> {
+export async function essayer(
+  seuils: [cle: string, max: number, frein?: "frein"][]): Promise<Essai | null> {
+  let attente = 0;
+  let essai: Essai | null;
   try {
-    await q("INSERT INTO tentative_connexion (cle) SELECT unnest($1::text[])", [cles]);
-  } catch {
-    return;
+    essai = await transaction(async (c) => {
+      // Toujours dans le meme ordre : deux requetes aux memes cles ne s'attendent
+      // pas l'une l'autre en croix.
+      const cles = [...new Set(seuils.map(([k]) => k))].sort();
+      for (const k of cles) await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [k]);
+      // Lue APRES le verrou : en READ COMMITTED, cette requete voit tout ce
+      // que le detenteur precedent a ecrit et valide.
+      const r = (await c.query<{ cle: string; n: number }>(`
+        SELECT cle, COUNT(*)::int AS n FROM tentative_connexion
+         WHERE cle = ANY($1::text[]) AND essai_le > now() - interval '${FENETRE_ESSAIS}'
+         GROUP BY cle`, [cles])).rows;
+      for (const [k, max, frein] of seuils) {
+        const n = r.find((l) => l.cle === k)?.n ?? 0;
+        if (n < max) continue;
+        if (!frein) return null;
+        // ponytail: une seconde par essai de trop, plafonnee a 5 s ; des requetes
+        // paralleles attendent ensemble — les cles d'IP bornent ce cas.
+        attente = Math.max(attente, Math.min(n - max + 1, 5) * 1000);
+      }
+      const l = (await c.query<{ le: string }>(
+        "INSERT INTO tentative_connexion (cle) SELECT unnest($1::text[]) RETURNING essai_le::text AS le",
+        [cles])).rows[0];
+      return { cles, le: l.le };
+    });
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    console.error("tentatives :", m);
+    relever("erreur", "tentatives : " + m, null);
+    return null;
   }
   if (Math.random() < 1 / 50) {
     apres("tentatives", () => q("DELETE FROM tentative_connexion WHERE essai_le < now() - interval '1 day'"));
   }
+  if (attente) await new Promise((r) => setTimeout(r, attente));
+  return essai;
+}
+
+/** L'essai n'etait pas un echec : il ne compte plus. */
+export function reussite(essai: Essai): void {
+  apres("tentatives", () => q(
+    "DELETE FROM tentative_connexion WHERE cle = ANY($1::text[]) AND essai_le = $2::timestamptz",
+    [essai.cles, essai.le]).catch(() => undefined));
 }
 
 /** Un succes efface les echecs de ces cles : ses propres fautes de frappe ne bloquent plus. */

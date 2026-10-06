@@ -5,7 +5,7 @@ import Pas from "../../../pas";
 import Remplir from "../../../remplir";
 import FiltreCanaux from "../../../filtre-canaux";
 import RaisonSortie from "../../../raison-sortie";
-import { q1, euros, depuis, codeCanal } from "@/db";
+import { q1, euros, depuis, codeCanal, entier } from "@/db";
 import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { Repli } from "../../../repli";
 import { IcoBorne } from "../../../icones";
@@ -32,7 +32,8 @@ export default async function Charger({ params, searchParams }:
   { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const { e } = await searchParams;
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, euros } from "@/db";
+import { q, q1, euros, entier } from "@/db";
 import { peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
 import { IcoAlerte, IcoCatalogue } from "../../../icones";
 import { Repli } from "../../../repli";
@@ -42,7 +42,8 @@ export default async function Prix({
      searchParams: Promise<{ fait?: string; n?: string; refuses?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();

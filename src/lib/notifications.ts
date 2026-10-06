@@ -340,7 +340,9 @@ async function pousser(a: Abonnement, m: Message): Promise<boolean> {
       { endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } },
       JSON.stringify({ titre: m.titre, corps: m.corps, url: m.url, tag: m.tag, quand: Date.now() }),
       { vapidDetails: { subject: sujet(a.origine), publicKey: k.publique, privateKey: k.privee },
-        TTL: 6 * 3600, urgency: m.genre === "incidents" ? "high" : "normal" });
+        TTL: 6 * 3600, urgency: m.genre === "incidents" ? "high" : "normal",
+        // Un service de push qui ne repond plus ne tient pas la ronde ni la fonction.
+        timeout: 10_000 });
     await q("UPDATE abonnement_push SET echecs = 0, envoye_le = now() WHERE id = $1", [a.id]);
     return true;
   } catch (e) {
@@ -363,8 +365,19 @@ async function pousser(a: Abonnement, m: Message): Promise<boolean> {
  */
 export async function signaler(compte_id: number, borne: { id: number; nom: string },
                                evenements: Evenement[]): Promise<void> {
+  await (await annoncer(compte_id, borne, evenements))();
+}
+
+/**
+ * LE SALON TOUT DE SUITE, LES TELEPHONES QUAND ON VOUDRA. Depose dans le salon
+ * et rend l'envoi a faire : la ronde le garde pour apres son COMMIT, sans tenir
+ * son verrou pendant que les services de push repondent.
+ */
+export async function annoncer(compte_id: number, borne: { id: number; nom: string },
+                               evenements: Evenement[]): Promise<() => Promise<void>> {
+  const rien = async () => {};
   const messages = evenements.map((e) => composer(borne, e)).filter((m): m is Message => m !== null);
-  if (messages.length === 0) return;
+  if (messages.length === 0) return rien;
 
   // La machine l'ecrit aussi dans son salon, ou l'equipe peut repondre. Le
   // titre porte deja le nom de la borne ; dans son propre salon on le garde,
@@ -374,8 +387,12 @@ export async function signaler(compte_id: number, borne: { id: number; nom: stri
 
   // Ce qui s'ecrit sans faire vibrer — une mise a jour — s'arrete au salon.
   const sonores = messages.filter((m) => !m.muet);
-  if (sonores.length === 0) return;
+  if (sonores.length === 0) return rien;
+  return () => pousserAuCompte(compte_id, borne, sonores);
+}
 
+async function pousserAuCompte(compte_id: number, borne: { id: number; nom: string },
+                               sonores: Message[]): Promise<void> {
   // Les appareils des membres du compte qui ont le droit de voir cette borne.
   const cibles = versLaBonneApplication(await q<Abonnement>(`
     SELECT a.id, a.utilisateur_id, a.endpoint, a.p256dh, a.auth, a.origine,

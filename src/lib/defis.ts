@@ -112,7 +112,7 @@ export async function lesDefis(): Promise<{ enCours: Defi[]; aVenir: Defi[]; pas
            CASE WHEN d.debut > ${AUJOURDHUI} THEN 'a_venir'
                 WHEN d.fin < ${AUJOURDHUI} THEN 'passe' ELSE 'en_cours' END AS etat
       FROM defi d
-     WHERE d.fin >= ${AUJOURDHUI} - 400
+     WHERE d.fin >= ${AUJOURDHUI} - 400 AND d.retire_le IS NULL
      ORDER BY d.fin DESC, d.id DESC`, [DOMAINE]);
   return {
     enCours: tous.filter((d) => d.etat === "en_cours").reverse(),
@@ -155,7 +155,7 @@ export async function avancement(d: Defi, utilisateur_id: number): Promise<numbe
 export async function evaluerDefis(utilisateur_id: number): Promise<Defi[]> {
   const ouverts = await q<Defi>(`
     SELECT ${COLONNES_DEFI} FROM defi d
-     WHERE d.debut <= ${AUJOURDHUI} AND d.fin >= ${AUJOURDHUI} - 45
+     WHERE d.debut <= ${AUJOURDHUI} AND d.fin >= ${AUJOURDHUI} - 45 AND d.retire_le IS NULL
        AND NOT EXISTS (SELECT 1 FROM defi_reussi r WHERE r.defi_id = d.id AND r.utilisateur_id = $2)`,
     [DOMAINE, utilisateur_id]);
   // Chaque defi se mesure de son cote : en parallele, pas un aller-retour
@@ -177,7 +177,7 @@ export function defisReussisDe(utilisateur_id: number): Promise<DefiReussi[]> {
   return q<DefiReussi>(`
     SELECT ${COLONNES_DEFI}, r.reussi_le
       FROM defi_reussi r JOIN defi d ON d.id = r.defi_id
-     WHERE r.utilisateur_id = $2 ORDER BY r.reussi_le DESC`, [DOMAINE, utilisateur_id]);
+     WHERE r.utilisateur_id = $2 AND d.retire_le IS NULL ORDER BY r.reussi_le DESC`, [DOMAINE, utilisateur_id]);
 }
 
 /** « du 1er au 31 octobre 2026 » */

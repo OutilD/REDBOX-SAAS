@@ -12,6 +12,7 @@ const MESSAGES: Record<string, string> = {
   pris: "Cette adresse a déjà un compte. Connectez-vous plutôt.",
   mdp: "Le mot de passe doit faire au moins huit caractères, et les deux saisies doivent être identiques.",
   code: "Code d’inscription incorrect.",
+  trop: "Trop d’essais. Réessayez dans un quart d’heure.",
 };
 
 /**

@@ -1,5 +1,5 @@
 import { transaction } from "@/db";
-import { signaler } from "./notifications";
+import { annoncer, signaler } from "./notifications";
 import { apres } from "./apres";
 import { q } from "@/db";
 import { SEUIL_J, urgencesParBorne } from "./autonomie";
@@ -30,6 +30,7 @@ export const SILENCE_MS = 15 * 60 * 1000;
 
 /** Fait une ronde. Rend le nombre de machines annoncees. */
 export async function veiller(): Promise<number> {
+  const envois: (() => Promise<void>)[] = [];
   const annoncees = await transaction(async (c) => {
     // Un seul processus fait la ronde a la fois : deux rondes simultanees
     // annonceraient deux fois la meme machine.
@@ -37,6 +38,8 @@ export async function veiller(): Promise<number> {
     // LE VERROU TIENT JUSQU'A L'ANNONCE. Le temoin est le message « Hors ligne »
     // que `signaler` depose dans le salon : relache avant, une seconde ronde
     // relisait la machine comme muette et non annoncee, et l'annoncait aussi.
+    // Les telephones, eux, attendent le COMMIT : le verrou ne tient pas
+    // pendant qu'un service de push tarde.
     const verrou = await c.query<{ ok: boolean }>("SELECT pg_try_advisory_xact_lock(4247001) AS ok");
     if (!verrou.rows[0]?.ok) return 0;
     const tues = (await c.query<{ id: number; nom: string; compte_id: number; vue_le: Date }>(`
@@ -51,12 +54,15 @@ export async function veiller(): Promise<number> {
               AND m.cree_le > b.vue_le AND m.texte LIKE 'Hors ligne ·%')`,
       [String(SILENCE_MS)])).rows;
     for (const b of tues) {
-      await signaler(Number(b.compte_id), { id: Number(b.id), nom: b.nom },
+      await annoncer(Number(b.compte_id), { id: Number(b.id), nom: b.nom },
                      [{ genre: "silence", depuis: b.vue_le }])
+        .then((envoi) => { envois.push(envoi); })
         .catch((e) => console.error("ronde :", e instanceof Error ? e.message : e));
     }
     return tues.length;
   });
+  await Promise.allSettled(envois.map((envoi) => envoi()
+    .catch((e) => console.error("ronde :", e instanceof Error ? e.message : e))));
   await annoncerRuptures().catch((e) => console.error("ruptures :", e instanceof Error ? e.message : e));
   return annoncees;
 }

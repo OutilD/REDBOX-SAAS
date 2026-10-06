@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q1 } from "@/db";
+import { q1, entier } from "@/db";
 import { estSuperAdmin, peutVoirBorne, utilisateur } from "@/lib/auth";
 import { nomDuStatut } from "@/lib/statuts";
 import { ChoisirPlace } from "../../choisir-place";
@@ -27,7 +27,8 @@ export default async function Situer({ params, searchParams }: {
 }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!Number.isInteger(id)) notFound();
   const { r, e } = await searchParams;
 

@@ -29,8 +29,11 @@ export async function GET(req: Request) {
 
   const euros = (c: number) => (c / 100).toFixed(2).replace(".", ",");
   const cellule = (v: string | number | null | undefined) => {
-    const s = v === null || v === undefined ? "" : String(v);
-    return /[;"\n]/.test(s) ? `"${s.replace(/"/g, "\"\"")}"` : s;
+    let s = v === null || v === undefined ? "" : String(v);
+    // Un nom de produit ou de borne qui commence par « = » serait une formule
+    // pour Excel. Les montants negatifs (« -1,20 ») restent des nombres.
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(,\d+)?$/.test(s)) s = "'" + s;
+    return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, "\"\"")}"` : s;
   };
   const lignes: (string | number | null)[][] = [];
 
@@ -82,7 +85,7 @@ export async function GET(req: Request) {
   const entete = `# RedBox — ${resume ? "résumé mensuel, douze derniers mois" : `ventes sur ${fen.nom.toLowerCase()}`}`
     + ` — compte ${u.compte} — export du ${new Date().toLocaleDateString("fr-FR", { timeZone: FUSEAU })}`
     + ` — HT et TVA recomposés au taux de ${Math.round(TVA * 100)} %, marge au dernier prix d’achat connu\n`;
-  const corps = "﻿" + entete + lignes.map((l) => l.map(cellule).join(";")).join("\r\n") + "\r\n";
+  const corps = "﻿" + cellule(entete.trimEnd()) + "\r\n" + lignes.map((l) => l.map(cellule).join(";")).join("\r\n") + "\r\n";
   const nom = `redbox-${resume ? "resume-mensuel" : `ventes-${fen.cle}j`}${b ? `-redbox-${b}` : ""}.csv`;
   return new Response(corps, {
     headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${nom}"`, "Cache-Control": "no-store" },

@@ -11,7 +11,9 @@ npm run build && npm start        # http://localhost:4310
 
 `.env.local` porte `DATABASE_URL` (poolée, pour servir les pages) et
 `DATABASE_URL_UNPOOLED` (directe, pour les migrations : pgbouncer en mode
-transaction refuse une partie du DDL).
+transaction refuse une partie du DDL). `npm run migrate` exige
+`DATABASE_URL_UNPOOLED` et ne retombe jamais sur `DATABASE_URL` ; avant de le
+lancer, passer `scripts/verifier-avant-migration.sql` (lecture seule).
 
 **`.env.local` pointe sur la base de PRODUCTION.** `npm run dev` y écrit, et sa
 ronde (`instrumentation-node.ts`) y tourne chaque minute. `npm run seed` vide

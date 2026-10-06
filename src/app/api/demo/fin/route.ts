@@ -18,6 +18,6 @@ export async function POST(req: Request) {
   if (!peutGererEquipe(u)) return versPage(req, "/demo?e=role");
   const f = await req.formData().catch(() => null);
   if (String(f?.get("sur") ?? "") !== "1") return versPage(req, "/demo?quitter=1");
-  await quitterDemo(u.compte_id);
+  if (!await quitterDemo(u.compte_id)) return versPage(req, "/demo");
   return versPage(req, "/?fait=demo_fin");
 }

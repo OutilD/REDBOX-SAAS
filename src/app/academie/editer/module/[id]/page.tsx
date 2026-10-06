@@ -8,6 +8,7 @@ import { IcoOeil } from "../../../../icones";
 import { IconeModule, duree, pluriel } from "../../../vues";
 import { CasePublie, ChoixAcces, ChoixIcone, Deplacer, ERREURS, EtatPublication, EtiquetteAcces,
          Publier } from "../../outils";
+import { entier } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,8 @@ export default async function EditerModule({ params, searchParams }: {
   if (!u) redirect("/connexion");
   if (!peutEditer(u)) redirect("/academie");
   const l = await lecteur(u);
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const [mods, sp] = await Promise.all([modules(l), searchParams]);
   const i = mods.findIndex((m) => m.id === id);
   if (i < 0) notFound();

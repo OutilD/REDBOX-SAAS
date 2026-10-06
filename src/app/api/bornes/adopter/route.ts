@@ -1,5 +1,5 @@
 import { transaction, entier } from "@/db";
-import { ipDe, noterEchec, peutConfigurer, tropDEssais, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
+import { essayer, ipDe, peutConfigurer, reussite, utilisateurDe, versPage, estRestreint } from "@/lib/auth";
 import { nouveauJeton } from "@/lib/borne";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
   if (!nom && attendue === null) return vers("nom");
   // Un code d'appairage se devine si l'on peut essayer sans fin.
   const cles = ["adopter:" + u.id, "ip:" + ipDe(req)];
-  if (await tropDEssais([[cles[0], 8], [cles[1], 30]])) return vers("trop");
+  const essai = await essayer([[cles[0], 8], [cles[1], 30]]);
+  if (!essai) return vers("trop");
 
   const issue = await transaction<{ souci: string | null; borne: number }>(async (c) => {
     const d = (await c.query<{
@@ -95,7 +96,8 @@ export async function POST(req: Request) {
     return { souci: null, borne: b.id };
   });
 
-  if (issue.souci === "code") await noterEchec(cles);
+  // Seul un code faux reste compte.
+  if (issue.souci !== "code") reussite(essai);
   if (issue.souci) return vers(issue.souci);
   return versPage(req, `/bornes/${issue.borne}`);
 }

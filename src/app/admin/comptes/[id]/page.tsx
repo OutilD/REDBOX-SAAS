@@ -6,7 +6,7 @@ import { IcoBorne, IcoFleche, IcoVentes } from "../../../icones";
 import { Delta, SerieTemps } from "../../../analyses";
 import { Repli } from "../../../repli";
 import { Portrait } from "../../../communaute/vignette-personne";
-import { q, q1, depuis, enLigne, euros, leJour, FUSEAU } from "@/db";
+import { q, q1, depuis, enLigne, euros, leJour, FUSEAU, entier } from "@/db";
 import { estSuperAdmin, nomDuRole, utilisateur } from "@/lib/auth";
 import { apprenants, genreDe, NOM_GENRE, temperature } from "@/lib/academie-suivi";
 import { dansLeCadre } from "@/lib/geo";
@@ -50,7 +50,8 @@ export default async function FicheCompte({ params }: { params: Promise<{ id: st
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   if (!estSuperAdmin(u)) redirect("/");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!Number.isInteger(id)) notFound();
   // Le mot de passe temporaire tout juste tire (api/admin/mot-de-passe) : lu ici
   // une fois, le biscuit s'efface seul en deux minutes.

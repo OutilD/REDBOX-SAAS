@@ -8,6 +8,7 @@ import { lecteurDePage } from "../../lecteur";
 import { Blocs, PorteFermee, duree } from "../../vues";
 import { Sommaire, bilanDe, sommaireFerme } from "../../salle";
 import { BarreLecture, BasculeSommaire, Raccourcis } from "../../salle-client";
+import { entier } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function LeconAcademie({ params }: { params: Promise<{ id: string }> }) {
   const { l, equipe } = await lecteurDePage();
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const lecon = await leconDe(l, id);
   if (!lecon) notFound();
   const ok = ouverte(l, lecon.module_acces, lecon.acces);

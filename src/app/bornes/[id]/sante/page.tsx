@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q, q1, depuis, FUSEAU } from "@/db";
+import { q, q1, depuis, FUSEAU, entier } from "@/db";
 import { peutVoirBorne, utilisateur } from "@/lib/auth";
 import { AVORTEES, LIBELLES, SQL_AVORTEE } from "@/lib/ventes";
 import { Repli } from "../../../repli";
@@ -48,7 +48,8 @@ const NOMS: Record<Genre, string> = {
 export default async function Sante({ params }: { params: Promise<{ id: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!peutVoirBorne(u, id)) notFound();
   const b = await q1<{ id: number; nom: string; vue_le: Date | null; sante: { paiement?: string; paiement_pertes?: number } | null }>(
     "SELECT id, nom, vue_le, sante FROM borne WHERE id = $1 AND compte_id = $2", [id, u.compte_id]);

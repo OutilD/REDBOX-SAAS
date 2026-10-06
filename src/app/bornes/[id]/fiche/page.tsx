@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { q1 } from "@/db";
+import { q1, entier } from "@/db";
 import { estSuperAdmin, peutConfigurer, peutVoirBorne, utilisateur } from "@/lib/auth";
 import { TEL_MAX, TEXTE_DEFAUT, TEXTE_MAX } from "@/lib/sav";
 
@@ -30,7 +30,8 @@ export default async function FicheBorne({ params, searchParams }:
     searchParams: Promise<{ e?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!peutVoirBorne(u, id)) notFound();
   const { e } = await searchParams;
 

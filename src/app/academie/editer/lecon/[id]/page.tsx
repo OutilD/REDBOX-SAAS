@@ -6,6 +6,7 @@ import { ACCES, GENRES, RESUME_MAX, TITRE_MAX, blocsDe, leconDe, lecteur, peutEd
 import { IcoOeil } from "../../../../icones";
 import { BlocVue, IconeGenre, nomGenre, pluriel } from "../../../vues";
 import { CasePublie, ChampsBloc, Deplacer, ERREURS, EtatPublication } from "../../outils";
+import { entier } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ export default async function EditerLecon({ params, searchParams }: {
   if (!u) redirect("/connexion");
   if (!peutEditer(u)) redirect("/academie");
   const l = await lecteur(u);
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   const [lecon, sp] = await Promise.all([leconDe(l, id), searchParams]);
   if (!lecon) notFound();
   const blocs = await blocsDe(id);

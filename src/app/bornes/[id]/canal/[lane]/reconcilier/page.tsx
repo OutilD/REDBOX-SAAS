@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../../../chrome";
-import { q1 } from "@/db";
+import { q1, entier } from "@/db";
 import { peutCharger, utilisateur, peutVoirBorne } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,8 @@ export default async function Reconcilier({
   const u = await utilisateur();
   if (!u) redirect("/connexion");
   const { id: idBrut, lane: laneBrut } = await params;
-  const id = Number(idBrut), lane = Number(laneBrut);
+  const id = entier(idBrut), lane = Number(laneBrut);
+  if (!id) notFound();
   // Une borne hors de sa portee n'existe pas pour lui : `notFound` plutot
   // qu'un refus, qui confirmerait au passage qu'elle existe.
   if (!peutVoirBorne(u, id)) notFound();

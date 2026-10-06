@@ -3,6 +3,7 @@ import { utilisateur } from "@/lib/auth";
 import Messagerie from "../vue";
 import { LECTEURS_PAR_PAGE } from "@/lib/salons";
 import { aMontrer } from "../../voir-plus";
+import { entier } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export default async function SalonOuvert({ params, searchParams }:
   { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string; qui?: string; n?: string; fond?: string }> }) {
   const u = await utilisateur();
   if (!u) redirect("/connexion");
-  const id = Number((await params).id);
+  const id = entier((await params).id);
+  if (!id) notFound();
   if (!Number.isInteger(id)) notFound();
   const { e, qui, n, fond } = await searchParams;
   return <Messagerie u={u} salon_id={id} erreur={e} qui={qui === "1"} fondOuvert={fond === "1"}

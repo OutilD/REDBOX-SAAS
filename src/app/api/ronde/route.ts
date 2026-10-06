@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { veiller } from "@/lib/veille";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  const attendu = Buffer.from(`Bearer ${secret}`), recu = Buffer.from(req.headers.get("authorization") ?? "");
+  if (!secret || recu.length !== attendu.length || !timingSafeEqual(recu, attendu)) {
     return Response.json({ erreur: "introuvable" }, { status: 404 });
   }
   return Response.json({ ok: true, annoncees: await veiller() });
