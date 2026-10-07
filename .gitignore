@@ -27,3 +27,5 @@ captures/
 *.db-wal
 *.jks
 *.keystore
+.vercel
+.env*

@@ -6,7 +6,8 @@ export const maxDuration = 60;
 
 /** Duree pendant laquelle on garde la question ouverte, et pas au-dela. */
 const TENUE_MS = 25_000;
-const PAS_MS = 1_000;
+/** Chaque tour est une requete en base, qui garde Neon eveille et se paie. */
+const PAS_MS = 5_000;
 
 /**
  * GET /api/borne/attente   (Bearer jeton)
@@ -21,8 +22,8 @@ const PAS_MS = 1_000;
  *
  * Vingt-cinq secondes, parce que les intermediaires coupent souvent a trente et
  * qu'une reponse coupee ressemble a une panne. La borne repose simplement la
- * question : cette boucle EST le rythme calme, et elle ne coute rien de plus
- * qu'un sommeil.
+ * question : cette boucle EST le rythme calme. Un tour toutes les cinq
+ * secondes, pas chaque seconde : sur Vercel et Neon, chaque tour se paie.
  */
 export async function GET(req: Request) {
   const borne = await parJeton(req.headers);

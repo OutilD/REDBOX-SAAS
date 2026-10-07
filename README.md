@@ -15,8 +15,7 @@ transaction refuse une partie du DDL). `npm run migrate` exige
 `DATABASE_URL_UNPOOLED` et ne retombe jamais sur `DATABASE_URL` ; avant de le
 lancer, passer `scripts/verifier-avant-migration.sql` (lecture seule).
 
-**`.env.local` pointe sur la base de PRODUCTION.** `npm run dev` y écrit, et sa
-ronde (`instrumentation-node.ts`) y tourne chaque minute. `npm run seed` vide
+**`.env.local` pointe sur la base de PRODUCTION.** `npm run dev` y écrit. `npm run seed` vide
 TOUTE la base : il exige `REDBOX_SEED_EFFACER_TOUT=oui`, une base sans vente et
 `REDBOX_SEED_MDP` — à ne lancer que sur une branche Neon de développement.
 `scripts/borne-simulee.mjs` adopte une borne d'essai dans le compte qu'on lui
@@ -345,9 +344,9 @@ les douze après deux minutes sans rien, vif de nouveau au retour sur l’onglet
 (`lib/fil.ts`). `REDBOX_TRACE_SQL=1` journalise chaque requête avec sa durée ;
 au-delà d’une demi-seconde, elle est journalisée de toute façon — c’est ce qu’on
 lit chez l’hébergeur quand une page traîne. Ce qui reste hors du code : la base
-se rendort après inactivité et met quelques secondes à se réveiller — un appel
-de `/api/ronde` chaque minute la garde éveillée. Cet appel vient d'un cron
-externe (ou d'un cron Vercel, à la minute sur le plan Pro), avec
+se rendort après cinq minutes d'inactivité et se réveille en quelques centaines
+de millisecondes. La ronde des machines muettes passe par `/api/ronde`, appelée
+toutes les cinq minutes par le cron de `vercel.json`, avec
 `Authorization: Bearer $CRON_SECRET` : sans la variable, la route répond 404.
 
 Des **salons**, comme sur Discord : `#general` pour l’équipe, un salon par borne

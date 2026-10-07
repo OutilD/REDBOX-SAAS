@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
  * du serveur ne tourne pas sur une plateforme qui endort le processus entre
  * deux requetes, et la ronde faite au passage des releves suppose qu'une autre
  * machine parle encore : si tout le parc se tait — une seule machine, ou la
- * meme panne de reseau partout —, personne ne la fait. Un appel par minute ici
- * y remedie. Rejouable sans risque : une machine n'est annoncee qu'une fois par
- * silence.
+ * meme panne de reseau partout —, personne ne la fait. Le cron de `vercel.json`
+ * l'appelle toutes les cinq minutes, largement assez pour un silence de quinze.
+ * Rejouable sans risque : une machine n'est annoncee qu'une fois par silence.
  *
  * Sans `CRON_SECRET` dans l'environnement, la route n'existe pas.
  */
