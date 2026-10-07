@@ -6,6 +6,7 @@ import { confirmerMisesAJour } from "@/lib/ordres";
 import { A_REGARDER, STATUTS, baseMigree, rabattu, statutRecu } from "@/lib/ventes";
 import { SILENCE_MS, veillerSiLeMoment } from "@/lib/veille";
 import { apres } from "@/lib/apres";
+import { tempsReelDeBorne } from "@/lib/temps-reel";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -409,6 +410,8 @@ export async function POST(req: Request) {
     transferts_confirmes: bilan.confirmes,
     transferts_en_attente: bilan.attente,
     prochain_appel_s: bilan.attente > 0 ? RYTHME_VIF : RYTHME_CALME,
+    // La borne ecoute ce canal au lieu de tenir l'attente longue ouverte.
+    temps_reel: tempsReelDeBorne(borne.id),
   });
 }
 

@@ -3,6 +3,7 @@ import { q, q1 } from "@/db";
 import { APK } from "./apk";
 import { COLONNES, RANGEES } from "./machine";
 import { jointurePrix } from "./prix";
+import { pousserBornes } from "./temps-reel";
 
 export type Borne = {
   id: number; compte_id: number | null; lieu_id: number | null;
@@ -192,14 +193,15 @@ export function origineDes(h: Headers): string | null {
 /**
  * Reveille une ou plusieurs bornes.
  *
- * Poser ce drapeau suffit : la borne tient une question ouverte, le serveur lui
- * repond dans la seconde. On l'appelle des qu'un changement la concerne — un
- * chargement saisi, un catalogue modifie, un planogramme repris — et pas
- * seulement quand quelqu'un clique.
+ * Le drapeau sert a la borne qui tient encore une question ouverte (attente
+ * longue) ; le signal Pusher, a celle qui ecoute son canal. On l'appelle des
+ * qu'un changement la concerne — un chargement saisi, un catalogue modifie, un
+ * planogramme repris — et pas seulement quand quelqu'un clique.
  */
 export async function reveiller(borne_id: number, motif: string): Promise<void> {
   await q("UPDATE borne SET reveil_le = now(), reveil_motif = $2 WHERE id = $1",
           [borne_id, motif]);
+  await pousserBornes([borne_id]);
 }
 
 /** Toutes les bornes d'un compte : un changement de catalogue les concerne toutes. */
@@ -207,6 +209,7 @@ export async function reveillerLeCompte(compte_id: number, motif: string): Promi
   const r = await q<{ id: number }>(
     "UPDATE borne SET reveil_le = now(), reveil_motif = $2 WHERE compte_id = $1 AND jeton IS NOT NULL RETURNING id",
     [compte_id, motif]);
+  await pousserBornes(r.map((b) => Number(b.id)));
   return r.length;
 }
 

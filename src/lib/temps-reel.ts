@@ -8,6 +8,9 @@ import { createHash, createHmac } from "node:crypto";
  * canal prive. Le navigateur qui le recoit relit le salon par /api/messages,
  * qui garde tous les controles d'acces. Le sondage reste en secours, lent.
  *
+ * Les bornes l'ecoutent aussi (voir `canalDeBorne`) : c'est ce qui remplace
+ * l'attente longue, qui gardait une fonction Vercel et la base eveillees.
+ *
  * Sans les quatre variables, rien ne part et le fil sonde comme avant :
  *   PUSHER_APP_ID, PUSHER_SECRET, NEXT_PUBLIC_PUSHER_KEY, NEXT_PUBLIC_PUSHER_CLUSTER
  */
@@ -28,12 +31,41 @@ export function salonDuCanal(canal: string): number | null {
 
 /** Previent les navigateurs ouverts sur ces salons. Ne leve jamais : le sondage rattrape. */
 export async function annoncer(salon_ids: number[]): Promise<void> {
-  if (!tempsReelActif || salon_ids.length === 0) return;
   const propres = [...new Set(salon_ids)].filter(Number.isInteger);
+  await diffuser("maj", propres.map(canalDuSalon));
+}
+
+/**
+ * LE CANAL D'UNE BORNE : public, mais introuvable sans le secret.
+ *
+ * La borne n'a ni session ni cookie pour un canal prive, et ce qui y passe ne
+ * dit rien — « reveille-toi », sans contenu. La borne relit tout par
+ * /api/borne/etat, avec son jeton. Un canal public au nom signe suffit.
+ */
+export function canalDeBorne(borne_id: number): string {
+  return `borne-${createHmac("sha256", SECRET ?? "").update(`borne:${borne_id}`).digest("hex").slice(0, 32)}`;
+}
+
+/** Ce que la borne doit savoir pour ecouter son canal, ou null sans temps reel. */
+export function tempsReelDeBorne(borne_id: number): { cle: string; grappe: string; canal: string } | null {
+  return tempsReelActif ? { cle: CLE!, grappe: GRAPPE!, canal: canalDeBorne(borne_id) } : null;
+}
+
+/**
+ * Reveille ces bornes tout de suite. Ne leve jamais : la borne qui rate le
+ * signal le rattrape a son echange de routine, ou par l'attente longue.
+ */
+export async function pousserBornes(borne_ids: number[]): Promise<void> {
+  const propres = [...new Set(borne_ids)].filter(Number.isInteger);
+  await diffuser("reveil", propres.map(canalDeBorne));
+}
+
+async function diffuser(evenement: string, canaux: string[]): Promise<void> {
+  if (!tempsReelActif || canaux.length === 0) return;
   // Pusher accepte cent canaux par evenement.
-  for (let i = 0; i < propres.length; i += 100) {
-    const lot = propres.slice(i, i + 100);
-    const corps = JSON.stringify({ name: "maj", channels: lot.map(canalDuSalon), data: "{}" });
+  for (let i = 0; i < canaux.length; i += 100) {
+    const lot = canaux.slice(i, i + 100);
+    const corps = JSON.stringify({ name: evenement, channels: lot, data: "{}" });
     const chemin = `/apps/${APP}/events`;
     const params = new URLSearchParams({
       auth_key: CLE!, auth_timestamp: String(Math.floor(Date.now() / 1000)), auth_version: "1.0",
