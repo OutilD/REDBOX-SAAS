@@ -28,7 +28,7 @@ type Machine = {
   statut: Statut; statut_le: Date; jeton: string | null; vue_le: Date | null; hors_service: boolean;
   latitude: number | null; longitude: number | null;
 } & Chiffres;
-type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; premiere: Date | null };
+type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; commandes: number; premiere: Date | null };
 type Produit = { nom: string; n: number; ca: number };
 type Vente = { id: number; faite_le: Date; prix_c: number; produit: string | null; machine: string; statut: string };
 type Membre = {
@@ -71,6 +71,7 @@ export default async function FicheCompte({ params }: { params: Promise<{ id: st
              COUNT(*) FILTER (WHERE v.faite_le >= now() - make_interval(days => $2::int))::int AS ventes,
              COUNT(*) FILTER (WHERE v.faite_le <  now() - make_interval(days => $2::int)
                                 AND v.faite_le >= now() - make_interval(days => $2::int * 2))::int AS ventes_avant,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id) FILTER (WHERE v.faite_le >= now() - make_interval(days => $2::int))::int AS commandes,
              MIN(v.faite_le) AS premiere
         FROM vente v JOIN borne b ON b.id = v.borne_id
        WHERE v.statut = 'distribue' AND b.compte_id = $1`, [id, JOURS]),
@@ -106,14 +107,14 @@ export default async function FicheCompte({ params }: { params: Promise<{ id: st
   ]);
   if (!compte) notFound();
 
-  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0, premiere: null };
+  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0, commandes: 0, premiere: null };
   const installees = machines.filter((b) => b.statut === "installee" && b.jeton !== null);
   const hs = installees.filter((b) => b.hors_service);
   const silencieuses = installees.filter((b) => !b.hors_service && !enLigne(b.vue_le));
   const enService = installees.length - hs.length - silencieuses.length;
   const aVenir = machines.filter((b) => b.statut === "production" || b.statut === "commandee" || b.statut === "bientot");
   const caTotal = machines.reduce((t, b) => t + b.ca_total, 0);
-  const panier = a.ventes > 0 ? Math.round(a.ca / a.ventes) : 0;
+  const panier = a.commandes > 0 ? Math.round(a.ca / a.commandes) : 0;
   const redboxer = machines.some((b) => !b.jeton || !b.jeton.startsWith("demo_"));
   const parPersonne = new Map(formation.map((x) => [x.id, x]));
   const formes = formation.filter((x) => x.ouvertes > 0);

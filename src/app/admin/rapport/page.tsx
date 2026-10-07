@@ -38,7 +38,7 @@ const BORNES = `
                      ELSE LEAST(debut_avant + (fin - debut), debut) END AS fin_avant
            FROM b1)`;
 
-type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; actives: number; actives_avant: number };
+type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; commandes: number; commandes_avant: number; actives: number; actives_avant: number };
 type Rang = { id: number; nom: string; sous: string | null; n: number; ca: number };
 type Fait = {
   comptes: number; comptes_avant: number; installees: number; installees_avant: number;
@@ -87,6 +87,8 @@ export default async function Rapport({ searchParams }: { searchParams: Promise<
              COALESCE(SUM(v.prix_c) FILTER (WHERE v.faite_le >= b2.debut_avant AND v.faite_le < b2.fin_avant), 0)::int AS ca_avant,
              COUNT(*) FILTER (WHERE v.faite_le >= b2.debut AND v.faite_le < b2.fin)::int AS ventes,
              COUNT(*) FILTER (WHERE v.faite_le >= b2.debut_avant AND v.faite_le < b2.fin_avant)::int AS ventes_avant,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id) FILTER (WHERE v.faite_le >= b2.debut AND v.faite_le < b2.fin)::int AS commandes,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id) FILTER (WHERE v.faite_le >= b2.debut_avant AND v.faite_le < b2.fin_avant)::int AS commandes_avant,
              COUNT(DISTINCT v.borne_id) FILTER (WHERE v.faite_le >= b2.debut AND v.faite_le < b2.fin)::int AS actives,
              COUNT(DISTINCT v.borne_id) FILTER (WHERE v.faite_le >= b2.debut_avant AND v.faite_le < b2.fin_avant)::int AS actives_avant
         FROM b2, vente v JOIN borne b ON b.id = v.borne_id
@@ -142,10 +144,10 @@ export default async function Rapport({ searchParams }: { searchParams: Promise<
     apprenants(),
   ]);
 
-  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0, actives: 0, actives_avant: 0 };
+  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0, commandes: 0, commandes_avant: 0, actives: 0, actives_avant: 0 };
   const f: Fait = faits ?? { comptes: 0, comptes_avant: 0, installees: 0, installees_avant: 0, finies: 0, finies_avant: 0, formes: 0, nouveaux_apprenants: 0 };
-  const panier = a.ventes > 0 ? Math.round(a.ca / a.ventes) : 0;
-  const panierAvant = a.ventes_avant > 0 ? Math.round(a.ca_avant / a.ventes_avant) : 0;
+  const panier = a.commandes > 0 ? Math.round(a.ca / a.commandes) : 0;
+  const panierAvant = a.commandes_avant > 0 ? Math.round(a.ca_avant / a.commandes_avant) : 0;
   const parMachine = a.actives > 0 ? Math.round(a.ca / a.actives) : 0;
   const total = Object.values(nombres).reduce((t, n) => t + n, 0);
   const hs = sante.filter((b) => b.hors_service).length;

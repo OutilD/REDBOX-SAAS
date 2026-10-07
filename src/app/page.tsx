@@ -134,8 +134,9 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   // barre valait un jour, faux des qu'elle vaut une heure — quatre heures de
   // vente auraient annonce un « par jour » quatre fois trop petit.
   const parJourMoyen = Math.round(tete.ca / p.jours);
-  const panier = tete.ventes ? Math.round(tete.ca / tete.ventes) : 0;
-  const panierAvant = avant.ventes ? Math.round(avant.ca / avant.ventes) : 0;
+  // Par commande, pas par article : un panier de trois articles est un panier.
+  const panier = tete.commandes ? Math.round(tete.ca / tete.commandes) : 0;
+  const panierAvant = avant.commandes ? Math.round(avant.ca / avant.commandes) : 0;
   // Le taux de marge se lit mieux que la marge seule : quinze pour cent sur un
   // gros chiffre et quinze pour cent sur un petit se pilotent de la meme facon.
   const taux = tete.ca_connu > 0 ? Math.round((tete.marge / tete.ca_connu) * 100) : null;

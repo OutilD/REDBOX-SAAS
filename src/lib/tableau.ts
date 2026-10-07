@@ -214,6 +214,8 @@ const PORTEE = "AND ($4::bigint[] IS NULL OR b.id = ANY($4))";
 export type Entete = {
   bornes: number; en_ligne: number; jamais_appairees: number;
   ventes: number; ca: number; marge: number;
+  /** Les commandes : un panier peut porter plusieurs articles, donc plusieurs ventes. */
+  commandes: number;
   /** Le chiffre des ventes dont le prix d'achat est connu : la base du taux de marge. */
   ca_connu: number;
   litiges: number; canaux_vides: number;
@@ -233,6 +235,9 @@ export async function entete(compte_id: number, p: Periode,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND v.statut = 'distribue' AND ${DANS})                   AS ventes,
+      (SELECT COUNT(DISTINCT v.borne_id || ':' || v.commande_id)::int FROM vente v JOIN borne b ON b.id = v.borne_id
+        WHERE b.compte_id = $1 ${PORTEE}
+          AND v.statut = 'distribue' AND ${DANS})                   AS commandes,
       (SELECT COALESCE(SUM(v.prix_c),0)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND v.statut = 'distribue' AND ${DANS})                   AS ca,
@@ -275,12 +280,13 @@ export async function entete(compte_id: number, p: Periode,
  * l'heure qu'il est, pas les ventes. La borne haute est donc `now()` recule
  * d'autant, ce qui laisse exactement la meme duree ecoulee des deux cotes.
  */
-export type Comparaison = { ventes: number; ca: number; marge: number };
+export type Comparaison = { ventes: number; commandes: number; ca: number; marge: number };
 
 export async function comparaison(compte_id: number, p: Periode,
                                   bornes: number[] | null = null): Promise<Comparaison> {
   return (await q1<Comparaison>(`
     SELECT COUNT(*)::int                                              AS ventes,
+           COUNT(DISTINCT v.borne_id || ':' || v.commande_id)::int AS commandes,
            COALESCE(SUM(v.prix_c),0)::int                             AS ca,
            COALESCE(SUM(v.prix_c - a.prix_achat_c),0)::int AS marge
       FROM vente v

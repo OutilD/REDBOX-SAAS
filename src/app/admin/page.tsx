@@ -30,7 +30,7 @@ type Ligne = {
 } & Chiffres;
 
 /** Ce que rapportent les vraies machines : la fenetre choisie, et la meme juste avant. */
-type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number };
+type Argent = { ca: number; ca_avant: number; ventes: number; ventes_avant: number; commandes: number; commandes_avant: number };
 type Gens = { comptes: number; redboxers: number; nouveaux: number };
 type Classee = { id: number; nom: string; compte: string | null; ville: string | null; n: number; ca: number; derniere: Date | null };
 type CompteClasse = { id: number; nom: string; n: number; ca: number; machines: number };
@@ -90,7 +90,9 @@ export default async function TableauPlateforme({ searchParams }:
       SELECT COALESCE(SUM(v.prix_c) FILTER (WHERE v.faite_le >= now() - make_interval(days => $1::int)), 0)::int AS ca,
              COALESCE(SUM(v.prix_c) FILTER (WHERE v.faite_le <  now() - make_interval(days => $1::int)), 0)::int AS ca_avant,
              COUNT(*) FILTER (WHERE v.faite_le >= now() - make_interval(days => $1::int))::int AS ventes,
-             COUNT(*) FILTER (WHERE v.faite_le <  now() - make_interval(days => $1::int))::int AS ventes_avant
+             COUNT(*) FILTER (WHERE v.faite_le <  now() - make_interval(days => $1::int))::int AS ventes_avant,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id) FILTER (WHERE v.faite_le >= now() - make_interval(days => $1::int))::int AS commandes,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id) FILTER (WHERE v.faite_le <  now() - make_interval(days => $1::int))::int AS commandes_avant
         FROM vente v JOIN borne b ON b.id = v.borne_id
        WHERE v.statut = 'distribue' AND v.faite_le >= now() - make_interval(days => $1::int * 2) AND ${SQL_VRAIE}`, [N]),
     q1<Gens>(`
@@ -138,7 +140,7 @@ export default async function TableauPlateforme({ searchParams }:
     apprenants(),
   ]);
   const prospects = pointsProspects(lesGens);
-  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0 };
+  const a: Argent = argent ?? { ca: 0, ca_avant: 0, ventes: 0, ventes_avant: 0, commandes: 0, commandes_avant: 0 };
   const g: Gens = gens ?? { comptes: 0, redboxers: 0, nouveaux: 0 };
 
   // ---------------------------------------------------------------- le parc
@@ -148,8 +150,8 @@ export default async function TableauPlateforme({ searchParams }:
   const enService = installees.length - hs.length - silencieuses.length;
   const aVenir = nombres.production + nombres.commandee + nombres.bientot;
   const total = Object.values(nombres).reduce((t, n) => t + n, 0);
-  const panier = a.ventes > 0 ? Math.round(a.ca / a.ventes) : 0;
-  const panierAvant = a.ventes_avant > 0 ? Math.round(a.ca_avant / a.ventes_avant) : 0;
+  const panier = a.commandes > 0 ? Math.round(a.ca / a.commandes) : 0;
+  const panierAvant = a.commandes_avant > 0 ? Math.round(a.ca_avant / a.commandes_avant) : 0;
 
   const situee = (b: Ligne) =>
     b.latitude !== null && b.longitude !== null && dansLeCadre(b.latitude, b.longitude);

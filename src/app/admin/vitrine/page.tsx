@@ -5,10 +5,11 @@ import { q, q1, euros, depuis, FUSEAU } from "@/db";
 import { estSuperAdmin, utilisateur } from "@/lib/auth";
 import { DOMAINE } from "@/lib/invente";
 import { PREFIXE_JETON, PREFIXE_VITRINE } from "@/lib/demo";
-import { JOURS_SEMAINE, MAX_BORNES, PARTS, REGLAGE_DEFAUT, reglageDe, type Reglage } from "@/lib/vitrine";
+import { ARTICLES_MAX, JOURS_SEMAINE, MAX_BORNES, PARTS, REGLAGE_DEFAUT, reglageDe, type Reglage } from "@/lib/vitrine";
 import { capaciteSoir, catalogueModele } from "@/lib/demo";
 import { Choix } from "../../choix";
 import Semaine from "./semaine";
+import Panier from "./panier";
 
 export const dynamic = "force-dynamic";
 
@@ -75,8 +76,9 @@ export default async function VitrinePage({ searchParams }:
   // Ce que la vitrine montre vraiment : le total, et la part de chaque soir.
   // Une vente d'apres minuit appartient a la soiree de la veille.
   const [total, parSoir] = vitrine ? await Promise.all([
-    q1<{ ca: number; n: number; bornes: number }>(`
+    q1<{ ca: number; n: number; commandes: number; bornes: number }>(`
       SELECT COALESCE(SUM(v.prix_c), 0)::int AS ca, COUNT(*)::int AS n,
+             COUNT(DISTINCT v.borne_id || ':' || v.commande_id)::int AS commandes,
              (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1) AS bornes
         FROM vente v JOIN borne b ON b.id = v.borne_id
        WHERE b.compte_id = $1 AND v.statut = 'distribue'`, [vitrine.id]),
@@ -93,6 +95,8 @@ export default async function VitrinePage({ searchParams }:
   const heures = Array.from({ length: 24 }, (_, h) => ({ valeur: String(h), nom: `${String(h).padStart(2, "0")} h` }));
   const erreur = sp.e ? ERREURS[sp.e] ?? "Ça n’a pas abouti." : null;
   const caTotal = total?.ca ?? 0;
+  // Les prix de ce qu'on met dans les spires : le panier moyen ne sort pas de cet intervalle.
+  const prixPlan = catalogue.plan.map((s) => catalogue.produits.find((p) => p.sku === s.sku)?.prix ?? 0).filter((p) => p > 0);
   const soirs = ORDRE_JOURS.map((d) => ({ d, ...(parSoir.find((x) => x.dow === d) ?? { ca: 0, soirs: 0 }) }))
     .filter((x) => x.ca > 0);
 
@@ -142,8 +146,8 @@ export default async function VitrinePage({ searchParams }:
 
             <div className="vitrine-chiffres">
               <div><span className="etiquette-bilan">Chiffre d’affaires</span><b className="num">{euros(caTotal)}</b></div>
-              <div><span className="etiquette-bilan">Ventes</span><b className="num">{(total?.n ?? 0).toLocaleString("fr-FR")}</b></div>
-              <div><span className="etiquette-bilan">Panier moyen</span><b className="num">{euros(total?.n ? Math.round(caTotal / total.n) : 0)}</b></div>
+              <div><span className="etiquette-bilan">Commandes</span><b className="num">{(total?.commandes ?? 0).toLocaleString("fr-FR")}</b></div>
+              <div><span className="etiquette-bilan">Panier moyen</span><b className="num">{euros(total?.commandes ? Math.round(caTotal / total.commandes) : 0)}</b></div>
               <div><span className="etiquette-bilan">RedBox</span><b className="num">{total?.bornes ?? 0}</b></div>
             </div>
 
@@ -225,6 +229,18 @@ export default async function VitrinePage({ searchParams }:
                   </div>
                 </div>
               </div>
+              <div className="vitrine-grille" style={{ marginTop: 12 }}>
+                <div className="champ">
+                  <label htmlFor="v-ventes">Commandes</label>
+                  <div className="avec-unite">
+                    <input id="v-ventes" name="ventes" type="number" min={0} step={1} inputMode="numeric"
+                           className="num" defaultValue={r.ventes || ""} placeholder="Libre" />
+                    <span aria-hidden>paniers</span>
+                  </div>
+                </div>
+              </div>
+              <Panier min={prixPlan.length ? Math.min(...prixPlan) : 0}
+                      max={prixPlan.length ? Math.max(...prixPlan) * ARTICLES_MAX : 0} />
               <p className="vitrine-aide">La période finit aujourd’hui. La progression fait monter les soirs du premier au dernier.</p>
             </fieldset>
 

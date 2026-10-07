@@ -524,7 +524,9 @@ Celui qu’on ouvre devant un prospect (Plateforme → **Vitrine**). Un compte
 ordinaire, créé par l’inscription : **rien dans sa console ne dit « démo »** —
 pas de bandeau, pas de mention à côté du nom. Le super-admin règle ce qu’il
 montre — un chiffre d’affaires, une période en mois qui finit aujourd’hui, le
-nombre de RedBox, les heures d’ouverture, une progression, et le **poids de
+nombre de RedBox, les heures d’ouverture, une progression, le **nombre de
+commandes** (qui, avec le chiffre, fait le panier moyen — une commande
+emporte jusqu’à huit articles ; vide : un article par commande), et le **poids de
 chaque soir** (0 : fermé ; jeudi 1, vendredi 1,6, samedi 1,9 par défaut) — et
 l’histoire est réinventée : catalogue, bornes, réceptions et tournées qui
 suivent les ventes, ventes réparties selon ces poids et l’affluence de la

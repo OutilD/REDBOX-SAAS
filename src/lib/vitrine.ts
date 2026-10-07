@@ -50,13 +50,15 @@ export type Reglage = {
   bornes: number;
   /** De combien le dernier soir pese de plus que le premier, en pour cent. */
   progression: number;
+  /** Combien de commandes sur la periode ; avec le chiffre, elles font le panier moyen. 0 : un article par commande. */
+  ventes: number;
 };
 
 export const JOURS_SEMAINE = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
 /** Jeudi, vendredi et samedi soir ; le vendredi et le samedi vendent davantage. */
 export const REGLAGE_DEFAUT: Reglage = {
-  ca: 3000, mois: 3, poids: [0, 0, 0, 0, 1, 1.6, 1.9], debut: 19, fin: 2, bornes: 1, progression: 15,
+  ca: 3000, mois: 3, poids: [0, 0, 0, 0, 1, 1.6, 1.9], debut: 19, fin: 2, bornes: 1, progression: 15, ventes: 0,
 };
 
 /**
@@ -110,6 +112,9 @@ const EMPLACEMENTS: (MachineSemee & { part: number })[] = [
 
 export const MAX_BORNES = EMPLACEMENTS.length;
 
+/** Le plus d'articles qu'une commande inventee emporte. */
+export const ARTICLES_MAX = 8;
+
 /** Ce que chaque emplacement vend, relativement, dans l'ordre : l'apercu du reglage en a besoin. */
 export const PARTS = EMPLACEMENTS.map((e) => e.part);
 
@@ -125,6 +130,7 @@ export function reglageDe(brut: unknown): Reglage {
     poids, debut: borner(Math.round(Number(r.debut)) || 0, 0, 23), fin: borner(Math.round(Number(r.fin)) || 0, 0, 23),
     bornes: borner(Math.round(Number(r.bornes)) || 1, 1, MAX_BORNES),
     progression: borner(Number(r.progression) || 0, -90, 500),
+    ventes: borner(Math.round(Number(r.ventes)) || 0, 0, 1_000_000),
   };
 }
 
@@ -133,7 +139,7 @@ export function reglageDuFormulaire(f: FormData): Reglage | string {
   const n = (cle: string) => Number(String(f.get(cle) ?? "").replace(",", ".").replace(/\s/g, ""));
   const r = reglageDe({
     ca: n("ca"), mois: n("mois"), debut: n("debut"), fin: n("fin"), bornes: n("bornes"),
-    progression: n("progression"), poids: JOURS_SEMAINE.map((_, i) => n(`poids_${i}`)),
+    progression: n("progression"), ventes: n("ventes"), poids: JOURS_SEMAINE.map((_, i) => n(`poids_${i}`)),
   });
   if (!(r.ca > 0)) return "ca";
   if (r.poids.every((p) => p === 0)) return "jours";
@@ -265,6 +271,11 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
   }
   const total = soirs.reduce((s, x) => s + x.poids, 0);
   const cible = Math.round(r.ca * 100);
+  // Le panier moyen voulu, en centimes : le chiffre divise par le nombre de commandes.
+  // Chaque commande vise ce qui ramene la moyenne courante au panier voulu, entre
+  // 0,4 et 1,8 fois ce panier : la moyenne s'y tient, les paniers restent varies.
+  const panier = r.ventes > 0 ? cible / r.ventes : null;
+  let nCommandes = 0, sommeCommandes = 0;
 
   // --- Les bornes, appairees quelques jours avant le premier soir.
   const emplacements = EMPLACEMENTS.slice(0, r.bornes);
@@ -325,35 +336,46 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
         const dispo = PLAN.filter((s) => (b.restant.get(laneDe(s.rangee, s.colonne)) ?? 0) > 0
                                          && prixDe.get(s.sku)! <= reste + 50);
         if (dispo.length === 0) break;
-        const s = dispo[Math.floor(tir() * dispo.length)];
-        const lane = laneDe(s.rangee, s.colonne);
-        const prix = prixDe.get(s.sku)!;
-        const statut = statutAuSort(tir, ageDe.get(s.sku)!);
         // L'heure, tiree selon l'affluence de la soiree.
         let u = tir() * soir.heures.reduce((x, h) => x + h.poids, 0);
         const h = soir.heures.find((x) => (u -= x.poids) <= 0) ?? soir.heures[soir.heures.length - 1];
         const quand = new Date(h.debut + tir() * (h.fin - h.debut));
-        const aRegarder = (A_REGARDER as readonly string[]).includes(statut);
-        const avantSpirale = !aRegarder && statut !== "distribue";
-        if (statut === "distribue") {
-          b.restant.set(lane, b.restant.get(lane)! - 1);
-          fait += prix;
-          siennes.push({ nom: PRODUITS.find((p) => p.sku === s.sku)!.nom, prix });
-        }
-        const traite = aRegarder && quand.getTime() < recent ? new Date(quand.getTime() + 20 * 3600e3) : null;
         // Un numero deja pris ferait ecarter la vente a l'insertion : on en tire un autre.
         let cmd = commande(tir);
         while (commandes.has(cmd)) cmd = commande(tir);
         commandes.add(cmd);
-        ventes.push({
-          borne: b.id, cmd, article: 0, lane: avantSpirale ? null : lane, produit: pid.get(s.sku)!,
-          prix, statut, quand, traite,
-          note: !traite ? null : statut === "litige" ? "Remboursé chez votre processeur de paiement"
-                                                     : "Remboursement confirmé par le terminal",
-        });
-        if (b === bornes[0] && quand.getTime() >= recent) {
-          journal.push(...journalDe(b.id, cmd, quand, s.sku, avantSpirale ? null : lane, prix, statut));
+        // Ce que cette commande doit faire ; sans panier voulu, un article.
+        const vise = panier === null ? 0
+          : borner(panier * (nCommandes + 1) - sommeCommandes, panier * 0.4, panier * 1.8);
+        let total = 0;
+        for (let article = 0; article < ARTICLES_MAX; article++) {
+          const libres = PLAN.filter((s) => (b.restant.get(laneDe(s.rangee, s.colonne)) ?? 0) > 0
+                                            && prixDe.get(s.sku)! <= objectif - fait + 50);
+          if (libres.length === 0) break;
+          const s = libres[Math.floor(tir() * libres.length)];
+          const lane = laneDe(s.rangee, s.colonne);
+          const prix = prixDe.get(s.sku)!;
+          const statut = statutAuSort(tir, ageDe.get(s.sku)!);
+          const aRegarder = (A_REGARDER as readonly string[]).includes(statut);
+          const avantSpirale = !aRegarder && statut !== "distribue";
+          if (statut === "distribue") {
+            b.restant.set(lane, b.restant.get(lane)! - 1);
+            fait += prix; total += prix;
+            siennes.push({ nom: PRODUITS.find((p) => p.sku === s.sku)!.nom, prix });
+          }
+          const traite = aRegarder && quand.getTime() < recent ? new Date(quand.getTime() + 20 * 3600e3) : null;
+          ventes.push({
+            borne: b.id, cmd, article, lane: avantSpirale ? null : lane, produit: pid.get(s.sku)!,
+            prix, statut, quand, traite,
+            note: !traite ? null : statut === "litige" ? "Remboursé chez votre processeur de paiement"
+                                                       : "Remboursement confirmé par le terminal",
+          });
+          if (b === bornes[0] && quand.getTime() >= recent) {
+            journal.push(...journalDe(b.id, cmd, quand, s.sku, avantSpirale ? null : lane, prix, statut));
+          }
+          if (total >= vise) break;
         }
+        if (total > 0) { nCommandes++; sommeCommandes += total; }
         derniere = Math.max(derniere, quand.getTime());
       }
       // Toutes les spires vides avant la fin : ce qui manque ne se rattrape pas.
