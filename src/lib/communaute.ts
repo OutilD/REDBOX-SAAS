@@ -302,7 +302,8 @@ const SQL_FAITS = `
         GROUP BY date_trunc('month', v.faite_le AT TIME ZONE 'Europe/Paris')) t) AS ca_parc_mois,
     -- Les dix premiers, hors personnes inventees par la demo.
     ((SELECT COUNT(*) FROM utilisateur x
-       WHERE x.email NOT LIKE '%@' || $2 AND (x.cree_le, x.id) < (u.cree_le, u.id)) < 10) AS pionnier,
+       WHERE x.email NOT LIKE '%@' || $2 AND NOT EXISTS (SELECT 1 FROM compte kv WHERE kv.id = x.compte_id AND kv.vitrine)
+         AND (x.cree_le, x.id) < (u.cree_le, u.id)) < 10) AS pionnier,
     EXISTS (SELECT 1 FROM invitation i WHERE i.par = u.email AND i.utilisee_le IS NOT NULL) AS ambassadeur,
     EXISTS (SELECT 1 FROM membre m JOIN compte c ON c.id = m.compte_id
              WHERE m.utilisateur_id = u.id AND c.editeur) AS equipe
@@ -442,6 +443,9 @@ export function objectifs(f: Faits, obtenus: string[], combien = 3): (Badge & { 
     .slice(0, combien);
 }
 
+/** La personne `u` n'est pas le compte vitrine : on l'ouvre devant un prospect, la communaute ne le voit pas. */
+export const SQL_PAS_VITRINE = "NOT EXISTS (SELECT 1 FROM compte kv WHERE kv.id = u.compte_id AND kv.vitrine)";
+
 /**
  * COMBIEN DE GENS ONT CHAQUE BADGE. « Obtenu par 4 % des redboxers » vaut
  * toutes les etiquettes de rarete : c'est la rarete reelle, pas celle qu'on a
@@ -449,11 +453,12 @@ export function objectifs(f: Faits, obtenus: string[], combien = 3): (Badge & { 
  */
 export async function rareteDesBadges(): Promise<Map<string, { n: number; pct: number }>> {
   const [gens, par] = await Promise.all([
-    q1<{ n: number }>("SELECT COUNT(*)::int AS n FROM utilisateur WHERE email NOT LIKE '%@' || $1", [DOMAINE]),
+    q1<{ n: number }>(`SELECT COUNT(*)::int AS n FROM utilisateur u
+                         WHERE u.email NOT LIKE '%@' || $1 AND ${SQL_PAS_VITRINE}`, [DOMAINE]),
     q<{ badge: string; n: number }>(`
       SELECT o.badge, COUNT(*)::int AS n FROM badge_obtenu o
         JOIN utilisateur u ON u.id = o.utilisateur_id
-       WHERE u.email NOT LIKE '%@' || $1 GROUP BY o.badge`, [DOMAINE]),
+       WHERE u.email NOT LIKE '%@' || $1 AND ${SQL_PAS_VITRINE} GROUP BY o.badge`, [DOMAINE]),
   ]);
   const total = Math.max(1, gens?.n ?? 1);
   return new Map(par.map((r) => [r.badge, { n: r.n, pct: Math.round((r.n / total) * 100) }]));
@@ -573,7 +578,7 @@ export async function porteursDe(cle: string, limite = 12): Promise<Porteur[]> {
       FROM badge_obtenu o
       JOIN utilisateur u ON u.id = o.utilisateur_id
       JOIN compte c ON c.id = u.compte_id
-     WHERE o.badge = $1 AND u.email NOT LIKE '%@' || $2
+     WHERE o.badge = $1 AND u.email NOT LIKE '%@' || $2 AND NOT c.vitrine
      ORDER BY o.obtenu_le, u.id LIMIT $3`, [cle, DOMAINE, limite]);
   return r.map((x) => ({ id: x.id, pseudo: pseudoDe(x), image_id: x.image_id,
                          couleur: x.couleur, editeur: x.editeur, obtenu_le: x.obtenu_le }));
@@ -630,7 +635,7 @@ export async function profilDe(id: number, spectateur: { id: number; editeur: bo
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, c.nom AS compte, u.ville, u.bio, u.couleur,
            u.cree_le, u.profil_public, c.editeur, u.badges_vedettes
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
-     WHERE u.id = $1 AND u.email NOT LIKE '%@' || $2`, [id, DOMAINE]),
+     WHERE u.id = $1 AND u.email NOT LIKE '%@' || $2 AND (NOT c.vitrine OR u.id = $3)`, [id, DOMAINE, spectateur.id]),
     faits ? Promise.resolve(faits) : q1<Faits>(SQL_FAITS, [id, DOMAINE]),
     q<{ badge: string; obtenu_le: Date; vu_le: Date | null }>(
       "SELECT badge, obtenu_le, vu_le FROM badge_obtenu WHERE utilisateur_id = $1", [id]),
@@ -687,7 +692,7 @@ export async function classement(limite = 20): Promise<Classe[]> {
            u.badges_vedettes, ${SQL_COMPTES},
            COALESCE((SELECT array_agg(o.badge) FROM badge_obtenu o WHERE o.utilisateur_id = u.id), '{}') AS badges
       FROM utilisateur u JOIN compte c ON c.id = u.compte_id
-     WHERE u.email NOT LIKE '%@' || $1`, [DOMAINE]);
+     WHERE u.email NOT LIKE '%@' || $1 AND NOT c.vitrine`, [DOMAINE]);
   return gens
     .map((g) => {
       const points = pointsDe(g, g.badges);

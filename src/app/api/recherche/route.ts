@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     q<{ id: number; pseudo: string; compte: string | null }>(`
       SELECT x.id, x.pseudo, k.nom AS compte
         FROM utilisateur x LEFT JOIN compte k ON k.id = x.compte_id
-       WHERE x.pseudo ILIKE $1 AND x.email NOT LIKE '%@' || $2 AND x.id <> $3
+       WHERE x.pseudo ILIKE $1 AND x.email NOT LIKE '%@' || $2 AND x.id <> $3 AND NOT COALESCE(k.vitrine, false)
        ORDER BY x.pseudo LIMIT 5`, [motif, DOMAINE, u.id]),
     lecteur(u),
   ]);

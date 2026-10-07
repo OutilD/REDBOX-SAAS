@@ -664,7 +664,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon,
     const n = await q1<{ n: number }>(`
       SELECT COUNT(DISTINCT x.id)::int AS n
         FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
-       WHERE x.email NOT LIKE '%@redbox.invalid'
+       WHERE x.email NOT LIKE '%@redbox.invalid' AND NOT k.vitrine
          AND (k.editeur OR EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
                                      AND ${SQL_REDBOX_ATTRIBUEE}))`);
     total = n?.n ?? 0;
@@ -678,7 +678,7 @@ export async function lecteursDe(u: Utilisateur, s: Salon,
       WITH lecteurs AS (
         SELECT DISTINCT x.id, x.pseudo, x.nom, x.email, x.image_id, x.couleur, k.editeur
           FROM membre m JOIN utilisateur x ON x.id = m.utilisateur_id JOIN compte k ON k.id = m.compte_id
-         WHERE x.email NOT LIKE '%@redbox.invalid'
+         WHERE x.email NOT LIKE '%@redbox.invalid' AND NOT k.vitrine
            AND ($1 = 'tous' OR k.editeur OR
                 ($1 = 'proprietaires') = EXISTS (SELECT 1 FROM borne b WHERE b.compte_id = k.id
                                                    AND ${SQL_REDBOX_ATTRIBUEE})))

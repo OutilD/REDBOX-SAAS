@@ -1,7 +1,7 @@
 import { q, q1 } from "@/db";
 import { DOMAINE } from "./invente";
 import type { Forme, Rang } from "./communaute";
-import { pseudoDe } from "./communaute";
+import { SQL_PAS_VITRINE, pseudoDe } from "./communaute";
 
 /**
  * LES DEFIS DU MOIS (tables `defi`, `defi_reussi`).
@@ -103,7 +103,7 @@ const COLONNES_DEFI = `
   d.id, d.titre, d.mesure, d.objectif, to_char(d.debut, 'YYYY-MM-DD') AS debut,
   to_char(d.fin, 'YYYY-MM-DD') AS fin, d.forme, d.points,
   (SELECT COUNT(*)::int FROM defi_reussi r JOIN utilisateur u ON u.id = r.utilisateur_id
-    WHERE r.defi_id = d.id AND u.email NOT LIKE '%@' || $1) AS reussis`;
+    WHERE r.defi_id = d.id AND u.email NOT LIKE '%@' || $1 AND ${SQL_PAS_VITRINE}) AS reussis`;
 
 /** Les defis en cours, a venir, et les derniers termines. */
 export async function lesDefis(): Promise<{ enCours: Defi[]; aVenir: Defi[]; passes: Defi[] }> {
@@ -134,7 +134,7 @@ export async function classementDefi(d: Defi, limite = 50): Promise<Participant[
     SELECT u.id, u.pseudo, u.nom, u.email, u.image_id, u.couleur, c.editeur, m.n,
            EXISTS (SELECT 1 FROM defi_reussi r WHERE r.defi_id = $1 AND r.utilisateur_id = u.id) AS reussi
       FROM m JOIN utilisateur u ON u.id = m.utilisateur_id JOIN compte c ON c.id = u.compte_id
-     WHERE u.email NOT LIKE '%@' || $3
+     WHERE u.email NOT LIKE '%@' || $3 AND NOT c.vitrine
      ORDER BY m.n DESC, u.id LIMIT $4`, [d.id, null, DOMAINE, limite]);
   return r.map((x) => ({ id: Number(x.id), pseudo: pseudoDe(x), image_id: x.image_id, couleur: x.couleur,
                          editeur: x.editeur, n: x.n, reussi: x.reussi }));
