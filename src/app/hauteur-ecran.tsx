@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { chezLAutreApplication } from "./application";
+import { ecartBas } from "@/lib/ecart-ecran";
 
 /** Un champ qui ouvre le clavier : tant qu'il a le focus, on ne compense rien. */
 function estChamp(el: Element | null): boolean {
@@ -45,11 +46,12 @@ function hauteurPleinEcran(): number {
  *
  * DEUX GESTES :
  *
- *   1. On mesure l'ecart entre ce qu'on voit (`visualViewport`) et la fenetre
- *      de mise en page, et on le pose en variables CSS : `--ecart-bas` pour ce
- *      qui est fixe en bas, `--ecart-haut` pour l'en-tete. Les elements le
- *      compensent par `translate`, qui se compose avec leurs propres
- *      transformations au lieu de les ecraser.
+ *   1. On mesure l'ecart entre l'ecran et la fenetre de mise en page, et on le
+ *      pose en variables CSS : `--ecart-bas` pour ce qui est fixe en bas
+ *      (`lib/ecart-ecran.ts` dit comment il se calcule, et pourquoi la hauteur
+ *      de `visualViewport` n'y suffit pas), `--ecart-haut` pour l'en-tete. Les
+ *      elements le compensent par `translate`, qui se compose avec leurs
+ *      propres transformations au lieu de les ecraser.
  *
  *   2. Quand le clavier se ferme, un defilement d'un pixel aller-retour oblige
  *      iOS a recalculer la fenetre. Sans lui, elle reste courte jusqu'au
@@ -73,11 +75,10 @@ export default function HauteurEcran() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const neutre = estChamp(document.activeElement) || vv.scale > 1.01;
-        const bas = neutre ? 0 : Math.max(
-          Math.round(vv.height + vv.offsetTop - window.innerHeight),
-          Math.round(hauteurPleinEcran() - window.innerHeight));
-        const haut = neutre ? 0 : Math.round(vv.offsetTop);
-        const b = Math.max(0, bas), h = Math.max(0, haut);
+        const b = neutre ? 0 : ecartBas({
+          decalage: vv.offsetTop, visible: vv.height,
+          pleinEcran: hauteurPleinEcran(), fenetre: window.innerHeight });
+        const h = neutre ? 0 : Math.max(0, Math.round(vv.offsetTop));
         if (b !== dernier.bas) { dernier.bas = b; racine.style.setProperty("--ecart-bas", `${b}px`); }
         if (h !== dernier.haut) { dernier.haut = h; racine.style.setProperty("--ecart-haut", `${h}px`); }
       });
