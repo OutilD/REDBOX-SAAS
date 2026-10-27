@@ -34,6 +34,18 @@ export default async function Academie({ searchParams }: { searchParams: Promise
   const pct = ouvertes > 0 ? Math.round((finies * 100) / ouvertes) : 0;
   const toutFini = ouvertes > 0 && finies === ouvertes;
   const salon = !l.redboxer && fermees > 0 ? await salonProspects() : null;
+  const parcours = PACKS.map((pack) => {
+    const siens = mods.filter((m) => m.pack === pack.cle);
+    const siennes = lecons.filter((x) => x.pack === pack.cle && x.ouverte);
+    const pOuvertes = siens.reduce((t, m) => t + m.ouvertes, 0);
+    const pFinies = siens.reduce((t, m) => t + m.finies_ouvertes, 0);
+    return {
+      pack, siens, pOuvertes, pFinies, pFini: pOuvertes > 0 && pFinies === pOuvertes,
+      minutes: siens.reduce((t, m) => t + m.minutes, 0),
+      reste: siennes.filter((x) => !x.fini).reduce((t, x) => t + (x.duree ?? 0), 0),
+      prochaine: siennes.find((x) => !x.fini)?.id,
+    };
+  }).filter((p) => p.siens.length > 0).map((p, i) => ({ ...p, rang: i + 1 }));
 
   return (
     <>
@@ -152,85 +164,113 @@ export default async function Academie({ searchParams }: { searchParams: Promise
           </div>
         ) : (
           <>
-            {PACKS.map((pack) => {
-              const siens = mods.filter((m) => m.pack === pack.cle);
-              if (siens.length === 0) return null;
-              const pOuvertes = siens.reduce((t, m) => t + m.ouvertes, 0);
-              const pFinies = siens.reduce((t, m) => t + m.finies_ouvertes, 0);
-              const pFini = pOuvertes > 0 && pFinies === pOuvertes;
-              const pReste = lecons.filter((x) => x.pack === pack.cle && x.ouverte && !x.fini).reduce((t, x) => t + (x.duree ?? 0), 0);
-              const certif = `/academie/certificat?pack=${pack.cle}`;
-              return (
-                <section key={pack.cle} id={`parcours-${pack.cle}`} className="aca-pack" data-obligatoire={pack.obligatoire ? "" : undefined}>
-                  <div className="titre-section">
-                    <h2>{pack.nom}</h2>
-                    {pack.obligatoire ? (
-                      <span className="aca-tag grand" data-ton="obligatoire" title={pack.obligatoire}>
-                        Formation obligatoire<sup aria-hidden="true">*</sup>
+            {/* LES PARCOURS EN UN REGARD : une couverture par parcours, sa
+                progression, et le bouton qui mene a la prochaine lecon. */}
+            <div className="aca-parcours">
+              {parcours.map(({ pack, rang, siens, pOuvertes, pFinies, pFini, minutes: pMin, prochaine }) => (
+                <article key={pack.cle} className="aca-couverture" data-pack={pack.cle} data-fini={pFini ? "" : undefined}>
+                  <div className="aca-surtitre num">
+                    <span>Parcours {rang}</span>
+                    <span>{pluriel(siens.length, "module", "modules")}{pMin ? ` · ${duree(pMin)}` : ""}</span>
+                  </div>
+                  <h2><a href={`#parcours-${pack.cle}`}>{pack.nom}</a></h2>
+                  {pack.obligatoire ? (
+                    <span className="aca-tag" data-ton="obligatoire" title={pack.obligatoire}>
+                      Formation obligatoire<sup aria-hidden="true">*</sup>
+                    </span>
+                  ) : null}
+                  <p>{pack.quoi}</p>
+                  <div className="bas">
+                    {pOuvertes > 0 ? (
+                      <span className="aca-avance">
+                        <Piste n={pFinies} sur={pOuvertes} label={`Progression : ${pack.nom}`} />
+                        <span className="num">{pFinies}/{pOuvertes}</span>
                       </span>
-                    ) : null}
-                    <span className="faible" style={{ fontSize: 12.5 }}>{pluriel(siens.length, "module", "modules")}</span>
-                    {pack.cle === "machines" ? (
-                      <Link href="/academie/ressources" className="lien"><IcoDocument size={15} /> Ressources</Link>
+                    ) : <span className="faible">Bientôt</span>}
+                    {pFini ? (
+                      <Link href={`/academie/certificat?pack=${pack.cle}`} className="bouton petit"><IcoTrophee size={16} /> Certificat</Link>
+                    ) : prochaine ? (
+                      <Link href={`/academie/lecon/${prochaine}`} className="bouton petit primaire">
+                        <IcoLecture size={16} /> {pFinies > 0 ? "Continuer" : "Commencer"}
+                      </Link>
                     ) : null}
                   </div>
-                  <p className="aca-pack-quoi">{pack.quoi}</p>
-                  {pack.obligatoire ? <p className="aca-asterisque">* {pack.obligatoire}</p> : null}
-                  <div className="aca-modules">
+                </article>
+              ))}
+            </div>
+
+            {parcours.map(({ pack, rang, siens, pOuvertes, pFinies, pFini, reste: pReste }) => {
+              const certif = `/academie/certificat?pack=${pack.cle}`;
+              return (
+                <section key={pack.cle} id={`parcours-${pack.cle}`} className="aca-pack">
+                  <header className="aca-pack-tete">
+                    <div className="dit">
+                      <span className="aca-marque">Parcours {rang}</span>
+                      <h2>{pack.nom}</h2>
+                      <p className="aca-pack-quoi">{pack.quoi}</p>
+                      {pack.obligatoire ? <p className="aca-asterisque">* {pack.obligatoire}</p> : null}
+                    </div>
+                    {pack.cle === "machines" ? (
+                      <Link href="/academie/ressources" className="bouton petit"><IcoDocument size={15} /> Ressources</Link>
+                    ) : null}
+                  </header>
+
+                  <ol className="aca-chemin">
                     {siens.map((m, i) => {
                       const ferme = !ouverte(l, m.acces);
                       const fini = !ferme && m.ouvertes > 0 && m.finies_ouvertes === m.ouvertes;
+                      const encours = !ferme && !fini && m.finies_ouvertes > 0;
                       return (
-                        <Link key={m.id} href={`/academie/module/${m.id}`} className="aca-module"
-                              style={{ "--i": i } as React.CSSProperties}
-                              data-ferme={ferme ? "" : undefined} data-fini={fini ? "" : undefined}>
-                          <span className="haut">
+                        <li key={m.id} style={{ "--i": i } as React.CSSProperties}
+                            data-etat={ferme ? "ferme" : fini ? "fini" : encours ? "encours" : undefined}>
+                          <span className="rond num" aria-hidden="true">
+                            {fini ? <IcoCoche size={15} /> : ferme ? <IcoCadenas size={13} /> : i + 1}
+                          </span>
+                          <Link href={`/academie/module/${m.id}`} className="aca-module">
                             <span className="aca-picto"><IconeModule icone={m.icone} /></span>
-                            <span className="numero num">Module {String(i + 1).padStart(2, "0")}</span>
-                          </span>
-                          <span className="titre">{m.titre}</span>
-                          {m.resume ? <span className="resume">{m.resume}</span> : null}
-                          <span className="meta">
-                            <span className="num">{pluriel(m.lecons, "leçon", "leçons")}{m.minutes ? ` · ${duree(m.minutes)}` : ""}</span>
-                            {!m.publie ? <span className="aca-tag" data-ton="brouillon">Brouillon</span> : null}
-                            {l.redboxer && m.acces === "redboxers" ? <span className="aca-tag" data-ton="redboxers">Redboxers</span> : null}
-                            {!ferme && !l.redboxer && m.reservees > 0 ? (
-                              <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> {m.reservees} réservée{m.reservees > 1 ? "s" : ""}</span>
-                            ) : null}
-                          </span>
-                          <span className="pied">
-                            {ferme ? (
-                              <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> Réservé aux redboxers</span>
-                            ) : m.ouvertes > 0 ? (
-                              <>
-                                <Piste n={m.finies_ouvertes} sur={m.ouvertes} label={`Progression : ${m.titre}`} />
-                                <span className="compte num">
-                                  {fini ? <><IcoCoche size={13} /> Terminé</> : `${m.finies_ouvertes}/${m.ouvertes}`}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="faible">Bientôt</span>
-                            )}
-                          </span>
-                        </Link>
+                            <span className="dit">
+                              <span className="titre">{m.titre}</span>
+                              {m.resume ? <span className="resume">{m.resume}</span> : null}
+                              <span className="meta">
+                                <span className="num">{pluriel(m.lecons, "leçon", "leçons")}{m.minutes ? ` · ${duree(m.minutes)}` : ""}</span>
+                                {!m.publie ? <span className="aca-tag" data-ton="brouillon">Brouillon</span> : null}
+                                {l.redboxer && m.acces === "redboxers" ? <span className="aca-tag" data-ton="redboxers">Redboxers</span> : null}
+                                {ferme ? <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> Réservé aux redboxers</span> : null}
+                                {!ferme && !l.redboxer && m.reservees > 0 ? (
+                                  <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> {m.reservees} réservée{m.reservees > 1 ? "s" : ""}</span>
+                                ) : null}
+                              </span>
+                            </span>
+                            <span className="pied">
+                              {!ferme && m.ouvertes > 0 ? (
+                                <>
+                                  <Piste n={m.finies_ouvertes} sur={m.ouvertes} label={`Progression : ${m.titre}`} />
+                                  <span className="compte num">{fini ? <><IcoCoche size={13} /> Terminé</> : `${m.finies_ouvertes}/${m.ouvertes}`}</span>
+                                </>
+                              ) : null}
+                              <IcoChevron size={16} />
+                            </span>
+                          </Link>
+                        </li>
                       );
                     })}
-                  </div>
-
-                  {pOuvertes > 0 ? (
-                    <Link href={certif} className="aca-certif-carte" data-pret={pFini ? "" : undefined}>
-                      <span className="sceau" aria-hidden="true"><IcoTrophee size={26} /></span>
-                      <span className="dit">
-                        <span className="titre">{pFini ? "Votre certificat est prêt" : `Certificat · ${pack.nom}`}</span>
-                        <span className="quoi">
-                          {pFini
-                            ? `Imprimez-le ou enregistrez-le en PDF : il atteste que vous avez suivi le parcours « ${pack.nom} ».`
-                            : `Terminez les ${pOuvertes} leçons de ce parcours pour le débloquer${pack.cle === "emplacements" ? " et gagner le badge Prospecteur" : ""}. Encore ${pOuvertes - pFinies}${pReste ? `, environ ${duree(pReste)}` : ""}.`}
-                        </span>
-                      </span>
-                      <span className="aller">{pFini ? "Voir" : `${Math.round((pFinies * 100) / pOuvertes)} %`} <IcoChevron size={15} /></span>
-                    </Link>
-                  ) : null}
+                    {pOuvertes > 0 ? (
+                      <li className="fin" data-etat={pFini ? "fini" : undefined}>
+                        <span className="rond" aria-hidden="true"><IcoTrophee size={15} /></span>
+                        <Link href={certif} className="aca-certif-carte" data-pret={pFini ? "" : undefined}>
+                          <span className="dit">
+                            <span className="titre">{pFini ? "Votre certificat est prêt" : `Certificat · ${pack.nom}`}</span>
+                            <span className="quoi">
+                              {pFini
+                                ? `Imprimez-le ou enregistrez-le en PDF : il atteste que vous avez suivi le parcours « ${pack.nom} ».`
+                                : `Terminez les ${pOuvertes} leçons de ce parcours pour le débloquer${pack.cle === "emplacements" ? " et gagner le badge Prospecteur" : ""}. Encore ${pOuvertes - pFinies}${pReste ? `, environ ${duree(pReste)}` : ""}.`}
+                            </span>
+                          </span>
+                          <span className="aller">{pFini ? "Voir" : `${Math.round((pFinies * 100) / pOuvertes)} %`} <IcoChevron size={15} /></span>
+                        </Link>
+                      </li>
+                    ) : null}
+                  </ol>
                 </section>
               );
             })}

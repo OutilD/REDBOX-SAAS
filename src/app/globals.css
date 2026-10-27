@@ -6232,11 +6232,8 @@ html.piece-tiree, html.piece-tiree * {
   background: var(--rouge); color: #fff; font-size: 14px; text-decoration: none;
 }
 .aca-bandeau:hover { filter: brightness(.95); }
-.aca-pack { scroll-margin-top: 80px; }
-.aca-pack { margin-top: 26px; }
 .aca-pack-quoi { margin: -4px 0 6px; color: var(--texte-2); font-size: 14px; max-width: 70ch; }
 .aca-asterisque { margin: 0 0 14px; font-size: 13px; color: var(--texte-2); }
-.aca-pack > .aca-certif-carte { margin-top: 14px; }
 
 /* ----------------------------------------------------------------- progression */
 .aca-piste {
@@ -6298,34 +6295,87 @@ html.piece-tiree, html.piece-tiree * {
 .aca-onglets { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin: 18px 0 6px; }
 .aca-onglets .aca-apercu { margin-left: auto; }
 
-/* ------------------------------------------------------------------- modules */
-.aca-modules { display: grid; gap: 12px; grid-template-columns: 1fr; }
-@media (min-width: 700px)  { .aca-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1320px) { .aca-modules { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* ------------------------------------------------------------------ parcours */
+/* Les couvertures : un parcours par carte, sa progression, son prochain pas. */
+.aca-parcours { display: grid; gap: 12px; margin: 22px 0 8px; grid-template-columns: 1fr; }
+@media (min-width: 800px) { .aca-parcours { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.aca-couverture {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px;
+  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+}
+.aca-couverture::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--texte) 5%, transparent), transparent 60%);
+}
+.aca-couverture[data-pack="emplacements"] { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+.aca-couverture[data-pack="emplacements"]::before { background: radial-gradient(90% 120% at 100% 0%, var(--rouge-fond), transparent 65%); }
+.aca-couverture h2, .aca-pack-tete h2 { text-transform: none; color: var(--texte); font-weight: 800; }
+.aca-couverture h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -.03em; line-height: 1.15; }
+.aca-couverture h2 a { color: inherit; }
+.aca-couverture h2 a:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.aca-couverture p { margin: 0; font-size: 14px; color: var(--texte-2); line-height: 1.5; max-width: 52ch; }
+.aca-couverture .bas { display: flex; align-items: center; gap: 14px; width: 100%; margin-top: auto; padding-top: 10px; }
+.aca-couverture .bas .aca-avance { flex: 1; margin: 0; max-width: none; }
+.aca-couverture .bas .bouton { flex: none; }
+.aca-couverture[data-fini] .aca-piste > span { background: var(--vert); }
+
+/* Chaque parcours : un en-tete franc, puis le programme en chemin vertical. */
+.aca-pack { margin-top: 40px; scroll-margin-top: 80px; }
+.aca-pack-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.aca-pack-tete h2 { margin: 6px 0 6px; font-size: 26px; letter-spacing: -.035em; line-height: 1.1; }
+.aca-pack-tete .aca-pack-quoi { margin: 0; }
+.aca-pack-tete .aca-asterisque { margin: 6px 0 0; }
+
+.aca-chemin { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; position: relative; }
+.aca-chemin::before {
+  content: ""; position: absolute; left: 17px; top: 24px; bottom: 24px; width: 2px;
+  background: var(--bord); border-radius: 1px;
+}
+.aca-chemin > li {
+  position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; align-items: center;
+  animation: aca-monte .32s ease both; animation-delay: calc(var(--i, 0) * 40ms);
+}
+.aca-chemin .rond {
+  position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  background: var(--surface); border: 2px solid var(--bord-fort); color: var(--texte-2);
+}
+.aca-chemin [data-etat="encours"] .rond { border-color: var(--rouge); color: var(--aca-accent); }
+.aca-chemin [data-etat="fini"] .rond { border-color: var(--vert); background: var(--vert); color: #fff; }
+.aca-chemin [data-etat="ferme"] .rond { color: var(--texte-3); }
+.aca-chemin .fin .rond { border-style: dashed; color: var(--texte-3); }
+.aca-chemin .fin[data-etat="fini"] .rond { border-style: solid; }
 
 .aca-module {
-  position: relative; display: flex; flex-direction: column; gap: 9px;
-  min-height: 210px; padding: 16px;
-  border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
-  cursor: pointer; transition: border-color .15s ease, background .15s ease;
-  animation: aca-monte .32s ease both; animation-delay: calc(var(--i, 0) * 40ms);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  padding: 14px 16px; border: 1px solid var(--bord); border-radius: var(--r-l); background: var(--surface);
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
 }
 .aca-module:hover { border-color: var(--bord-fort); background: var(--surface-2); }
 .aca-module:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
-.aca-module .haut { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.aca-module .numero { font-size: 11.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--texte-3); }
-.aca-module .titre { font-size: 18px; font-weight: 750; letter-spacing: -.02em; line-height: 1.22; margin-top: 4px; }
+.aca-module .dit { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.aca-module .titre { font-size: 16.5px; font-weight: 750; letter-spacing: -.02em; line-height: 1.25; }
 .aca-module .resume {
   font-size: 13.5px; line-height: 1.45; color: var(--texte-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .aca-module .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12.5px; color: var(--texte-3); }
-.aca-module .pied { margin-top: auto; padding-top: 8px; display: flex; align-items: center; gap: 10px; min-height: 26px; }
+.aca-module .pied { display: flex; align-items: center; gap: 10px; width: 190px; color: var(--texte-3); }
+.aca-module .pied > svg { margin-left: auto; flex: none; }
 .aca-module .pied .compte { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--texte-2); white-space: nowrap; }
-.aca-module[data-fini] .aca-piste > span { background: var(--vert); }
-.aca-module[data-fini] .pied .compte { color: var(--aca-vert); }
-.aca-module[data-ferme] .aca-picto { background: var(--surface-2); color: var(--texte-3); }
-.aca-module[data-ferme] .titre { color: var(--texte-2); }
+[data-etat="fini"] > .aca-module .aca-piste > span { background: var(--vert); }
+[data-etat="fini"] > .aca-module .pied .compte { color: var(--aca-vert); }
+[data-etat="ferme"] > .aca-module .aca-picto { background: var(--surface-2); color: var(--texte-3); }
+[data-etat="ferme"] > .aca-module .titre { color: var(--texte-2); }
+@media (max-width: 700px) {
+  .aca-module { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
+  .aca-module > .aca-picto { display: none; }
+  .aca-module .pied { width: auto; }
+  .aca-chemin > li { align-items: start; }
+  .aca-chemin .rond { margin-top: 12px; }
+}
+.aca-chemin .aca-certif-carte { margin: 0; grid-template-columns: minmax(0, 1fr) auto; }
 
 .aca-picto {
   width: 44px; height: 44px; flex: none; border-radius: var(--r-m);
@@ -8130,7 +8180,7 @@ details.ctr-ligne-pliable .formulaire.supprimer .bouton { gap: 6px; }
 }
 .msg { contain-intrinsic-size: auto 64px; }
 .classement > li { contain-intrinsic-size: auto 72px; }
-.aca-module { contain-intrinsic-size: auto 210px; }
+.aca-module { contain-intrinsic-size: auto 96px; }
 .ctr-produit { contain-intrinsic-size: auto 320px; }
 .rubriques .rubrique, .lignes > .ligne { contain-intrinsic-size: auto 60px; }
 /* Le toucher repond au doigt, sans le delai du double-tap. */
