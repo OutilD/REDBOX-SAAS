@@ -1,5 +1,7 @@
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { apercuDe, leconDe, lecteur, marquerFinie, ouverte } from "@/lib/academie";
+import { apercuDe, estPack, leconDe, lecteur, marquerFinie, ouverte } from "@/lib/academie";
+import { apres as plusTard } from "@/lib/apres";
+import { evaluerEtSignaler } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +24,13 @@ export async function POST(req: Request) {
   if (!lecon || !ouverte(l, lecon.module_acces, lecon.acces)) return versPage(req, "/academie");
   if (!l.apercu) await marquerFinie(u.id, id, fini);
   if (!fini) return versPage(req, `/academie/lecon/${id}`);
-  // La toute derniere lecon ouverte : la formation est finie, le certificat attend.
-  if (String(f.get("apres")) === "certificat") return versPage(req, "/academie/certificat");
+  // La toute derniere lecon ouverte du parcours : son certificat attend, et
+  // peut-etre un badge (« Prospecteur » pour les emplacements).
+  const fin = String(f.get("apres") ?? "");
+  if (estPack(fin)) {
+    if (!l.apercu) plusTard("badges", () => evaluerEtSignaler(u.id));
+    return versPage(req, `/academie/certificat?pack=${fin}`);
+  }
   return versPage(req, Number.isInteger(suite) && suite > 0
     ? `/academie/lecon/${suite}`
     : `/academie/module/${lecon.module_id}?fini=1`);

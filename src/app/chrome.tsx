@@ -6,7 +6,7 @@ import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe,
          type Utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
 import { IcoAlerte, IcoOeil, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
-         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale, IcoListe } from "./icones";
+         IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale, IcoListe, IcoColonnes } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
 import { nonLus } from "@/lib/salons";
@@ -27,7 +27,7 @@ export type Page =
   | "bornes" | "carte" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
-  | "academie" | "academie_editer"
+  | "academie" | "academie_editer" | "prospection"
   | "admin" | "admin_rapport" | "admin_parc" | "admin_comptes" | "admin_academie" | "admin_vitrine" | "admin_sante";
 
 type Item = {
@@ -94,6 +94,8 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
     titre: "Formation", produit: "connect",
     items: [
       { cle: "academie",   nom: "Académie",   icone: <IcoAcademie />,   vers: "/academie" },
+      // Le CRM : les etablissements qu'on demarche, en colonnes.
+      { cle: "prospection", nom: "Prospection", icone: <IcoColonnes />, vers: "/prospection" },
     ],
   },
   {
@@ -253,6 +255,7 @@ const FAMILLE: Partial<Record<Page, Page>> = {
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_rapport: "menu", admin_parc: "menu", admin_comptes: "menu", admin_academie: "menu", admin_vitrine: "menu", admin_sante: "menu",
   academie_editer: "academie",
+  prospection: "menu",
 };
 
 const FIL: Record<Page, [string, string?]> = {
@@ -288,6 +291,7 @@ const FIL: Record<Page, [string, string?]> = {
   admin_sante: ["Santé", "Plateforme"],
   academie:   ["Académie", "Connect"],
   academie_editer: ["Édition", "Académie"],
+  prospection: ["Prospection", "Connect"],
 };
 
 /**
@@ -448,6 +452,7 @@ export async function Entete({ page, borne, fenetre, periode }:
                 { cle: "communaute", nom: "Communauté", vers: "/communaute", icone: <IcoCommunaute size={22} /> },
                 { cle: "messages",   nom: "Messages",   vers: "/messages",   icone: <IcoBulle size={22} /> },
                 { cle: "academie",   nom: "Académie",   vers: "/academie",   icone: <IcoAcademie size={22} /> },
+                { cle: "prospection", nom: "Prospection", vers: "/prospection", icone: <IcoColonnes size={22} /> },
                 { cle: "carte",      nom: "Carte",      vers: "/carte",      icone: <IcoCarte size={22} /> },
               ] as { cle: Page; nom: string; vers: string; icone: React.ReactNode }[]).map((o) => (
                 <Link key={o.cle} href={o.vers} prefetch={true} title={o.nom} aria-label={o.nom}

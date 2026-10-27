@@ -6220,6 +6220,17 @@ html.piece-tiree, html.piece-tiree * {
 .aca-tag[data-ton="redboxers"] { border-color: transparent; background: var(--rouge-fond); color: var(--aca-accent); }
 .aca-tag[data-ton="brouillon"] { border-color: transparent; background: var(--ambre-fond); color: var(--aca-ambre); }
 .aca-tag[data-ton="fini"]      { border-color: transparent; background: var(--vert-fond); color: var(--aca-vert); }
+/* La formation obligatoire : visible sans crier. */
+.aca-tag[data-ton="obligatoire"] {
+  border-color: transparent; background: var(--rouge-fond); color: var(--aca-accent); cursor: help;
+}
+.aca-tag[data-ton="obligatoire"] sup { font-size: .9em; line-height: 0; margin-left: 1px; }
+
+/* ----------------------------------------------------------------- parcours */
+.aca-pack { margin-top: 26px; }
+.aca-pack-quoi { margin: -4px 0 6px; color: var(--texte-2); font-size: 14px; max-width: 70ch; }
+.aca-asterisque { margin: 0 0 14px; font-size: 13px; color: var(--texte-2); }
+.aca-pack > .aca-certif-carte { margin-top: 14px; }
 
 /* ----------------------------------------------------------------- progression */
 .aca-piste {
@@ -7234,6 +7245,19 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
 .kanban .machine .gestes .bouton { min-height: 34px; padding: 0 8px; font-size: 13px; justify-content: center; cursor: pointer; }
 .kanban .machine .gestes .bouton.carre { padding: 0; width: auto; display: inline-grid; place-items: center; }
 .kanban .machine .gestes .bouton:disabled { cursor: not-allowed; }
+/* Le CRM de prospection : six etapes, deux fleches par carte. */
+.kanban.crm { grid-template-columns: repeat(6, minmax(210px, 1fr)); }
+@media (max-width: 1100px) { .kanban.crm { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
+.kanban.crm .machine .gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kanban.crm .colonne[data-etape="signe"] header h3 { color: var(--vert); }
+.kanban.crm .colonne[data-etape="refuse"] { opacity: .85; }
+.kanban.crm .machine[draggable="false"] { cursor: default; }
+.crm-note { margin: 6px 0 0; font-size: 12.5px; color: var(--texte-2); white-space: pre-line;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.crm-ajout { margin-bottom: 16px; }
+.crm-ajout summary { cursor: pointer; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.crm-ajout form { margin-top: 12px; }
+.crm-champs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 10px; }
 .kanban .machine details { margin-top: 2px; }
 .kanban .vide { padding: 14px 0; text-align: center; border: 1px dashed var(--bord); border-radius: var(--r-m); font-style: normal; }
 .kanban .colonne[data-survol] .vide { border-color: var(--rouge); color: var(--texte-2); }

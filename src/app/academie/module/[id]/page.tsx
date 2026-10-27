@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
-import { leconsDe, modules, ouverte, salonProspects } from "@/lib/academie";
+import { leconsDe, modules, ouverte, packDe, salonProspects } from "@/lib/academie";
 import { IcoCadenas, IcoCoche, IcoDocument, IcoLecture } from "../../../icones";
 import { lecteurDePage } from "../../lecteur";
 import { IconeModule, Piste, PorteFermee, duree, etatLecon, pluriel } from "../../vues";
@@ -23,10 +23,13 @@ export default async function ModuleAcademie({ params, searchParams }: {
   const id = entier((await params).id);
   if (!id) notFound();
   const sp = await searchParams;
-  const mods = await modules(l);
-  const i = mods.findIndex((m) => m.id === id);
-  if (i < 0) notFound();
-  const m = mods[i];
+  const tous = await modules(l);
+  const m = tous.find((x) => x.id === id);
+  if (!m) notFound();
+  // Le rang et le module suivant se comptent dans le parcours du module.
+  const mods = tous.filter((x) => x.pack === m.pack);
+  const i = mods.indexOf(m);
+  const pack = packDe(m.pack);
   const ferme = !ouverte(l, m.acces);
   const [lecons, salon] = await Promise.all([
     leconsDe(l, m),
@@ -49,7 +52,8 @@ export default async function ModuleAcademie({ params, searchParams }: {
           <span className="aca-picto grand" aria-hidden="true"><IconeModule icone={m.icone} size={30} /></span>
           <div className="dit">
             <div className="aca-surtitre num">
-              <span>Module {i + 1}</span>
+              <span>{pack.nom} · Module {i + 1}</span>
+              {pack.obligatoire ? <span className="aca-tag" data-ton="obligatoire" title={pack.obligatoire}>Formation obligatoire<sup aria-hidden="true">*</sup></span> : null}
               <span>{pluriel(lecons.length, "leçon", "leçons")}</span>
               {m.minutes ? <span>{duree(m.minutes)}</span> : null}
               {m.acces === "redboxers" ? <span className="aca-tag" data-ton="redboxers"><IcoCadenas size={12} /> Redboxers</span> : null}
@@ -57,6 +61,7 @@ export default async function ModuleAcademie({ params, searchParams }: {
             </div>
             <h1>{m.titre}</h1>
             {m.resume ? <p className="aca-chapeau">{m.resume}</p> : null}
+            {pack.obligatoire ? <p className="aca-asterisque">* {pack.obligatoire}</p> : null}
             {!ferme && ouvertes.length > 0 ? (
               <div className="aca-avance">
                 <Piste n={finies} sur={ouvertes.length} label={`Progression : ${m.titre}`} />

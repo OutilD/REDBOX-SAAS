@@ -158,6 +158,8 @@ export const BADGES: Badge[] = [
     comment: "5 000 € de ventes distribuées dans le même mois civil, toutes machines additionnées. Il se gagne avec plusieurs bons emplacements plutôt qu’avec un seul exceptionnel." },
   { cle: "parc_3", nom: "Parc rentable niv. 3", quoi: "Votre parc a fait 15 000 € en un mois", devise: "La courbe ne monte plus : elle décolle.", forme: "graphique", points: 800,
     comment: "15 000 € de ventes distribuées dans le même mois civil, toutes machines additionnées. Le sommet des badges de chiffre : un vrai réseau, bien tenu." },
+  { cle: "prospecteur", nom: "Prospecteur", quoi: "La formation « Trouver ses emplacements » terminée", devise: "Chaque porte poussée rapproche du bon emplacement.", forme: "drapeau", points: 150,
+    comment: "Académie → parcours « Trouver ses emplacements » : terminez toutes ses leçons. C’est la formation obligatoire pour demander le remboursement de la garantie emplacement ; le badge le prouve, avec le certificat du parcours." },
   { cle: "ambassadeur", nom: "Ambassadeur", quoi: "Quelqu’un a rejoint le compte sur votre invitation", devise: "Vous avez ouvert la porte à quelqu’un d’autre.", forme: "enveloppe", points: 120,
     comment: "Équipe → Inviter quelqu’un, envoyez le lien, et attendez qu’il s’en serve. Le badge tombe quand l’invitation est utilisée, pas quand elle est envoyée." },
   { cle: "applaudi", nom: "Applaudi", quoi: "Vingt-cinq réactions reçues sur vos messages", devise: "Vingt-cinq mains levées pour ce que vous avez dit.", forme: "pouce", points: 250,
@@ -224,6 +226,8 @@ export type Faits = {
   /** En euros : le meilleur mois civil d'une seule machine, et de tout le parc. */
   ca_machine_mois: number; ca_parc_mois: number;
   pionnier: boolean; ambassadeur: boolean; equipe: boolean;
+  /** Le parcours « Trouver ses emplacements » : ses lecons publiees, et celles qu'elle a finies. */
+  emplacements_total: number; emplacements_finies: number;
   /** Les points des defis du mois reussis (lib/defis). */
   points_defis: number;
 };
@@ -305,6 +309,11 @@ const SQL_FAITS = `
        WHERE x.email NOT LIKE '%@' || $2 AND NOT EXISTS (SELECT 1 FROM compte kv WHERE kv.id = x.compte_id AND kv.vitrine)
          AND (x.cree_le, x.id) < (u.cree_le, u.id)) < 10) AS pionnier,
     EXISTS (SELECT 1 FROM invitation i WHERE i.par = u.email AND i.utilisee_le IS NOT NULL) AS ambassadeur,
+    (SELECT COUNT(*)::int FROM academie_lecon le JOIN academie_module am ON am.id = le.module_id
+      WHERE le.publie AND am.publie AND am.pack = 'emplacements') AS emplacements_total,
+    (SELECT COUNT(*)::int FROM academie_lecon le JOIN academie_module am ON am.id = le.module_id
+       JOIN academie_suivi sv ON sv.lecon_id = le.id AND sv.utilisateur_id = u.id AND sv.fini_le IS NOT NULL
+      WHERE le.publie AND am.publie AND am.pack = 'emplacements') AS emplacements_finies,
     EXISTS (SELECT 1 FROM membre m JOIN compte c ON c.id = m.compte_id
              WHERE m.utilisateur_id = u.id AND c.editeur) AS equipe
   FROM utilisateur u
@@ -365,6 +374,7 @@ function meritesPar(f: Faits): string[] {
   if (f.ca_parc_mois >= 1000) out.push("parc_1");
   if (f.ca_parc_mois >= 5000) out.push("parc_2");
   if (f.ca_parc_mois >= 15000) out.push("parc_3");
+  if (f.emplacements_total > 0 && f.emplacements_finies >= f.emplacements_total) out.push("prospecteur");
   if (f.ambassadeur) out.push("ambassadeur");
   if (f.reactions >= 25) out.push("applaudi");
   if (f.reactions_donnees >= 50) out.push("genereux");
@@ -414,6 +424,7 @@ const PROGRES: Record<string, (f: Faits) => { n: number; sur: number }> = {
   parc_1:    (f) => ({ n: f.ca_parc_mois, sur: 1000 }),
   parc_2:    (f) => ({ n: f.ca_parc_mois, sur: 5000 }),
   parc_3:    (f) => ({ n: f.ca_parc_mois, sur: 15000 }),
+  prospecteur: (f) => ({ n: f.emplacements_finies, sur: Math.max(1, f.emplacements_total) }),
   applaudi: (f) => ({ n: f.reactions, sur: 25 }),
   genereux: (f) => ({ n: f.reactions_donnees, sur: 50 }),
   habitue:  (f) => ({ n: f.jours_actifs, sur: 30 }),

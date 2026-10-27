@@ -1458,3 +1458,28 @@ CREATE TABLE IF NOT EXISTS tentative_connexion (
   essai_le  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS i_tentative_connexion ON tentative_connexion (cle, essai_le);
+
+-- LES DEUX PARCOURS DE L'ACADEMIE. Chaque module appartient a un pack :
+-- « Gérer ses machines » (tout ce qui existait) ou « Trouver ses emplacements »,
+-- la formation a la prospection, obligatoire pour demander le remboursement
+-- de la garantie emplacement. Chaque pack a son certificat.
+ALTER TABLE academie_module ADD COLUMN IF NOT EXISTS pack TEXT NOT NULL DEFAULT 'machines';
+ALTER TABLE academie_module DROP CONSTRAINT IF EXISTS academie_module_pack_check;
+ALTER TABLE academie_module ADD CONSTRAINT academie_module_pack_check CHECK (pack IN ('machines', 'emplacements'));
+
+-- LE CRM DE PROSPECTION, dans Connect : les etablissements qu'un compte
+-- demarche, une carte par lieu, deplacee de colonne en colonne.
+CREATE TABLE IF NOT EXISTS crm_lieu (
+  id          BIGSERIAL PRIMARY KEY,
+  compte_id   BIGINT NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+  cree_par    BIGINT REFERENCES utilisateur(id) ON DELETE SET NULL,
+  nom         TEXT NOT NULL,
+  ville       TEXT,
+  contact     TEXT,
+  note        TEXT,
+  etape       TEXT NOT NULL DEFAULT 'a_contacter' CHECK (etape IN
+                ('a_contacter', 'contacte', 'rdv', 'negociation', 'signe', 'refuse')),
+  cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  modifie_le  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS i_crm_lieu_compte ON crm_lieu (compte_id, etape, modifie_le DESC);

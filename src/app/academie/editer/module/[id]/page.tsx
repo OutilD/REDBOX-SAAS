@@ -6,7 +6,7 @@ import { ACCES, RESUME_MAX, TITRE_MAX, lecteur, lecteursParLecon, leconsDe, modu
          peutEditer } from "@/lib/academie";
 import { IcoOeil } from "../../../../icones";
 import { IconeModule, duree, pluriel } from "../../../vues";
-import { CasePublie, ChoixAcces, ChoixIcone, Deplacer, ERREURS, EtatPublication, EtiquetteAcces,
+import { CasePublie, ChoixAcces, ChoixIcone, ChoixPack, Deplacer, ERREURS, EtatPublication, EtiquetteAcces,
          Publier } from "../../outils";
 import { entier } from "@/db";
 
@@ -58,6 +58,7 @@ export default async function EditerModule({ params, searchParams }: {
             <textarea id="resume" name="resume" rows={2} maxLength={RESUME_MAX} defaultValue={m.resume ?? ""} />
           </div>
           <ChoixIcone valeur={m.icone} />
+          <ChoixPack valeur={m.pack} />
           <ChoixAcces valeur={m.acces}
                       note="Réservé aux redboxers : toutes ses leçons le sont, quel que soit leur propre réglage." />
           <div className="aca-ed-bas">

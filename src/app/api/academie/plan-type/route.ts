@@ -1,37 +1,46 @@
 import { q1, transaction } from "@/db";
 import { utilisateurDe, versPage } from "@/lib/auth";
-import { peutEditer } from "@/lib/academie";
-import { PLAN_TYPE } from "@/lib/academie-plan";
+import { peutEditer, type Pack } from "@/lib/academie";
+import { PLAN_EMPLACEMENTS, PLAN_TYPE, type ModulePlan } from "@/lib/academie-plan";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/academie/plan-type — poser le plan de depart, en brouillon.
+ * POST /api/academie/plan-type — poser un plan de depart, en brouillon.
  *
- * Seulement sur une academie vide : relance, il doublerait tout. Trois
- * requetes, pas cinquante — Neon repond en un tiers de seconde depuis ici, et
- * une insertion par ligne ferait attendre vingt secondes devant un bouton.
+ * Le plan type des machines, seulement sur une academie vide ; celui des
+ * emplacements (`pack=emplacements`), seulement si ce parcours n'a encore
+ * aucun module. Relance, il doublerait tout. Trois requetes, pas cinquante —
+ * Neon repond en un tiers de seconde depuis ici, et une insertion par ligne
+ * ferait attendre vingt secondes devant un bouton.
  */
 export async function POST(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return versPage(req, "/connexion");
   if (!peutEditer(u)) return versPage(req, "/academie");
-  if (await q1("SELECT 1 FROM academie_module LIMIT 1")) return versPage(req, "/academie/editer");
+  const pack: Pack = String((await req.formData()).get("pack") ?? "") === "emplacements" ? "emplacements" : "machines";
+  const plan: ModulePlan[] = pack === "emplacements" ? PLAN_EMPLACEMENTS : PLAN_TYPE;
+  const deja = pack === "emplacements"
+    ? await q1("SELECT 1 FROM academie_module WHERE pack = 'emplacements' LIMIT 1")
+    : await q1("SELECT 1 FROM academie_module LIMIT 1");
+  if (deja) return versPage(req, "/academie/editer");
 
   await transaction(async (c) => {
+    // A la suite des modules existants : l'ordre reste unique dans la liste de l'editeur.
+    const base = (await c.query<{ n: number }>("SELECT COALESCE(MAX(ordre), 0)::int AS n FROM academie_module")).rows[0].n;
     const mods = (await c.query<{ id: number; ordre: number }>(`
-      INSERT INTO academie_module (titre, resume, icone, acces, ordre)
-      SELECT titre, resume, icone, acces, ordre::int
+      INSERT INTO academie_module (titre, resume, icone, acces, ordre, pack)
+      SELECT titre, resume, icone, acces, ordre::int + $5::int, $6
         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[])
              WITH ORDINALITY AS x(titre, resume, icone, acces, ordre)
       RETURNING id, ordre`,
-      [PLAN_TYPE.map((m) => m.titre), PLAN_TYPE.map((m) => m.resume),
-       PLAN_TYPE.map((m) => m.icone), PLAN_TYPE.map((m) => m.acces)])).rows;
-    const idModule = new Map(mods.map((m) => [m.ordre, Number(m.id)]));
+      [plan.map((m) => m.titre), plan.map((m) => m.resume),
+       plan.map((m) => m.icone), plan.map((m) => m.acces), base, pack])).rows;
+    const idModule = new Map(mods.map((m) => [m.ordre - base, Number(m.id)]));
 
     // Une lecon se reconnait a son module et a son rang : RETURNING ne promet
     // pas l'ordre des lignes, ce couple-la est unique dans le plan.
-    const lecons = PLAN_TYPE.flatMap((m, i) => m.lecons.map((l, j) => ({
+    const lecons = plan.flatMap((m, i) => m.lecons.map((l, j) => ({
       ...l, module_id: idModule.get(i + 1)!, ordre: j + 1,
     })));
     const lignes = (await c.query<{ id: number; module_id: number; ordre: number }>(`
@@ -42,7 +51,7 @@ export async function POST(req: Request) {
        lecons.map((l) => l.duree), lecons.map((l) => l.acces), lecons.map((l) => l.ordre)])).rows;
     const idLecon = new Map(lignes.map((l) => [`${Number(l.module_id)}:${l.ordre}`, Number(l.id)]));
 
-    const blocs = PLAN_TYPE.flatMap((m, i) => m.lecons.flatMap((l, j) => l.blocs.map((b, k) => ({
+    const blocs = plan.flatMap((m, i) => m.lecons.flatMap((l, j) => l.blocs.map((b, k) => ({
       ...b, lecon_id: idLecon.get(`${idModule.get(i + 1)}:${j + 1}`)!, ordre: k + 1,
     }))));
     await c.query(`
@@ -51,5 +60,5 @@ export async function POST(req: Request) {
       [blocs.map((b) => b.lecon_id), blocs.map((b) => b.genre), blocs.map((b) => b.ordre),
        blocs.map((b) => b.titre ?? null), blocs.map((b) => b.texte ?? null), blocs.map((b) => b.url ?? null)]);
   });
-  return versPage(req, "/academie/editer?ok=plan");
+  return versPage(req, `/academie/editer?ok=${pack === "emplacements" ? "plan_emplacements" : "plan"}`);
 }

@@ -30,7 +30,7 @@ export const BISCUIT_PRODUIT = "rbx_produit";
 /** L'en-tete de requete que pose le middleware : le produit de la page servie. */
 export const ENTETE_PRODUIT = "x-rbx-produit";
 
-const CONNECT = ["/communaute", "/messages", "/academie", "/carte"];
+const CONNECT = ["/communaute", "/messages", "/academie", "/prospection", "/carte"];
 const PARTAGEES = ["/menu", "/profil", "/reglages/notifications", "/demo",
                    "/connexion", "/inscription", "/rejoindre"];
 

@@ -19,6 +19,7 @@ const QUOI: Record<string, string> = {
   messages: "L’équipe, vos RedBox, le SAV",
   communaute: "Redboxers, badges et classement",
   academie: "La machine, le pitch, les contrats : la formation",
+  prospection: "Les établissements que vous démarchez, en colonnes",
   stock: "Ce qui reste au dépôt",
   reception: "Enregistrer une livraison",
   charger: "Remplir une machine",

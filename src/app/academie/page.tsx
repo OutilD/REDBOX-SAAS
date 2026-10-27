@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { q1 } from "@/db";
 import { Entete, NavBasse } from "../chrome";
-import { modules, ouverte, reprise, salonProspects, sommaire, type Module } from "@/lib/academie";
+import { PACKS, modules, packDe, ouverte, reprise, salonProspects, sommaire, type Module } from "@/lib/academie";
 import { IcoAcademie, IcoCadenas, IcoChevron, IcoCoche, IcoDocument, IcoHorloge, IcoLecture, IcoTrophee } from "../icones";
 import { lecteurDePage } from "./lecteur";
 import { bilanDe } from "./salle";
@@ -69,7 +69,7 @@ export default async function Academie({ searchParams }: { searchParams: Promise
                 <div className="faible">leçons terminées{bilan.reste > 0 ? ` · ${duree(bilan.reste)} restantes` : ""}</div>
               </div>
               {toutFini ? (
-                <Link href="/academie/certificat" className="aca-tag grand" data-ton="fini"><IcoTrophee size={14} /> Tout est terminé : voir mon certificat</Link>
+                <Link href="/academie/certificat?pack=machines" className="aca-tag grand" data-ton="fini"><IcoTrophee size={14} /> Tout est terminé : voir mon certificat</Link>
               ) : null}
             </div>
           ) : null}
@@ -106,7 +106,7 @@ export default async function Academie({ searchParams }: { searchParams: Promise
 
         {suite ? (() => {
           const m = mods.find((x) => x.id === suite.module_id);
-          const rang = mods.findIndex((x) => x.id === suite.module_id) + 1;
+          const rang = mods.filter((x) => x.pack === m?.pack).findIndex((x) => x.id === suite.module_id) + 1;
           const siennes = lecons.filter((x) => x.module_id === suite.module_id && x.ouverte);
           const j = lecons.filter((x) => x.module_id === suite.module_id).findIndex((x) => x.id === suite.lecon_id);
           const lecon = lecons.find((x) => x.id === suite.lecon_id);
@@ -120,7 +120,7 @@ export default async function Academie({ searchParams }: { searchParams: Promise
                   {lecon?.duree ? <span className="avec-icone"><IcoHorloge size={13} /> {duree(lecon.duree)}</span> : null}
                 </span>
                 <span className="titre">{suite.titre}</span>
-                <span className="module">{suite.module_titre}</span>
+                <span className="module">{m ? `${packDe(m.pack).nom} · ` : ""}{suite.module_titre}</span>
                 {siennes.length > 0 ? (
                   <span className="aca-avance">
                     <Piste n={siennes.filter((x) => x.fini).length} sur={siennes.length} label={`Progression : ${suite.module_titre}`} />
@@ -147,66 +147,88 @@ export default async function Academie({ searchParams }: { searchParams: Promise
           </div>
         ) : (
           <>
-            <div className="titre-section">
-              <h2>Les modules</h2>
-              <span className="faible" style={{ fontSize: 12.5 }}>dans l’ordre conseillé</span>
-              <Link href="/academie/ressources" className="lien"><IcoDocument size={15} /> Ressources</Link>
-            </div>
-            <div className="aca-modules">
-              {mods.map((m, i) => {
-                const ferme = !ouverte(l, m.acces);
-                const fini = !ferme && m.ouvertes > 0 && m.finies_ouvertes === m.ouvertes;
-                return (
-                  <Link key={m.id} href={`/academie/module/${m.id}`} className="aca-module"
-                        style={{ "--i": i } as React.CSSProperties}
-                        data-ferme={ferme ? "" : undefined} data-fini={fini ? "" : undefined}>
-                    <span className="haut">
-                      <span className="aca-picto"><IconeModule icone={m.icone} /></span>
-                      <span className="numero num">Module {String(i + 1).padStart(2, "0")}</span>
-                    </span>
-                    <span className="titre">{m.titre}</span>
-                    {m.resume ? <span className="resume">{m.resume}</span> : null}
-                    <span className="meta">
-                      <span className="num">{pluriel(m.lecons, "leçon", "leçons")}{m.minutes ? ` · ${duree(m.minutes)}` : ""}</span>
-                      {!m.publie ? <span className="aca-tag" data-ton="brouillon">Brouillon</span> : null}
-                      {l.redboxer && m.acces === "redboxers" ? <span className="aca-tag" data-ton="redboxers">Redboxers</span> : null}
-                      {!ferme && !l.redboxer && m.reservees > 0 ? (
-                        <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> {m.reservees} réservée{m.reservees > 1 ? "s" : ""}</span>
-                      ) : null}
-                    </span>
-                    <span className="pied">
-                      {ferme ? (
-                        <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> Réservé aux redboxers</span>
-                      ) : m.ouvertes > 0 ? (
-                        <>
-                          <Piste n={m.finies_ouvertes} sur={m.ouvertes} label={`Progression : ${m.titre}`} />
-                          <span className="compte num">
-                            {fini ? <><IcoCoche size={13} /> Terminé</> : `${m.finies_ouvertes}/${m.ouvertes}`}
+            {PACKS.map((pack) => {
+              const siens = mods.filter((m) => m.pack === pack.cle);
+              if (siens.length === 0) return null;
+              const pOuvertes = siens.reduce((t, m) => t + m.ouvertes, 0);
+              const pFinies = siens.reduce((t, m) => t + m.finies_ouvertes, 0);
+              const pFini = pOuvertes > 0 && pFinies === pOuvertes;
+              const pReste = lecons.filter((x) => x.pack === pack.cle && x.ouverte && !x.fini).reduce((t, x) => t + (x.duree ?? 0), 0);
+              const certif = `/academie/certificat?pack=${pack.cle}`;
+              return (
+                <section key={pack.cle} className="aca-pack" data-obligatoire={pack.obligatoire ? "" : undefined}>
+                  <div className="titre-section">
+                    <h2>{pack.nom}</h2>
+                    {pack.obligatoire ? (
+                      <span className="aca-tag grand" data-ton="obligatoire" title={pack.obligatoire}>
+                        Formation obligatoire<sup aria-hidden="true">*</sup>
+                      </span>
+                    ) : null}
+                    <span className="faible" style={{ fontSize: 12.5 }}>{pluriel(siens.length, "module", "modules")}</span>
+                    {pack.cle === "machines" ? (
+                      <Link href="/academie/ressources" className="lien"><IcoDocument size={15} /> Ressources</Link>
+                    ) : null}
+                  </div>
+                  <p className="aca-pack-quoi">{pack.quoi}</p>
+                  {pack.obligatoire ? <p className="aca-asterisque">* {pack.obligatoire}</p> : null}
+                  <div className="aca-modules">
+                    {siens.map((m, i) => {
+                      const ferme = !ouverte(l, m.acces);
+                      const fini = !ferme && m.ouvertes > 0 && m.finies_ouvertes === m.ouvertes;
+                      return (
+                        <Link key={m.id} href={`/academie/module/${m.id}`} className="aca-module"
+                              style={{ "--i": i } as React.CSSProperties}
+                              data-ferme={ferme ? "" : undefined} data-fini={fini ? "" : undefined}>
+                          <span className="haut">
+                            <span className="aca-picto"><IconeModule icone={m.icone} /></span>
+                            <span className="numero num">Module {String(i + 1).padStart(2, "0")}</span>
                           </span>
-                        </>
-                      ) : (
-                        <span className="faible">Bientôt</span>
-                      )}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
+                          <span className="titre">{m.titre}</span>
+                          {m.resume ? <span className="resume">{m.resume}</span> : null}
+                          <span className="meta">
+                            <span className="num">{pluriel(m.lecons, "leçon", "leçons")}{m.minutes ? ` · ${duree(m.minutes)}` : ""}</span>
+                            {!m.publie ? <span className="aca-tag" data-ton="brouillon">Brouillon</span> : null}
+                            {l.redboxer && m.acces === "redboxers" ? <span className="aca-tag" data-ton="redboxers">Redboxers</span> : null}
+                            {!ferme && !l.redboxer && m.reservees > 0 ? (
+                              <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> {m.reservees} réservée{m.reservees > 1 ? "s" : ""}</span>
+                            ) : null}
+                          </span>
+                          <span className="pied">
+                            {ferme ? (
+                              <span className="aca-tag" data-ton="ferme"><IcoCadenas size={12} /> Réservé aux redboxers</span>
+                            ) : m.ouvertes > 0 ? (
+                              <>
+                                <Piste n={m.finies_ouvertes} sur={m.ouvertes} label={`Progression : ${m.titre}`} />
+                                <span className="compte num">
+                                  {fini ? <><IcoCoche size={13} /> Terminé</> : `${m.finies_ouvertes}/${m.ouvertes}`}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="faible">Bientôt</span>
+                            )}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
 
-            {ouvertes > 0 ? (
-              <Link href="/academie/certificat" className="aca-certif-carte" data-pret={toutFini ? "" : undefined}>
-                <span className="sceau" aria-hidden="true"><IcoTrophee size={26} /></span>
-                <span className="dit">
-                  <span className="titre">{toutFini ? "Votre certificat est prêt" : "Certificat de fin de formation"}</span>
-                  <span className="quoi">
-                    {toutFini
-                      ? "Imprimez-le ou enregistrez-le en PDF : il atteste que vous avez suivi tout le parcours."
-                      : `Terminez les ${ouvertes} leçons ouvertes pour le débloquer. Encore ${ouvertes - finies}${bilan.reste ? `, environ ${duree(bilan.reste)}` : ""}.`}
-                  </span>
-                </span>
-                <span className="aller">{toutFini ? "Voir" : `${pct} %`} <IcoChevron size={15} /></span>
-              </Link>
-            ) : null}
+                  {pOuvertes > 0 ? (
+                    <Link href={certif} className="aca-certif-carte" data-pret={pFini ? "" : undefined}>
+                      <span className="sceau" aria-hidden="true"><IcoTrophee size={26} /></span>
+                      <span className="dit">
+                        <span className="titre">{pFini ? "Votre certificat est prêt" : `Certificat · ${pack.nom}`}</span>
+                        <span className="quoi">
+                          {pFini
+                            ? `Imprimez-le ou enregistrez-le en PDF : il atteste que vous avez suivi le parcours « ${pack.nom} ».`
+                            : `Terminez les ${pOuvertes} leçons de ce parcours pour le débloquer${pack.cle === "emplacements" ? " et gagner le badge Prospecteur" : ""}. Encore ${pOuvertes - pFinies}${pReste ? `, environ ${duree(pReste)}` : ""}.`}
+                        </span>
+                      </span>
+                      <span className="aller">{pFini ? "Voir" : `${Math.round((pFinies * 100) / pOuvertes)} %`} <IcoChevron size={15} /></span>
+                    </Link>
+                  ) : null}
+                </section>
+              );
+            })}
           </>
         )}
       </main>

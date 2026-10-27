@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Entete, NavBasse } from "../../chrome";
-import { modules, sommaire } from "@/lib/academie";
+import { modules, packDe, sommaire } from "@/lib/academie";
 import { nomAffiche } from "@/lib/personnes";
 import { IcoAcademie, IcoCadenas, IcoCoche, IcoLecture, IcoTrophee } from "../../icones";
 import { lecteurDePage } from "../lecteur";
@@ -24,18 +24,23 @@ const JOUR = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", y
  * Pas encore gagne : ce qui reste, module par module, et le bouton pour
  * reprendre. S'imprime sur une page A4 paysage, sans la console autour.
  */
-export default async function Certificat() {
+export default async function Certificat({ searchParams }: { searchParams: Promise<{ pack?: string }> }) {
   const { u, l } = await lecteurDePage();
-  const [mods, lecons] = await Promise.all([modules(l), sommaire(l)]);
+  // Un certificat par parcours ; sans precision, celui des machines, le premier qui a existe.
+  const pack = packDe((await searchParams).pack);
+  const [tous, toutes] = await Promise.all([modules(l), sommaire(l)]);
+  const mods = tous.filter((m) => m.pack === pack.cle);
+  const lecons = toutes.filter((x) => x.pack === pack.cle);
   const bilan = bilanDe(lecons);
   const ouvertes = lecons.filter((x) => x.ouverte);
   const finLe = ouvertes.reduce<Date | null>((d, x) => (x.fini_le && (!d || x.fini_le > d) ? x.fini_le : d), null);
-  const parcours = l.redboxer ? "Parcours Redboxer" : "Parcours Découverte";
+  const parcours = pack.cle === "emplacements" ? `Parcours ${pack.nom}`
+    : l.redboxer ? "Parcours Redboxer" : "Parcours Découverte";
   const minutes = ouvertes.reduce((t, x) => t + (x.duree ?? 0), 0);
   // Le jour de Paris, comme la date affichee : en UTC, un parcours fini
   // apres minuit changeait de jour entre le numero et le texte.
   const numero = finLe
-    ? `RBX-ACA-${String(u.id).padStart(4, "0")}-${finLe.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" }).replaceAll("-", "")}-${ouvertes.length}`
+    ? `RBX-${pack.cle === "emplacements" ? "EMP" : "ACA"}-${String(u.id).padStart(4, "0")}-${finLe.toLocaleDateString("en-CA", { timeZone: "Europe/Paris" }).replaceAll("-", "")}-${ouvertes.length}`
     : "";
   const prochaine = ouvertes.find((x) => !x.fini) ?? null;
 

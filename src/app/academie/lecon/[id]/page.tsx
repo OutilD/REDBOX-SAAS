@@ -34,7 +34,9 @@ export default async function LeconAcademie({ params }: { params: Promise<{ id: 
   const lecon = await leconDe(l, id);
   if (!lecon) notFound();
   const ok = ouverte(l, lecon.module_acces, lecon.acces);
-  const [mods, toutes, blocs, salon, ferme] = await Promise.all([
+  // La salle de cours ne montre que le parcours de la lecon : precedente,
+  // suivante, sommaire et certificat restent dans le meme pack.
+  const [tous, toutes, blocs, salon, ferme] = await Promise.all([
     modules(l),
     sommaire(l),
     ok ? blocsDe(id) : Promise.resolve([]),
@@ -44,7 +46,9 @@ export default async function LeconAcademie({ params }: { params: Promise<{ id: 
   ]);
 
   // La lecon qu'on vient d'ouvrir est vue, meme si la lecture a precede l'ecriture.
-  const lecons = toutes.map((x) => (x.id === id && ok ? { ...x, vu: true } : x));
+  const mods = tous.filter((m) => m.pack === lecon.module_pack);
+  const lecons = toutes.filter((x) => x.pack === lecon.module_pack).map((x) => (x.id === id && ok ? { ...x, vu: true } : x));
+  const certif = `/academie/certificat?pack=${lecon.module_pack}`;
   const liste = lecons.filter((x) => x.module_id === lecon.module_id);
   const i = liste.findIndex((x) => x.id === id);
   const ici = i >= 0 ? liste[i] : null;
@@ -129,7 +133,7 @@ export default async function LeconAcademie({ params }: { params: Promise<{ id: 
                   <form method="post" action="/api/academie/suivi">
                     <input type="hidden" name="lecon_id" value={id} />
                     <input type="hidden" name="fini" value="1" />
-                    {derniere ? <input type="hidden" name="apres" value="certificat" />
+                    {derniere ? <input type="hidden" name="apres" value={lecon.module_pack} />
                       : suite ? <input type="hidden" name="suite" value={suite.id} /> : null}
                     <button className="bouton primaire large">
                       {derniere ? <IcoTrophee size={18} /> : <IcoCoche size={18} />}
@@ -138,7 +142,7 @@ export default async function LeconAcademie({ params }: { params: Promise<{ id: 
                   </form>
                 ) : null}
                 {ok && bilan.toutFini ? (
-                  <Link href="/academie/certificat" className="aca-certif-lien">
+                  <Link href={certif} className="aca-certif-lien">
                     <IcoTrophee size={20} />
                     <span className="pousse"><b>Formation terminée.</b> Votre certificat est prêt.</span>
                     <IcoChevron size={16} />

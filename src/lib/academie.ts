@@ -24,6 +24,21 @@ export const ACCES: { cle: Acces; nom: string; quoi: string }[] = [
   { cle: "redboxers", nom: "Redboxers",       quoi: "Il faut une RedBox appairée" },
 ];
 
+/**
+ * LES DEUX PARCOURS. Chacun a ses modules, sa progression et son certificat.
+ * Le premier de la liste s'affiche en premier sur la page de l'academie.
+ */
+export type Pack = "emplacements" | "machines";
+export const PACKS: { cle: Pack; nom: string; quoi: string; obligatoire?: string }[] = [
+  { cle: "emplacements", nom: "Trouver ses emplacements",
+    quoi: "La prospection, de A à Z : où chercher, comment approcher un établissement, comment signer.",
+    obligatoire: "Formation obligatoire pour bénéficier de la garantie remboursement emplacement." },
+  { cle: "machines", nom: "Gérer ses machines",
+    quoi: "La machine, la console, le réassort et les astuces pour vendre plus." },
+];
+export const estPack = (p: string): p is Pack => PACKS.some((x) => x.cle === p);
+export const packDe = (p: string | null | undefined) => PACKS.find((x) => x.cle === p) ?? PACKS[1];
+
 export type Genre = "texte" | "video" | "fichier" | "image" | "drive" | "astuce" | "attention" | "script" | "fiche";
 export const GENRES: { cle: Genre; nom: string; quoi: string }[] = [
   { cle: "texte",     nom: "Texte",               quoi: "Paragraphes, intertitres, listes" },
@@ -143,7 +158,7 @@ export function ouverte(l: Lecteur, ...acces: Acces[]): boolean {
 /* ----------------------------------------------------------------- lectures */
 
 export type Module = {
-  id: number; titre: string; resume: string | null; icone: Icone; acces: Acces;
+  id: number; titre: string; resume: string | null; icone: Icone; acces: Acces; pack: Pack;
   ordre: number; publie: boolean;
   lecons: number; minutes: number; reservees: number; finies: number;
   /** Les lecons que CE lecteur peut ouvrir, et combien il en a terminees. */
@@ -157,7 +172,7 @@ export type Module = {
  */
 export async function modules(l: Lecteur): Promise<Module[]> {
   const lignes = await q<Omit<Module, "ouvertes" | "finies_ouvertes"> & { finies_tous: number }>(`
-    SELECT m.id, m.titre, m.resume, m.icone, m.acces, m.ordre, m.publie,
+    SELECT m.id, m.titre, m.resume, m.icone, m.acces, m.pack, m.ordre, m.publie,
            COUNT(le.id)::int AS lecons,
            COALESCE(SUM(le.duree), 0)::int AS minutes,
            COUNT(le.id) FILTER (WHERE le.acces = 'redboxers')::int AS reservees,
@@ -202,7 +217,7 @@ export async function leconsDe(l: Lecteur, module: { id: number; acces: Acces })
   return lignes.map((x) => ({ ...x, ouverte: ouverte(l, module.acces, x.acces) }));
 }
 
-export type LeconSommaire = LeconResume & { fini_le: Date | null };
+export type LeconSommaire = LeconResume & { fini_le: Date | null; pack: Pack };
 
 /**
  * TOUTE LA FORMATION, LECON PAR LECON, EN UNE REQUETE : le sommaire de la
@@ -213,7 +228,7 @@ export async function sommaire(l: Lecteur): Promise<LeconSommaire[]> {
   const lignes = await q<Omit<LeconSommaire, "ouverte"> & { module_acces: Acces }>(`
     SELECT le.id, le.module_id, le.titre, le.resume, le.duree, le.acces, le.ordre, le.publie,
            (s.fini_le IS NOT NULL) AS fini, (s.vu_le IS NOT NULL) AS vu, s.fini_le,
-           m.acces AS module_acces,
+           m.acces AS module_acces, m.pack,
            (SELECT COUNT(*)::int FROM academie_bloc b WHERE b.lecon_id = le.id AND b.genre = 'video') AS videos,
            (SELECT COUNT(*)::int FROM academie_bloc b WHERE b.lecon_id = le.id AND b.genre = 'fichier') AS fichiers
       FROM academie_lecon le
@@ -243,6 +258,7 @@ export async function blocsDe(lecon_id: number): Promise<Bloc[]> {
 export type Lecon = {
   id: number; module_id: number; titre: string; resume: string | null; duree: number | null;
   acces: Acces; publie: boolean; module_acces: Acces; module_titre: string; module_publie: boolean;
+  module_pack: Pack;
 };
 
 /** Une lecon, et son module : la porte se calcule avec les deux. */
@@ -250,7 +266,7 @@ export async function leconDe(l: Lecteur, id: number): Promise<Lecon | null> {
   if (!Number.isInteger(id)) return null;
   return q1<Lecon>(`
     SELECT le.id, le.module_id, le.titre, le.resume, le.duree, le.acces, le.publie,
-           m.acces AS module_acces, m.titre AS module_titre, m.publie AS module_publie
+           m.acces AS module_acces, m.titre AS module_titre, m.publie AS module_publie, m.pack AS module_pack
       FROM academie_lecon le JOIN academie_module m ON m.id = le.module_id
      WHERE le.id = $1 AND ((le.publie AND m.publie) OR $2::boolean)`, [id, l.editeur]);
 }

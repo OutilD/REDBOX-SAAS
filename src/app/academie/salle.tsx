@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import type { LeconSommaire, Module } from "@/lib/academie";
+import { packDe, type LeconSommaire, type Module } from "@/lib/academie";
 import { IcoAcademie, IcoCadenas, IcoCoche, IcoDocument, IcoPrecedent, IcoTrophee } from "../icones";
 import { Piste, duree, etatLecon } from "./vues";
 
@@ -40,11 +40,12 @@ export function Sommaire({ mods, lecons, ici, bilan }: {
   mods: Module[]; lecons: LeconSommaire[]; ici?: number; bilan: Bilan;
 }) {
   const moduleIci = lecons.find((x) => x.id === ici)?.module_id;
+  const pack = packDe(mods[0]?.pack);
   return (
     <aside className="aca-sommaire" id="aca-sommaire" aria-label="Sommaire de la formation">
       <div className="tete">
         <div className="rangee-tete">
-          <Link href="/academie" className="aca-marque"><IcoAcademie size={16} /> RedBox Academy</Link>
+          <Link href="/academie" className="aca-marque"><IcoAcademie size={16} /> {pack.nom}</Link>
           <label htmlFor="aca-tiroir" className="bouton icone fermer-tiroir" aria-label="Fermer le sommaire">
             <IcoPrecedent size={16} />
           </label>
@@ -113,7 +114,7 @@ export function Sommaire({ mods, lecons, ici, bilan }: {
 
       <div className="pied">
         <Link href="/academie/ressources" className="lien-pied"><IcoDocument size={16} /> Ressources</Link>
-        <Link href="/academie/certificat" className="lien-pied" data-pret={bilan.toutFini ? "" : undefined}>
+        <Link href={`/academie/certificat?pack=${pack.cle}`} className="lien-pied" data-pret={bilan.toutFini ? "" : undefined}>
           <IcoTrophee size={16} /> {bilan.toutFini ? "Mon certificat" : "Certificat de fin"}
         </Link>
       </div>

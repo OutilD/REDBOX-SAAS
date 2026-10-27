@@ -2,16 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../chrome";
 import { utilisateur } from "@/lib/auth";
-import { RESUME_MAX, TITRE_MAX, lecteur, modules, peutEditer } from "@/lib/academie";
-import { PLAN_TYPE } from "@/lib/academie-plan";
+import { RESUME_MAX, TITRE_MAX, lecteur, modules, packDe, peutEditer } from "@/lib/academie";
+import { PLAN_EMPLACEMENTS, PLAN_TYPE } from "@/lib/academie-plan";
 import { IcoAcademie } from "../../icones";
 import { IconeModule, OngletsAcademie, duree, pluriel } from "../vues";
-import { ChoixAcces, ChoixIcone, Deplacer, ERREURS, EtatPublication, EtiquetteAcces, Publier } from "./outils";
+import { ChoixAcces, ChoixIcone, ChoixPack, Deplacer, ERREURS, EtatPublication, EtiquetteAcces, Publier } from "./outils";
 
 export const dynamic = "force-dynamic";
 
 const OK: Record<string, string> = {
   plan: "Plan type posé, tout en brouillon : relisez chaque leçon, complétez les « à compléter », puis publiez.",
+  plan_emplacements: "Parcours « Trouver ses emplacements » posé en brouillon : relisez, complétez les conditions de la garantie, puis publiez.",
   supprime: "Module supprimé.",
 };
 
@@ -58,6 +59,20 @@ export default async function EditerAcademie({ searchParams }: { searchParams: P
           </div>
         ) : (
           <>
+            {!mods.some((m) => m.pack === "emplacements") ? (
+              <div className="carte aca-plan-type">
+                <div className="titre">Poser le parcours « Trouver ses emplacements »</div>
+                <p>
+                  {PLAN_EMPLACEMENTS.length} modules et {PLAN_EMPLACEMENTS.reduce((s, m) => s + m.lecons.length, 0)} leçons
+                  de prospection, ouverts à tous : repérer les lieux, les approcher, conclure, garder le rythme.
+                  Tout arrive en brouillon ; les conditions de la garantie restent « à compléter ».
+                </p>
+                <form method="post" action="/api/academie/plan-type">
+                  <input type="hidden" name="pack" value="emplacements" />
+                  <button className="bouton primaire">Poser le parcours</button>
+                </form>
+              </div>
+            ) : null}
             <div className="titre-section"><h2>Modules</h2><span className="faible">{mods.length}</span></div>
             <div className="aca-ed-liste" data-glisser="/api/academie/module" data-action="ordonner" data-prefixe="m">
               {mods.map((m, i) => (
@@ -68,6 +83,7 @@ export default async function EditerAcademie({ searchParams }: { searchParams: P
                     <div className="meta">
                       <EtatPublication publie={m.publie} />
                       <EtiquetteAcces acces={m.acces} />
+                      <span className="aca-tag" data-ton={m.pack === "emplacements" ? "obligatoire" : undefined}>{packDe(m.pack).nom}</span>
                       <span className="num">{pluriel(m.lecons, "leçon", "leçons")}{m.minutes ? ` · ${duree(m.minutes)}` : ""}</span>
                     </div>
                   </div>
@@ -95,6 +111,7 @@ export default async function EditerAcademie({ searchParams }: { searchParams: P
                       placeholder="Ce qu’on saura faire à la fin du module, en une phrase." />
           </div>
           <ChoixIcone valeur="borne" />
+          <ChoixPack valeur="emplacements" />
           <ChoixAcces valeur="tous" />
           <div className="aca-ed-bas">
             <span className="faible">Il sera créé en brouillon.</span>

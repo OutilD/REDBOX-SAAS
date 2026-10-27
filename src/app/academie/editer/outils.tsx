@@ -1,5 +1,5 @@
-import { ACCES, ICONES, RESUME_MAX, TEXTE_MAX, TITRE_MAX,
-         type Acces, type Bloc, type Genre, type Icone, type Ressource } from "@/lib/academie";
+import { ACCES, ICONES, PACKS, RESUME_MAX, TEXTE_MAX, TITRE_MAX,
+         type Acces, type Pack, type Bloc, type Genre, type Icone, type Ressource } from "@/lib/academie";
 import { IcoBas, IcoCadenas, IcoCommunaute, IcoHaut } from "../../icones";
 import { IconeModule, NOMS_ICONES } from "../vues";
 
@@ -102,6 +102,23 @@ export function ChoixAcces({ valeur, note }: { valeur: Acces; note?: string }) {
         ))}
       </div>
       {note ? <p className="aide">{note}</p> : null}
+    </fieldset>
+  );
+}
+
+export function ChoixPack({ valeur }: { valeur: Pack }) {
+  return (
+    <fieldset className="aca-groupe">
+      <legend>Parcours</legend>
+      <div className="aca-choix deux">
+        {PACKS.map((p) => (
+          <label key={p.cle}>
+            <input type="radio" name="pack" value={p.cle} defaultChecked={p.cle === valeur} />
+            <span className="nom">{p.nom}</span>
+            <span className="quoi">{p.obligatoire ? "Formation obligatoire · garantie emplacement" : p.quoi}</span>
+          </label>
+        ))}
+      </div>
     </fieldset>
   );
 }
