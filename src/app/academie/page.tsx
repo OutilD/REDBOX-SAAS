@@ -39,6 +39,11 @@ export default async function Academie({ searchParams }: { searchParams: Promise
     <>
       <Entete page="academie" />
       <main className="ecran aca aca-focus">
+        {mods.some((m) => m.pack === "emplacements") ? (
+          <a className="aca-bandeau" href="#parcours-emplacements">
+            <b>Formation obligatoire</b> « Trouver ses emplacements » : à suivre pour bénéficier de la garantie remboursement emplacement.
+          </a>
+        ) : null}
         <section className="aca-tete">
           <div className="dit">
             <div className="aca-marque"><IcoAcademie size={18} /> RedBox Academy</div>
@@ -156,7 +161,7 @@ export default async function Academie({ searchParams }: { searchParams: Promise
               const pReste = lecons.filter((x) => x.pack === pack.cle && x.ouverte && !x.fini).reduce((t, x) => t + (x.duree ?? 0), 0);
               const certif = `/academie/certificat?pack=${pack.cle}`;
               return (
-                <section key={pack.cle} className="aca-pack" data-obligatoire={pack.obligatoire ? "" : undefined}>
+                <section key={pack.cle} id={`parcours-${pack.cle}`} className="aca-pack" data-obligatoire={pack.obligatoire ? "" : undefined}>
                   <div className="titre-section">
                     <h2>{pack.nom}</h2>
                     {pack.obligatoire ? (

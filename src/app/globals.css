@@ -6227,6 +6227,12 @@ html.piece-tiree, html.piece-tiree * {
 .aca-tag[data-ton="obligatoire"] sup { font-size: .9em; line-height: 0; margin-left: 1px; }
 
 /* ----------------------------------------------------------------- parcours */
+.aca-bandeau {
+  display: block; margin-bottom: 18px; padding: 10px 16px; border-radius: 10px;
+  background: var(--rouge); color: #fff; font-size: 14px; text-decoration: none;
+}
+.aca-bandeau:hover { filter: brightness(.95); }
+.aca-pack { scroll-margin-top: 80px; }
 .aca-pack { margin-top: 26px; }
 .aca-pack-quoi { margin: -4px 0 6px; color: var(--texte-2); font-size: 14px; max-width: 70ch; }
 .aca-asterisque { margin: 0 0 14px; font-size: 13px; color: var(--texte-2); }
@@ -7245,19 +7251,57 @@ details.aca-chapitre .bientot { margin: 0 0 8px 46px; font-size: 12.5px; color: 
 .kanban .machine .gestes .bouton { min-height: 34px; padding: 0 8px; font-size: 13px; justify-content: center; cursor: pointer; }
 .kanban .machine .gestes .bouton.carre { padding: 0; width: auto; display: inline-grid; place-items: center; }
 .kanban .machine .gestes .bouton:disabled { cursor: not-allowed; }
-/* Le CRM de prospection : six etapes, deux fleches par carte. */
-.kanban.crm { grid-template-columns: repeat(6, minmax(210px, 1fr)); }
-@media (max-width: 1100px) { .kanban.crm { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
-.kanban.crm .machine .gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.kanban.crm .colonne[data-etape="signe"] header h3 { color: var(--vert); }
-.kanban.crm .colonne[data-etape="refuse"] { opacity: .85; }
+/* Le CRM de prospection : chiffres, ajout sur une ligne, six colonnes teintees. */
+.crm-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.crm-tete h1 { margin-bottom: 4px; }
+.crm-tete .sous { margin: 0; }
+.crm-chiffres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+@media (max-width: 700px) { .crm-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.crm-chiffres > div {
+  display: flex; flex-direction: column; gap: 2px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--bord); border-radius: var(--r-l);
+}
+.crm-chiffres b { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.crm-chiffres span { font-size: 12.5px; color: var(--texte-3); }
+.crm-chiffres [data-ton="vert"] b { color: var(--vert); }
+.crm-rapide {
+  display: grid; grid-template-columns: 2fr 1fr 1.5fr auto; gap: 8px; margin-bottom: 14px; padding: 8px;
+  background: var(--surface); border: 1px solid var(--bord); border-radius: var(--r-l);
+}
+@media (max-width: 700px) { .crm-rapide { grid-template-columns: 1fr 1fr; } .crm-rapide [name="nom"], .crm-rapide .bouton { grid-column: 1 / -1; } }
+.crm-outils { margin-bottom: 12px; }
+.crm-outils .champ-recherche { flex: 0 1 380px; }
+
+.kanban.crm { grid-template-columns: repeat(6, minmax(200px, 1fr)); align-items: stretch; }
+@media (max-width: 1100px) { .kanban.crm { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } .kanban.crm .colonne { min-height: 0; } }
+.kanban.crm .colonne { min-height: 260px; background: color-mix(in srgb, var(--stade) 4%, var(--surface)); }
+.kanban.crm [data-etape="a_contacter"] { --stade: var(--texte-3); }
+.kanban.crm [data-etape="contacte"]    { --stade: var(--bleu); }
+.kanban.crm [data-etape="rdv"]         { --stade: var(--violet); }
+.kanban.crm [data-etape="negociation"] { --stade: var(--ambre); }
+.kanban.crm [data-etape="signe"]       { --stade: var(--vert); }
+.kanban.crm [data-etape="refuse"]      { --stade: var(--rouge); }
+.kanban.crm .colonne[data-etape="refuse"] .machine { opacity: .75; }
+.kanban.crm .vide { flex: 1; display: grid; place-items: center; padding: 18px 0; }
+.kanban.crm .machine { gap: 4px; }
 .kanban.crm .machine[draggable="false"] { cursor: default; }
-.crm-note { margin: 6px 0 0; font-size: 12.5px; color: var(--texte-2); white-space: pre-line;
+.crm-contact { font-size: 12.5px; color: var(--texte-2); overflow-wrap: anywhere; }
+.crm-contact a { color: inherit; text-decoration: underline; text-decoration-color: var(--bord-fort); text-underline-offset: 2px; }
+.crm-note { margin: 2px 0 0; font-size: 12.5px; color: var(--texte-3); white-space: pre-line;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.crm-ajout { margin-bottom: 16px; }
-.crm-ajout summary { cursor: pointer; font-weight: 650; display: flex; align-items: center; gap: 8px; }
-.crm-ajout form { margin-top: 12px; }
-.crm-champs { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 10px; }
+.crm-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--bord); }
+.kanban.crm .machine .haut .depuis { flex: none; font-size: 11px; color: var(--texte-3); }
+.crm-fleche {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; cursor: pointer;
+  border: 1px solid var(--bord); border-radius: var(--r-s); background: none; color: var(--texte-2);
+}
+.crm-fleche:hover:not(:disabled) { border-color: var(--bord-fort); color: var(--texte); }
+.crm-fleche:disabled { opacity: .3; cursor: default; }
+.kanban.crm .crm-pied details { margin: 0 auto 0 -8px; }
+.kanban.crm .crm-pied summary { list-style: none; padding: 4px 8px; border-radius: var(--r-s); font-size: 12px; }
+.kanban.crm .crm-pied summary::-webkit-details-marker { display: none; }
+.kanban.crm .crm-pied summary:hover { background: var(--surface-3); }
+.kanban.crm .crm-pied details[open] { flex-basis: 100%; order: 9; margin: 4px 0 0; }
 .kanban .machine details { margin-top: 2px; }
 .kanban .vide { padding: 14px 0; text-align: center; border: 1px dashed var(--bord); border-radius: var(--r-m); font-style: normal; }
 .kanban .colonne[data-survol] .vide { border-color: var(--rouge); color: var(--texte-2); }
