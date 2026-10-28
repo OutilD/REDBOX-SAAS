@@ -229,6 +229,7 @@ export async function entete(compte_id: number, p: Periode,
     SELECT
       (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE})          AS bornes,
       (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
+         AND b.jeton IS NOT NULL
          AND b.vue_le > now() - interval '15 minutes')                              AS en_ligne,
       (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
          AND b.jeton IS NULL)                                                       AS jamais_appairees,
@@ -261,7 +262,7 @@ export async function entete(compte_id: number, p: Periode,
         WHERE b.compte_id = $1 ${PORTEE}
           AND c.produit_id IS NOT NULL AND c.quantite = 0)                          AS canaux_vides,
       (SELECT COUNT(*)::int FROM borne b WHERE b.compte_id = $1 ${PORTEE}
-         AND b.vue_le > now() - interval '15 minutes'
+         AND b.jeton IS NOT NULL AND b.vue_le > now() - interval '15 minutes'
          AND b.sante->>'paiement' = 'indisponible')                                  AS terminal_panne
   `, [compte_id, p.debut, p.fin, bornes]))!;
 }
