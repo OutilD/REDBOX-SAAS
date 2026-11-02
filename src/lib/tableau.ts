@@ -387,45 +387,26 @@ export async function parProduit(compte_id: number, p: Periode,
      ORDER BY ca DESC, n DESC`, [compte_id, p.debut, p.fin, bornes]);
 }
 
-export type Autonomie = {
-  id: number; nom: string; sku: string; categorie: string;
-  stock: number; vendus: number; par_jour: number; jours_restants: number | null;
-};
+export type Dormant = { id: number; nom: string; categorie: string; stock: number };
 
 /**
- * Combien de jours avant que les RedBox n'en aient plus.
- *
- * C'est le chiffre qui decide quand remplir. Un stock de 8 ne veut rien dire
- * seul : huit unites, c'est trois semaines pour un briquet et deux jours pour une
- * Puff. On divise donc ce que portent les RedBox, et ce qui est en route vers
- * elles, par la cadence constatee sur la periode.
- *
- * Un produit qui ne s'est pas vendu du tout n'a pas d'autonomie calculable — on
- * renvoie null plutot qu'un infini deguise en « tout va bien ».
+ * Ce que portent les RedBox et qui ne s'est pas vendu du tout sur la periode. Le
+ * reste du stock se lit par spire : voir `autonomie.ts`.
  */
-export async function autonomie(compte_id: number, p: Periode): Promise<Autonomie[]> {
-  return q<Autonomie>(`
-    WITH vendu AS (
-      SELECT v.produit_id, COUNT(*)::int n
-        FROM vente v JOIN borne b ON b.id = v.borne_id
-       WHERE b.compte_id = $1 AND v.statut = 'distribue' AND ${DANS}
-       GROUP BY v.produit_id)
-    SELECT p.id, p.nom, p.sku, COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           COALESCE((SELECT SUM(c.quantite)::int FROM canal c WHERE c.produit_id = p.id), 0)
-             + COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r WHERE r.produit_id = p.id), 0)
-             AS stock,
-           COALESCE(vendu.n, 0) AS vendus,
-           ROUND(COALESCE(vendu.n, 0)::numeric / ${DUREE_J}, 2) AS par_jour,
-           CASE WHEN COALESCE(vendu.n, 0) = 0 THEN NULL
-                ELSE FLOOR(
-                  (COALESCE((SELECT SUM(c.quantite)::int FROM canal c WHERE c.produit_id = p.id), 0)
-                 + COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r WHERE r.produit_id = p.id), 0))
-                  / (vendu.n::numeric / ${DUREE_J})) END AS jours_restants
-      FROM produit p
-      LEFT JOIN categorie cat ON cat.id = p.categorie_id
-      LEFT JOIN vendu ON vendu.produit_id = p.id
-     WHERE p.compte_id = $1 AND p.actif
-     ORDER BY jours_restants ASC NULLS LAST, stock ASC`, [compte_id, p.debut, p.fin]);
+export async function dormants(compte_id: number, p: Periode): Promise<Dormant[]> {
+  return q<Dormant>(`
+    SELECT * FROM (
+      SELECT pr.id, pr.nom, COALESCE(cat.nom, 'sans catégorie') AS categorie,
+             COALESCE((SELECT SUM(c.quantite)::int FROM canal c WHERE c.produit_id = pr.id), 0)
+               + COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r WHERE r.produit_id = pr.id), 0)
+               AS stock
+        FROM produit pr
+        LEFT JOIN categorie cat ON cat.id = pr.categorie_id
+       WHERE pr.compte_id = $1 AND pr.actif
+         AND NOT EXISTS (
+           SELECT 1 FROM vente v
+            WHERE v.produit_id = pr.id AND v.statut = 'distribue' AND ${DANS})
+    ) d WHERE d.stock > 0 ORDER BY d.stock DESC`, [compte_id, p.debut, p.fin]);
 }
 
 export type PointCategorie = {

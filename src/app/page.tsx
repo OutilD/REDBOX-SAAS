@@ -13,7 +13,8 @@ import { moisEnCours, objectifDe } from "@/lib/objectif";
 import { peutConfigurer } from "@/lib/auth";
 import { Suspense } from "react";
 import { SqBloc, SqLigne, Squelette } from "./squelette";
-import { autonomie, avancement, comparaison, entete, FENETRES, periodeDe, serie,
+import { SEUIL_J, spiresARisque } from "@/lib/autonomie";
+import { avancement, comparaison, entete, FENETRES, periodeDe, serie,
          type Avancement, type Point } from "@/lib/tableau";
 import { adresse, Delta } from "./analyses";
 
@@ -116,12 +117,12 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   portee: number[] | null; choisie: { id: number; nom: string } | null; sienDuCompte: boolean;
   lien: (chg?: { f?: string }) => string; versAnalytiques: string;
 }) {
-  const [avance, tete, avant, points, stocks, objectif, mois] = await Promise.all([
+  const [avance, tete, avant, points, risques, objectif, mois] = await Promise.all([
     sienDuCompte ? avancement(u.compte_id, u.id) : null,
     entete(u.compte_id, p, portee),
     comparaison(u.compte_id, p, portee),
     serie(u.compte_id, p, portee),
-    sienDuCompte ? autonomie(u.compte_id, p) : [],
+    sienDuCompte ? spiresARisque(u.compte_id, portee) : [],
     objectifDe(u.compte_id, choisie?.id ?? null),
     moisEnCours(u.compte_id, portee),
   ]);
@@ -138,8 +139,7 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   const panier = tete.commandes ? Math.round(tete.ca / tete.commandes) : 0;
   const panierAvant = avant.commandes ? Math.round(avant.ca / avant.commandes) : 0;
 
-  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 7);
-  const urgences = risques.filter((s) => (s.jours_restants ?? 99) <= 3);
+  const urgences = risques.filter((s) => s.jours_restants! <= SEUIL_J);
   const aRemplir = risques.length - urgences.length;
   const muettes = Math.max(0, tete.bornes - tete.en_ligne - tete.jamais_appairees);
 
@@ -168,8 +168,8 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
     },
     urgences.length > 0 && {
       cle: "rupture", niveau: "grave" as const, n: urgences.length,
-      quoi: `référence${urgences.length > 1 ? "s" : ""} en rupture sous trois jours`,
-      pourquoi: "un canal vide ne vend rien, et le client va voir ailleurs",
+      quoi: `spirale${urgences.length > 1 ? "s" : ""} en rupture sous trois jours`,
+      pourquoi: "une spirale vide ne vend rien, et le client va voir ailleurs",
       vers: "/charger", faire: "Remplir",
     },
     muettes > 0 && {
@@ -184,12 +184,12 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
       pourquoi: "de la place qui ne rapporte rien tant qu’elle reste vide",
       vers: "/charger", faire: "Remplir",
     },
-    // Le detail — l'autonomie de chaque produit — est sur la page des
+    // Le detail — l'autonomie de chaque spire — est sur la page des
     // analytiques ; ici on ne dit que le nombre, et ou aller.
     aRemplir > 0 && {
       cle: "remplir", niveau: "doux" as const, n: aRemplir,
-      quoi: `référence${aRemplir > 1 ? "s" : ""} à remplir cette semaine`,
-      pourquoi: "au rythme de vente de la période, le stock des RedBox ne tiendra pas",
+      quoi: `spirale${aRemplir > 1 ? "s" : ""} à remplir cette semaine`,
+      pourquoi: "au rythme des quatorze derniers jours, elles seront vides d’ici là",
       vers: `${versAnalytiques}#manque`, faire: "Voir",
     },
     tete.jamais_appairees > 0 && {

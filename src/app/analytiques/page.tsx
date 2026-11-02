@@ -8,7 +8,8 @@ import { utilisateur, type Utilisateur } from "@/lib/auth";
 import { filtreRetenu } from "@/lib/filtre";
 import { Suspense } from "react";
 import { SqBloc, Squelette } from "../squelette";
-import { autonomie, categoriesDansLeTemps, FENETRES, parBorne, parProduit, periodeDe,
+import { spiresARisque } from "@/lib/autonomie";
+import { categoriesDansLeTemps, dormants as dormantsDe, FENETRES, parBorne, parProduit, periodeDe,
          pasDe, pasCategories, NOM_PAS, serie, DEFAUT } from "@/lib/tableau";
 import { Repli } from "../repli";
 import { adresse, Classement, FicheRisque, SerieTemps } from "../analyses";
@@ -135,18 +136,17 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
   portee: number[] | null; choisie: { id: number; nom: string } | null; sienDuCompte: boolean; graphe: boolean;
   lien: (chg: { f?: string; vue?: string }) => string;
 }) {
-  const [points, bornes, categories, stocks, produits] = await Promise.all([
+  const [points, bornes, categories, risques, dormants, produits] = await Promise.all([
     serie(u.compte_id, p, portee),
     parBorne(u.compte_id, p, portee),
     categoriesDansLeTemps(u.compte_id, p, portee),
-    sienDuCompte ? autonomie(u.compte_id, p) : [],
+    sienDuCompte ? spiresARisque(u.compte_id, portee) : [],
+    sienDuCompte ? dormantsDe(u.compte_id, p) : [],
     parProduit(u.compte_id, p, portee),
   ]);
 
   const ventes = points.reduce((s, d) => s + d.n, 0);
   const classees = [...categories.series].sort((a, b) => b.total - a.total);
-  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 7);
-  const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
 
   return (
     <>
@@ -279,16 +279,16 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
         </div>
         {risques.length === 0 ? (
           <Repli icone={<IcoStock />} titre="Rien ne manquera d’ici une semaine"
-                 texte="Au rythme de vente constaté sur la période, tous vos produits tiennent."
+                 texte="Au rythme des quatorze derniers jours, toutes vos spirales garnies tiennent."
                  dedans />
         ) : (
           <>
             <div className="risque viz">
-              {risques.map((s) => <FicheRisque key={s.id} s={s} />)}
+              {risques.map((s) => <FicheRisque key={`${s.borne_id}-${s.lane}`} s={s} />)}
             </div>
             <p className="faible" style={{ fontSize: 13, marginTop: 12 }}>
-              L’autonomie divise le stock des RedBox, en route compris, par la cadence
-              de vente de la période.
+              L’autonomie divise ce que porte chaque spirale, en route compris, par ses ventes
+              des quatorze derniers jours.
             </p>
           </>
         )}

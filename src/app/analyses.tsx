@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { euros, depuis, enLigne } from "@/db";
+import { codeCanal, euros, depuis, enLigne } from "@/db";
 import { IcoAlerte, IcoHorloge, IcoPente } from "./icones";
-import { DEFAUT, type Autonomie, type ParBorne, type Pas, type Periode,
+import type { AutonomieCanal } from "@/lib/autonomie";
+import { DEFAUT, type ParBorne, type Pas, type Periode,
          type Point } from "@/lib/tableau";
 
 /**
@@ -275,7 +276,7 @@ export function Classement({ bornes }: { bornes: ParBorne[] }) {
 }
 
 /**
- * Une reference en risque de rupture.
+ * Une spire en risque de rupture.
  *
  * Trois choses en un coup d'oeil : dans combien de jours, ou en est le stock sur
  * une piste COMMUNE d'une semaine — deux barres ne se comparent que si elles
@@ -283,7 +284,7 @@ export function Classement({ bornes }: { bornes: ParBorne[] }) {
  *
  * La couleur ne porte jamais seule : chaque etat porte son icone et son mot.
  */
-export function FicheRisque({ s }: { s: Autonomie }) {
+export function FicheRisque({ s }: { s: AutonomieCanal }) {
   const jours = s.jours_restants ?? 0;
   const etat = jours <= 3 ? { cle: "critique", mot: "rupture imminente", couleur: "var(--critique)" }
              :              { cle: "serieux",  mot: "à remplir",         couleur: "var(--serieux)" };
@@ -293,7 +294,9 @@ export function FicheRisque({ s }: { s: Autonomie }) {
       <div className="haut">
         <div style={{ minWidth: 0 }}>
           <div className="nom">{s.nom}</div>
-          <div className="cat">{s.categorie} · {s.par_jour} par jour · {s.stock} dans les RedBox</div>
+          <div className="cat">
+            {s.borne} · canal {codeCanal(s.rangee, s.colonne)} · {s.par_jour} par jour · {s.quantite + s.en_route} dans la spirale
+          </div>
         </div>
         <div className="jours">
           <b style={{ color: etat.couleur }}>{jours}</b>
@@ -309,7 +312,7 @@ export function FicheRisque({ s }: { s: Autonomie }) {
         <span className="etat" style={{ color: etat.couleur }}>
           {jours <= 3 ? <IcoAlerte /> : <IcoHorloge />}{etat.mot}
         </span>
-        <Link href="/charger" className="commander lien-commander">remplir</Link>
+        <Link href={`/bornes/${s.borne_id}/charger`} className="commander lien-commander">remplir</Link>
       </div>
     </div>
   );

@@ -203,10 +203,10 @@ Le croisement **catégorie × borne** est en barres empilées, une couleur par b
 la même d’une catégorie à l’autre — c’est ce qui permet de suivre une machine sans
 relire la légende à chaque bloc.
 
-**L’autonomie** divise le stock des RedBox, en route compris, par la
-cadence de vente constatée. C’est le chiffre qui décide quand remplir : huit
+**L’autonomie** divise ce que porte chaque spirale, en route compris, par ses
+ventes des quatorze derniers jours. C’est le chiffre qui décide quand remplir : huit
 unités, c’est trois semaines pour un briquet et deux jours pour une Puff, le stock
-seul ne dit rien. Un produit qui ne s’est pas vendu n’a pas d’autonomie calculable
+seul ne dit rien. Une spirale qui n’a rien vendu n’a pas d’autonomie calculable
 — on affiche `null`, jamais un infini déguisé en « tout va bien ».
 
 Aucune bibliothèque de graphes : quelques `div`, et la page s’ouvre

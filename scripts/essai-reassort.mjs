@@ -92,6 +92,28 @@ await etat({ ventes: [{ commande_id: "ESSAI-" + jeton.slice(-8), article: 0, lan
                         faite_le: new Date().toISOString().slice(0, 19).replace("T", " ") }] });
 assert.equal(await canal(), 7, "la vente decompte le canal");
 
+// ------------------------------------- toutes les alertes de rupture disent pareil
+// Une seule spire presse, au rythme d'une vente par jour, et le reste du parc n'y change rien.
+await c.query(`UPDATE vente SET faite_le = faite_le - interval '60 days'
+                WHERE borne_id IN (SELECT id FROM borne WHERE compte_id = $1)`, [moi.compte_id]);
+await etat({ ventes: Array.from({ length: 14 }, (_, i) => ({
+  commande_id: `RYTHME-${jeton.slice(-8)}-${i}`, article: 0, lane, sku, prix_centimes: 500, statut: "distribue",
+  faite_le: new Date(Date.now() - i * 86400000).toISOString().slice(0, 19).replace("T", " ") })) });
+await c.query("UPDATE canal SET quantite = 2, capacite = 10 WHERE borne_id = $1 AND lane = $2", [borne.id, lane]);
+const pages = async () => Promise.all(["/", "/analytiques", "/reassort"].map(async (p) => (await lire(p)).text()));
+let [tableau, analytiques, tournee] = await pages();
+assert.ok(tableau.includes("spirale en rupture sous trois jours"), "tableau de bord : une spirale presse");
+assert.ok(analytiques.includes("rupture imminente"), "analytiques : la spirale presse");
+assert.ok(analytiques.includes(`/bornes/${borne.id}/charger`), "analytiques : remplir mene a la machine");
+assert.match(tournee, /1(<!-- -->)? en rupture sous/, "tournee : une spirale presse");
+
+// Ce qui est en route la met hors de danger, partout en meme temps.
+await poster(`/api/bornes/${borne.id}/charger`, { [`q_${lane}`]: "8" });
+[tableau, analytiques, tournee] = await pages();
+assert.ok(!tableau.includes("en rupture sous trois jours"), "tableau de bord : le reassort en route compte");
+assert.ok(!analytiques.includes("rupture imminente"), "analytiques : le reassort en route compte");
+assert.doesNotMatch(tournee, /en rupture sous/, "tournee : le reassort en route compte");
+
 await c.query("DELETE FROM session WHERE jeton = $1", [jeton]);
 await c.end();
-console.log("ok : reassort sans reserve, confirmation machine, retrait et vente.");
+console.log("ok : reassort sans reserve, confirmation machine, retrait, vente et alertes de rupture.");
