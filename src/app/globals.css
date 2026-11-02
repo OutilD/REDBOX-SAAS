@@ -2349,8 +2349,8 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 }
 
 /* Un visuel hors periode reste lisible mais recule : il existe, il ne passe pas. */
-.carte.visuel.dormant .vignette img,
-.carte.visuel.dormant .vignette video { filter: grayscale(1); opacity: .55; }
+.carte.playlist.dormant .vignette img,
+.carte.playlist.dormant .vignette video { filter: grayscale(1); opacity: .55; }
 
 @media (max-width: 520px) {
   .vignette { width: 96px; height: 56px; }

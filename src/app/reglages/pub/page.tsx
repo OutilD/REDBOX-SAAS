@@ -300,7 +300,7 @@ export default async function Pub({
         ) : (
           <form method="post" action="/api/pub">
             {listes.map((l) => (
-              <div className={`carte visuel${l.diffuse ? "" : " dormant"}`} key={l.id}>
+              <div className={`carte playlist${l.diffuse ? "" : " dormant"}`} key={l.id}>
                 <div className="tete-playlist">
                   <Apercu medias={l.medias} />
                   <div className="quoi">
