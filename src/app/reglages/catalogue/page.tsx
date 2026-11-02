@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 type P = {
   id: number; sku: string; nom: string;
   categorie_id: number | null; categorie: string;
-  prix_vente_c: number; age_min: number; prix_achat_c: number | null;
+  prix_vente_c: number; age_min: number;
   description: string | null; mention: string | null; fiche_visible: boolean;
   canaux: number; actif: boolean; ordre: number; bouge: number; image: number | null; icone: string | null;
   /** Sur combien de bornes ce prix est-il remplace par un tarif local. */
@@ -43,7 +43,6 @@ export default async function Catalogue({
              p.actif, p.ordre, p.image_id AS image, p.icone,
              p.description, p.mention, p.fiche_visible,
              COALESCE(cat.nom, 'sans catégorie') AS categorie,
-             (SELECT a.prix_achat_c FROM v_prix_achat a WHERE a.produit_id = p.id) AS prix_achat_c,
              (SELECT COUNT(*)::int FROM canal c WHERE c.produit_id = p.id)         AS canaux,
              -- CE PRIX EST-IL SUIVI PARTOUT ? Depuis qu'une borne peut poser le
              -- sien, changer un montant ici ne suffit plus a changer ce que
@@ -138,7 +137,7 @@ export default async function Catalogue({
           Le produit a bien été créé, mais il n’est posé nulle part.
         </p> : null}
         {e === "vecu" ? <p className="erreur">
-          Ce produit a déjà bougé — réceptions, transferts ou ventes. Il ne peut pas
+          Ce produit a déjà bougé — réassorts ou ventes. Il ne peut pas
           être supprimé sans trouer le grand livre du stock. Suspendez-le : il
           disparaît des RedBox et garde son histoire.
         </p> : null}

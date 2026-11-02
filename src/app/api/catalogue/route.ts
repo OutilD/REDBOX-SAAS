@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   // ── Supprimer un produit, quand c'est encore possible ─────────────────────
   //
-  // Des qu'un produit a bouge — une reception, un transfert, une vente — le
+  // Des qu'un produit a bouge — un transfert, une vente — le
   // supprimer trouerait le grand livre, qui est la seule verite du stock. La
   // base l'interdit d'ailleurs (mouvement.produit_id est en RESTRICT). On le dit
   // ici plutot que de laisser remonter une erreur Postgres incomprehensible, et

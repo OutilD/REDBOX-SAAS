@@ -8,7 +8,6 @@ import { signaler, type Evenement } from "./notifications";
 import { apres } from "./apres";
 import { slug } from "./salons";
 import { laneDe } from "./machine";
-import { reserveDe } from "./stock";
 import { A_REGARDER } from "./ventes";
 
 /**
@@ -18,7 +17,7 @@ import { A_REGARDER } from "./ventes";
  * rien : pas de borne, pas de vente, un tableau de bord a zero partout, et rien
  * a toucher pour comprendre ce que l'outil fait. Le compte s'ouvre donc sur un
  * parc INVENTE — trois bornes, onze produits, trois semaines de ventes, une
- * reserve, une equipe — que l'on manipule comme s'il etait vrai.
+ * une equipe — que l'on manipule comme s'il etait vrai.
  *
  * Trois regles le gouvernent :
  *
@@ -79,8 +78,7 @@ const PAUSE_S = 45;
  *
  * Le super-admin designe un compte modele (/admin/vitrine, `compte.catalogue_modele`) :
  * la demo de chaque inscription et la vitrine en reprennent les categories, les
- * produits — noms, prix, ages, descriptions, mentions, photos —, les prix
- * d'achat de ses dernieres receptions et le planogramme de sa RedBox la mieux
+ * produits — noms, prix, ages, descriptions, mentions, photos — et le planogramme de sa RedBox la mieux
  * garnie. Un prospect voit ce qu'on vend vraiment.
  *
  * LES PHOTOS NE SONT PAS COPIEES : les produits de la demo pointent vers celles
@@ -105,7 +103,7 @@ const CATEGORIES: Categorie[] = [
 
 export type Produit = {
   sku: string; nom: string; cat: string; prix: number; age: number;
-  achat: number; achete: number; icone: string | null;
+  icone: string | null;
   description?: string | null; mention?: string | null;
   image_id?: number | null;
 };
@@ -113,44 +111,30 @@ export type Produit = {
 const MENTION_VAPE = "Produit contenant de la nicotine, substance qui crée une forte dépendance. "
                    + "Vente interdite aux mineurs.";
 
-/** sku, nom, categorie, prix de vente, age, prix d'achat, quantite achetee.
- *  Les quantites varient : on n'achete pas autant de powerbanks a neuf euros
- *  piece que de lingettes a quatre-vingt-dix centimes. Sans cette difference,
- *  tous les produits ont la meme autonomie et le tableau de bord n'a rien a dire. */
+/** sku, nom, categorie, prix de vente, age. */
 const PRODUITS: Produit[] = [
-  { sku: "VAPE-MEN",  nom: "Puff 600 · Menthe",        cat: "Vapes",       prix: 1290, age: 18, achat: 410,  achete: 180, icone: "vape",
+  { sku: "VAPE-MEN",  nom: "Puff 600 · Menthe",        cat: "Vapes",       prix: 1290, age: 18, icone: "vape",
     description: "600 bouffées, 2 % de nicotine. Menthe glaciale, sans amertume.", mention: MENTION_VAPE },
-  { sku: "VAPE-FRU",  nom: "Puff 600 · Fruits rouges", cat: "Vapes",       prix: 1290, age: 18, achat: 410,  achete: 180, icone: "vape",
+  { sku: "VAPE-FRU",  nom: "Puff 600 · Fruits rouges", cat: "Vapes",       prix: 1290, age: 18, icone: "vape",
     description: "600 bouffées, 2 % de nicotine. Fraise, framboise, cassis.", mention: MENTION_VAPE },
-  { sku: "VAPE-PAS",  nom: "Puff 600 · Pastèque",      cat: "Vapes",       prix: 1290, age: 18, achat: 410,  achete: 120, icone: "vape",
+  { sku: "VAPE-PAS",  nom: "Puff 600 · Pastèque",      cat: "Vapes",       prix: 1290, age: 18, icone: "vape",
     description: "600 bouffées, 2 % de nicotine. Pastèque fraîche.", mention: MENTION_VAPE },
-  { sku: "VAPE-MAN",  nom: "Puff 1500 · Mangue",       cat: "Vapes",       prix: 1890, age: 18, achat: 620,  achete: 70,  icone: "vape",
+  { sku: "VAPE-MAN",  nom: "Puff 1500 · Mangue",       cat: "Vapes",       prix: 1890, age: 18, icone: "vape",
     description: "1500 bouffées, 2 % de nicotine. Mangue mûre, légèrement glacée.", mention: MENTION_VAPE },
-  { sku: "POP-15",    nom: "Poppers 15 ml",            cat: "Poppers",     prix: 1490, age: 18, achat: 480,  achete: 80,  icone: "popper",
+  { sku: "POP-15",    nom: "Poppers 15 ml",            cat: "Poppers",     prix: 1490, age: 18, icone: "popper",
     description: "Formule pentyle, flacon 15 ml.", mention: "Ne pas inhaler directement au flacon. Tenir hors de portée des enfants." },
-  { sku: "PWR-5000",  nom: "Powerbank 5000 mAh",       cat: "Batteries",   prix: 2490, age: 0,  achat: 890,  achete: 40,  icone: "batterie",
+  { sku: "PWR-5000",  nom: "Powerbank 5000 mAh",       cat: "Batteries",   prix: 2490, age: 0,  icone: "batterie",
     description: "Recharge un téléphone une fois. Câble USB-C fourni." },
-  { sku: "PWR-10000", nom: "Powerbank 10000 mAh",      cat: "Batteries",   prix: 3490, age: 0,  achat: 1290, achete: 18,  icone: "batterie",
+  { sku: "PWR-10000", nom: "Powerbank 10000 mAh",      cat: "Batteries",   prix: 3490, age: 0,  icone: "batterie",
     description: "Deux recharges complètes. Deux sorties, câble USB-C fourni." },
-  { sku: "HYG-PRE",   nom: "Préservatifs x3",          cat: "Hygiène",     prix: 690,  age: 0,  achat: 150,  achete: 120, icone: "hygiene",
+  { sku: "HYG-PRE",   nom: "Préservatifs x3",          cat: "Hygiène",     prix: 690,  age: 0,  icone: "hygiene",
     description: "Trois préservatifs lubrifiés, taille standard. Marquage CE." },
-  { sku: "HYG-LIN",   nom: "Lingettes x10",            cat: "Hygiène",     prix: 390,  age: 0,  achat: 90,   achete: 80,  icone: "hygiene" },
-  { sku: "BRQ-TEMP",  nom: "Briquet tempête",          cat: "Briquets",    prix: 490,  age: 0,  achat: 120,  achete: 60,  icone: "briquet",
+  { sku: "HYG-LIN",   nom: "Lingettes x10",            cat: "Hygiène",     prix: 390,  age: 0,  icone: "hygiene" },
+  { sku: "BRQ-TEMP",  nom: "Briquet tempête",          cat: "Briquets",    prix: 490,  age: 0,  icone: "briquet",
     description: "Flamme torche, rechargeable." },
-  { sku: "ACC-USBC",  nom: "Câble USB-C 1 m",          cat: "Accessoires", prix: 990,  age: 0,  achat: 260,  achete: 56,  icone: "cable",
+  { sku: "ACC-USBC",  nom: "Câble USB-C 1 m",          cat: "Accessoires", prix: 990,  age: 0,  icone: "cable",
     description: "USB-C vers USB-C, 60 W, tressé." },
 ];
-
-/**
- * La seconde livraison, une semaine avant aujourd'hui : on rachete ce qui part —
- * les quatre produits qui tiennent le plus de place dans les machines.
- */
-function relivraisonDe(cat: Catalogue): Record<string, number> {
-  const place = new Map<string, number>();
-  for (const x of cat.plan) place.set(x.sku, (place.get(x.sku) ?? 0) + x.capacite);
-  return Object.fromEntries([...place.entries()].sort((a, z) => z[1] - a[1]).slice(0, 4)
-    .map(([sku, n]) => [sku, Math.ceil((n * 6) / 10) * 10]));
-}
 
 /**
  * Le planogramme, sur les dix spires que porte une RedBox — cinq rangees de
@@ -158,8 +142,8 @@ function relivraisonDe(cat: Catalogue): Record<string, number> {
  * deploie la meme selection. La Puff Menthe, qui part le plus vite, occupe
  * DEUX spires : la machine n'en montre qu'une carte et sert la premiere non
  * vide — c'est ce qu'on veut faire voir. La powerbank 10000 et le cable
- * restent en reserve, sans spire : il y a toujours un produit qu'on a achete
- * et pas encore place.
+ * restent sans spire : il y a toujours un produit au catalogue qu'on n'a pas
+ * encore place.
  */
 const PLAN: Spire[] = [
   { rangee: 1, colonne: 1, sku: "VAPE-MEN", capacite: 10 },
@@ -183,10 +167,7 @@ const GRILLE = Array.from({ length: 10 }, (_, i) => ({ rangee: Math.floor(i / 2)
  * LE CATALOGUE DU COMPTE MODELE, pret a semer. Ses produits actifs et les
  * categories qui en portent ; le planogramme de sa borne la mieux garnie
  * (les spires vides en sont retirees : une demo ne montre pas une spire
- * abandonnee) ; le prix d'achat de la derniere reception, ou un tiers du prix
- * de vente. Ce qu'on « achete » a l'ouverture : huit pleins de chaque spire —
- * trois machines, une tournee par semaine ; a trois pleins, la moitie des
- * spires etaient vides des la deuxieme semaine.
+ * abandonnee).
  */
 export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
   const lire = async <T extends QueryResultRow>(sql: string, p: unknown[]): Promise<T[]> =>
@@ -196,12 +177,9 @@ export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
 
   const [produits, categories, plan] = await Promise.all([
     lire<{ sku: string; nom: string; cat: string; prix: number; age: number; icone: string | null;
-           description: string | null; mention: string | null; image_id: number | null; achat: number | null }>(`
+           description: string | null; mention: string | null; image_id: number | null }>(`
       SELECT p.sku, p.nom, k.nom AS cat, p.prix_vente_c AS prix, p.age_min AS age, p.icone,
-             p.description, p.mention, p.image_id,
-             (SELECT m.prix_achat_c FROM mouvement m
-               WHERE m.produit_id = p.id AND m.motif = 'reception' AND m.prix_achat_c IS NOT NULL
-               ORDER BY m.fait_le DESC LIMIT 1) AS achat
+             p.description, p.mention, p.image_id
         FROM produit p JOIN categorie k ON k.id = p.categorie_id
        WHERE p.compte_id = $1 AND p.actif
        ORDER BY k.ordre, p.ordre, p.id`, [k.id]),
@@ -229,8 +207,6 @@ export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
   const spires: Spire[] = tenues.length > 0
     ? tenues.map((x) => ({ rangee: Number(x.rangee), colonne: Number(x.colonne), sku: x.sku, capacite: Number(x.capacite) }))
     : produits.slice(0, GRILLE.length).map((p, i) => ({ ...GRILLE[i], sku: p.sku, capacite: 10 }));
-  const place = new Map<string, number>();
-  for (const x of spires) place.set(x.sku, (place.get(x.sku) ?? 0) + x.capacite);
 
   return {
     modele: Number(k.id),
@@ -240,8 +216,6 @@ export async function catalogueModele(c?: PgClient): Promise<Catalogue> {
       sku: p.sku, nom: p.nom, cat: p.cat, prix: Number(p.prix), age: Number(p.age), icone: p.icone,
       description: p.description, mention: p.mention,
       image_id: p.image_id === null ? null : Number(p.image_id),
-      achat: p.achat !== null ? Number(p.achat) : Math.round(Number(p.prix) / 3),
-      achete: Math.max(10, Math.ceil(((place.get(p.sku) ?? 2) * 8) / 10) * 10),
     })),
     plan: spires,
   };
@@ -533,20 +507,17 @@ export async function insererVentes(c: PgClient, compte_id: number, ventes: Vent
 /**
  * REMPLIT UN COMPTE VIERGE.
  *
- * A appeler dans la transaction qui cree le compte, ou apres `viderDemo`. Le
- * compte doit avoir sa reserve — `reserveDe` la cree au besoin — et rien
- * d'autre : on ne verifie pas, on ajoute.
+ * A appeler dans la transaction qui cree le compte, ou apres `viderDemo` : on
+ * ne verifie pas, on ajoute.
  *
  * `par` est l'adresse de la personne qui ouvre le compte : c'est elle qu'on
- * inscrit sur les receptions et les traitements, pour que « charge par » et
- * « traite par » disent un nom qu'elle reconnait.
+ * inscrit sur les traitements, pour que « traite par » disent un nom qu'elle reconnait.
  */
 export async function semerDemo(c: PgClient, compte_id: number, par: string): Promise<void> {
   const tir = graine(compte_id);
-  const reserve = await reserveDe(compte_id, c);
   const cat = await catalogueModele(c);
   const pid = await semerCatalogue(c, compte_id, cat);
-  await semerHistoire(c, compte_id, par, tir, reserve, pid, cat);
+  await semerHistoire(c, compte_id, par, tir, pid, cat);
 }
 
 /**
@@ -678,29 +649,11 @@ export async function semerBornes(c: PgClient, compte_id: number, machines: Mach
 
 /** Trois semaines d'exploitation inventees sur le catalogue tout juste seme. */
 async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: () => number,
-                             reserve: number, pid: Map<string, number>, cat: Catalogue): Promise<void> {
+                             pid: Map<string, number>, cat: Catalogue): Promise<void> {
   const PRODUITS = cat.produits;
   const PLAN = cat.plan;
-  const RELIVRAISON = relivraisonDe(cat);
   const prix = new Map(PRODUITS.map((p) => [p.sku, p.prix]));
   const age = new Map(PRODUITS.map((p) => [p.sku, p.age]));
-  const achat = new Map(PRODUITS.map((p) => [p.sku, p.achat]));
-
-  // Deux livraisons : la premiere il y a trois semaines, la seconde la
-  // semaine derniere, ou l'on a rachete ce qui partait.
-  const receptions = [
-    ...PRODUITS.map((p) => ({ sku: p.sku, n: p.achete, ref: "BL-2026-0114", quand: instant(JOURS, 10, 15) })),
-    ...Object.entries(RELIVRAISON).map(([sku, n]) => ({ sku, n, ref: "BL-2026-0131", quand: instant(7, 8, 40) })),
-  ];
-  await c.query(`
-    INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite, motif,
-                           prix_achat_c, reference, par, fait_le, confirme_le)
-    SELECT $1, r.produit, $2, r.n, 'reception', r.achat, r.ref, $3, r.quand, r.quand
-      FROM unnest($4::bigint[], $5::int[], $6::int[], $7::text[], $8::timestamptz[])
-           AS r(produit, n, achat, ref, quand)`,
-    [compte_id, reserve, par,
-     receptions.map((r) => pid.get(r.sku)!), receptions.map((r) => r.n),
-     receptions.map((r) => achat.get(r.sku)!), receptions.map((r) => r.ref), receptions.map((r) => r.quand)]);
 
   // Une personne de plus dans l'equipe, et une invitation qui attend.
   const reassort = adresseReassort(compte_id);
@@ -734,11 +687,6 @@ async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: (
 
   // Trois semaines d'exploitation : des ventes tous les jours, une tournee
   // chaque semaine. Tout est accumule en memoire, puis insere en trois requetes.
-  //
-  // La reserve se suit ici aussi : on ne transfere pas ce qu'on n'a pas. C'est
-  // la regle du vrai systeme ; un jeu d'essai qui s'en affranchit produit des
-  // stocks negatifs et fait passer pour normal un etat impossible.
-  const enReserve = new Map(PRODUITS.map((p) => [p.sku, p.achete]));
   const transferts: { produit: number; quantite: number; lane: number; quand: Date; lieu: number }[] = [];
   const ventes: Vente[] = [];
   const journal: LigneJ[] = [];
@@ -753,10 +701,9 @@ async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: (
     const charger = (jours: number, premiere: boolean) => {
       for (const s of PLAN) {
         const lane = laneDe(s.rangee, s.colonne);
-        const manque = Math.min(s.capacite - (restant.get(lane) ?? 0), enReserve.get(s.sku)!);
+        const manque = s.capacite - (restant.get(lane) ?? 0);
         if (manque <= 0) continue;
         restant.set(lane, (restant.get(lane) ?? 0) + manque);
-        enReserve.set(s.sku, enReserve.get(s.sku)! - manque);
         transferts.push({ produit: pid.get(s.sku)!, quantite: manque, lane,
                           quand: instant(jours, premiere ? 11 : 9, 30), lieu: b.lieu });
       }
@@ -764,10 +711,8 @@ async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: (
     charger(JOURS, true);
 
     for (let j = JOURS - 1; j >= 0; j--) {
-      // La seconde livraison arrive avant la tournee de la semaine derniere.
       // La derniere tournee date de sept jours : les machines ont vendu depuis,
       // et la fiche de reassort a quelque chose a dire des l'ouverture.
-      if (j === 7) for (const [sku, n] of Object.entries(RELIVRAISON)) enReserve.set(sku, enReserve.get(sku)! + n);
       if (j % 7 === 0 && j > 0) charger(j, false);
       if (j <= b.fermeeDepuisJ) continue;                       // fermee pour travaux
 
@@ -813,8 +758,8 @@ async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: (
     }));
   }
 
-  // Les tournees, le transfert encore en route, et une casse en reserve — les
-  // mouvements qui ne sont pas des ventes, en une requete.
+  // Les tournees et le transfert encore en route — les mouvements qui ne sont
+  // pas des ventes, en une requete.
   //
   // Le transfert en route va sur la spire la moins pleine de la premiere
   // borne, et n'y met que ce qui tient : la borne fictive le confirmera dans
@@ -823,31 +768,23 @@ async function semerHistoire(c: PgClient, compte_id: number, par: string, tir: (
   // semaines de ventes — et il n'y a rien en route.
   const spire = [...placeDuplex.entries()].sort((a, z) => z[1] - a[1])[0];
   const skuSpire = PLAN.find((s) => laneDe(s.rangee, s.colonne) === spire?.[0])?.sku ?? PLAN[0].sku;
-  const enRoute = { produit: pid.get(skuSpire)!, quantite: Math.min(4, spire?.[1] ?? 0, enReserve.get(skuSpire) ?? 0),
+  const enRoute = { produit: pid.get(skuSpire)!, quantite: Math.min(4, spire?.[1] ?? 0),
                     lane: spire?.[0] ?? laneDe(PLAN[0].rangee, PLAN[0].colonne), quand: new Date(maintenant - 40 * 60e3), lieu: bornes[0].lieu };
   await c.query(`
-    INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+    INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite,
                            motif, lane, par, fait_le, confirme_le)
-    SELECT $1::bigint, t.produit, $2::bigint, t.lieu, t.quantite, 'transfert'::text, t.lane,
-           $3::text, t.quand, t.quand
-      FROM unnest($4::bigint[], $5::int[], $6::int[], $7::timestamptz[], $8::bigint[])
+    SELECT $1::bigint, t.produit, t.lieu, t.quantite, 'transfert'::text, t.lane,
+           $2::text, t.quand, t.quand
+      FROM unnest($3::bigint[], $4::int[], $5::int[], $6::timestamptz[], $7::bigint[])
            AS t(produit, quantite, lane, quand, lieu)
     UNION ALL
-    SELECT $1::bigint, $9::bigint, $2::bigint, $10::bigint, $11::int, 'transfert', $12::int,
-           $13::text, $14::timestamptz, NULL
-     WHERE $11::int > 0
-    UNION ALL
-    SELECT $1::bigint, $15::bigint, $2::bigint, NULL, 3, 'casse', NULL, $13::text, $16::timestamptz, NULL`,
-    [compte_id, reserve, reassort,
+    SELECT $1::bigint, $8::bigint, $9::bigint, $10::int, 'transfert', $11::int,
+           $12::text, $13::timestamptz, NULL
+     WHERE $10::int > 0`,
+    [compte_id, reassort,
      transferts.map((t) => t.produit), transferts.map((t) => t.quantite),
      transferts.map((t) => t.lane), transferts.map((t) => t.quand), transferts.map((t) => t.lieu),
-     enRoute.produit, enRoute.lieu, enRoute.quantite, enRoute.lane, par, enRoute.quand,
-     // La casse tombe sur le produit le moins cher : un carton ecrase de tampons, pas de vapes.
-     pid.get([...PRODUITS].sort((x, z) => x.prix - z.prix)[0].sku)!, instant(5, 14, 20)]);
-  // La casse porte sa raison.
-  await c.query(`
-    UPDATE mouvement SET note = 'Carton écrasé à la livraison'
-     WHERE compte_id = $1 AND motif = 'casse' AND note IS NULL`, [compte_id]);
+     enRoute.produit, enRoute.lieu, enRoute.quantite, enRoute.lane, par, enRoute.quand]);
 
   await insererVentes(c, compte_id, ventes, par);
   await ecrireJournal(c, journal);
@@ -943,7 +880,6 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
   const incident = [...cat.plan].sort((x, z) => prixSku(z.sku) - prixSku(x.sku))[0];
   const prixIncident = cat.produits.find((p) => p.sku === incident.sku)?.prix ?? 0;
   const spireIncident = codeCanal(incident.rangee, incident.colonne);
-  const horsMachine = cat.produits.find((p) => !cat.plan.some((x) => x.sku === p.sku)) ?? cat.produits[cat.produits.length - 1];
   const eur = (c: number) => (c / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
   const qui = (await c.query<{ id: number; email: string }>(
     "SELECT id, email FROM utilisateur WHERE email = ANY($1::text[])", [[par, reassort]])).rows;
@@ -973,8 +909,8 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
     { salon: general, qui: sami, quand: instant(6, 9, 15),
       texte: "Reçu. Je fais la tournée du Duplex et du Sous-Marin jeudi." },
     { salon: general, qui: sami, quand: instant(3, 18, 40),
-      texte: `Duplex rechargé. Il ne reste presque plus de « ${horsMachine.nom} » en réserve.` },
-    { salon: general, qui: moi, quand: instant(3, 18, 52), texte: "Je passe commande demain." },
+      texte: "Duplex rechargé, toutes les spires sont pleines." },
+    { salon: general, qui: moi, quand: instant(3, 18, 52), texte: "Parfait, merci." },
     { salon: general, qui: sami, quand: instant(1, 22, 5),
       texte: "Chez Marcel est fermé pour travaux jusqu’à lundi, j’ai mis la RedBox hors service depuis la console." },
   ];
@@ -1009,8 +945,7 @@ async function semerSalons(c: PgClient, compte_id: number, par: string, reassort
  * Tout ce qui se rattache au compte disparait : bornes, ventes, mouvements,
  * lieux, produits, categories, playlists, images. Restent le compte lui-meme,
  * les personnes qui y appartiennent — sauf celle qu'on avait inventee —, leurs
- * photos, et les invitations adressees a de vraies adresses. Une reserve neuve
- * est recreee : sans elle, la premiere reception n'aurait nulle part ou entrer.
+ * photos, et les invitations adressees a de vraies adresses.
  *
  * L'ordre suit les cles etrangeres : `mouvement` retient `produit`, `produit`
  * retient `categorie`. Tout tient dans une seule requete, en CTE — chacune
@@ -1040,7 +975,6 @@ export async function viderDemo(c: PgClient, compte_id: number): Promise<void> {
          u AS (DELETE FROM utilisateur   WHERE compte_id = $1 AND email = $3),
          s AS (UPDATE compte SET sav_tel = NULL, sav_texte = NULL WHERE id = $1 AND sav_tel = $4)
     SELECT 1`, [compte_id, adresseInvitee(compte_id), adresseReassort(compte_id), SAV_TEL]);
-  await c.query("INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve')", [compte_id]);
 }
 
 /**

@@ -137,13 +137,10 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
   // Par commande, pas par article : un panier de trois articles est un panier.
   const panier = tete.commandes ? Math.round(tete.ca / tete.commandes) : 0;
   const panierAvant = avant.commandes ? Math.round(avant.ca / avant.commandes) : 0;
-  // Le taux de marge se lit mieux que la marge seule : quinze pour cent sur un
-  // gros chiffre et quinze pour cent sur un petit se pilotent de la meme facon.
-  const taux = tete.ca_connu > 0 ? Math.round((tete.marge / tete.ca_connu) * 100) : null;
 
-  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
+  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 7);
   const urgences = risques.filter((s) => (s.jours_restants ?? 99) <= 3);
-  const aRacheter = risques.length - urgences.length;
+  const aRemplir = risques.length - urgences.length;
   const muettes = Math.max(0, tete.bornes - tete.en_ligne - tete.jamais_appairees);
 
   /**
@@ -173,7 +170,7 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
       cle: "rupture", niveau: "grave" as const, n: urgences.length,
       quoi: `référence${urgences.length > 1 ? "s" : ""} en rupture sous trois jours`,
       pourquoi: "un canal vide ne vend rien, et le client va voir ailleurs",
-      vers: "/reception", faire: "Racheter",
+      vers: "/charger", faire: "Remplir",
     },
     muettes > 0 && {
       cle: "muettes", niveau: "moyen" as const, n: muettes,
@@ -187,12 +184,12 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
       pourquoi: "de la place qui ne rapporte rien tant qu’elle reste vide",
       vers: "/charger", faire: "Remplir",
     },
-    // Le detail — autonomie, quantite a commander — est sur la page des
+    // Le detail — l'autonomie de chaque produit — est sur la page des
     // analytiques ; ici on ne dit que le nombre, et ou aller.
-    aRacheter > 0 && {
-      cle: "racheter", niveau: "doux" as const, n: aRacheter,
-      quoi: `référence${aRacheter > 1 ? "s" : ""} à racheter d’ici trois semaines`,
-      pourquoi: "au rythme de vente de la période, le stock ne tiendra pas",
+    aRemplir > 0 && {
+      cle: "remplir", niveau: "doux" as const, n: aRemplir,
+      quoi: `référence${aRemplir > 1 ? "s" : ""} à remplir cette semaine`,
+      pourquoi: "au rythme de vente de la période, le stock des RedBox ne tiendra pas",
       vers: `${versAnalytiques}#manque`, faire: "Voir",
     },
     tete.jamais_appairees > 0 && {
@@ -336,14 +333,14 @@ async function Corps({ u, p, perso, portee, choisie, sienDuCompte, lien, versAna
           </div>
 
           <div className="mesures">
-            <Mesure titre="Marge estimée" valeur={euros(tete.marge)}
-                    dessous={taux === null ? "—" : `${taux} % du chiffre`}
-                    delta={<Delta ici={tete.marge} avant={avant.marge} />} />
+            <Mesure titre="Commandes" valeur={String(tete.commandes)}
+                    dessous="sur la période"
+                    delta={<Delta ici={tete.commandes} avant={avant.commandes} />} />
             <Mesure titre="Articles vendus" valeur={String(tete.ventes)}
                     dessous={`${tete.bornes} RedBox · ${tete.en_ligne} en ligne`}
                     delta={<Delta ici={tete.ventes} avant={avant.ventes} />} />
             <Mesure titre="Panier moyen" valeur={euros(panier)}
-                    dessous="par article distribué"
+                    dessous="par commande"
                     delta={<Delta ici={panier} avant={panierAvant} />} />
           </div>
         </section>
@@ -462,9 +459,6 @@ function PremiersPas({ a }: { a: Avancement }) {
     { fait: a.produits > 0, nom: "Remplir le catalogue",
       quoi: "Ce que vendent vos RedBox : nom, prix, âge minimum.",
       cta: "Ajouter un produit", vers: "/reglages/catalogue" },
-    { fait: a.recu > 0, nom: "Enregistrer une réception",
-      quoi: "La marchandise que vous avez achetée entre dans votre réserve.",
-      cta: "Enregistrer", vers: "/reception" },
     { fait: a.bornes > 0 && a.appairees > 0, nom: "Appairer une RedBox",
       quoi: "La machine affiche un code ; vous le portez ici depuis votre téléphone.",
       cta: "Appairer", vers: "/bornes/ajouter" },

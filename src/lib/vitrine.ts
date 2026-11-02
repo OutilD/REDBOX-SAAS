@@ -1,5 +1,4 @@
 import { q1, transaction, euros, type PgClient } from "@/db";
-import { reserveDe } from "./stock";
 import { laneDe } from "./machine";
 import { slug } from "./salons";
 import { A_REGARDER } from "./ventes";
@@ -15,7 +14,7 @@ import {
  *
  * Celui qu'on ouvre devant un prospect. Il ressemble en tout a un compte
  * d'exploitant : pas de bandeau, pas de « démo » a cote du nom, des bornes en
- * ligne, des ventes, une reserve, un journal. La difference est ailleurs : son
+ * ligne, des ventes, un journal. La difference est ailleurs : son
  * histoire est INVENTEE D'APRES UN REGLAGE que le super-admin choisit — « trois
  * mille euros sur trois mois, le jeudi, le vendredi et le samedi soir, plus le
  * week-end » — et re-inventee a chaque fois qu'on le change.
@@ -229,7 +228,6 @@ export async function quitterVitrine(compte_id: number): Promise<void> {
 
 async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: string): Promise<Resultat> {
   const tir = graine(compte_id);
-  const reserve = await reserveDe(compte_id, c);
   // Le catalogue du compte modele (lib/demo.ts) : ce qu'on vend vraiment.
   const cat = await catalogueModele(c);
   const PRODUITS = cat.produits;
@@ -237,7 +235,6 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
   const pid = await semerCatalogue(c, compte_id, cat);
   const prixDe = new Map(PRODUITS.map((p) => [p.sku, p.prix]));
   const ageDe = new Map(PRODUITS.map((p) => [p.sku, p.age]));
-  const achatDe = new Map(PRODUITS.map((p) => [p.sku, p.achat]));
 
   // --- Le calendrier : du meme jour, `mois` mois plus tot, a aujourd'hui.
   const maintenant = Date.now();
@@ -285,13 +282,6 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
   })).map((b, i) => ({ ...b, part: emplacements[i].part, restant: new Map<number, number>(), report: 0 }));
   const partTotale = bornes.reduce((s, b) => s + b.part, 0);
 
-  // --- La reserve : une premiere livraison, puis ce qu'il faut quand il le faut.
-  const enReserve = new Map(PRODUITS.map((p) => [p.sku, p.achete]));
-  const receptions: { sku: string; n: number; quand: Date; ref: string }[] = PRODUITS.map((p) => ({
-    sku: p.sku, n: p.achete, ref: `BL-${premier.a}-0001`,
-    quand: instantDe(jourPlus(premier.a, premier.m, premier.j, -4), 10, false, 15),
-  }));
-  const carton = (sku: string) => Math.max(20, Math.ceil((PRODUITS.find((p) => p.sku === sku)!.achete / 3) / 10) * 10);
   const transferts: { produit: number; quantite: number; lane: number; quand: Date; lieu: number }[] = [];
   const ventes: Vente[] = [];
   const journal: LigneJ[] = [];
@@ -304,7 +294,6 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
   for (const soir of soirs) {
     const budget = (cible * soir.poids) / total;
     const tournee = instantDe(soir.jour, heureTournee, false, 30);
-    const livraison = instantDe(soir.jour, 10, false, 15);
     for (const b of bornes) {
       // La tournee de l'apres-midi, si une spire est a moitie vide.
       if (PLAN.some((s) => (b.restant.get(laneDe(s.rangee, s.colonne)) ?? 0) <= s.capacite / 2)) {
@@ -312,13 +301,6 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
           const lane = laneDe(s.rangee, s.colonne);
           const manquant = s.capacite - (b.restant.get(lane) ?? 0);
           if (manquant <= 0) continue;
-          if (enReserve.get(s.sku)! < manquant) {
-            const n = Math.ceil((manquant - enReserve.get(s.sku)! + carton(s.sku)) / 10) * 10;
-            enReserve.set(s.sku, enReserve.get(s.sku)! + n);
-            const mmjj = `${String(soir.jour.m).padStart(2, "0")}${String(soir.jour.j).padStart(2, "0")}`;
-            receptions.push({ sku: s.sku, n, quand: livraison, ref: `BL-${soir.jour.a}-${mmjj}` });
-          }
-          enReserve.set(s.sku, enReserve.get(s.sku)! - manquant);
           b.restant.set(lane, s.capacite);
           transferts.push({ produit: pid.get(s.sku)!, quantite: manquant, lane, quand: tournee, lieu: b.lieu });
         }
@@ -388,24 +370,14 @@ async function semerVitrine(c: PgClient, compte_id: number, r: Reglage, par: str
   }
 
   // --- Tout en base, par lots.
-  receptions.sort((x, z) => x.quand.getTime() - z.quand.getTime());
-  await c.query(`
-    INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite, motif,
-                           prix_achat_c, reference, par, fait_le, confirme_le)
-    SELECT $1, r.produit, $2, r.n, 'reception', r.achat, r.ref, $3, r.quand, r.quand
-      FROM unnest($4::bigint[], $5::int[], $6::int[], $7::text[], $8::timestamptz[])
-           AS r(produit, n, achat, ref, quand)`,
-    [compte_id, reserve, par,
-     receptions.map((x) => pid.get(x.sku)!), receptions.map((x) => x.n),
-     receptions.map((x) => achatDe.get(x.sku)!), receptions.map((x) => x.ref), receptions.map((x) => x.quand)]);
   if (transferts.length > 0) {
     await c.query(`
-      INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+      INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite,
                              motif, lane, par, fait_le, confirme_le)
-      SELECT $1, t.produit, $2, t.lieu, t.quantite, 'transfert', t.lane, $3, t.quand, t.quand
-        FROM unnest($4::bigint[], $5::int[], $6::int[], $7::timestamptz[], $8::bigint[])
+      SELECT $1, t.produit, t.lieu, t.quantite, 'transfert', t.lane, $2, t.quand, t.quand
+        FROM unnest($3::bigint[], $4::int[], $5::int[], $6::timestamptz[], $7::bigint[])
              AS t(produit, quantite, lane, quand, lieu)`,
-      [compte_id, reserve, par,
+      [compte_id, par,
        transferts.map((t) => t.produit), transferts.map((t) => t.quantite),
        transferts.map((t) => t.lane), transferts.map((t) => t.quand), transferts.map((t) => t.lieu)]);
   }

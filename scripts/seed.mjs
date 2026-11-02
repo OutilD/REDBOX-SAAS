@@ -57,9 +57,6 @@ try {
     await c.query("INSERT INTO utilisateur (compte_id, email, mdp, role) VALUES ($1,$2,$3,$4)",
                   [compte, email, chiffrer(MDP), role]);
 
-  const reserve = (await un(
-    "INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve') RETURNING id", [compte])).id;
-
   // L'ordre compte : c'est celui dans lequel la borne les presente au client.
   const cats = [["Vapes", 10], ["Poppers", 20], ["Batteries", 30],
                 ["Hygiène", 40], ["Briquets", 50], ["Accessoires", 60]];
@@ -68,36 +65,25 @@ try {
     cid[nom] = (await un("INSERT INTO categorie (compte_id, nom, ordre) VALUES ($1,$2,$3) RETURNING id",
                          [compte, nom, ordre])).id;
 
-  // sku, nom, categorie, prix de vente, age, prix d'achat, quantite achetee
-  //
-  // Les quantites varient : on n'achete pas autant de powerbanks a neuf euros
-  // piece que de lingettes a quatre-vingt-dix centimes. Sans cette difference,
-  // tous les produits ont la meme autonomie et le tableau de bord n'a plus rien
-  // a dire.
+  // sku, nom, categorie, prix de vente, age
   const produits = [
-    ["VAPE-MEN",  "Puff 600 · Menthe",        "Vapes",       1290, 18, 410, 180],
-    ["VAPE-FRU",  "Puff 600 · Fruits rouges", "Vapes",       1290, 18, 410, 180],
-    ["VAPE-PAS",  "Puff 600 · Pastèque",      "Vapes",       1290, 18, 410, 120],
-    ["VAPE-MAN",  "Puff 1500 · Mangue",       "Vapes",       1890, 18, 620, 70],
-    ["POP-15",    "Poppers 15 ml",            "Poppers",     1490, 18, 480, 80],
-    ["PWR-5000",  "Powerbank 5000 mAh",       "Batteries",   2490,  0, 890, 26],
-    ["PWR-10000", "Powerbank 10000 mAh",      "Batteries",   3490,  0, 1290, 18],
-    ["HYG-PRE",   "Préservatifs x3",          "Hygiène",      690,  0, 150, 120],
-    ["HYG-LIN",   "Lingettes x10",            "Hygiène",      390,  0,  90, 80],
-    ["BRQ-TEMP",  "Briquet tempête",          "Briquets",     490,  0, 120, 60],
-    ["ACC-USBC",  "Câble USB-C 1 m",          "Accessoires",  990,  0, 260, 34],
+    ["VAPE-MEN",  "Puff 600 · Menthe",        "Vapes",       1290, 18],
+    ["VAPE-FRU",  "Puff 600 · Fruits rouges", "Vapes",       1290, 18],
+    ["VAPE-PAS",  "Puff 600 · Pastèque",      "Vapes",       1290, 18],
+    ["VAPE-MAN",  "Puff 1500 · Mangue",       "Vapes",       1890, 18],
+    ["POP-15",    "Poppers 15 ml",            "Poppers",     1490, 18],
+    ["PWR-5000",  "Powerbank 5000 mAh",       "Batteries",   2490,  0],
+    ["PWR-10000", "Powerbank 10000 mAh",      "Batteries",   3490,  0],
+    ["HYG-PRE",   "Préservatifs x3",          "Hygiène",      690,  0],
+    ["HYG-LIN",   "Lingettes x10",            "Hygiène",      390,  0],
+    ["BRQ-TEMP",  "Briquet tempête",          "Briquets",     490,  0],
+    ["ACC-USBC",  "Câble USB-C 1 m",          "Accessoires",  990,  0],
   ];
   const id = {};
-  for (const [sku, nom, cat, prix, age, achat, achete] of produits) {
+  for (const [sku, nom, cat, prix, age] of produits) {
     id[sku] = (await un(`INSERT INTO produit (compte_id, sku, nom, categorie_id, prix_vente_c, age_min)
                          VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
                         [compte, sku, nom, cid[cat], prix, age])).id;
-    // Une premiere livraison, il y a trois semaines.
-    await c.query(`INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite, motif,
-                                          prix_achat_c, reference, par, fait_le, confirme_le)
-                   VALUES ($1,$2,$3,$4,'reception',$5,'BL-2026-0114',$6,
-                           now() - interval '21 days', now() - interval '21 days')`,
-                  [compte, id[sku], reserve, achete, achat, "contact.outildigital@gmail.com"]);
   }
 
   // Borne 1 : appairee, elle parle.
@@ -153,35 +139,24 @@ try {
   const instant = (j, h) => new Date(maintenant - j * 86400e3)
     .toISOString().slice(0, 11) + String(h).padStart(2, "0") + ":00:00Z";
 
-  // La reserve se suit ici aussi : on ne peut pas transferer ce qu'on n'a pas.
-  // C'est la regle du vrai systeme ; un jeu d'essai qui s'en affranchit produit
-  // des stocks negatifs et fait passer pour normal un etat impossible. Elle est
-  // COMMUNE aux deux machines — c'est bien le meme carton qu'on partage.
-  const enReserve = new Map(produits.map(([sku, , , , , , achete]) => [sku, achete]));
-
   const transferts = [];   // [produit_id, quantite, lane, iso, lieu]
   const ventes = [];       // [borne, commande, lane, produit_id, prix, statut, iso]
   let n = 0;
 
   for (const m of machines) {
-    // Le chargement initial obeit a la meme regle que les tournees : on ne sort
-    // de la reserve que ce qu'elle contient. Deux machines y puisent.
     const restant = new Map();
     for (const [lane, sku, charge] of plan) {
-      const pris = Math.min(charge, enReserve.get(sku));
-      enReserve.set(sku, enReserve.get(sku) - pris);
-      restant.set(lane, pris);
-      if (pris > 0) transferts.push([id[sku], pris, lane, instant(20, 9), m.lieu]);
+      restant.set(lane, charge);
+      transferts.push([id[sku], charge, lane, instant(20, 9), m.lieu]);
     }
 
     for (let j = 20; j >= 0; j--) {
-      // Tournee : on remet chaque canal a ras, et ca sort de la reserve.
+      // Tournee : on remet chaque canal a ras.
       if (j % 7 === 0 && j !== 20) {
         for (const [lane, sku] of plan) {
-          const manque = Math.min(10 - restant.get(lane), enReserve.get(sku));
+          const manque = 10 - restant.get(lane);
           if (manque <= 0) continue;
           restant.set(lane, restant.get(lane) + manque);
-          enReserve.set(sku, enReserve.get(sku) - manque);
           transferts.push([id[sku], manque, lane, instant(j, 9), m.lieu]);
         }
       }
@@ -209,12 +184,12 @@ try {
   const col = (i) => transferts.map((t) => t[i]);
   if (transferts.length > 0)
     await c.query(`
-      INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+      INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite,
                              motif, lane, par, fait_le, confirme_le)
-      SELECT $1, t.produit, $2, t.lieu, t.quantite, 'transfert', t.lane, $3, t.quand, t.quand
-        FROM unnest($4::bigint[], $5::int[], $6::int[], $7::timestamptz[], $8::bigint[])
+      SELECT $1, t.produit, t.lieu, t.quantite, 'transfert', t.lane, $2, t.quand, t.quand
+        FROM unnest($3::bigint[], $4::int[], $5::int[], $6::timestamptz[], $7::bigint[])
              AS t(produit, quantite, lane, quand, lieu)`,
-      [compte, reserve, "reassort@exemple.fr", col(0), col(1), col(2), col(3), col(4)]);
+      [compte, "reassort@exemple.fr", col(0), col(1), col(2), col(3), col(4)]);
 
   const cv = (i) => ventes.map((v) => v[i]);
   await c.query(`
@@ -248,10 +223,10 @@ try {
                  WHERE c.borne_id IN ($1, $2)`, [b1, b2]);
 
   // Un transfert saisi mais pas encore confirme : le cas qu'il ne faut jamais perdre de vue.
-  await c.query(`INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+  await c.query(`INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite,
                                         motif, lane, par, fait_le)
-                 VALUES ($1,$2,$3,$4,4,'transfert',3,$5, now() - interval '40 minutes')`,
-                [compte, id["VAPE-PAS"], reserve, lieu1, "reassort@exemple.fr"]);
+                 VALUES ($1,$2,$3,4,'transfert',3,$4, now() - interval '40 minutes')`,
+                [compte, id["VAPE-PAS"], lieu1, "reassort@exemple.fr"]);
 
   await c.query("COMMIT");
 

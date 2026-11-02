@@ -3,7 +3,7 @@ import type { Avancement } from "./tableau";
 /**
  * LA CHECKLIST DE DEMARRAGE, sur le tableau de bord tant qu'il manque une
  * etape. L'ecran de bienvenue ne couvre que les deux premieres marches
- * (catalogue, appairage) ; une fois franchies, on oubliait la reception, le
+ * (catalogue, appairage) ; une fois franchies, on oubliait le
  * remplissage, les notifications, le pseudo — et l'on decouvrait deux
  * semaines plus tard un compte qui ne prevenait personne.
  */
@@ -19,8 +19,6 @@ export function etapesDemarrage(a: Avancement, u: { pseudo?: string | null }): E
       quoi: "Nom, prix, âge minimum — ou piochez dans la centrale d’achat." },
     { cle: "appairer", nom: "Appairer une RedBox", fait: a.appairees > 0, vers: "/bornes/ajouter",
       quoi: "La machine affiche un code, vous le portez ici." },
-    { cle: "reception", nom: "Enregistrer une réception", fait: a.recu > 0, vers: "/reception",
-      quoi: "La marchandise achetée entre dans votre réserve." },
     { cle: "remplir", nom: "Remplir une RedBox", fait: a.chargees > 0, vers: "/charger",
       quoi: "Ce que vous posez dans chaque spirale." },
     { cle: "notifs", nom: "Activer les notifications", fait: a.notifs > 0, vers: "/reglages/notifications",

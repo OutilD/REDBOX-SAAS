@@ -34,8 +34,8 @@ export async function GET(req: Request) {
        WHERE compte_id = $1 AND ($2::bigint[] IS NULL OR id = ANY($2)) AND jeton IS NOT NULL
          AND (nom ILIKE $3 OR adresse ILIKE $3)
        ORDER BY nom LIMIT 5`, [u.compte_id, u.bornes, motif]),
-    u.bornes === null ? q<{ id: number; nom: string; sku: string; actif: boolean }>(`
-      SELECT id, nom, sku, actif FROM produit
+    u.bornes === null ? q<{ id: number; nom: string; sku: string; actif: boolean; categorie_id: number | null }>(`
+      SELECT id, nom, sku, actif, categorie_id FROM produit
        WHERE compte_id = $1 AND (nom ILIKE $2 OR sku ILIKE $2)
        ORDER BY actif DESC, nom LIMIT 5`, [u.compte_id, motif]) : [],
     salonsDe(u).catch(() => []),
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
 
   const groupes: Groupe[] = [
     { titre: "RedBox", items: bornes.map((b) => ({ nom: b.nom, sous: b.adresse ?? undefined, vers: `/bornes/${b.id}` })) },
-    { titre: "Produits", items: produits.map((p) => ({ nom: p.nom, sous: `${p.sku}${p.actif ? "" : " · suspendu"}`, vers: `/stock/${p.id}` })) },
+    { titre: "Produits", items: produits.map((p) => ({ nom: p.nom, sous: `${p.sku}${p.actif ? "" : " · suspendu"}`, vers: `/reglages/catalogue${p.categorie_id ? `?cat=${p.categorie_id}` : ""}` })) },
     { titre: "Salons", items: salons.filter((s) => contient(s.nom, s.sujet, s.borne)).slice(0, 5)
         .map((s) => ({ nom: `#${s.nom}`, sous: s.sujet ?? s.borne ?? undefined, vers: `/messages/${s.id}` })) },
     { titre: "Académie", items: lecons.filter((x) => ouverte(l, x.module_acces, x.acces))

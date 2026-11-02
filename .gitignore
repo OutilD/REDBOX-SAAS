@@ -29,3 +29,6 @@ captures/
 *.keystore
 .vercel
 .env*
+
+# graphify
+graphify-out/

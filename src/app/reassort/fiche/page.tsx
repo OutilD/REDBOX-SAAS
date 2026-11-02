@@ -5,7 +5,7 @@ import { FUSEAU } from "@/db";
 import { peutVoirBorne, utilisateur } from "@/lib/auth";
 import { planifier } from "@/lib/reassort";
 import { Repli } from "../../repli";
-import { IcoAlerte, IcoReassort } from "../../icones";
+import { IcoReassort } from "../../icones";
 import Imprimer from "./imprimer";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,7 @@ export const dynamic = "force-dynamic";
  * machine ouverte.
  *
  * Deux parties, dans l'ordre ou on s'en sert :
- *   1. LE CAMION. Ce qu'on sort de la reserve avant de partir, par produit. On
- *      le fait une fois, au depot.
+ *   1. LE CAMION. Ce qu'on emporte avant de partir, par produit.
  *   2. LES BORNES. Une page par machine, groupee par categorie — un carton dans
  *      les mains, on fait tous ses canaux, on prend le suivant.
  *
@@ -79,17 +78,13 @@ export default async function Fiche({
 
         {f.total === 0 ? (
           <Repli icone={<IcoReassort />} titre="Rien à charger"
-                 texte={f.manque > 0
-                   ? "Les RedBox ont besoin de marchandise, mais votre réserve est vide pour ces produits. Enregistrez une réception avant de partir."
-                   : "Les RedBox choisies sont pleines. Rien à emporter aujourd’hui."}
-                 action={f.manque > 0
-                   ? { nom: "Enregistrer une réception", vers: "/reception" }
-                   : { nom: "Choisir d’autres RedBox", vers: "/reassort" }} />
+                 texte="Les RedBox choisies sont pleines. Rien à emporter aujourd’hui."
+                 action={{ nom: "Choisir d’autres RedBox", vers: "/reassort" }} />
         ) : (
           <>
             {/* 1 — LE CAMION */}
             <section className="fiche-bloc">
-              <h2 className="fiche-h2">1 · À sortir de la réserve</h2>
+              <h2 className="fiche-h2">1 · À emporter</h2>
               <table className="tableau-fiche">
                 <thead>
                   <tr>
@@ -97,46 +92,26 @@ export default async function Fiche({
                     <th>Produit</th>
                     <th className="ref">Réf.</th>
                     <th className="num">À prendre</th>
-                    <th className="num pale">En réserve</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {f.camion.filter((l) => l.aPrendre > 0).map((l) => (
+                  {f.camion.map((l) => (
                     <tr key={l.produit_id}>
                       <td className="case"><input type="checkbox" aria-label={`${l.nom} chargé`} /></td>
                       <td><b>{l.nom}</b><span className="cat"> · {l.categorie}</span></td>
                       <td className="ref mono">{l.sku}</td>
                       <td className="num gros">{l.aPrendre}</td>
-                      <td className="num pale">{l.reserve}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
                     <td className="case" /><td colSpan={2}>Total à charger</td>
-                    <td className="num gros">{f.total}</td><td />
+                    <td className="num gros">{f.total}</td>
                   </tr>
                 </tfoot>
               </table>
             </section>
-
-            {/* Ce que la reserve ne couvre pas — une commande, pas une consigne */}
-            {f.manque > 0 ? (
-              <div className="avis">
-                <IcoAlerte size={17} />
-                <div className="dit">
-                  <div className="titre">{unites(f.manque)} manquent en réserve</div>
-                  <div className="texte">
-                    Les quantités ci-dessus sont déjà plafonnées : la fiche ne demande
-                    jamais ce que vous n’avez pas. Les RedBox resteront partiellement
-                    remplies sur&nbsp;
-                    {f.camion.filter((l) => l.manque > 0)
-                      .map((l) => `${l.nom} (−${l.manque})`).join(", ")}.
-                  </div>
-                </div>
-                <Link href="/reception" className="bouton petit sans-impression">Réception</Link>
-              </div>
-            ) : null}
 
             {/* 2 — LES BORNES */}
             {servies.map((b, i) => (
@@ -175,12 +150,7 @@ export default async function Fiche({
                         <tr key={l.lane} data-vide={l.quantite + l.en_route === 0 ? "" : undefined}>
                           <td className="case"><input type="checkbox" aria-label={`canal ${l.code} fait`} /></td>
                           <td className="canal mono">{l.code}</td>
-                          <td>
-                            <b>{l.nom}</b>
-                            {l.aMettre < l.souhaite
-                              ? <span className="cat"> · {l.souhaite - l.aMettre} de moins que le plein</span>
-                              : null}
-                          </td>
+                          <td><b>{l.nom}</b></td>
                           <td className="num pale">
                             {l.quantite}<span className="sur">/{l.capacite}</span>
                             {l.en_route > 0 ? <span className="sur"> +{l.en_route}</span> : null}

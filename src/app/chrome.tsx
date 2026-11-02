@@ -5,7 +5,7 @@ import { q } from "@/db";
 import { estSuperAdmin, nomDuRole, peutCharger, peutConfigurer, peutGererEquipe, utilisateur,
          type Utilisateur } from "@/lib/auth";
 import { nomAffiche } from "@/lib/personnes";
-import { IcoAlerte, IcoOeil, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoReception, IcoStock, IcoTableau, IcoVentes,
+import { IcoAlerte, IcoOeil, IcoAnalyses, IcoBulle, IcoCloche, IcoCommunaute, IcoFleche, IcoBorne, IcoCarte, IcoCatalogue, IcoCategories, IcoEquipe, IcoTableau, IcoVentes,
          IcoReglages, IcoReassort, IcoPub, IcoSav, IcoMenu, IcoAcademie, IcoCentrale, IcoListe, IcoColonnes } from "./icones";
 import { BasculeRail, BasculeTheme } from "./bascules";
 import { SelecteurBorne } from "./selecteur-borne";
@@ -23,7 +23,7 @@ import { BISCUIT_PRODUIT, PRODUITS, adresse, hoteDes, produitDeLHote, type Produ
 export { PRODUITS, type Produit };
 
 export type Page =
-  | "tableau" | "analytiques" | "stock" | "reception" | "reassort" | "charger" | "centrale"
+  | "tableau" | "analytiques" | "reassort" | "charger" | "centrale"
   | "bornes" | "carte" | "ventes" | "messages" | "communaute"
   | "reglages" | "catalogue" | "categories" | "equipe" | "pub" | "sav" | "notifications" | "journal"
   | "profil" | "demo" | "menu"
@@ -109,10 +109,6 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
   {
     titre: "Approvisionnement", produit: "gestion",
     items: [
-      { cle: "stock",     nom: "Mon stock", icone: <IcoStock />,     vers: "/stock",
-        droit: (u) => u.bornes === null },
-      { cle: "reception", nom: "Réception", icone: <IcoReception />, vers: "/reception",
-        droit: (u) => u.bornes === null },
       // Le reassort d'une machine : on choisit la RedBox, on est sur son ecran de
       // chargement. La fiche d'approvisionnement (plusieurs RedBox, a imprimer)
       // se rejoint depuis ce choix.
@@ -178,7 +174,7 @@ const SECTIONS: { titre: string; produit: Produit; items: Item[] }[] = [
  * page de plus a precharger, c'est un rendu de plus a chaque ouverture.
  */
 const PRECHARGEES: ReadonlySet<Page> = new Set<Page>([
-  "tableau", "bornes", "ventes", "stock", "charger", "communaute", "messages", "academie", "carte",
+  "tableau", "bornes", "ventes", "charger", "communaute", "messages", "academie", "carte",
   "admin", "admin_academie",
 ]);
 
@@ -214,7 +210,7 @@ export async function produitCourant(page: Page): Promise<{ produit: Produit; ho
  *
  * Sur un telephone, le rail n'existe pas : la Communaute n'etait joignable
  * qu'en devinant qu'il fallait toucher sa propre photo. Elle a maintenant son
- * onglet. Le cinquieme, « Menu », ouvre le plan complet — Stock, Reception,
+ * onglet. Le cinquieme, « Menu », ouvre le plan complet —
  * Reassort, Messages, Analytiques, Reglages — c'est-a-dire le rail, en page :
  * rien de la console n'est plus a plus de deux gestes.
  */
@@ -250,7 +246,7 @@ const POUCE: Record<Produit, Onglet[]> = {
 const FAMILLE: Partial<Record<Page, Page>> = {
   carte: "menu",
   analytiques: "tableau",
-  stock: "menu", reception: "menu", reassort: "menu", charger: "menu", centrale: "menu",
+  reassort: "menu", charger: "menu", centrale: "menu",
   reglages: "menu", catalogue: "menu", categories: "menu", equipe: "menu", pub: "menu",
   sav: "menu", notifications: "menu", journal: "menu", profil: "menu", demo: "menu",
   admin: "menu", admin_rapport: "menu", admin_parc: "menu", admin_comptes: "menu", admin_academie: "menu", admin_vitrine: "menu", admin_sante: "menu",
@@ -266,8 +262,6 @@ const FIL: Record<Page, [string, string?]> = {
   carte:      ["Carte", "Connect"],
   messages:   ["Messages", "Connect"],
   communaute: ["Communauté", "Connect"],
-  stock:      ["Mon stock", "Approvisionnement"],
-  reception:  ["Réception", "Approvisionnement"],
   reassort:   ["Fiche d’approvisionnement", "Approvisionnement"],
   charger:    ["Réassort", "Approvisionnement"],
   centrale:   ["Centrale d’achat", "Approvisionnement"],

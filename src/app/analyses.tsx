@@ -255,7 +255,7 @@ export function Classement({ bornes }: { bornes: ParBorne[] }) {
                 <span className="ca num">{euros(b.ca)}</span>
                 <span className="dessous">
                   <Delta ici={b.ca} avant={b.ca_avant} />
-                  <span className="detail">{b.n} vendus · marge {euros(b.marge)}</span>
+                  <span className="detail">{b.n} vendus</span>
                 </span>
               </span>
 
@@ -278,28 +278,22 @@ export function Classement({ bornes }: { bornes: ParBorne[] }) {
  * Une reference en risque de rupture.
  *
  * Trois choses en un coup d'oeil : dans combien de jours, ou en est le stock sur
- * une piste COMMUNE de trente jours — deux barres ne se comparent que si elles
- * partagent leur echelle —, et surtout COMBIEN COMMANDER. C'est la seule ligne
- * qui se transforme en action ; sans elle, la liste ne fait que decrire.
+ * une piste COMMUNE d'une semaine — deux barres ne se comparent que si elles
+ * partagent leur echelle —, et le geste qui regle le probleme.
  *
  * La couleur ne porte jamais seule : chaque etat porte son icone et son mot.
  */
 export function FicheRisque({ s }: { s: Autonomie }) {
   const jours = s.jours_restants ?? 0;
   const etat = jours <= 3 ? { cle: "critique", mot: "rupture imminente", couleur: "var(--critique)" }
-             : jours <= 7 ? { cle: "serieux",  mot: "à commander",       couleur: "var(--serieux)" }
-             :              { cle: "alerte",   mot: "à surveiller",      couleur: "var(--alerte)" };
-  // Ramener a trente jours d'avance : c'est ce qu'on va chercher chez le
-  // fournisseur, arrondi a la dizaine parce qu'on n'achete pas a l'unite.
-  const cible = Math.ceil(Number(s.par_jour) * 30);
-  const commander = Math.max(0, Math.ceil((cible - s.stock) / 10) * 10);
+             :              { cle: "serieux",  mot: "à remplir",         couleur: "var(--serieux)" };
 
   return (
     <div className={`fiche ${etat.cle === "critique" ? "critique" : ""}`}>
       <div className="haut">
         <div style={{ minWidth: 0 }}>
           <div className="nom">{s.nom}</div>
-          <div className="cat">{s.categorie} · {s.par_jour} par jour · {s.stock} en stock</div>
+          <div className="cat">{s.categorie} · {s.par_jour} par jour · {s.stock} dans les RedBox</div>
         </div>
         <div className="jours">
           <b style={{ color: etat.couleur }}>{jours}</b>
@@ -307,22 +301,15 @@ export function FicheRisque({ s }: { s: Autonomie }) {
         </div>
       </div>
 
-      <div className="piste" title="échelle commune : trente jours">
-        <span style={{ width: `${Math.min(100, (jours / 30) * 100)}%`, background: etat.couleur }} />
+      <div className="piste" title="échelle commune : une semaine">
+        <span style={{ width: `${Math.min(100, (jours / 7) * 100)}%`, background: etat.couleur }} />
       </div>
 
       <div className="pied">
         <span className="etat" style={{ color: etat.couleur }}>
           {jours <= 3 ? <IcoAlerte /> : <IcoHorloge />}{etat.mot}
         </span>
-        {/* Le conseil devient un geste : la reception s'ouvre sur ce produit, la
-            quantite deja posee. Un chiffre qu'il faut re-saisir ailleurs n'est
-            qu'a moitie utile. */}
-        {commander > 0 ? (
-          <Link href={`/reception?p=${s.id}&q=${commander}`} className="commander lien-commander">
-            commander ~{commander}
-          </Link>
-        ) : null}
+        <Link href="/charger" className="commander lien-commander">remplir</Link>
       </div>
     </div>
   );

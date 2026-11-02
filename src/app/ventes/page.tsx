@@ -30,7 +30,7 @@ const DEBUT = `(date_trunc('day', now() AT TIME ZONE '${FUSEAU}') - $2::interval
 const JOUR = `date_trunc('day', v.faite_le AT TIME ZONE '${FUSEAU}')`;
 
 type Jour = { jour: string; n: number; total: number };
-type ParProduit = { nom: string | null; n: number; total: number; marge: number | null };
+type ParProduit = { nom: string | null; n: number; total: number };
 type Souci = {
   id: number; borne_id: number; borne: string; commande_id: string;
   lane: number | null; nom: string | null; prix_c: number; statut: string; faite_le: Date;
@@ -131,9 +131,6 @@ async function Corps({ u, fen, choisie, portee }: {
 
 
 
-  // La marge se calcule au dernier prix d'achat connu. C'est le chiffre qui dit
-  // quoi arreter de vendre.
-
   // Les soucis ne sont pas bornes a la fenetre : un probleme non traite reste un
   // probleme, meme vieux d'un mois.
 
@@ -164,14 +161,10 @@ async function Corps({ u, fen, choisie, portee }: {
                     AND v.faite_le >= ${DEBUT}) x ON x.jour = s.jour
      GROUP BY s.jour ORDER BY s.jour`, p),
     q<ParProduit>(`
-    SELECT pr.nom, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total,
-           -- Sans prix d'achat connu, pas de marge : un tiret, pas cent pour cent.
-           CASE WHEN COUNT(a.prix_achat_c) = 0 THEN NULL
-                ELSE SUM(v.prix_c - a.prix_achat_c)::int END AS marge
+    SELECT pr.nom, COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int total
       FROM vente v
       JOIN borne b   ON b.id = v.borne_id
       LEFT JOIN produit pr ON pr.id = v.produit_id
-      LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
      WHERE b.compte_id = $1 AND v.statut = 'distribue' ${PORTEE}
        AND v.faite_le >= ${DEBUT}
      GROUP BY pr.nom ORDER BY total DESC`, p),
@@ -206,7 +199,7 @@ async function Corps({ u, fen, choisie, portee }: {
 
   const du = soucis.filter((s) => s.statut === "litige").reduce((s, x) => s + x.prix_c, 0);
   const sommet = Math.max(1, ...jours.map((j) => j.total));
-  const marge = parProduit.reduce((s, x) => s + (x.marge ?? 0), 0);
+  const prixMoyen = total?.n ? Math.round(total.total / total.n) : 0;
 
   return (
     <>
@@ -218,8 +211,8 @@ async function Corps({ u, fen, choisie, portee }: {
             <span className="valeur num">{total?.n ?? 0}</span>
             <span className="libelle">articles distribués</span></div></div>
           <div><div className="stat">
-            <span className="valeur num petite">{euros(marge)}</span>
-            <span className="libelle">marge estimée</span></div></div>
+            <span className="valeur num petite">{euros(prixMoyen)}</span>
+            <span className="libelle">par article en moyenne</span></div></div>
           <div><div className={`stat ${soucis.length ? "alerte" : ""}`}>
             <span className="valeur num">{soucis.length}</span>
             <span className="libelle">à regarder</span></div></div>
@@ -259,7 +252,7 @@ async function Corps({ u, fen, choisie, portee }: {
                 <div className="ligne" key={i}>
                   <div className="corps">
                     <div className="nom">{x.nom ?? "produit inconnu"}</div>
-                    <div className="meta">{x.n} vendus · marge {x.marge === null ? "—" : euros(x.marge)}</div>
+                    <div className="meta">{x.n} vendus</div>
                     <div className="repartition" style={{ marginTop: 7, height: 6, maxWidth: 240 }}>
                       <span className="bornes" style={{ width: `${Math.round((x.total / Math.max(1, total?.total ?? 1)) * 100)}%` }} />
                     </div>

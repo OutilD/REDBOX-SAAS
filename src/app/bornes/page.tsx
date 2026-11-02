@@ -211,7 +211,7 @@ export default async function Bornes({ searchParams }:
               </div>
             </section>
 
-            {/* Chercher et filtrer, comme sur « Mon stock » : le formulaire part
+            {/* Chercher et filtrer : le formulaire part
                 en GET, les filtres sont des liens, tout tient dans l'adresse. */}
             <div className="barre-outils">
               <form method="get" action="/bornes" className="champ-recherche" role="search">

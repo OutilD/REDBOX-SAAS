@@ -213,11 +213,9 @@ const PORTEE = "AND ($4::bigint[] IS NULL OR b.id = ANY($4))";
 
 export type Entete = {
   bornes: number; en_ligne: number; jamais_appairees: number;
-  ventes: number; ca: number; marge: number;
+  ventes: number; ca: number;
   /** Les commandes : un panier peut porter plusieurs articles, donc plusieurs ventes. */
   commandes: number;
-  /** Le chiffre des ventes dont le prix d'achat est connu : la base du taux de marge. */
-  ca_connu: number;
   litiges: number; canaux_vides: number;
   /** En ligne, mais le terminal de paiement ne repond plus : personne ne peut payer. */
   terminal_panne: number;
@@ -242,19 +240,6 @@ export async function entete(compte_id: number, p: Periode,
       (SELECT COALESCE(SUM(v.prix_c),0)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND v.statut = 'distribue' AND ${DANS})                   AS ca,
-      -- Une vente sans prix d'achat connu n'entre pas dans la marge : la compter
-      -- a prix d'achat nul la gonflait d'autant. Le taux se lit donc sur le
-      -- chiffre des seules ventes dont on connait le cout (ca_connu).
-      (SELECT COALESCE(SUM(v.prix_c - a.prix_achat_c),0)::int
-         FROM vente v JOIN borne b ON b.id = v.borne_id
-         LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
-        WHERE b.compte_id = $1 ${PORTEE}
-          AND v.statut = 'distribue' AND ${DANS})                   AS marge,
-      (SELECT COALESCE(SUM(v.prix_c) FILTER (WHERE a.prix_achat_c IS NOT NULL),0)::int
-         FROM vente v JOIN borne b ON b.id = v.borne_id
-         LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
-        WHERE b.compte_id = $1 ${PORTEE}
-          AND v.statut = 'distribue' AND ${DANS})                   AS ca_connu,
       (SELECT COUNT(*)::int FROM vente v JOIN borne b ON b.id = v.borne_id
         WHERE b.compte_id = $1 ${PORTEE}
           AND ${SQL_A_REGARDER})                                                    AS litiges,
@@ -281,18 +266,16 @@ export async function entete(compte_id: number, p: Periode,
  * l'heure qu'il est, pas les ventes. La borne haute est donc `now()` recule
  * d'autant, ce qui laisse exactement la meme duree ecoulee des deux cotes.
  */
-export type Comparaison = { ventes: number; commandes: number; ca: number; marge: number };
+export type Comparaison = { ventes: number; commandes: number; ca: number };
 
 export async function comparaison(compte_id: number, p: Periode,
                                   bornes: number[] | null = null): Promise<Comparaison> {
   return (await q1<Comparaison>(`
     SELECT COUNT(*)::int                                              AS ventes,
            COUNT(DISTINCT v.borne_id || ':' || v.commande_id)::int AS commandes,
-           COALESCE(SUM(v.prix_c),0)::int                             AS ca,
-           COALESCE(SUM(v.prix_c - a.prix_achat_c),0)::int AS marge
+           COALESCE(SUM(v.prix_c),0)::int                             AS ca
       FROM vente v
       JOIN borne b ON b.id = v.borne_id
-      LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
      WHERE b.compte_id = $1 ${PORTEE}
        AND v.statut = 'distribue'
        AND ${AVANT}
@@ -343,7 +326,7 @@ export async function serie(compte_id: number, p: Periode,
 
 export type ParBorne = {
   id: number; nom: string; adresse: string | null; vue_le: Date | null;
-  n: number; ca: number; marge: number; canaux: number; vides: number;
+  n: number; ca: number; canaux: number; vides: number;
   /** Le chiffre de la meme borne sur la fenetre precedente — voir `comparaison`. */
   ca_avant: number;
 };
@@ -354,16 +337,14 @@ export async function parBorne(compte_id: number, p: Periode,
     SELECT b.id, b.nom, b.adresse, b.vue_le,
            COALESCE(x.n, 0)     AS n,
            COALESCE(x.ca, 0)    AS ca,
-           COALESCE(x.marge, 0) AS marge,
            (SELECT COUNT(*)::int FROM canal c WHERE c.borne_id = b.id AND c.produit_id IS NOT NULL) AS canaux,
            (SELECT COUNT(*)::int FROM canal c WHERE c.borne_id = b.id AND c.produit_id IS NOT NULL
               AND c.quantite = 0) AS vides,
            COALESCE(y.ca, 0)    AS ca_avant
       FROM borne b
       LEFT JOIN LATERAL (
-        SELECT COUNT(*)::int n, SUM(v.prix_c)::int ca,
-               SUM(v.prix_c - a.prix_achat_c)::int marge
-          FROM vente v LEFT JOIN v_prix_achat a ON a.produit_id = v.produit_id
+        SELECT COUNT(*)::int n, SUM(v.prix_c)::int ca
+          FROM vente v
          WHERE v.borne_id = b.id AND v.statut = 'distribue' AND ${DANS}
       ) x ON true
       -- Une machine peut faire le plus gros chiffre du parc en s'effondrant :
@@ -380,35 +361,26 @@ export async function parBorne(compte_id: number, p: Periode,
 
 export type ParProduit = {
   id: number | null; nom: string; sku: string | null;
-  categorie: string; n: number; ca: number; marge: number | null;
+  categorie: string; n: number; ca: number;
 };
 
 /**
- * CE QUI SE VEND, ET CE QUE CA RAPPORTE.
+ * CE QUI SE VEND.
  *
  * Le tableau de bord disait quelle BORNE marche le mieux, jamais quel PRODUIT.
  * Or c'est le produit qu'on rachete, qu'on arrete, ou qu'on monte en prix — la
  * borne, on ne la change pas.
- *
- * LA MARGE PLUTOT QUE LE CHIFFRE. Un produit qui fait le plus gros chiffre en
- * perdant de l'argent a chaque vente est le pire de tous, et il trone en tete
- * d'un classement au chiffre d'affaires. On garde les deux, on trie sur la
- * marge, et elle vaut null quand aucun prix d'achat n'est connu — dire « zero »
- * ferait passer une marge inconnue pour une marge nulle.
  */
 export async function parProduit(compte_id: number, p: Periode,
                                  bornes: number[] | null = null): Promise<ParProduit[]> {
   return q<ParProduit>(`
     SELECT pr.id, COALESCE(pr.nom, 'produit retiré') AS nom, pr.sku,
            COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int ca,
-           CASE WHEN COUNT(a.prix_achat_c) = 0 THEN NULL
-                ELSE SUM(v.prix_c - a.prix_achat_c)::int END AS marge
+           COUNT(*)::int n, COALESCE(SUM(v.prix_c),0)::int ca
       FROM vente v
       JOIN borne b ON b.id = v.borne_id
       LEFT JOIN produit pr      ON pr.id = v.produit_id
       LEFT JOIN categorie cat   ON cat.id = pr.categorie_id
-      LEFT JOIN v_prix_achat a  ON a.produit_id = v.produit_id
      WHERE b.compte_id = $1 ${PORTEE}
        AND v.statut = 'distribue' AND ${DANS}
      GROUP BY pr.id, pr.nom, pr.sku, cat.nom
@@ -421,11 +393,12 @@ export type Autonomie = {
 };
 
 /**
- * Combien de jours avant la rupture.
+ * Combien de jours avant que les RedBox n'en aient plus.
  *
- * C'est le chiffre qui decide quand racheter. Un stock de 8 ne veut rien dire
+ * C'est le chiffre qui decide quand remplir. Un stock de 8 ne veut rien dire
  * seul : huit unites, c'est trois semaines pour un briquet et deux jours pour une
- * Puff. On divise donc le stock par la cadence constatee sur la periode.
+ * Puff. On divise donc ce que portent les RedBox, et ce qui est en route vers
+ * elles, par la cadence constatee sur la periode.
  *
  * Un produit qui ne s'est pas vendu du tout n'a pas d'autonomie calculable — on
  * renvoie null plutot qu'un infini deguise en « tout va bien ».
@@ -438,14 +411,14 @@ export async function autonomie(compte_id: number, p: Periode): Promise<Autonomi
        WHERE b.compte_id = $1 AND v.statut = 'distribue' AND ${DANS}
        GROUP BY v.produit_id)
     SELECT p.id, p.nom, p.sku, COALESCE(cat.nom, 'sans catégorie') AS categorie,
-           COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s WHERE s.produit_id = p.id), 0)
+           COALESCE((SELECT SUM(c.quantite)::int FROM canal c WHERE c.produit_id = p.id), 0)
              + COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r WHERE r.produit_id = p.id), 0)
              AS stock,
            COALESCE(vendu.n, 0) AS vendus,
            ROUND(COALESCE(vendu.n, 0)::numeric / ${DUREE_J}, 2) AS par_jour,
            CASE WHEN COALESCE(vendu.n, 0) = 0 THEN NULL
                 ELSE FLOOR(
-                  (COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s WHERE s.produit_id = p.id), 0)
+                  (COALESCE((SELECT SUM(c.quantite)::int FROM canal c WHERE c.produit_id = p.id), 0)
                  + COALESCE((SELECT SUM(r.quantite)::int FROM v_en_route r WHERE r.produit_id = p.id), 0))
                   / (vendu.n::numeric / ${DUREE_J})) END AS jours_restants
       FROM produit p
@@ -516,7 +489,7 @@ export async function categoriesDansLeTemps(compte_id: number, p: Periode,
 }
 
 export type Avancement = {
-  categories: number; produits: number; recu: number;
+  categories: number; produits: number;
   bornes: number; appairees: number; chargees: number; ventes: number;
   /** Les appareils de CETTE personne qui recoivent les notifications. */
   notifs: number;
@@ -535,8 +508,6 @@ export async function avancement(compte_id: number, utilisateur_id: number | nul
       (SELECT COUNT(*)::int FROM abonnement_push WHERE utilisateur_id = $2)         AS notifs,
       (SELECT COUNT(*)::int FROM categorie WHERE compte_id = $1)                    AS categories,
       (SELECT COUNT(*)::int FROM produit WHERE compte_id = $1 AND actif)            AS produits,
-      (SELECT COUNT(*)::int FROM mouvement WHERE compte_id = $1
-         AND motif = 'reception' AND annule_le IS NULL)                             AS recu,
       (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1)                        AS bornes,
       (SELECT COUNT(*)::int FROM borne WHERE compte_id = $1 AND jeton IS NOT NULL)  AS appairees,
       -- « Chargee » ne veut pas dire « on a saisi un transfert » : une borne

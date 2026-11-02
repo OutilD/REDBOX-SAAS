@@ -31,7 +31,7 @@ export default async function Journal() {
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Journal des actions</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12, maxWidth: 720 }}>
-          Ce que chacun a fait dans le compte : un prix changé, un réassort saisi, une réception, une invitation.
+          Ce que chacun a fait dans le compte : un prix changé, un réassort saisi, une invitation.
           Les deux cents dernières actions.
         </p>
         {actions.length === 0 ? (

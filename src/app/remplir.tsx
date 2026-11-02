@@ -10,9 +10,8 @@
  *
  * IL NE POSE PAS LES CHIFFRES LUI-MEME. Il crie dans son cadre, et chaque
  * compteur qui s'y trouve se sert avec SON plafond : la place qui reste dans le
- * canal, bornee par ce qu'il y a en reserve. Un bouton qui calculerait a leur
- * place aurait a refaire le meme calcul, et se tromperait le jour ou l'un des
- * deux changerait.
+ * canal. Un bouton qui calculerait a leur place aurait a refaire le meme calcul,
+ * et se tromperait le jour ou il changerait.
  *
  * Sans JavaScript il ne s'affiche pas : il n'aurait rien a commander.
  */

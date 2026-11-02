@@ -73,7 +73,7 @@ export default async function Reassort({
           <div className="pousse"><h1 style={{ margin: 0, fontSize: 22 }}>Fiche d’approvisionnement</h1></div>
         </div>
         <p className="sous" style={{ marginTop: 12 }}>
-          Cochez les RedBox de la tournée. La fiche dira quoi sortir de la réserve,
+          Cochez les RedBox de la tournée. La fiche dira quoi emporter,
           puis RedBox par RedBox quel produit va dans quel canal et combien en poser.
         </p>
         {parProduit ? (

@@ -753,7 +753,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
   color: var(--texte);
 }
 .tableau tbody tr:hover th, .tableau tbody tr:hover td { background: var(--surface-2); }
-.tableau .perte { color: var(--rouge); }
 .tableau tfoot th, .tableau tfoot td {
   border-top: 2px solid var(--bord-fort); font-weight: 700; color: var(--texte);
 }
@@ -1131,11 +1130,6 @@ h2 { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase;
 
 /* La liste a plat, quand une recherche remplace les categories. */
 .liste-produits { display: block; }
-.liste-produits > a.produit-ligne:first-child { margin-top: 0; }
-a.produit-ligne .dit-epuise {
-  color: var(--rouge-vif); font-weight: 700;
-}
-a.produit-ligne .dit-epuise::before { content: " · "; color: var(--texte-3); font-weight: 400; }
 
 /* ------------------------------------------------------- les chiffres cles */
 .chiffres-cle {
@@ -2038,45 +2032,7 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 .pas-a-pas .quoi { font-size: 12.5px; color: var(--texte-3); margin-top: 2px; }
 .pas-a-pas .fin { flex: none; align-self: center; }
 
-/* ---------------------------------------------------------------- reception */
-.entete-cat {
-  padding: 11px 16px; border-bottom: 1px solid var(--bord);
-  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
-  font-weight: 700; color: var(--texte-3); background: var(--surface-2);
-}
-.ligne-recu {
-  display: grid; gap: 12px; align-items: center; padding: 12px 16px;
-  border-bottom: 1px solid var(--bord);
-  grid-template-columns: 1fr auto;
-}
-.ligne-recu:last-child { border-bottom: none; }
-.ligne-recu.prise { background: color-mix(in srgb, var(--rouge) 4%, transparent); }
-.ligne-recu .quoi { min-width: 0; }
-.ligne-recu .nom { font-weight: 650; font-size: 14.5px; }
-.ligne-recu .meta { font-size: 12px; color: var(--texte-3); margin-top: 1px; }
-.ligne-recu .prix-achat { display: flex; align-items: center; gap: 7px; }
-.ligne-recu .prix-achat input { width: 92px; text-align: right; min-height: 44px; }
-.ligne-recu .prix-achat .unite { font-size: 12px; color: var(--texte-3); white-space: nowrap; }
-.ligne-recu .sous-total { font-weight: 700; font-size: 14px; min-width: 88px; text-align: right; }
-.ligne-recu .sous-total:not(.num) { color: var(--texte-3); }
-@media (min-width: 900px) {
-  .ligne-recu { grid-template-columns: minmax(0, 1fr) auto auto 96px; }
-}
-@media (max-width: 899px) {
-  .ligne-recu { grid-template-columns: 1fr auto; }
-  .ligne-recu .prix-achat { grid-column: 1; }
-  .ligne-recu .sous-total { grid-column: 2; }
-}
 
-/* Le pied colle en bas : on saisit dix lignes, et le total qu'on compare au bon
-   de livraison doit rester sous les yeux. */
-.pied-recu {
-  position: sticky; bottom: calc(72px + env(safe-area-inset-bottom));
-  display: flex; align-items: center; gap: 14px; justify-content: space-between;
-  padding: 12px 16px; border: 1px solid var(--bord-fort); border-radius: var(--r-l);
-  background: color-mix(in srgb, var(--fond) 94%, transparent);
-}
-@media (min-width: 980px) { .pied-recu { bottom: 14px; } }
 
 /* ------------------------------------------------------------ appel a agir */
 /*
@@ -2106,8 +2062,7 @@ details.groupe .dedans .carte { background: var(--surface-2); box-shadow: none; 
 .actions-cle .quoi { display: block; font-size: 12.5px; opacity: .78; margin-top: 1px; }
 .actions-cle .fleche { margin-left: auto; opacity: .55; }
 
-/* Le conseil « commander ~20 » est cliquable : il ouvre la reception avec le
-   produit et la quantite deja poses. */
+/* Le conseil « remplir » est cliquable : il ouvre le reassort. */
 .risque .lien-commander { text-decoration: underline;
                           text-decoration-color: var(--bord-fort);
                           text-underline-offset: 3px; }
@@ -2130,55 +2085,9 @@ details.groupe[open] > summary {
 details.groupe[open] > summary .titre { color: var(--rouge-vif); }
 details.groupe .dedans { padding: 0; background: var(--surface-2); border-radius: 0 0 var(--r-l) var(--r-l); }
 
-.sous-liste { padding: 6px 14px 12px 0; margin-left: 26px; border-left: 2px solid var(--bord-fort); }
-.sous-liste > * { margin-left: 18px; }
 
-a.produit-ligne {
-  display: grid; grid-template-columns: 1fr auto 16px; gap: 14px; align-items: center;
-  padding: 12px 14px; border-radius: var(--r-m); background: var(--surface);
-  border: 1px solid var(--bord); margin-top: 8px;
-}
-a.produit-ligne:hover { border-color: var(--bord-fort); }
-a.produit-ligne.epuise { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
-a.produit-ligne .nom { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; }
-a.produit-ligne .meta { font-size: 11.5px; color: var(--texte-3); margin-top: 2px; }
-a.produit-ligne .fleche { color: var(--texte-3); display: flex; }
-@media (max-width: 620px) {
-  a.produit-ligne { grid-template-columns: 1fr auto; }
-  a.produit-ligne .fleche { display: none; }
-  a.produit-ligne .chiffres { gap: 12px; }
-  .sous-liste { margin-left: 12px; }
-  .sous-liste > * { margin-left: 12px; }
-}
 
-/* ------------------------------------------------------------- fiche produit */
-.ou-est { display: grid; gap: 8px; }
-.ou-est .lieu-ligne {
-  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-  border: 1px solid var(--bord); border-radius: var(--r-m); background: var(--surface);
-}
-.ou-est .lieu-ligne.reserve { border-color: var(--bord-fort); }
-.ou-est .pastille-lieu {
-  width: 30px; height: 30px; border-radius: var(--r-s); flex: none;
-  display: grid; place-items: center; background: var(--surface-2); color: var(--texte-2);
-}
-.ou-est .reserve .pastille-lieu { background: var(--texte); color: var(--fond); }
-.ou-est .nom-lieu { font-weight: 650; font-size: 14px; }
-.ou-est .detail-lieu { font-size: 11.5px; color: var(--texte-3); margin-top: 1px; }
-.ou-est .n { margin-left: auto; font-size: 19px; font-weight: 750;
-             font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
 
-.mouvements .motif {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 4px; background: var(--surface-2); color: var(--texte-3);
-}
-.mouvements .motif.reception { background: var(--vert-fond); color: var(--vert); }
-.mouvements .motif.transfert { background: var(--rouge-fond); color: var(--rouge-vif); }
-.mouvements .motif.vente     { background: var(--surface-3); color: var(--texte-2); }
-.mouvements .delta { font-variant-numeric: tabular-nums; font-weight: 700; }
-.mouvements .delta.plus  { color: var(--vert); }
-.mouvements .delta.moins { color: var(--texte-2); }
-.mouvements .delta.neutre { color: var(--texte-3); }
 
 /* Le logo des ecrans d'entree : centre, respirant, a la taille ou la baseline
    du verrouillage reste lisible. */
@@ -3151,14 +3060,6 @@ input[aria-invalid="true"], select[aria-invalid="true"] {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-/* Les sorties au grand livre. Elles ne se confondent pas avec une vente : une
-   vente rapporte, une casse coute, et l'oeil doit faire la difference en
-   parcourant la colonne. */
-.mouvements .motif.casse,
-.mouvements .motif.vol,
-.mouvements .motif.peremption,
-.mouvements .motif.perte,
-.mouvements .motif.autre { background: var(--ambre-fond); color: var(--ambre); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    LA FICHE D'UNE BORNE
@@ -3396,18 +3297,18 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
   grid-template-areas:
     "code  quoi   dedans"
     "jauge jauge  jauge"
-    "cmd   cmd    reserve"
+    "cmd   cmd    cmd"
     "note  note   note";
   border: 1px solid var(--bord); border-radius: var(--r-l);
   background: var(--surface); padding: 13px 14px; margin-top: 10px;
 }
 @media (min-width: 760px) {
   .canal-charge {
-    grid-template-columns: 42px minmax(0, 1fr) auto auto auto;
+    grid-template-columns: 42px minmax(0, 1fr) auto auto;
     grid-template-areas:
-      "code quoi  dedans cmd reserve"
-      "code jauge dedans cmd reserve"
-      "note note  note   note note";
+      "code quoi  dedans cmd"
+      "code jauge dedans cmd"
+      "note note  note   note";
   }
 }
 .canal-charge[data-etat="vide"] { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
@@ -3446,8 +3347,6 @@ details.groupe[data-remplissable] > .dedans { padding: 12px 14px 14px; }
 .canal-charge .jauge { grid-area: jauge; max-width: 320px; margin: 9px 0 0; align-self: start; }
 
 .canal-charge .commandes { grid-area: cmd; margin-top: 11px; }
-.canal-charge .reserve { grid-area: reserve; text-align: right; margin-top: 11px; }
-.canal-charge .reserve .num { display: block; font-size: 17px; font-weight: 750; line-height: 1.15; }
 .canal-charge .note-canal {
   grid-area: note; margin: 11px 0 0; font-size: 12.5px; color: var(--texte-3); line-height: 1.45;
 }
@@ -3983,7 +3882,7 @@ a.spirale.lien { cursor: pointer; text-decoration: none; }
 .pas .bouton { white-space: nowrap; }
 
 @media (min-width: 760px) {
-  .canal-charge .commandes, .canal-charge .reserve { margin-top: 0; }
+  .canal-charge .commandes { margin-top: 0; }
 }
 @media (max-width: 620px) {
   .canal-charge { padding: 12px; gap: 3px 10px; grid-template-columns: 38px minmax(0, 1fr) auto; }
@@ -5753,16 +5652,11 @@ html.piece-tiree, html.piece-tiree * {
 
 /* Le champ du compteur : sa largeur vivait en style en ligne, hors de portee
    de toute requete media. Ici, et plus etroit sur les petits telephones — a
-   360 px, le « + » de la reception sortait de l'ecran. */
+   360 px, le « + » sortait de l'ecran. */
 .pas input.valeur { width: 76px; min-height: 48px; }
-.ligne-recu .pas input.valeur { width: 72px; min-height: 44px; }
-.ligne-recu { grid-template-columns: minmax(0, 1fr) auto; }
 @media (max-width: 400px) {
   .pas { gap: 6px; }
   .pas input.valeur { width: 60px; }
-  .ligne-recu { padding: 12px 12px; gap: 10px 8px; }
-  .ligne-recu .pas input.valeur { width: 54px; }
-  .ligne-recu .prix-achat input { width: 84px; }
   .canal-charge { padding: 11px 10px; }
 }
 /* Sur les plus petits telephones, le rang d'un produit cede sa place au nom :

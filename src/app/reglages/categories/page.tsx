@@ -33,8 +33,8 @@ export default async function Categories({
     SELECT c.id, c.nom, c.ordre, c.image_id AS image, c.icone,
            (SELECT COUNT(*)::int FROM produit p WHERE p.categorie_id = c.id AND p.actif) AS produits,
            c.actif,
-           COALESCE((SELECT SUM(s.quantite)::int FROM v_stock s
-                       JOIN produit p ON p.id = s.produit_id
+           COALESCE((SELECT SUM(k.quantite)::int FROM canal k
+                       JOIN produit p ON p.id = k.produit_id
                       WHERE p.categorie_id = c.id), 0) AS unites
       FROM categorie c WHERE c.compte_id = $1
      -- Les retirees restent ici, et nulle part ailleurs : c'est le seul endroit

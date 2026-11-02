@@ -80,8 +80,8 @@ export default async function Charger({ params, searchParams }:
         </div>
 
         <p className="sous">
-          Indiquez ce que vous <b>ajoutez</b> dans chaque canal. Le stock part de votre réserve
-          tout de suite ; la RedBox le confirmera à sa prochaine synchronisation. Un nombre
+          Indiquez ce que vous <b>ajoutez</b> dans chaque canal. La RedBox le confirmera à sa
+          prochaine synchronisation. Un nombre
           <b> négatif</b> retire de la marchandise — on vous demandera pourquoi avant d’enregistrer.
         </p>
 
@@ -134,12 +134,9 @@ export default async function Charger({ params, searchParams }:
  */
 function Section({ g }: { g: GroupeCanal }) {
   const souci = g.vides > 0 || g.bas > 0;
-  // Ce que « tout a ras » ferait bouger, exactement : un canal deja plein, ou
-  // dont le produit n'est plus en reserve, ne bougera pas.
-  const servables = g.canaux.filter((c) => {
-    const place = Math.max(0, c.capacite - c.quantite - c.en_route);
-    return Math.min(place, c.reserve) > 0;
-  }).length;
+  // Ce que « tout a ras » ferait bouger, exactement : un canal deja plein ne
+  // bougera pas.
+  const servables = g.canaux.filter((c) => c.capacite - c.quantite - c.en_route > 0).length;
 
   return (
     <details className="groupe" open={souci} data-remplissable="">
@@ -156,18 +153,13 @@ function Section({ g }: { g: GroupeCanal }) {
             {g.vides === 0 && g.bas === 0 ? <span className="pilule ok"><i />bien garni</span> : null}
           </div>
         </div>
-        <div style={{ textAlign: "right", flex: "none" }}>
-          <div className="num" style={{ fontWeight: 800, fontSize: 21,
-                color: g.reserve === 0 ? "var(--rouge-vif)" : undefined }}>{g.reserve}</div>
-          <div className="faible" style={{ fontSize: 11 }}>chez moi</div>
-        </div>
       </summary>
       <div className="dedans">
         <div className="rangee-remplir">
           <Remplir combien={servables} />
           <span className="faible">
             {servables === 0
-              ? "Rien à servir ici : les canaux sont pleins, ou la réserve est vide."
+              ? "Rien à servir ici : les canaux sont pleins."
               : `${servables} canal${servables > 1 ? "aux" : ""} peut${servables > 1 ? "vent" : ""} encore être servi${servables > 1 ? "s" : ""}.`}
           </span>
         </div>
@@ -181,14 +173,13 @@ function Section({ g }: { g: GroupeCanal }) {
  * UN CANAL A SERVIR.
  *
  * Le carton dans une main, le telephone dans l'autre : ce qu'il faut savoir se
- * lit d'un coup — quel produit, ou il est dans la machine, ce qu'il porte, ce
- * qui reste chez soi. La jauge donne l'echelle avant qu'on lise le chiffre, et
+ * lit d'un coup — quel produit, ou il est dans la machine, ce qu'il porte. La
+ * jauge donne l'echelle avant qu'on lise le chiffre, et
  * son etat est ECRIT a cote : une couleur qui porte seule ne dit rien dans un bar
  * mal eclaire, ni a qui ne la voit pas.
  */
 function Canal({ c }: { c: LigneCanal }) {
   const place = Math.max(0, c.capacite - c.quantite - c.en_route);
-  const max = Math.min(place, c.reserve);
   const etat = c.quantite === 0 ? "vide"
              : c.quantite <= c.seuil_bas ? "bas" : "plein";
   const part = c.capacite ? Math.round((c.quantite / c.capacite) * 100) : 0;
@@ -224,22 +215,13 @@ function Canal({ c }: { c: LigneCanal }) {
 
       {/* Le plancher est ce que la machine porte : on ne retire pas ce qui n'y est pas. */}
       <div className="commandes">
-        <Pas nom={`q_${c.lane}`} max={max} ras={place} min={-c.quantite}
+        <Pas nom={`q_${c.lane}`} max={place} min={-c.quantite}
              etiquette={c.nom} canal={codeCanal(c.rangee, c.colonne)} />
       </div>
 
-      <div className="reserve">
-        <span className="num" style={c.reserve === 0 ? { color: "var(--rouge-vif)" } : undefined}>
-          {c.reserve}
-        </span>
-        <span className="q">chez moi</span>
-      </div>
-
-      {c.en_route > 0 || c.reserve === 0 ? (
+      {c.en_route > 0 ? (
         <p className="note-canal">
-          {c.reserve === 0 ? "Plus rien en réserve — il n’y a rien à charger ici." : null}
-          {c.reserve === 0 && c.en_route > 0 ? " " : null}
-          {c.en_route > 0 ? `${c.en_route} déjà en route vers ce canal, pas encore confirmées.` : null}
+          {c.en_route} déjà en route vers ce canal, pas encore confirmées.
         </p>
       ) : null}
     </div>

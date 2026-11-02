@@ -145,13 +145,8 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         <span>€</span>
       </div>
 
-      {/* Les deux gestes qui suivent presque toujours la lecture d'une ligne de
-          catalogue : en recevoir, ou en envoyer sur les bornes. Autant ne pas
-          obliger a repasser par le menu et a rechercher le meme produit. */}
-      <Link href={`/reception?p=${p.id}`} className="bouton petit discret"
-            draggable={false} title={`Recevoir du stock de ${p.nom}`}>
-        Recevoir
-      </Link>
+      {/* Le geste qui suit presque toujours la lecture d'une ligne de catalogue :
+          en envoyer sur les bornes, sans repasser par le menu. */}
       <Link href={`/reassort?p=${p.id}`} className="bouton petit discret"
             draggable={false} title={`Fiche d’approvisionnement des RedBox qui portent ${p.nom}`}>
         Approvisionner
@@ -247,7 +242,7 @@ export default function RangerProduits({ initiaux, cats }: { initiaux: Prod[]; c
         <div className="confirme-oter">
           <div>
             <b>« {p.nom} » ne peut pas être supprimé.</b> Il porte {p.bouge} mouvement
-            {p.bouge > 1 ? "s" : ""} de stock — réceptions, transferts, ventes. L’effacer
+            {p.bouge > 1 ? "s" : ""} de stock — réassorts, ventes. L’effacer
             trouerait le grand livre, qui est la seule vérité de votre stock.
             {" "}<b>Suspendez-le</b> : il disparaît des RedBox, garde son historique,
             et revient d’un clic.

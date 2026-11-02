@@ -3,8 +3,8 @@ import { q } from "@/db";
 /**
  * COMBIEN DE JOURS AVANT QU'UNE SPIRE SOIT VIDE.
  *
- * Le stock d'un produit, a l'echelle du compte, dit quand racheter
- * (`tableau.autonomie`). Ici c'est l'autre question, celle de la tournee : dans
+ * Le stock d'un produit, a l'echelle du compte, dit quand remplir
+ * (`tableau.autonomie`). Ici c'est le detail, celui de la tournee : dans
  * QUELLE machine, quelle spire va tomber a zero, et quand. Une Puff Menthe
  * peut avoir dix jours devant elle au Duplex et un seul Chez Marcel.
  *

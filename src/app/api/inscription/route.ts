@@ -70,10 +70,6 @@ export async function POST(req: Request) {
     // Le badge de bienvenue, dans la meme transaction : le compte et son cadeau
     // naissent ensemble, ou pas du tout.
     await offrirBienvenue(u.id, c);
-    // La reserve nait avec le compte : sans elle, la premiere reception n'aurait
-    // nulle part ou entrer.
-    await c.query("INSERT INTO lieu (compte_id, genre, nom) VALUES ($1,'reserve','Ma réserve')",
-                  [k.id]);
     if (!process.env.REDBOX_SANS_DEMO) await semerDemo(c, k.id, email);
     return { souci: null, id: u.id };
   }).catch((e: unknown) => {

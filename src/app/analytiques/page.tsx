@@ -145,7 +145,7 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
 
   const ventes = points.reduce((s, d) => s + d.n, 0);
   const classees = [...categories.series].sort((a, b) => b.total - a.total);
-  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 21);
+  const risques = stocks.filter((s) => s.jours_restants !== null && s.jours_restants <= 7);
   const dormants = stocks.filter((s) => s.vendus === 0 && s.stock > 0);
 
   return (
@@ -180,7 +180,7 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
         {/*
           QUEL PRODUIT, ET PAS SEULEMENT QUELLE BORNE. C'est l'article qu'on
           rachete, qu'on arrete ou qu'on monte en prix — la borne, on ne la
-          change pas. La marge est a cote du chiffre, et c'est elle qui compte.
+          change pas.
 
           LE MEME CHIFFRE, DEUX LECTURES : un tableau se lit ligne par ligne, un
           graphe se lit d'un coup. Deux liens plutot qu'un bouton a JavaScript :
@@ -216,7 +216,6 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
                   <th scope="col" className="masque-etroit">Catégorie</th>
                   <th scope="col" className="num">Vendus</th>
                   <th scope="col" className="num">Chiffre</th>
-                  <th scope="col" className="num">Marge</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,12 +228,6 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
                     <td className="masque-etroit">{pr.categorie}</td>
                     <td className="num">{pr.n}</td>
                     <td className="num">{euros(pr.ca)}</td>
-                    {/* Un tiret, pas un zero : une marge inconnue n'est pas une
-                        marge nulle, et les confondre fait arreter un produit qui
-                        rapportait. */}
-                    <td className={`num ${pr.marge !== null && pr.marge < 0 ? "perte" : ""}`}>
-                      {pr.marge === null ? "—" : euros(pr.marge)}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -244,9 +237,6 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
                   <td className="masque-etroit" />
                   <td className="num">{produits.reduce((t, x) => t + x.n, 0)}</td>
                   <td className="num">{euros(produits.reduce((t, x) => t + x.ca, 0))}</td>
-                  <td className="num">
-                    {euros(produits.reduce((t, x) => t + (x.marge ?? 0), 0))}
-                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -285,10 +275,10 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
         <>
         <div className="titre-section" id="manque">
           <h2>Ce qui va manquer</h2>
-          <Link href="/reception" className="lien">Enregistrer une réception <IcoFleche size={13} /></Link>
+          <Link href="/charger" className="lien">Faire un réassort <IcoFleche size={13} /></Link>
         </div>
         {risques.length === 0 ? (
-          <Repli icone={<IcoStock />} titre="Rien ne manquera d’ici trois semaines"
+          <Repli icone={<IcoStock />} titre="Rien ne manquera d’ici une semaine"
                  texte="Au rythme de vente constaté sur la période, tous vos produits tiennent."
                  dedans />
         ) : (
@@ -297,9 +287,8 @@ async function Corps({ u, p, pas, perso, portee, choisie, sienDuCompte, graphe, 
               {risques.map((s) => <FicheRisque key={s.id} s={s} />)}
             </div>
             <p className="faible" style={{ fontSize: 13, marginTop: 12 }}>
-              L’autonomie divise le stock total — réserve, RedBox et en route — par la cadence
-              de vente de la période. La quantité proposée est celle qui vous ramène à trente
-              jours d’avance.
+              L’autonomie divise le stock des RedBox, en route compris, par la cadence
+              de vente de la période.
             </p>
           </>
         )}

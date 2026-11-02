@@ -110,8 +110,8 @@ export default async function Equipe({ searchParams }: { searchParams: Promise<{
           {/*
             LA PORTEE. « Tout le compte » reste le cas ordinaire — un associe, un
             reassortisseur qui tourne sur le parc. Choisir une borne enferme
-            l'invite dessus : il ne verra ni les autres machines, ni leurs ventes,
-            ni le stock du depot. C'est ce qu'on donne au patron du bar qui
+            l'invite dessus : il ne verra ni les autres machines, ni leurs ventes.
+            C'est ce qu'on donne au patron du bar qui
             heberge la machine, et il n'a rien a voir du reste.
           */}
           <div className="champ">

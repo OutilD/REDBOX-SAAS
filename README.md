@@ -42,8 +42,8 @@ donne : jamais contre la production.
 somme, et elle se déplie toujours en la liste des lignes qui l’ont produite.
 
 ```
-lieu        réserve | borne          une réserve est un lieu comme une borne
-mouvement   de_lieu → vers_lieu, quantité, motif, prix d'achat, qui, quand
+lieu        borne                 le lieu d'une machine
+mouvement   de_lieu → vers_lieu, quantité, motif, qui, quand
 ```
 
 Motifs : `reception`, `transfert`, `vente`, `perte`, `retour`, `inventaire`.
@@ -144,12 +144,12 @@ la gestion : Exploitation, Approvisionnement, Configuration. Il montre **tout** 
 que porte le produit où l’on est, y compris ce
 qui se visite rarement — c’est la différence entre un menu qu’on parcourt et un
 plan qu’on lit. Chaque entrée porte sa pastille : canaux vides, litiges à
-regarder, produits épuisés en réserve. Une seule requête les calcule toutes les
-trois : le rail est sur chaque page, il n’a pas le droit d’en coûter trois.
+regarder. Une seule requête les calcule toutes : le rail est sur chaque page,
+il n’a pas le droit d’en coûter plusieurs.
 
 **Au téléphone, une barre en bas**, là où se trouve le pouce, avec les cinq
 destinations qu’on atteint d’une main. Les autres se rejoignent depuis celles-ci —
-Réception s’allume sous Stock, Catalogue sous Réglages.
+Catalogue s’allume sous Réglages.
 
 Sur les trois pages qui se filtrent par machine — tableau de bord, analytiques,
 ventes —, le sélecteur de RedBox prend une seconde ligne de l’en-tête au
@@ -203,8 +203,8 @@ Le croisement **catégorie × borne** est en barres empilées, une couleur par b
 la même d’une catégorie à l’autre — c’est ce qui permet de suivre une machine sans
 relire la légende à chaque bloc.
 
-**L’autonomie** divise le stock total — réserve, bornes et en route — par la
-cadence de vente constatée. C’est le chiffre qui décide quand racheter : huit
+**L’autonomie** divise le stock des RedBox, en route compris, par la
+cadence de vente constatée. C’est le chiffre qui décide quand remplir : huit
 unités, c’est trois semaines pour un briquet et deux jours pour une Puff, le stock
 seul ne dit rien. Un produit qui ne s’est pas vendu n’a pas d’autonomie calculable
 — on affiche `null`, jamais un infini déguisé en « tout va bien ».
@@ -214,7 +214,7 @@ instantanément sur un téléphone au fond d’un bar.
 
 ## Le transfert a deux dates
 
-`fait_le` — vous saisissez le chargement, **votre réserve baisse aussitôt** : la
+`fait_le` — vous saisissez le chargement, **la marchandise est en route** : la
 marchandise est dans vos mains.
 `confirme_le` — la machine l’a inscrit sur ses compteurs.
 
@@ -222,8 +222,9 @@ Entre les deux, c’est « en route » : ni chez vous, ni dans la borne. Un tran
 jamais confirmé reste visible, parce que c’est exactement le cas où l’on croit
 avoir chargé une machine qui n’a rien reçu.
 
-La vue `v_stock` encode cette asymétrie : **ce qui sort compte dès la saisie, ce
-qui entre ne compte qu’une fois confirmé.**
+Le logiciel ne suit pas la marchandise avant la machine : un transfert n’a pas de
+lieu d’origine. Les réceptions, la réserve et la marge ont été retirées ; leur
+historique reste en base, et les vues `v_stock` et `v_prix_achat` ne servent plus.
 
 ## Les transferts sont des écarts, pas des valeurs
 
@@ -484,8 +485,7 @@ pure, vérifiable cas par cas.
 ## Mode démo
 
 Un compte qui vient de s’inscrire **s’ouvre sur un parc inventé** : trois
-bornes, onze produits en six catégories, trois semaines de ventes, une réserve
-avec deux livraisons, une tournée hebdomadaire, une équipe et une invitation en
+bornes, onze produits en six catégories, trois semaines de ventes, une tournée hebdomadaire, une équipe et une invitation en
 attente, deux playlists, un prix propre sur une machine, une autre hors
 service. Un bandeau ambre reste dans l’en-tête de chaque page tant que le mode
 est actif.
@@ -504,7 +504,7 @@ ligne et à jour du catalogue.
 **On en sort en effaçant tout** (`/demo`, propriétaire seulement, deux appuis) :
 bornes, catalogue, stock, ventes, écran d’accueil, y compris ce qui a été ajouté
 pendant l’essai. Restent le compte, ses membres et leurs photos, les invitations
-adressées à de vraies adresses, et une réserve vide. Une vraie machine ne peut
+adressées à de vraies adresses. Une vraie machine ne peut
 pas être appairée tant que la démo est active. La même page remet la démo à
 neuf, ou la relance sur un compte resté vide.
 
@@ -527,7 +527,7 @@ nombre de RedBox, les heures d’ouverture, une progression, le **nombre de
 commandes** (qui, avec le chiffre, fait le panier moyen — une commande
 emporte jusqu’à huit articles ; vide : un article par commande), et le **poids de
 chaque soir** (0 : fermé ; jeudi 1, vendredi 1,6, samedi 1,9 par défaut) — et
-l’histoire est réinventée : catalogue, bornes, réceptions et tournées qui
+l’histoire est réinventée : catalogue, bornes et tournées qui
 suivent les ventes, ventes réparties selon ces poids et l’affluence de la
 soirée, à quelques euros près du montant demandé. Une soirée en
 cours n’a que ses heures passées.

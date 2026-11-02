@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from "react";
  * deux grosses cibles et un bouton « à ras ». C'est le geste le plus repete de
  * l'application ; il vaut ces vingt lignes.
  */
-export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, canal }:
-  { nom: string; max: number; defaut?: number; ras?: number; min?: number;
+export default function Pas({ nom, max, defaut = 0, min = 0, etiquette, canal }:
+  { nom: string; max: number; defaut?: number; min?: number;
     etiquette?: string | null; canal?: string | null }) {
   const [n, poser] = useState(defaut);
   /**
@@ -26,7 +26,6 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
    * ce qu'il y a dedans : on ne retire pas ce qui n'y est pas.
    */
   const borne = (v: number) => Math.max(min, Math.min(max, v));
-  const plafond = ras !== undefined ? Math.min(ras, max) : max;
   const champ = useRef<HTMLInputElement>(null);
   const premier = useRef(true);
 
@@ -52,16 +51,15 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
    *
    * Remplir une machine, c'est viser vingt-quatre fois le meme petit bouton. Le
    * geste se demande donc une fois par categorie, et chaque compteur qui se
-   * trouve dedans se sert lui-meme — chacun avec SON plafond, qui tient compte
-   * de la place restante et de ce qu'il y a en reserve.
+   * trouve dedans se sert lui-meme — chacun avec SON plafond, la place restante.
    */
   useEffect(() => {
     const cadre = champ.current?.closest("[data-remplissable]");
     if (!cadre) return;
-    const servir = () => poser(plafond);
+    const servir = () => poser(max);
     cadre.addEventListener("remplir-tout", servir);
     return () => cadre.removeEventListener("remplir-tout", servir);
-  }, [plafond]);
+  }, [max]);
 
   return (
     <div className="pas">
@@ -77,9 +75,9 @@ export default function Pas({ nom, max, defaut = 0, ras, min = 0, etiquette, can
              data-etiquette={etiquette} data-canal={canal} />
       <button type="button" aria-label="Ajouter un" className={n > 0 ? "plein" : ""}
               onClick={() => poser(borne(n + 1))} disabled={n >= max}>+</button>
-      {plafond > 0 ? (
-        <button type="button" className="bouton petit" onClick={() => poser(plafond)}
-                disabled={n >= plafond} style={{ marginLeft: 2 }}>
+      {max > 0 ? (
+        <button type="button" className="bouton petit" onClick={() => poser(max)}
+                disabled={n >= max} style={{ marginLeft: 2 }}>
           à ras
         </button>
       ) : null}

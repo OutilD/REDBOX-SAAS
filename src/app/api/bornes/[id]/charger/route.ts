@@ -1,6 +1,5 @@
 import { transaction } from "@/db";
 import { peutCharger, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
-import { reserveDe } from "@/lib/stock";
 import { reveiller, sqlCanalServi } from "@/lib/borne";
 import { estMotifSortie } from "@/lib/sortie";
 
@@ -9,13 +8,12 @@ export const dynamic = "force-dynamic";
 /**
  * Valider un chargement.
  *
- * Chaque canal servi devient un TRANSFERT : reserve → borne, non confirme. La
- * reserve baisse tout de suite (la marchandise est dans vos mains), la borne ne
- * monte qu'a l'acquittement de la machine.
+ * Chaque canal servi devient un TRANSFERT non confirme, sans lieu d'origine : le
+ * logiciel ne suit pas la marchandise avant la machine. Le canal ne monte qu'a
+ * l'acquittement de la borne.
  *
  * Tout est verifie ici, pas seulement dans le navigateur : la quantite demandee
- * doit tenir dans le canal ET exister en reserve. Un formulaire se bricole ; une
- * transaction, non.
+ * doit tenir dans le canal. Un formulaire se bricole ; une transaction, non.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await utilisateurDe(req);
@@ -33,8 +31,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!cle.startsWith("q_")) continue;
     const lane = Number(cle.slice(2));
     const n = Number(valeur);
-    // ZERO NE DIT RIEN, LE RESTE OUI. Un nombre positif charge depuis la reserve,
-    // un negatif sort de la machine — c'est le meme geste devant la borne
+    // ZERO NE DIT RIEN, LE RESTE OUI. Un nombre positif charge la machine,
+    // un negatif l'en sort — c'est le meme geste devant la borne
     // ouverte, et c'etait deux ecrans.
     if (Number.isInteger(lane) && Number.isInteger(n) && n !== 0) demandes.set(lane, n);
   }
@@ -42,7 +40,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   // UNE SORTIE SANS CAUSE NE SE PILOTE PAS. « J'ai perdu douze unites » ne dit
   // rien ; « douze cassees sur ce produit » se pilote. On exige donc le motif
-  // des qu'un seul canal est en retrait, comme la page de sortie de stock.
+  // des qu'un seul canal est en retrait.
   const retraits = [...demandes.values()].some((n) => n < 0);
   const motif = String(f.get("motif") ?? "");
   const note = String(f.get("note") ?? "").trim() || null;
@@ -54,16 +52,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
 
   const bilan = await transaction(async (c) => {
-    // VERROUS, dans l'ordre du releve (borne puis canaux) : deux chargements
-    // simultanes liraient la meme place libre et le meme stock en reserve, et
-    // feraient deborder l'une ou creuser l'autre.
+    // VERROU, le meme que le releve : deux chargements simultanes liraient la
+    // meme place libre et feraient deborder le canal.
     const b = (await c.query<{ id: number; lieu_id: number | null }>(
       "SELECT id, lieu_id FROM borne WHERE id = $1 AND compte_id = $2 FOR UPDATE",
       [id, u.compte_id])).rows[0];
     if (!b || !b.lieu_id) return { canaux: 0, unites: 0, refuses: 0, sortis: 0 };
-    await c.query("SELECT pg_advisory_xact_lock(4242, $1::int)", [u.compte_id]);
 
-    const reserve = await reserveDe(u.compte_id, c);
     let canaux = 0, unites = 0, refuses = 0, sortis = 0;
 
     for (const [lane, demande] of demandes) {
@@ -109,8 +104,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
       // UN CANAL QUE LA MACHINE NE SERT PAS ne se charge pas : produit
       // suspendu, masque sur cette borne, spire hors geometrie. Elle le croit
-      // libre, n'appliquerait jamais le transfert, et la reserve resterait
-      // amputee d'une marchandise « en route » pour toujours.
+      // libre, n'appliquerait jamais le transfert, et la marchandise resterait
+      // « en route » pour toujours.
       if (!ca.servi) { refuses++; continue; }
 
       // Ce qui est deja en route compte : sinon deux chargements successifs
@@ -120,19 +115,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
          WHERE vers_lieu_id = $1 AND lane = $2 AND motif = 'transfert'
            AND confirme_le IS NULL AND annule_le IS NULL`, [b.lieu_id, lane])).rows[0].n;
 
-      const dispo = (await c.query<{ n: number }>(
-        "SELECT COALESCE(SUM(quantite),0)::int n FROM v_stock WHERE lieu_id = $1 AND produit_id = $2",
-        [reserve, ca.produit_id])).rows[0].n;
-
       const place = Math.max(0, ca.capacite - ca.quantite - enRoute);
-      const quantite = Math.min(demande, place, dispo);
+      const quantite = Math.min(demande, place);
       if (quantite <= 0) { refuses++; continue; }
 
       await c.query(`
-        INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, vers_lieu_id, quantite,
+        INSERT INTO mouvement (compte_id, produit_id, vers_lieu_id, quantite,
                                motif, lane, par)
-        VALUES ($1,$2,$3,$4,$5,'transfert',$6,$7)`,
-        [u.compte_id, ca.produit_id, reserve, b.lieu_id, quantite, lane, u.email]);
+        VALUES ($1,$2,$3,$4,'transfert',$5,$6)`,
+        [u.compte_id, ca.produit_id, b.lieu_id, quantite, lane, u.email]);
       canaux++; unites += quantite;
       if (quantite < demande) refuses++;
     }

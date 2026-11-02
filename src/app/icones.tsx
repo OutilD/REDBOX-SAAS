@@ -80,14 +80,6 @@ export const IcoStock = ({ size = 20 }: P) => (
   </svg>
 );
 
-/** Reception : une fleche qui entre dans une caisse. */
-export const IcoReception = ({ size = 20 }: P) => (
-  <svg {...base(size)}>
-    <path d="M10 2.5v8M7 8l3 3 3-3" />
-    <path d="M3 12.5v3a2 2 0 002 2h10a2 2 0 002-2v-3" />
-  </svg>
-);
-
 /** Catalogue : une liste de references. */
 export const IcoCatalogue = ({ size = 20 }: P) => (
   <svg {...base(size)}>

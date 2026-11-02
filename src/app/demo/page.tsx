@@ -70,8 +70,7 @@ export default async function Demo({ searchParams }:
                 <li>Les trois RedBox fictives <b>vivent</b> : elles vendent quelques articles entre
                     deux de vos visites, confirment les chargements que vous saisissez, répondent
                     aux corrections de compteur et restent en ligne.</li>
-                <li>Vous pouvez tout faire comme pour de vrai : recevoir de la marchandise,
-                    remplir une RedBox, traiter un litige, poser un prix, composer l’écran d’accueil,
+                <li>Vous pouvez tout faire comme pour de vrai : remplir une RedBox, traiter un litige, poser un prix, composer l’écran d’accueil,
                     inviter quelqu’un.</li>
                 <li>Une <b>vraie</b> machine ne peut pas être appairée tant que le mode démo est
                     actif : ses ventes se mêleraient aux ventes inventées.</li>
@@ -84,7 +83,7 @@ export default async function Demo({ searchParams }:
               <p style={{ margin: "0 0 12px", fontSize: 14.5, lineHeight: 1.6 }}>
                 Le compte est <b>entièrement vidé</b> : RedBox, catalogue, catégories, stock,
                 ventes, écran d’accueil — y compris ce que vous avez ajouté pendant l’essai.
-                Restent votre compte, les personnes que vous y avez fait entrer, et une réserve vide.
+                Restent votre compte, et les personnes que vous y avez fait entrer.
                 Vous pourrez alors appairer votre première RedBox.
               </p>
               {!patron ? (

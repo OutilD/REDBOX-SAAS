@@ -433,10 +433,8 @@ function venteInvalide(v: unknown): string | null {
 /**
  * Adopte le catalogue d'une borne dans un compte encore vierge.
  *
- * Le stock deja present dans la machine entre par un mouvement d'INVENTAIRE, pas
- * de reception : on ne connait pas son prix d'achat, et pretendre le contraire
- * fausserait la valeur du stock des le premier jour. C'est un solde d'ouverture,
- * et il se lit comme tel dans le grand livre.
+ * Le stock deja present dans la machine entre par un mouvement d'INVENTAIRE :
+ * c'est un solde d'ouverture, et il se lit comme tel dans le grand livre.
  */
 async function adopter(c: PgClient, compte_id: number, borne_id: number, lieu_id: number,
                        cat: CatalogueLocal): Promise<number> {

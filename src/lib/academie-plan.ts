@@ -198,14 +198,13 @@ Vous, vous n’avez rien à gérer. [Votre proposition : part des ventes, loyer,
       },
       {
         titre: "Réassort : ne jamais tomber en rupture", duree: 4, acces: "redboxers",
-        resume: "Le stock au dépôt, la réception, et le passage à la machine.",
+        resume: "Le passage à la machine, et l’alerte quand une spirale se vide.",
         blocs: [
           { genre: "texte", texte:
-`Le cycle se fait en trois écrans :
+`Le cycle se fait en deux écrans :
 
-1. **Réception** : vous enregistrez une livraison, votre stock au dépôt monte.
-2. **Réassort** : devant la machine, vous chargez chaque spirale — le dépôt descend d’autant.
-3. **Notifications** : la console vous prévient quand une spirale se vide.` },
+1. **Réassort** : devant la machine, vous indiquez ce que vous ajoutez dans chaque spirale.
+2. **Notifications** : la console vous prévient quand une spirale se vide.` },
           { genre: "astuce", titre: "Passez avant le week-end",
             texte: "Une machine pleine le jeudi vend tout le week-end. Une machine pleine le lundi attend." },
         ],

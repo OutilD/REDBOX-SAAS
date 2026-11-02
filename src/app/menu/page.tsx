@@ -20,8 +20,6 @@ const QUOI: Record<string, string> = {
   communaute: "Redboxers, badges et classement",
   academie: "La machine, le pitch, les contrats : la formation",
   prospection: "Les établissements que vous démarchez, en colonnes",
-  stock: "Ce qui reste au dépôt",
-  reception: "Enregistrer une livraison",
   charger: "Remplir une machine",
   categories: "Ranger le catalogue",
   catalogue: "Vos produits",

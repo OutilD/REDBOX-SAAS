@@ -238,10 +238,10 @@ export default async function Detail({
             Ils etaient cinq cartes presque identiques semees dans la page. */}
         {charge ? (
           <Avis titre={`Réassort : ${charge} unités envoyées sur ${nCanaux} canaux`}>
-            Elles quittent votre réserve maintenant. La RedBox les inscrira à sa prochaine
+            La RedBox les inscrira à sa prochaine
             synchronisation — d’ici une trentaine de secondes si elle est en ligne.
             {Number(refuses) > 0
-              ? ` ${refuses} ${Number(refuses) > 1 ? "canaux n’ont" : "canal n’a"} pas pu être servi en entier : place ou réserve insuffisante.`
+              ? ` ${refuses} ${Number(refuses) > 1 ? "canaux n’ont" : "canal n’a"} pas pu être servi en entier : place insuffisante.`
               : ""}
           </Avis>
         ) : null}
