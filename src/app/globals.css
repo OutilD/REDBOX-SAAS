@@ -8709,3 +8709,69 @@ html.js .sans-js { display: none; }
   background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--bord-fort);
   font-size: 13.5px; line-height: 1.45; color: var(--texte-2); box-shadow: 0 4px 18px rgba(0,0,0,.25); pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LE BANDEAU LUMINEUX : l'apercu de la machine a cote de l'anneau, et les
+   effets du controleur imites (anneau-led.tsx). Indicatif, pas mesure.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.reglage-led { display: grid; gap: 18px; margin-top: 14px; }
+.led-visuels { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 260px); gap: 28px;
+  justify-content: center; align-items: center; }
+.apercu-led { width: 100%; display: block; }
+.apercu-led g, .apercu-led rect { transition: opacity .3s; }
+.led-anneau svg { width: 100%; display: block; transition: opacity .2s; }
+.led-couleur { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; font-size: 14px; }
+.led-pastille { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--bord-fort); flex: none; }
+.led-titre { margin-top: 16px; font-size: 13px; font-weight: 650; color: var(--texte-2); }
+.led-effets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.led-effet {
+  display: grid; gap: 3px; justify-items: start; text-align: left; padding: 10px 12px; cursor: pointer;
+  border-radius: 12px; border: 1px solid var(--bord); background: var(--surface-2); color: var(--texte);
+  font: inherit; transition: border-color .15s, background .15s;
+}
+.led-effet svg { width: 64px; height: 10px; margin-bottom: 4px; overflow: visible; }
+.led-effet b { font-size: 13.5px; }
+.led-effet span { font-size: 12px; color: var(--texte-3); line-height: 1.3; }
+.led-effet:hover:not(:disabled) { border-color: var(--bord-fort); }
+.led-effet.actif { border-color: var(--rouge); background: var(--rouge-fond); }
+.led-effet:disabled { opacity: .45; cursor: default; }
+.led-pied { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--bord); }
+.led-pied p { margin: 0; font-size: 13px; flex: 1 1 220px; }
+.led-pied .bouton:disabled { opacity: .45; cursor: default; }
+
+/* Telephone : l'apercu et l'anneau restent cote a cote, plus petits ; les
+   effets sur deux colonnes ; le bouton prend toute la largeur. */
+@media (max-width: 560px) {
+  .led-visuels { grid-template-columns: 38fr 62fr; gap: 14px; }
+  .led-effets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .led-effet { padding: 9px 10px; }
+  .led-pied .bouton { width: 100%; }
+}
+
+@keyframes led-souffle { 0%, 100% { opacity: .12; } 50% { opacity: 1; } }
+@keyframes led-teintes {
+  0% { stroke: #ff2d2d; } 14.3% { stroke: #ffd60a; } 28.6% { stroke: #2ee65a; } 42.9% { stroke: #5ad8ff; }
+  57.1% { stroke: #2f6bff; } 71.4% { stroke: #ff5fc8; } 85.7% { stroke: #ffffff; } 100% { stroke: #ff2d2d; }
+}
+@keyframes led-teintes-fond {
+  0% { fill: #ff2d2d; } 14.3% { fill: #ffd60a; } 28.6% { fill: #2ee65a; } 42.9% { fill: #5ad8ff; }
+  57.1% { fill: #2f6bff; } 71.4% { fill: #ff5fc8; } 85.7% { fill: #ffffff; } 100% { fill: #ff2d2d; }
+}
+@keyframes led-flux { to { stroke-dashoffset: -100; } }
+
+.led-respiration { animation: led-souffle 3s ease-in-out infinite; }
+/* Multicolore : une respiration par couleur. Coloree : les teintes glissent. */
+.led-multicolore { animation: led-souffle 3s ease-in-out infinite, led-teintes 21s step-end infinite; }
+.led-coloree { animation: led-teintes 10s linear infinite; }
+g.led-multicolore path, g.led-coloree path { stroke: inherit; }
+rect.led-multicolore { animation-name: led-souffle, led-teintes-fond; }
+rect.led-coloree { animation-name: led-teintes-fond; }
+.led-flux { stroke-dasharray: 22 78; }
+.led-flux.led-defilement1 { animation: led-flux 2.4s linear infinite, led-teintes 14s linear infinite; }
+.led-flux.led-defilement2 { animation: led-flux 1.4s linear infinite reverse, led-teintes 7s linear infinite; }
+rect.led-defilement1, rect.led-defilement2 { animation: led-teintes-fond 14s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .apercu-led [class*="led-"] { animation: none !important; }
+}

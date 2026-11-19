@@ -17,12 +17,12 @@ export const COULEURS = [
 ] as const;
 
 export const EFFETS = [
-  { id: "fixe", nom: "Fixe" },
-  { id: "respiration", nom: "Respiration" },
-  { id: "multicolore", nom: "Multicolore" },
-  { id: "coloree", nom: "Colorée" },
-  { id: "defilement1", nom: "Défilement 1" },
-  { id: "defilement2", nom: "Défilement 2" },
+  { id: "fixe", nom: "Fixe", aide: "Lumière continue" },
+  { id: "respiration", nom: "Respiration", aide: "S’allume et s’éteint doucement" },
+  { id: "multicolore", nom: "Multicolore", aide: "Respire en changeant de couleur" },
+  { id: "coloree", nom: "Colorée", aide: "Les couleurs glissent" },
+  { id: "defilement1", nom: "Défilement 1", aide: "La lumière court" },
+  { id: "defilement2", nom: "Défilement 2", aide: "Plus vite, en sens inverse" },
 ] as const;
 
 export type Led = { couleur: string; effet: string; luminosite: number };
