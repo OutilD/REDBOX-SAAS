@@ -123,6 +123,9 @@ export async function GET(req: Request) {
       active: borne.veille_active,
       inactivite_s: inactiviteValide(borne.inactivite_s),
     },
+    // La couleur du bandeau : un etat aussi, sans empreinte. null = jamais
+    // reglee, la borne laisse le bandeau comme il est.
+    led: borne.led,
     catalogue: { version, vide, ...catalogue },
     pub: { version: empreintePub(visuels), vide: pubDeserte, visuels },
     ecrans: illustrations,

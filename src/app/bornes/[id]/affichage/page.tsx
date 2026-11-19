@@ -3,8 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { Entete, NavBasse } from "../../../chrome";
 import { q, q1, euros, codeCanal, entier } from "@/db";
 import { peutConfigurer, utilisateur, peutVoirBorne } from "@/lib/auth";
-import { INACTIVITE_MAX, INACTIVITE_MIN } from "@/lib/borne";
+import { INACTIVITE_MAX, INACTIVITE_MIN, anterieureA } from "@/lib/borne";
 import { IcoAlerte } from "../../../icones";
+import { LED_DEFAUT, VERSION_LED, type Led } from "@/lib/led";
+import AnneauLed from "./anneau-led";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +61,8 @@ export default async function Affichage({
   const b = await q1<{
     id: number; nom: string; adresse: string | null;
     veille_active: boolean; inactivite_s: number;
-  }>(`SELECT id, nom, adresse, veille_active, inactivite_s
+    led: Led | null; version: string | null; jeton: string | null;
+  }>(`SELECT id, nom, adresse, veille_active, inactivite_s, led, version, jeton
         FROM borne WHERE id = $1 AND compte_id = $2`, [id, u.compte_id]);
   if (!b) notFound();
 
@@ -195,6 +198,19 @@ export default async function Affichage({
               <button className="bouton">Enregistrer l’écran d’accueil</button>
             </div>
           </form>
+        )}
+
+        {!modifiable ? null : (
+          <section className="carte" style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+              <strong>Bandeau lumineux</strong>
+              <span className="faible" style={{ fontSize: 13.5 }}>La couleur du cadre de la machine.</span>
+            </div>
+            <AnneauLed id={b.id} initial={b.led ?? LED_DEFAUT}
+                       absent={!b.jeton ? "machine non appairée : la couleur s’appliquera après l’appairage."
+                         : !anterieureA(b.version, 5, 27) ? null
+                         : `cette RedBox a la ${b.version ?? "version inconnue"} : il faut la ${VERSION_LED} pour appliquer la couleur.`} />
+          </section>
         )}
 
         <div className="bandeau deux" style={{ marginTop: 4 }}>

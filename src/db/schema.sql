@@ -716,6 +716,10 @@ ALTER TABLE borne ADD COLUMN IF NOT EXISTS veille_active BOOLEAN NOT NULL DEFAUL
 -- 600 s au plus (au-dela, le panier d'un client parti serait paye par le suivant).
 ALTER TABLE borne ADD COLUMN IF NOT EXISTS inactivite_s INT NOT NULL DEFAULT 90;
 
+-- LE BANDEAU LUMINEUX DU CADRE (APK 5.27) : { couleur, effet, luminosite },
+-- valide par src/lib/led.ts. NULL = jamais regle : la borne ne touche a rien.
+ALTER TABLE borne ADD COLUMN IF NOT EXISTS led JSONB;
+
 -- ------------------------------------------------------- le prix par borne
 
 -- LE MEME CATALOGUE, PAS LE MEME PRIX.

@@ -13,6 +13,7 @@ export type Borne = {
   version: string | null; catalogue_version: string | null; sante: unknown;
   hors_service: boolean; hors_service_texte: string | null;
   veille_active: boolean; inactivite_s: number;
+  led: { couleur: string; effet: string; luminosite: number } | null;
 };
 
 /**
