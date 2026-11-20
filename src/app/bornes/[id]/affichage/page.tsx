@@ -61,8 +61,9 @@ export default async function Affichage({
   const b = await q1<{
     id: number; nom: string; adresse: string | null;
     veille_active: boolean; inactivite_s: number;
-    led: Led | null; version: string | null; jeton: string | null;
-  }>(`SELECT id, nom, adresse, veille_active, inactivite_s, led, version, jeton
+    led: Led | null; version: string | null; jeton: string | null; age_mode: string | null;
+  }>(`SELECT id, nom, adresse, veille_active, inactivite_s, led, version, jeton,
+              sante->>'age_mode' AS age_mode
         FROM borne WHERE id = $1 AND compte_id = $2`, [id, u.compte_id]);
   if (!b) notFound();
 
@@ -206,10 +207,16 @@ export default async function Affichage({
               <strong>Bandeau lumineux</strong>
               <span className="faible" style={{ fontSize: 13.5 }}>La couleur du cadre de la machine.</span>
             </div>
-            <AnneauLed id={b.id} initial={b.led ?? LED_DEFAUT}
+            {/* Le lecteur d'identite en mode scanner occupe ttyS3, le port du
+                bandeau : ces RedBox n'ont pas de bandeau (constat du terrain). */}
+            {b.age_mode === "scanner" ? (
+              <p className="faible" style={{ margin: "8px 0 0" }}>
+                Cette RedBox n’a pas de bandeau : son lecteur d’identité occupe le port du bandeau.
+              </p>
+            ) : <AnneauLed id={b.id} initial={b.led ?? LED_DEFAUT}
                        absent={!b.jeton ? "machine non appairée : la couleur s’appliquera après l’appairage."
                          : !anterieureA(b.version, 5, 27) ? null
-                         : `cette RedBox a la ${b.version ?? "version inconnue"} : il faut la ${VERSION_LED} pour appliquer la couleur.`} />
+                         : `cette RedBox a la ${b.version ?? "version inconnue"} : il faut la ${VERSION_LED} pour appliquer la couleur.`} />}
           </section>
         )}
 
