@@ -1,5 +1,6 @@
 import { q, entier } from "@/db";
 import { peutConfigurer, peutVoirBorne, utilisateurDe, versPage } from "@/lib/auth";
+import { pousserBornes } from "@/lib/temps-reel";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +36,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
        AND jeton NOT LIKE 'demo\\_%' AND jeton NOT LIKE 'vitrine\\_%'
      RETURNING id`, [id, u.compte_id]);
 
+  // On la reveille : son prochain appel recoit le 401 et elle se delie tout de
+  // suite (code d'usine compris) au lieu d'attendre jusqu'a cinq minutes.
+  if (n.length > 0) await pousserBornes([id]);
   return versPage(req, n.length > 0 ? "/bornes?d=1" : `/bornes/${id}`);
 }
