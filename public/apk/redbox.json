@@ -1,8 +1,8 @@
 {
-  "version": "5.30",
-  "version_code": 80,
-  "fichier": "/apk/redbox-5.30.apk",
-  "taille": 2102992,
-  "sha256": "803b2814a9f6da0cbaf210fa8c831c2d44ee9cd1706da52f8591ae1e49e27892",
-  "publie_le": "2026-11-23T21:07:52.173Z"
+  "version": "5.33",
+  "version_code": 83,
+  "fichier": "/apk/redbox-5.33.apk",
+  "taille": 2103572,
+  "sha256": "734d80dfcefb3e5d06b800f612a902743ccbda628574db3c450d639c88f148f3",
+  "publie_le": "2026-11-25T20:10:53.480Z"
 }
