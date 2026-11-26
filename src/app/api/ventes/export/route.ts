@@ -1,7 +1,7 @@
 import { q, FUSEAU } from "@/db";
 import { utilisateurDe } from "@/lib/auth";
-import { FENETRES, periodeDe } from "@/lib/tableau";
-import { LIBELLES } from "@/lib/ventes";
+import { periodeDe } from "@/lib/tableau";
+import { LIBELLES, filtresDe, sqlFiltres } from "@/lib/ventes";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,7 @@ const TVA = 0.20;
 
 /**
  * GET /api/ventes/export?f=30&b=12          les ventes de la periode, ligne par ligne
+ *     (ou du=…&au=…, et q, statut, produit : les memes filtres que la page Ventes)
  * GET /api/ventes/export?resume=1&b=12      le resume des douze derniers mois
  *
  * L'EXPORT COMPTABLE. Un fichier CSV que l'expert-comptable ouvre dans Excel
@@ -21,10 +22,11 @@ export async function GET(req: Request) {
   const u = await utilisateurDe(req);
   if (!u) return new Response("non connecté", { status: 401 });
   const sp = new URL(req.url).searchParams;
-  const fen = FENETRES.find((x) => x.cle === sp.get("f")) ?? FENETRES.find((x) => x.cle === "30")!;
   const b = Number(sp.get("b")) || null;
   const bornes = b ? (u.bornes === null || u.bornes.includes(b) ? [b] : []) : u.bornes;
   const resume = sp.get("resume") === "1";
+  const per = await periodeDe(sp.get("f") ?? undefined, sp.get("du") ?? undefined, sp.get("au") ?? undefined);
+  const fl = filtresDe({ q: sp.get("q"), statut: sp.get("statut"), produit: sp.get("produit") });
 
   const euros = (c: number) => (c / 100).toFixed(2).replace(".", ",");
   const cellule = (v: string | number | null | undefined) => {
@@ -57,17 +59,17 @@ export async function GET(req: Request) {
   } else {
     // LES MEMES BORNES QUE LE TABLEAU : « 7 jours » commence a minuit, heure de
     // Paris, il y a six jours. L'export de now() - 7 jours ne contenait pas les
-    // memes ventes que l'ecran dont on l'avait tire.
-    const per = await periodeDe(fen.cle);
+    // memes ventes que l'ecran dont on l'avait tire. Les memes parametres, aux
+    // memes rangs, et le meme fragment de filtres que la page.
     const ventes = await q<{ faite_le: string; borne: string; produit: string | null; sku: string | null; prix_c: number;
                              statut: string; commande_id: string; lane: number | null }>(`
       SELECT to_char(v.faite_le AT TIME ZONE '${FUSEAU}', 'YYYY-MM-DD HH24:MI') AS faite_le,
              b.nom AS borne, p.nom AS produit, p.sku, v.prix_c, v.statut, v.commande_id, v.lane
         FROM vente v JOIN borne b ON b.id = v.borne_id
         LEFT JOIN produit p ON p.id = v.produit_id
-       WHERE b.compte_id = $1 AND ($2::bigint[] IS NULL OR b.id = ANY($2))
-         AND v.faite_le >= $3
-       ORDER BY v.faite_le`, [u.compte_id, bornes, per.debut]);
+       WHERE b.compte_id = $1 AND ($4::bigint[] IS NULL OR b.id = ANY($4))
+         AND v.faite_le >= $2 AND v.faite_le < $3 ${sqlFiltres(5)}
+       ORDER BY v.faite_le`, [u.compte_id, per.debut, per.fin, bornes, fl.q, fl.statut, fl.produit]);
     lignes.push(["Date", "RedBox", "Produit", "Référence", "Spire", "Prix TTC (€)", "Prix HT (€)", "TVA (€)", "Statut", "Commande"]);
     for (const v of ventes) {
       const ht = Math.round(v.prix_c / (1 + TVA));
@@ -77,11 +79,14 @@ export async function GET(req: Request) {
     }
   }
 
-  const entete = `# RedBox — ${resume ? "résumé mensuel, douze derniers mois" : `ventes sur ${fen.nom.toLowerCase()}`}`
+  const filtres = [fl.q ? `commande contenant « ${fl.q} »` : "", fl.statut ? `statut ${LIBELLES[fl.statut] ?? "vendue"}` : "",
+                   fl.produit ? `produit n° ${fl.produit}` : ""].filter(Boolean).join(", ");
+  const entete = `# RedBox — ${resume ? "résumé mensuel, douze derniers mois"
+                                     : `ventes ${per.cle === "perso" ? per.nom : `sur ${per.nom.toLowerCase()}`}${filtres ? ` (${filtres})` : ""}`}`
     + ` — compte ${u.compte} — export du ${new Date().toLocaleDateString("fr-FR", { timeZone: FUSEAU })}`
     + ` — HT et TVA recomposés au taux de ${Math.round(TVA * 100)} %\n`;
   const corps = "﻿" + cellule(entete.trimEnd()) + "\r\n" + lignes.map((l) => l.map(cellule).join(";")).join("\r\n") + "\r\n";
-  const nom = `redbox-${resume ? "resume-mensuel" : `ventes-${fen.cle}j`}${b ? `-redbox-${b}` : ""}.csv`;
+  const nom = `redbox-${resume ? "resume-mensuel" : `ventes-${per.cle === "perso" ? "perso" : `${per.cle}j`}`}${b ? `-redbox-${b}` : ""}.csv`;
   return new Response(corps, {
     headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${nom}"`, "Cache-Control": "no-store" },
   });

@@ -52,6 +52,40 @@ export const SQL_A_REGARDER = `v.statut IN (${liste(A_REGARDER)}) AND v.traite_l
 export const SQL_AVORTEE = `v.statut IN (${liste(AVORTEES)})`;
 
 /**
+ * LES FILTRES DE LA PAGE VENTES — ET DE SON EXPORT, QUI LIT LES MEMES.
+ *
+ * Ecrits une fois : un fichier qui ne contiendrait pas les lignes de l'ecran
+ * dont on l'a tire ne servirait a rien a un comptable. Ce qui ne se lit pas est
+ * ignore (un statut inconnu, un produit qui n'est pas un nombre) plutot que de
+ * faire tomber la page.
+ */
+export type Filtres = { q: string | null; statut: string | null; produit: number | null };
+
+export function filtresDe(p: { q?: string | null; statut?: string | null; produit?: string | null }): Filtres {
+  const q = (p.q ?? "").trim().slice(0, 64);
+  return {
+    q: q || null,
+    statut: p.statut && STATUTS.includes(p.statut) ? p.statut : null,
+    produit: p.produit && /^\d{1,12}$/.test(p.produit) ? Number(p.produit) : null,
+  };
+}
+
+/**
+ * Le fragment SQL des filtres. `n` est le rang du premier de ses trois
+ * parametres : q, statut, produit, dans cet ordre.
+ *
+ * IL NE FAIT QUE RETIRER DES LIGNES. La portee — le compte et les bornes
+ * ouvertes — reste dans chaque requete qui l'emploie ; un produit d'un autre
+ * compte ne ramene donc rien. `strpos` plutot que LIKE : « % » ou « _ » tapes
+ * dans la recherche sont des caracteres, pas des jokers.
+ */
+export function sqlFiltres(n: number): string {
+  return `AND ($${n}::text IS NULL OR strpos(upper(v.commande_id), upper($${n}::text)) > 0)
+          AND ($${n + 1}::text IS NULL OR v.statut = $${n + 1}::text)
+          AND ($${n + 2}::bigint IS NULL OR v.produit_id = $${n + 2}::bigint)`;
+}
+
+/**
  * Les bornes jusqu'a la 5.12 ne distinguaient rien : tout ce qui s'arretait avant
  * la spirale arrivait en `non_distribue` sans canal. On le range a sa place a
  * l'arrivee, tant qu'il en reste une en service.
