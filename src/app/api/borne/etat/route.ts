@@ -274,6 +274,14 @@ export async function POST(req: Request) {
     // Les spires qui viennent d'atteindre leur seuil « bas » dans ce releve.
     const basses: { lane: number; nom: string | null; reste: number; ailleurs: number }[] = [];
     const neufs = (r.ventes ?? []).length > 0 && await baseMigree((sql) => c.query(sql));
+    // LES PRODUITS DU LOT EN UNE LECTURE, pas une par vente : cinquante ventes
+    // faisaient cinquante allers-retours avant meme d'ecrire quoi que ce soit.
+    const skus = [...new Set((r.ventes ?? []).map((v) => v?.sku).filter((s): s is string => typeof s === "string" && !!s))];
+    const parSku = new Map((skus.length > 0
+      ? (await c.query<{ id: number; nom: string; sku: string }>(
+          "SELECT id, nom, sku FROM produit WHERE compte_id = $1 AND sku = ANY($2::text[])",
+          [borne.compte_id, skus])).rows
+      : []).map((p) => [p.sku, p]));
     for (const v of r.ventes ?? []) {
       // UNE VENTE ILLISIBLE EST ECARTEE, PAS LE RELEVE. Un prix ou une date
       // impossible faisait echouer l'INSERT, donc toute la transaction : la
@@ -287,11 +295,7 @@ export async function POST(req: Request) {
       if (!CONNUS.has(v.statut)) continue;
       const voulu = statutRecu(r.version, v.statut, v.lane);
       const statut = neufs ? voulu : rabattu(voulu);
-      const trouve = v.sku
-        ? (await c.query<{ id: number; nom: string }>(
-            "SELECT id, nom FROM produit WHERE compte_id = $1 AND sku = $2",
-            [borne.compte_id, v.sku])).rows[0] ?? null
-        : null;
+      const trouve = v.sku ? parSku.get(v.sku) ?? null : null;
       const produit = trouve?.id ?? null;
       // Le rang de l'article dans la commande, depuis la 5.13. Il fait partie de
       // la cle : sans lui, deux articles servis par la meme spirale n'en font
@@ -307,57 +311,65 @@ export async function POST(req: Request) {
       // le serait aussi — a traiter si une machine en envoie un jour.
       const article = Number.isInteger(v.article) ? v.article : null;
       const prix = Math.max(0, Math.round(v.prix_centimes));
-      const ins = neufs
-        ? await c.query<{ id: number }>(`
-            INSERT INTO vente (borne_id, commande_id, article, lane, produit_id, prix_c, statut, faite_le)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamp AT TIME ZONE 'UTC')
-            ON CONFLICT (borne_id, commande_id, lane, article) DO NOTHING
-            RETURNING id`,
-            [borne.id, v.commande_id, article, v.lane ?? null, produit, prix, statut, v.faite_le])
-        : await c.query<{ id: number }>(`
-            INSERT INTO vente (borne_id, commande_id, lane, produit_id, prix_c, statut, faite_le)
-            VALUES ($1,$2,$3,$4,$5,$6,$7::timestamp AT TIME ZONE 'UTC')
-            ON CONFLICT (borne_id, commande_id, lane) DO NOTHING
-            RETURNING id`,
-            [borne.id, v.commande_id, v.lane ?? null, produit, prix, statut, v.faite_le]);
+      // Seule une distribution confirmee sort du stock. Un litige est un
+      // probleme d'argent, pas de marchandise : elle est toujours dans la machine.
+      const sort = statut === "distribue" && !!produit && !!borne.lieu_id;
+      /**
+       * LA VENTE, SON MOUVEMENT ET SON CANAL EN UNE INSTRUCTION, pas trois.
+       *
+       * Le mouvement et le canal ne partent que si la vente etait nouvelle :
+       * `ins` ne rend rien quand le conflit a joue, et les deux autres s'y
+       * accrochent. Les ventes restent ecrites UNE PAR UNE, dans l'ordre du
+       * lot : le seuil d'une spire se franchit donc toujours au passage exact.
+       *
+       * Le canal suit la vente. `GREATEST` parce qu'un compteur negatif ne veut
+       * rien dire : si la machine a distribue plus que ce que nous pensions
+       * qu'elle portait, c'est notre chiffre qui etait faux, et l'ecart avec le
+       * sien le dira mieux qu'un nombre en dessous de zero.
+       */
+      const ins = await c.query<{ id: number; quantite: number | null; seuil_bas: number | null }>(`
+        WITH ins AS (
+          INSERT INTO vente (borne_id, commande_id, ${neufs ? "article, " : ""}lane, produit_id, prix_c, statut, faite_le)
+          VALUES ($1, $2, ${neufs ? "$11, " : ""}$3, $4, $5, $6, $7::timestamp AT TIME ZONE 'UTC')
+          ON CONFLICT (borne_id, commande_id, lane${neufs ? ", article" : ""}) DO NOTHING
+          RETURNING id),
+        mv AS (
+          INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, quantite, motif,
+                                 lane, par, fait_le, confirme_le, vente_id)
+          SELECT $8, $4, $9, 1, 'vente', $3, 'borne',
+                 $7::timestamp AT TIME ZONE 'UTC', $7::timestamp AT TIME ZONE 'UTC', ins.id
+            FROM ins WHERE $10::boolean),
+        ca AS (
+          UPDATE canal SET quantite = GREATEST(0, quantite - 1)
+           WHERE borne_id = $1 AND lane = $3 AND $10::boolean AND EXISTS (SELECT 1 FROM ins)
+          RETURNING quantite, seuil_bas)
+        SELECT ins.id, ca.quantite, ca.seuil_bas FROM ins LEFT JOIN ca ON true`,
+        [borne.id, v.commande_id, v.lane ?? null, produit, prix, statut, v.faite_le,
+         borne.compte_id, borne.lieu_id, sort,
+         // L'article en dernier : sans la migration, il n'a pas de place dans
+         // l'instruction, et un parametre que rien ne nomme ferait tout echouer.
+         ...(neufs ? [article] : [])]);
       if (ins.rowCount === 0) continue;
       retenues++;
       nouvelles.push({ nom: trouve?.nom ?? v.sku ?? null, prix_c: prix, lane: v.lane ?? null, statut });
 
-      // Seule une distribution confirmee sort du stock. Un litige est un
-      // probleme d'argent, pas de marchandise : elle est toujours dans la machine.
-      if (statut === "distribue" && produit && borne.lieu_id) {
-        await c.query(`
-          INSERT INTO mouvement (compte_id, produit_id, de_lieu_id, quantite, motif,
-                                 lane, par, fait_le, confirme_le, vente_id)
-          VALUES ($1,$2,$3,1,'vente',$4,'borne',$5::timestamp AT TIME ZONE 'UTC',$5::timestamp AT TIME ZONE 'UTC',$6)`,
-          [borne.compte_id, produit, borne.lieu_id, v.lane ?? null, v.faite_le, ins.rows[0].id]);
-
-        // Le canal suit la vente. `GREATEST` parce qu'un compteur negatif ne
-        // veut rien dire : si la machine a distribue plus que ce que nous
-        // pensions qu'elle portait, c'est notre chiffre qui etait faux, et
-        // l'ecart avec le sien le dira mieux qu'un nombre en dessous de zero.
-        if (v.lane !== null && v.lane !== undefined) {
-          const reste = await c.query<{ quantite: number; seuil_bas: number }>(`
-            UPDATE canal SET quantite = GREATEST(0, quantite - 1)
-             WHERE borne_id = $1 AND lane = $2 RETURNING quantite, seuil_bas`, [borne.id, v.lane]);
-          const n = reste.rows[0]?.quantite;
-          // La spire vient de vendre son dernier article, ou d'atteindre son
-          // seuil « bas » : c'est le moment de le dire, pas au prochain
-          // inventaire — en precisant ce qu'il en reste sur les autres spires
-          // de la machine, qui sert la suivante.
-          //
-          // LE SEUIL SE FRANCHIT UNE FOIS. On ventile les ventes une par une :
-          // le compteur passe donc exactement par la valeur du seuil, et c'est
-          // a ce passage-la qu'on previent — pas a chaque vente d'apres.
-          if (n === 0 || (n !== undefined && n > 0 && n === reste.rows[0].seuil_bas)) {
-            const ailleurs = (await c.query<{ n: number }>(`
-              SELECT COALESCE(SUM(quantite), 0)::int AS n FROM canal
-               WHERE borne_id = $1 AND produit_id = $2 AND lane <> $3`, [borne.id, produit, v.lane]))
-              .rows[0]?.n ?? 0;
-            if (n === 0) videes.push({ lane: v.lane, nom: trouve?.nom ?? null, ailleurs });
-            else basses.push({ lane: v.lane, nom: trouve?.nom ?? null, reste: n, ailleurs });
-          }
+      if (sort && v.lane !== null && v.lane !== undefined) {
+        const n = ins.rows[0].quantite ?? undefined;
+        // La spire vient de vendre son dernier article, ou d'atteindre son
+        // seuil « bas » : c'est le moment de le dire, pas au prochain
+        // inventaire — en precisant ce qu'il en reste sur les autres spires
+        // de la machine, qui sert la suivante.
+        //
+        // LE SEUIL SE FRANCHIT UNE FOIS. On ventile les ventes une par une :
+        // le compteur passe donc exactement par la valeur du seuil, et c'est
+        // a ce passage-la qu'on previent — pas a chaque vente d'apres.
+        if (n === 0 || (n !== undefined && n > 0 && n === ins.rows[0].seuil_bas)) {
+          const ailleurs = (await c.query<{ n: number }>(`
+            SELECT COALESCE(SUM(quantite), 0)::int AS n FROM canal
+             WHERE borne_id = $1 AND produit_id = $2 AND lane <> $3`, [borne.id, produit, v.lane]))
+            .rows[0]?.n ?? 0;
+          if (n === 0) videes.push({ lane: v.lane, nom: trouve?.nom ?? null, ailleurs });
+          else basses.push({ lane: v.lane, nom: trouve?.nom ?? null, reste: n, ailleurs });
         }
       }
     }
