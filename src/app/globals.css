@@ -53,7 +53,9 @@
   /* Textes */
   --texte:        #f5f5f6;
   --texte-2:      #a6a6ae;
-  --texte-3:      #74747d;
+  /* 4,5:1 au moins sur le fond, les cartes et les survols (--surface-3) : a
+     #74747d il tombait a 3,25:1 sur un survol, illisible pour une vue faible. */
+  --texte-3:      #8e8e95;
 
   /* Etats */
   --vert:         #35b46a;
@@ -92,7 +94,7 @@
   :root:not([data-theme="dark"]) {
     --fond: #f7f7f8;  --surface: #ffffff;  --surface-2: #f2f2f4;
     --surface-3: #e8e8ec; --bord: #e3e3e8; --bord-fort: #cdcdd5;
-    --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #8a8a95;
+    --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #66666e;
     --vert-fond: rgba(53,180,106,.12);
     --ambre-fond: rgba(224,165,0,.16);
     --rouge-fond: rgba(215,0,5,.09);
@@ -103,7 +105,7 @@
 :root[data-theme="light"] {
   --fond: #f7f7f8;  --surface: #ffffff;  --surface-2: #f2f2f4;
   --surface-3: #e8e8ec; --bord: #e3e3e8; --bord-fort: #cdcdd5;
-  --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #8a8a95;
+  --texte: #131317;  --texte-2: #5c5c66;  --texte-3: #66666e;
   --vert-fond: rgba(53,180,106,.12);
   --ambre-fond: rgba(224,165,0,.16);
   --rouge-fond: rgba(215,0,5,.09);
@@ -143,7 +145,7 @@
   --bord-fort:    #2f3e5f;
   --texte:        #f6f8ff;
   --texte-2:      #b3bdd6;
-  --texte-3:      #8590ad;
+  --texte-3:      #8c97b2;
   --plaque-logo:  transparent;
   --ombre-carte:  0 10px 30px -18px rgba(0,0,0,.7);
   --pastille:     #212e48;
@@ -164,7 +166,7 @@
   --bord-fort:    #c5cfe0;
   --texte:        #0f1a33;
   --texte-2:      #45526e;
-  --texte-3:      #66728e;
+  --texte-3:      #5b667f;
   --ambre:        #a67c00;
   --vert-fond:    rgba(53,180,106,.12);
   --ambre-fond:   rgba(166,124,0,.14);
@@ -2162,8 +2164,8 @@ details.groupe .dedans { padding: 0; background: var(--surface-2); border-radius
                          opacity: .85; margin-bottom: 3px; }
 .ecran-borne .t-nom { font-size: 12px; font-weight: 700; line-height: 1.2;
                       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ecran-borne .t-meta { font-size: 9.5px; color: #74747d; }
-.ecran-borne .t-rien { font-size: 12px; color: #74747d; margin: auto 0; text-align: center; }
+.ecran-borne .t-meta { font-size: 9.5px; color: #8e8e95; }
+.ecran-borne .t-rien { font-size: 12px; color: #8e8e95; margin: auto 0; text-align: center; }
 
 /* ------------------------------------------------------------- bouton occupe */
 /*
@@ -2640,7 +2642,7 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
   background: #d70005; border-radius: 6px; padding: 4px 8px;
 }
 .ecran-borne.catalogue .invite {
-  font-size: 9.5px; color: #74747d; padding: 10px 12px 8px;
+  font-size: 9.5px; color: #8e8e95; padding: 10px 12px 8px;
 }
 .ecran-borne.catalogue .grille-produits {
   display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
@@ -2676,7 +2678,7 @@ a.produit-ligne.occupe, a.lieu-ligne.occupe { opacity: .55; }
 .ecran-borne.catalogue .pied-cat {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 12px; margin-top: 10px; background: #141416; border-top: 1px solid #1e1e25;
-  font-size: 9.5px; color: #74747d; line-height: 1.5;
+  font-size: 9.5px; color: #8e8e95; line-height: 1.5;
 }
 .ecran-borne.catalogue .pied-cat b { color: #f5f5f6; font-size: 11px; }
 .ecran-borne.catalogue .cta {
